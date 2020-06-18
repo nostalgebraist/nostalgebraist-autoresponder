@@ -1,0 +1,12 @@
+pytumblr
+numpy
+pandas
+matplotlib
+scikit-learn
+requests
+transformers==2.10.0
+simpletransformers
+boto3
+Pillow
+moviepy
+tqdm

@@ -2,7 +2,6 @@
 Coordinating switchboard that handles communication between the generator, selector, and
 tumblr API compontents.
 """
-import fire
 import json
 import os
 import numpy as np

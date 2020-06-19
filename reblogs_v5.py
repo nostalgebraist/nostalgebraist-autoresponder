@@ -15,7 +15,7 @@ INCLUDE_VERBATIM = {"li", "ul", "ol"}
 NEWLINE_AFTER = {"blockquote", "h2"}
 DOUBLE_NEWLINE_AFTER = {"p", "br"}
 AVOID = {"header", }
-USE_IMAGE_ANALYSIS = {}
+USE_IMAGE_ANALYSIS = {"img"}
 
 from string import whitespace
 from itertools import product

@@ -534,7 +534,7 @@ def respond_to_reblogs_replies(identifiers, reply_set, loop_persistent_data, res
                                                     reply_body=loop_persistent_data.reply_metadata[reblog_identifier]['reply_note']['reply_text'])
         print(f"\n\t--> using question:\n---------\n\t\t{question}\n---------\n")
 
-        # TODO: DRY (this repeats code from answer() in colab_bridge_service.py)
+        # TODO: DRY (this repeats code from answer() in bridge_service.py)
         if "question" in d_boot and "asking_name" in d_boot:
             ask_prefix = UNAME_CHAR + d_boot["asking_name"] + Q_CHAR + "\n" + d_boot["question"] + "\n"
             question = ask_prefix + question

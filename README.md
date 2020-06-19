@@ -37,16 +37,17 @@ Layer 1 requires two sets of tumblr API keys:
 
 Various config options can/should be set in `config.json` (not provided), see `bot_config.py` for what the contents should look like.
 
-### Updating the selector (manual step every week or so)
+#### Updating the selector (manual step every week or so)
 
 Layer 3, the selector, is a BERT model trained on data from user interaction with the bot over time.  This is "implemented" as a human (me) scraping data every so often and running a training script on the data.
 
 - Code to scrape this data is in `reward_data.py`.  I do this "manually" in a python session by importing the function `scrape_new_and_save` and calling it.
 - Training the model from the data happens in `train_selector.ipynb`
 
-### Training the generator (one-time)
+#### Training the generator (one-time)
 
 The model for layer 2, the generator, should be fine-tuned on an appropriately scraped and pre-processed tumblr corpus.  This is a step which only needs to happen once, but is required for the bot to run at all.
 
 - To scrape HTML from tumblr, use [this tool](gist.github.com/doersino/7e3e5db591e42bf543e1) or a similar one
 - The notebook `prep_generator_training_dataset.ipynb` does the pre-processing, given scraped HTML from tumblr.
+

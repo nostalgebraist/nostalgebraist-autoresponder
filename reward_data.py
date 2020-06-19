@@ -8,7 +8,7 @@ I run scrape_new_and_save manually once per ~7 days, then retrain selector model
 import os, textwrap, time, pickle
 
 from bs4 import BeautifulSoup
-from reblogs_v4 import *
+from reblogs_v5 import *
 
 from ratelimit_util import RateLimitClient
 from response_cache import ResponseCache, PostIdentifier, CachedResponseType

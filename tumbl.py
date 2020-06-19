@@ -1151,7 +1151,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
         elif x.get('summary', '') == MOOD_GRAPH_COMMAND:
             path = create_mood_graph(
                 response_cache,
-                start_time=datetime.now()-pd.Timedelta(days=1),
+                start_time=datetime.now()-pd.Timedelta(days=MOOD_GRAPH_N_DAYS),
                 end_time=datetime.now()
                 )
             base_client.create_photo(blogName,

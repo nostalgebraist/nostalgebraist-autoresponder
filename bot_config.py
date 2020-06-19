@@ -76,4 +76,4 @@ class BotSpecificConstants:
 
     @property
     def dashboard_client(self) -> pytumblr.TumblrRestClient:
-        return pytumblr.TumblrRestClient(*reblogs_v5.pyself.dashboard_client_api_keys)
+        return pytumblr.TumblrRestClient(*self.dashboard_client_api_keys)

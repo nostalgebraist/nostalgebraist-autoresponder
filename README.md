@@ -51,3 +51,29 @@ The model for layer 2, the generator, should be fine-tuned on an appropriately s
 - To scrape HTML from tumblr, use [this tool](gist.github.com/doersino/7e3e5db591e42bf543e1) or a similar one
 - The notebook `prep_generator_training_dataset.ipynb` does the pre-processing, given scraped HTML from tumblr.
 
+### Repo structure
+
+- Scripts that should run simultaneously while the bot is in operation (details above)
+  - `tumbl.py`
+  - `bridge_service.py`
+  - `selector.py`
+  - `generator.ipynb`
+- Core helper code used by the scripts
+  - `bot_config.py` (loader for string constants like API keys, "bad words" to screen for, etc)
+  - `ratelimit_util.py` (tumblr API helper)
+  - `response_cache.py` (originally tumblr API helper, has now scope creeped into being a general-purpose cache)
+  - `reblogs_v5.py` (text munger to convert structured tumblr data into text for GPT-2)
+- Helper code for specific, less central features
+  - `reply_munging.py` (responding to replies in an Xkit-like manner)
+  - `sentiment.py` (wrapper around a sentiment analysis API, for the "mood" feature)
+  - `mood.py` (basics of the "mood" feature)
+  - `mood_dynamic.py` (evolves mood over time as an ODE system, computes the forcing term)
+  - `image_analysis.py` (wrappers for a image recognition API)
+- Model training scripts/code
+  - `reward_data.py` (scrape note counts for selector model)
+  - `train_selector.ipynb` (train selector model)
+  - `prep_generator_training_dataset.ipynb`
+  - `gpt-2/*` (implements GPT-2 for training and running the generator)
+  - `gpt-2/train.py` (train script for the generator -- TODO: share the args I run this with)
+  
+Note that all the Jupyter notebooks assume you are running them in Google Colab, with the code under `gpt-2/` in a Google Drive associated with the same account, and (when applicable) models or data in sub-directories `gpt-2/data/`, `gpt-2/models/`, or `gpt-2/reward/`.  If you have used OpenAI's gpt-2 repo on Colab before, this setup should be familiar.  These notebooks can be run in other types of environments with some straightforward modifications.

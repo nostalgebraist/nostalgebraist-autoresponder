@@ -2,22 +2,27 @@
 
 Code for the tumblr bot [nostalgebraist-autoresponder](https://nostalgebraist-autoresponder.tumblr.com/).
 
-This is not good code!  It is a personal project for my own entertainment.
+### Disclaimers
 
-This repo mostly exists for people familiar with the bot who are interested in how it works.  In principle, you could use this to run a similar bot of your own, but I don't expect that to be easy and haven't taken steps to specifically support that use case.
+*This is not good code!* It is a personal project for my own entertainment.  Code style varies greatly, some code is still in horrible Jupyter notebooks (or still bears the scars of its origins in horrible Jupyter notebooks), the various components are coupled together in subtle ways, etc.
+
+*This is not the version of the code being actively developed, or the version that is operational.*  It is a slightly cleaned-up snapshot of the project, with a fresh git history, as of 6/18/20.  All the components of the real bot are here except the serialized models and other data files, but I haven't verified that it all works the way the "live" version does.  The cleanup process may have introduced a bug here or there.
+
+*This isn't a platform for building tumblr bots or GPT-2 bots.*.  This repo mostly exists for people familiar with my bot who are interested in how it works.  In principle, you could use this to run a similar bot of your own, but I don't expect that to be easy and haven't taken steps to specifically support that use case.
 
 ### Running the bot (continuous)
 
 The bot consists of the following processes, running simultaneously:
 
 1. tumblr API layer
-  - script `tumbl.py`
+    - script `tumbl.py`
 2. generator layer
-  - something like the notebook `generator.ipynb`, if supplied with a GPU, an appropriately fine-tuned GPT-2, a dataset to get textpost prompts from, etc.
+    - something like the notebook `generator.ipynb`
+    - ...if supplied with a GPU, an appropriately fine-tuned GPT-2, a dataset to get textpost prompts from, etc.
 3. selector layer
-  - script `selector.py`
+    - script `selector.py`
 4. switchboard layer
-  - script `bridge_service.py`
+    - script `bridge_service.py`
 
 1-3 communicate by sending requests to 4.
 

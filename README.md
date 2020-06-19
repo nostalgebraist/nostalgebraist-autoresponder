@@ -10,7 +10,7 @@ For some context, see [here](https://nostalgebraist.tumblr.com/tagged/nostalgebr
 
 *This is not the version of the code being actively developed, or the version that is operational.*  It is a slightly cleaned-up snapshot of the project, with a fresh git history, as of 6/18/20.  All the components of the real bot are here except the serialized models and other data files, but I haven't verified that it all works the way the "live" version does.  The cleanup process may have introduced a bug here or there.
 
-*This isn't a platform for building tumblr bots or GPT-2 bots.*.  This repo mostly exists for people familiar with my bot who are interested in how it works.  In principle, you could use this to run a similar bot of your own, but I don't expect that to be easy and haven't taken steps to specifically support that use case.
+*This isn't a platform for building tumblr bots or GPT-2 bots.*  This repo mostly exists for people familiar with my bot who are interested in how it works.  In principle, you could use this to run a similar bot of your own, but I don't expect that to be easy and haven't taken steps to specifically support that use case.
 
 ### How this code implements the bot
 

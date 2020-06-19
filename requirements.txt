@@ -1,4 +1,5 @@
 pytumblr
+beautifulsoup4
 numpy
 pandas
 matplotlib

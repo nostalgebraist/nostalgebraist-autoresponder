@@ -41,7 +41,7 @@ class BotSpecificConstants:
         self.base_client_api_keys = base_client_api_keys
         self.dashboard_client_api_keys = dashboard_client_api_keys
 
-        #   should be localhost port 5000 if you run bridge service w/o modification
+        # should be localhost port 5000 if you run bridge service w/o modification
         self.bridge_service_url = bridge_service_url
 
         # don't interact or mention these users

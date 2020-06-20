@@ -119,6 +119,9 @@ def batch_execute_callspecs(specs: List[CallSpec], byte_list: List[bytes], sleep
                             postprocessor_kwargs: List[dict]=None) -> dict:
     results = []
 
+    if postprocessor_kwargs is None:
+        postprocessor_kwargs = [{} for _ in specs]
+
     for b in tqdm(byte_list):
         results_one = {}
         for spec, kwargs in tqdm(zip(specs, postprocessor_kwargs)):

@@ -8,7 +8,7 @@ For some context, see [here](https://nostalgebraist.tumblr.com/tagged/nostalgebr
 
 *This is not good code!* It is a personal project for my own entertainment.  Code style varies greatly, some code is still in horrible Jupyter notebooks (or still bears the scars of its origins in horrible Jupyter notebooks), the various components are coupled together in subtle ways, etc.
 
-*This is not the version of the code being actively developed, or the version that is operational.*  It is a slightly cleaned-up snapshot of the project, with a fresh git history, as of 6/18/20.  All the components of the real bot are here except the serialized models and other data files, but I haven't verified that it all works the way the "live" version does.  The cleanup process may have introduced a bug here or there.
+*This is not the version of the code being actively developed, or the version that is operational.*  It is a slightly cleaned-up snapshot of the project, with a fresh git history, synced up to the operational code only occasionally.  All the components of the real bot are here except the serialized models and other data files, but I haven't verified that it all works the way the "live" version does.  The cleanup process may have introduced a bug here or there.
 
 *This isn't a platform for building tumblr bots or GPT-2 bots.*  This repo mostly exists for people familiar with my bot who are interested in how it works.  In principle, you could use this to run a similar bot of your own, but I don't expect that to be easy and haven't taken steps to specifically support that use case.
 
@@ -25,6 +25,7 @@ When running and communicating with tumblr, the bot consists of the following pr
     - ...if supplied with a GPU, an appropriately fine-tuned GPT-2, a dataset to get textpost prompts from, etc.
 3. selector layer
     - script `selector.py`
+      - NOTE: in the latest version of this project, the selector also runs in `generator.ipynb`, and `selector.py` is only responsible for some "plumbing" steps unrelated to the selector ML model
 4. switchboard layer
     - script `bridge_service.py`
 
@@ -39,10 +40,31 @@ Various config options can/should be set in `config.json` (not provided), see `b
 
 #### Updating the selector (manual step every week or so)
 
-Layer 3, the selector, is a BERT model trained on data from user interaction with the bot over time.  This is "implemented" as a human (me) scraping data every so often and running a training script on the data.
+Layer 3, the selector, is a model trained on data from user interaction with the bot over time.
 
-- Code to scrape this data is in `reward_data.py`.  I do this "manually" in a python session by importing the function `scrape_new_and_save` and calling it.
-- Training the model from the data happens in `train_selector.ipynb`
+The iterative learning of the selector is "implemented" as a human (me) scraping data every so often and running a training script on the data.
+
+- The content of the posts should be scraped from tumblr using the same pipeline used to scrape train data for the generator (see below).
+  - This means scraping tumblr using an appropriate utility, and running a section in `prep_generator_training_dataset.ipynb`.
+- Code to scrape notes, and associate them with the post content, is in `reward_data.py`.  I do this "manually" in a python session by importing the function `scrape_new_and_save` and calling it.
+
+Training the selector depends on which version of the model you are training.
+
+##### New selector approach
+
+This describes the approach used after sometime in June 2020.
+
+The selector is an attention-plus-MLP neural net whose inputs are the activations in some of the generator layers, when the generator views the text it wrote.
+
+Training the model from the data happens in `train_generator_to_select.ipynb`.
+
+##### Old selector approach
+
+This describes the approach used before sometime in June 2020.
+
+The selector is a BERT model whose inputs are text.
+
+Training the model from the data happens in `train_selector.ipynb`.
 
 #### Training the generator (one-time)
 
@@ -50,6 +72,7 @@ The model for layer 2, the generator, should be fine-tuned on an appropriately s
 
 - To scrape HTML from tumblr, use [this tool](https://github.com/bbolli/tumblr-utils) or a similar one
 - The notebook `prep_generator_training_dataset.ipynb` does the pre-processing, given scraped HTML from tumblr.
+- To train on the pre-processed dataset, use `train_generator.ipynb`
 
 ### Repo structure
 
@@ -71,9 +94,11 @@ The model for layer 2, the generator, should be fine-tuned on an appropriately s
   - `image_analysis.py` (wrappers for a image recognition API)
 - Model training scripts/code
   - `reward_data.py` (scrape note counts for selector model)
-  - `train_selector.ipynb` (train selector model)
+  - `train_generator_to_select.ipynb` (train selector model, "new approach")
+  - `train_selector.ipynb` (train selector model, "old approach")
   - `prep_generator_training_dataset.ipynb`
   - `gpt-2/*` (implements GPT-2 for training and running the generator)
-  - `gpt-2/train.py` (train script for the generator -- TODO: share the args I run this with)
+  - `gpt-2/train.py` (python train script for the generator)
+  - `train_generator.ipynb` (train generator on google colab, lightweight notebook wrapper around `gpt-2/train.py`)
 
 Note that all the Jupyter notebooks assume you are running them in Google Colab, with the code under `gpt-2/` in a Google Drive associated with the same account, and (when applicable) models or data in sub-directories `gpt-2/data/`, `gpt-2/models/`, or `gpt-2/reward/`.  If you have used OpenAI's gpt-2 repo on Colab before, this setup should be familiar.  These notebooks can be run in other types of environments with some straightforward modifications.

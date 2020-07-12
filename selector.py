@@ -42,8 +42,15 @@ RETENTION_STACK = {}
 RESULT_STACK = {}
 wrapped = None
 
-MODEL_NAME = "bert_6_18_20_LARGE"
+MODEL_NAME = "bert_6_25_20_WITH_FIX"
 VERIFY_MODEL = False
+
+RETENTION_CUTOFF = 0.6
+ENFORCE_RETENTION_CUTOFF = True
+
+SELECT_VIA_GENERATOR = True
+EOT_WORKAROUND = True
+eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
 BERT_CONFIG_DEFAULT = {"model_type": "roberta",
                        "model_name": "roberta-large",
@@ -164,19 +171,23 @@ def show_note_preds(texts, preds):
     print("\n".join(wrap(tpe)))
     print("\n~_~_~_~_~_\n")
 
-def show_note_probas(texts, probas, continuation_sentiments=None):
+def show_note_probas(texts, probas, continuation_sentiments=None, other_proba=None):
     if continuation_sentiments is None:
-        for tpe, proba in zip(texts, probas):
-            print(f"\tpredicted prob: {proba:.1%}\n")
-            print("\n~_~_~_~_~_\n")
-            print("\n".join(wrap(tpe)))
-            print("\n~_~_~_~_~_\n")
+        sent_segments = ["" for _ in texts]
     else:
-        for tpe, proba, sent in zip(texts, probas, continuation_sentiments):
-            print(f"\tpredicted prob: {proba:.1%}, pos_sent {pos_sent(sent):.1%}\n")
-            print("\n~_~_~_~_~_\n")
-            print("\n".join(wrap(tpe)))
-            print("\n~_~_~_~_~_\n")
+        sent_segments = [f", pos_sent {pos_sent(sent):.1%}" for sent in continuation_sentiments]
+
+    if other_proba is None:
+        other_proba_segments = ["" for _ in texts]
+    else:
+        other_proba_segments = [f", other_proba {p:.1%}" if p is not None else "other_proba None"
+                                for p in other_proba]
+
+    for tpe, proba, sseg, opseg in zip(texts, probas, sent_segments, other_proba_segments):
+        print(f"\tpredicted prob: {proba:.1%}{opseg}{sseg}\n")
+        print("\n~_~_~_~_~_\n")
+        print("\n".join(wrap(tpe)))
+        print("\n~_~_~_~_~_\n")
 
 def verify_new_model():
     global wrapped
@@ -192,18 +203,28 @@ def parse_continuation(continuation: str, verbose=True):
 
     # split out tags, if present
     post, _ , tag_text = continuation.partition(T_CHAR)
-    tag_text = tag_text.partition("<|")[0] # drop stuff after <|
+    tag_text = tag_text.partition(eot_end_segment)[0]  # drop stuff after eot_end_segment
+    tag_text = tag_text.partition('<|')[0]  # temporarily support old EOT format
 
     tags = []
     if len(tag_text) > 0:
         tags = [s.rstrip(" ") for s in tag_text.split("#")]
 
-    post = post.lstrip(ORIG_POST_CHAR)
+    # handle mistake i made in AR V6 :(
+    if "#original fiction" in post:
+        post_after_fic_tag = post[post.index("#original fiction"):]
+        if len(post_after_fic_tag.split()) < 10:
+            fic_tags = [s.rstrip(" ") for s in post_after_fic_tag.split("#")]
+            print(f"converting {post_after_fic_tag} to {fic_tags}")
+            tags = fic_tags + tags
+            post = post[:post.index("#original fiction")]
+
+    post = post.lstrip(ORIG_POST_CHAR) # TODO: fix this in get_prompted_continuation_with_length_proportional_sampling
     parsed = {"post": post, "tags": tags}
     return parsed
 
 
-def winndow_probabilities(proba, lower=0.3, upper=0.65):
+def winndow_probabilities(proba, lower=0.15, upper=0.65):
     proba_ = proba.copy()
     exclusion_mask = np.zeros_like(proba, dtype=bool)
 
@@ -236,7 +257,10 @@ def get_continuation_sentiments(continuations, sleep_time=0.2):
     return continuation_sentiments
 
 
-def sentiment_screen(continuations, mood):
+def sentiment_screen(continuations, mood, selection_proba=None):
+    if selection_proba is None:
+        selection_proba = [None for _ in continuations]
+
     all_continuation_sentiments = get_continuation_sentiments(continuations)
 
     score_fn = mood['score_fn']
@@ -276,7 +300,9 @@ def sentiment_screen(continuations, mood):
                               for mask, cont in zip(exclusion_mask, continuations)
                               if not mask]
 
-    return retained_continuations, retained_continuation_sentiments, all_continuation_sentiments
+    retained_selection_proba = [p for mask, p in zip(exclusion_mask, selection_proba) if not mask]
+
+    return retained_continuations, retained_continuation_sentiments, retained_selection_proba, all_continuation_sentiments
 
 
 def sentiment_screen_legacy(proba, continuations, mood):
@@ -319,8 +345,15 @@ def sentiment_screen_legacy(proba, continuations, mood):
 
 def serve_selection(data):
   global RETENTION_STACK
+  global RETENTION_STACK_PROBA
   global wrapped
   continuations = data["continuations"]
+  selection_proba = data.get("selection_proba")
+  if selection_proba is not None:
+      print(f"len(selection_proba): {len(selection_proba)} vs len(continuations): {len(continuations)}")
+  else:
+      print("selection_proba is None")
+
   kwargs = data["kwargs"]
   mood = kwargs.get("mood")
 
@@ -329,7 +362,12 @@ def serve_selection(data):
     strategy = kwargs['strategy']
 
   if (data['type'] == 'textpost') and (strategy != "uniform"):
-      continuations += list(RETENTION_STACK)
+      continuations += sorted(RETENTION_STACK)
+      if selection_proba is not None:
+          if RETENTION_STACK_PROBA is not None:
+              selection_proba += RETENTION_STACK_PROBA
+          else:
+              selection_proba += [None for _ in RETENTION_STACK]
   base_id = data["base_id"]
 
   do_mood_screen = False
@@ -337,16 +375,19 @@ def serve_selection(data):
         do_mood_screen = mood.get("name") != "unrestricted"
 
   if do_mood_screen:
-    continuations, continuation_sentiments, all_continuation_sentiments = sentiment_screen(
-            continuations, mood
+    continuations, continuation_sentiments, selection_proba, all_continuation_sentiments = sentiment_screen(
+            continuations, mood, selection_proba
         )
   else:
         continuation_sentiments = get_continuation_sentiments(continuations)
         all_continuation_sentiments = continuation_sentiments
 
+  if SELECT_VIA_GENERATOR:
+      proba = np.asarray(selection_proba)
+      show_note_probas(continuations, proba, continuation_sentiments)
+  else:
   proba = wrapped.predict_proba([s.lstrip("翰") for s in continuations])[:, 1]
-
-  show_note_probas(continuations, proba, continuation_sentiments)
+      show_note_probas(continuations, proba, continuation_sentiments, other_proba=selection_proba)
 
   if strategy == "argmax":
     #choice_ix = preds.argmax()
@@ -376,7 +417,7 @@ def serve_selection(data):
 
   if data['type'] == 'textpost':
       for i, p in enumerate(proba):
-        if p > 0.65 and continuations[i] not in RETENTION_STACK:
+        if p > RETENTION_CUTOFF and continuations[i] not in RETENTION_STACK:
             RETENTION_STACK.add(continuations[i])
 
       if continuation in RETENTION_STACK:
@@ -417,25 +458,50 @@ def serve_selection(data):
 
 def select_one(data):
     global wrapped
-    text = data['text']
-    texts = [text]
+    texts = data['texts']
 
     proba = wrapped.predict_proba([s.lstrip("翰") for s in texts])[:, 1]
 
-    return_proba = float(proba[0])
+    selection_proba = [float(p) for p in proba]
+    results = {"selection_proba": selection_proba}
 
-    print(f"sending back: {return_proba}")
-    return return_proba
+    print(f"sending back: {results}")
+    return results
 
+def apply_retention_cutoff():
+    global RETENTION_STACK
+    global RETENTION_STACK_PROBA
+
+    n_before_stack, n_before_proba = len(RETENTION_STACK), len(RETENTION_STACK_PROBA)
+    retain = [p > RETENTION_CUTOFF for p in RETENTION_STACK_PROBA]
+
+    new_stack = [s for s, r in zip(sorted(RETENTION_STACK), retain) if r]
+    new_proba = [p for p, r in zip(RETENTION_STACK_PROBA, retain) if r]
+
+    RETENTION_STACK = set(new_stack)
+    RETENTION_STACK_PROBA = new_proba
+
+    n_after_stack, n_after_proba = len(RETENTION_STACK), len(RETENTION_STACK_PROBA)
+
+    all_unchanged = (n_before_stack == n_after_stack) and (n_before_proba == n_after_proba)
+    if not all_unchanged:
+        print(f"before: {n_before_stack} in RETENTION_STACK, {n_before_proba} in RETENTION_STACK_PROBA")
+        print(f"after: {n_after_stack} in RETENTION_STACK, {n_after_proba} in RETENTION_STACK_PROBA")
 
 def poll():
   global RESULT_STACK
   global RETENTION_STACK
+  global RETENTION_STACK_PROBA
 
   r = requests.post(selector_url, json={"results": RESULT_STACK,
-                                                                "n_retention": len(RETENTION_STACK),})
+                                        "retention_stack": sorted(RETENTION_STACK),})
 
-  PROMPT_STACK = r.json()
+  received_data = r.json()
+  PROMPT_STACK = received_data["SELECTION_PROMPT_STACK"]
+  RETENTION_STACK_PROBA = received_data["RETENTION_STACK_PROBA"]
+
+  if ENFORCE_RETENTION_CUTOFF and RETENTION_STACK_PROBA is not None:
+      apply_retention_cutoff()
 
   RESULT_STACK = {k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK}  # clean out already used results
 
@@ -450,7 +516,7 @@ def poll():
 
   if len(RESULT_STACK) > 0:
     requests.post(selector_url, json={"results": RESULT_STACK,
-                                                              "n_retention": len(RETENTION_STACK)})
+                                      "n_retention": len(RETENTION_STACK)})
   print(f"done generating for this poll, {len(RETENTION_STACK)} on RETENTION_STACK")
 
   if len(PROMPT_STACK) > 0 and not data.get('raw_selection_request', False):
@@ -473,7 +539,8 @@ def selector_main_loop():
     global RETENTION_STACK
 
     load_retention()
-    load_selector_model(MODEL_NAME, verify=VERIFY_MODEL)
+    if not SELECT_VIA_GENERATOR:
+        load_selector_model(MODEL_NAME, verify=VERIFY_MODEL)
 
     loop_poll(period=5)
 

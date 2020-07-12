@@ -34,13 +34,15 @@ class SentimentCache:
     def __init__(self, path: str="sentiment_cache.pkl.gz", cache: dict=None):
         self.path = path
         self.cache = cache
-        from transformers.tokenization_roberta import RobertaTokenizer
-        self.rtok = RobertaTokenizer.from_pretrained("roberta-large")
+        self.rtok = None
         if self.cache is None:
             self.cache = {}
 
     def query(self, text: str, sleep_time: float=0.2):
         if text not in self.cache:
+            if self.rtok is None:
+                from transformers.tokenization_roberta import RobertaTokenizer
+                self.rtok = RobertaTokenizer.from_pretrained("roberta-large")
             response = predict_sentiment(text, rtok=self.rtok, sleep_time=sleep_time)
             if response is not None:
                 self.cache[text] = response

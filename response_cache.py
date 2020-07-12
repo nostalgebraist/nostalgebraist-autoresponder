@@ -74,40 +74,73 @@ class ResponseCache:
             lengths = {k: len(self.cache[k]) for k in CachedResponseType}
             print(f"saved response cache with lengths {lengths}")
 
-    def _api_call_for_rtype(self, rtype: CachedResponseType, identifier: PostIdentifier):
-        time.sleep(0.33)
-        if rtype == CachedResponseType.POSTS:
-            response = self.client.posts(identifier.blog_name, id=identifier.id_)
-            if 'posts' not in response:
-                if response.get('response') == "You do not have permission to view this blog":
-                    self.mark_blocked_by_user(reblog_identifier.blog_name)
-                return None
-            return response['posts'][0]
-        elif rtype == CachedResponseType.NOTES:
-            response = self.client.notes(identifier.blog_name, id=identifier.id_)
-            notes = response['notes']
-            while (response['total_notes'] > (len(notes)-1)) and ("_links" in response):
-                time.sleep(0.33)
-                response = self.client.notes(identifier.blog_name, id=identifier.id_, before_timestamp=response["_links"]["next"]["query_params"]["before_timestamp"])
-                notes.extend(response["notes"])
-            return notes
-        else:
-            raise ValueError(f"rtype {rtype} not understood")
+    def record_response_to_cache(self, response: dict, care_about_notes=True):
+        if response.get('response') == "You do not have permission to view this blog":
+            self.mark_blocked_by_user(reblog_identifier.blog_name)
+            return response
+
+        for response_core in response['posts']:
+            identifier = PostIdentifier(response_core["blog_name"], response_core["id"])
+            post_payload = {k: v for k, v in response_core.items() if k != "notes"}
+            notes = response_core.get('notes', [])
+
+            if care_about_notes:
+                expected_notes = response_core['note_count']+1
+                cache_up_to_date = self._note_cache_uptodate(identifier, expected_notes)
+                if not cache_up_to_date:
+                    if expected_notes >= 50:
+                        # need this to get the links
+                        time.sleep(0.33)
+                        print(f"\thave {len(notes)} notes of {expected_notes}")
+                        note_response = self.client.notes(identifier.blog_name, id=identifier.id_)
+                        while (expected_notes > (len(notes))) and ("_links" in note_response):
+                            time.sleep(0.33)
+                            note_response = self.client.notes(identifier.blog_name, id=identifier.id_, before_timestamp=note_response["_links"]["next"]["query_params"]["before_timestamp"])
+                            timestamps = {n['timestamp'] for n in notes}
+                            new_notes = [n for n in note_response["notes"] if n['timestamp'] not in timestamps]
+                            notes.extend(new_notes)
+                            print(f"\thave {len(notes)} notes of {expected_notes}")
+                            if len(new_notes) == 0:
+                                break
+                    self.cache[CachedResponseType.NOTES][identifier] = notes
+                    self._record_unexpected_note_counts(CachedResponseType.NOTES, identifier,
+                                                        expected_notes=expected_notes
+                                                        )
+
+            self.cache[CachedResponseType.POSTS][identifier] = post_payload
+
+        return response
 
     def _cached_note_count(self, rtype, identifier, use_overrides=True):
         if ((identifier, "note_count_override") in self.cache[rtype]) and use_overrides:
             return self.cache[rtype][(identifier, "note_count_override")]
-        return len(self.cache[rtype][identifier]) - 1 # minus one b/c posting is a 'note' in notes payload
+        return max(0, len(self.cache[rtype][identifier]))
+
+    def _note_cache_uptodate(self, identifier: PostIdentifier, expected_notes: int):
+        if expected_notes is None:
+            print(f"expected_notes not provided, pulling fresh notes for {identifier}")
+            return False
+        normalized_ident = self.get_normalized_ident(CachedResponseType.NOTES, identifier)
+        if normalized_ident is None:
+            print(f"note cache unavailable for {identifier}")
+            return False
+        cached_notes = self._cached_note_count(CachedResponseType.NOTES, normalized_ident)
+        cache_uptodate = expected_notes <= cached_notes
+        if not cache_uptodate:
+            print(f"note cache stale for {normalized_ident}: expected {expected_notes} notes but have {cached_notes} in cache")
+        return cache_uptodate
+
+    def _api_call_for_rtype(self, rtype: CachedResponseType, identifier: PostIdentifier):
+        time.sleep(0.33)
+        response = self.client.posts(identifier.blog_name, id=identifier.id_, notes_info=True)
+        self.record_response_to_cache(response)
 
     def _can_use_cached(self, rtype: CachedResponseType, identifier: PostIdentifier, expected_notes: int=None):
-        is_in_cache = identifier in self.cache[rtype]
+        is_in_cache = self.get_normalized_ident(rtype, identifier) is not None
         cache_uptodate = True
 
         if rtype == CachedResponseType.NOTES and is_in_cache:
-            cached_notes = self._cached_note_count(rtype, identifier)
-            cache_uptodate = expected_notes == cached_notes
-            if not cache_uptodate:
-                print(f"note cache stale for {identifier}: expected {expected_notes} notes but have {cached_notes} in cache")
+            cache_uptodate = self._note_cache_uptodate(identifier, expected_notes)
 
         return is_in_cache and cache_uptodate
 
@@ -120,15 +153,25 @@ class ResponseCache:
             print(f"cache note count {cached_notes} = expected {expected_notes} for {identifier}, unsetting override")
             del self.cache[rtype][(identifier, "note_count_override")]
 
+    def get_normalized_ident(self, rtype, identifier):
+        identifier_int = PostIdentifier(identifier.blog_name, int(identifier.id_))
+        identifier_str = PostIdentifier(identifier.blog_name, str(identifier.id_))
+        if identifier_int in self.cache[rtype]:
+            return identifier_int
+        if identifier_str in self.cache[rtype]:
+            return identifier_str
+        return None
+
+    def normalized_lookup(self, rtype, identifier):
+        normalized_ident = self.get_normalized_ident(rtype, identifier)
+        if normalized_ident is None:
+            raise ValueError(f"{identifier} should be in {rtype} cache but isn't")
+        return self.cache[rtype][normalized_ident]
+
     def query(self, rtype: CachedResponseType, identifier: PostIdentifier, expected_notes: int=None):
-        if self._can_use_cached(rtype, identifier, expected_notes):
-            return self.cache[rtype][identifier]
-        else:
-            response = self._api_call_for_rtype(rtype, identifier)
-            self.cache[rtype][identifier] = response
-            if rtype == CachedResponseType.NOTES:
-                self._record_unexpected_note_counts(rtype, identifier, expected_notes)
-            return response
+        if not self._can_use_cached(rtype, identifier, expected_notes):
+            self._api_call_for_rtype(rtype, identifier)
+        return self.normalized_lookup(rtype, identifier)
 
     def mark_handled(self, identifier: PostIdentifier):
         identifier_normalized = PostIdentifier(blog_name=identifier.blog_name, id_=str(identifier.id_))

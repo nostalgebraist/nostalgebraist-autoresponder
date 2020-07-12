@@ -48,7 +48,7 @@ Layer 3, the selector, is a BERT model trained on data from user interaction wit
 
 The model for layer 2, the generator, should be fine-tuned on an appropriately scraped and pre-processed tumblr corpus.  This is a step which only needs to happen once, but is required for the bot to run at all.
 
-- To scrape HTML from tumblr, use [this tool](gist.github.com/doersino/7e3e5db591e42bf543e1) or a similar one
+- To scrape HTML from tumblr, use [this tool](https://github.com/bbolli/tumblr-utils) or a similar one
 - The notebook `prep_generator_training_dataset.ipynb` does the pre-processing, given scraped HTML from tumblr.
 
 ### Repo structure
@@ -75,5 +75,5 @@ The model for layer 2, the generator, should be fine-tuned on an appropriately s
   - `prep_generator_training_dataset.ipynb`
   - `gpt-2/*` (implements GPT-2 for training and running the generator)
   - `gpt-2/train.py` (train script for the generator -- TODO: share the args I run this with)
-  
+
 Note that all the Jupyter notebooks assume you are running them in Google Colab, with the code under `gpt-2/` in a Google Drive associated with the same account, and (when applicable) models or data in sub-directories `gpt-2/data/`, `gpt-2/models/`, or `gpt-2/reward/`.  If you have used OpenAI's gpt-2 repo on Colab before, this setup should be familiar.  These notebooks can be run in other types of environments with some straightforward modifications.

@@ -285,3 +285,43 @@ def extract_text_from_url(url: str) -> str:
     frame_bytes = url_to_frame_bytes(url)
     results = batch_execute_callspecs(only_text_rek_specs, postprocessor_kwargs=only_text_rek_kwargs, byte_list=frame_bytes)
     return collect_text(results)
+
+
+
+# development helpers
+def bbox_show(obj_dict, im):
+    bbox = obj_dict['BoundingBox']
+    left = bbox['Left']
+    top = bbox['Top']
+    abs_box = (im.size[0] * bbox['Left'],
+               im.size[1] * bbox['Top'],
+               im.size[0] * (bbox['Left'] + bbox['Width']),
+               im.size[1] * (bbox['Top'] + bbox['Height']))
+    im.crop(abs_box).show()
+
+def labels_bbox_show(results, im):
+    for l in results['Labels']:
+        for inst in l['Instances']:
+            print((l.get('Name'), inst), end="\n\n")
+            bbox_show(inst, im)
+            _ = input()
+
+def faces_bbox_show(results, im):
+    for face in results['FaceDetails']:
+        print(face, end="\n\n")
+        bbox_show(face, im)
+        _ = input()
+
+raw_detect_faces_spec = CallSpec(
+    method=lambda b, **kwargs: rek.detect_faces(Image={"Bytes": b}, **kwargs),
+    kwargs={"Attributes": ["ALL"]},
+    response_keys=["FaceDetails"],
+    postprocessor=None,
+)
+
+raw_detect_labels_spec = CallSpec(
+    method=lambda b, **kwargs: rek.detect_labels(Image={"Bytes": b}, **kwargs),
+    kwargs={"MaxLabels": 123},
+    response_keys=["Labels"],
+    postprocessor=None,
+)

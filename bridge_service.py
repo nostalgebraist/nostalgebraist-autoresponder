@@ -9,10 +9,16 @@ import re
 import uuid
 
 from flask import Flask, escape, request, jsonify
+
+from bot_config import BotSpecificConstants
 from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
+from bridge_shared import bridge_service_unique_id
+
+bot_specific_constants = BotSpecificConstants.load()
+bridge_service_url = bot_specific_constants.bridge_service_url
 
 logit_diff_sample_series = load_logit_diff_sample()
-EXPECTED_REJECTION_MULT = 0.33
+EXPECTED_REJECTION_MULT = 0.5
 TEXTPOST_N_CANDIDATES_TARGET = 30
 
 Q_CHAR = "会"
@@ -21,6 +27,9 @@ T_CHAR = "职"
 
 UNAME_CHAR = "友"
 ORIG_POST_CHAR = "翰"
+
+RAW_SELECT_VIA_GENERATOR = True
+RETENTION_PROBA_VIA_GENERATOR = True
 
 AB_TEST_SELECTOR = True
 AB_TEST_A_SEQUENCE = "\uFFF9"
@@ -32,21 +41,36 @@ RESULT_STACK = {}
 SELECTION_PROMPT_STACK = {}
 GENERATION_RESULT_STACK = {}
 
+RETENTION_STACK = None
 N_RETENTION = None
+RETENTION_PROBA_ID = None
 
 GENERATIONS_PER_REQUEST = 7
 
 ### FLASK
 app = Flask(__name__)
 
-@app.route('/raw_select', methods=['POST'])
-def raw_select():
+def make_raw_select(texts, new_id):
+    global PROMPT_STACK
     global SELECTION_PROMPT_STACK
 
-    text = request.form["text"]
-    new_id = request.form["id"]
+    if RAW_SELECT_VIA_GENERATOR:
+        PROMPT_STACK[new_id] = {"texts": texts, "type": "raw_select"}
+        print(f"made raw_select: {PROMPT_STACK[new_id]}")
+    else:
+        SELECTION_PROMPT_STACK[new_id] = {"texts": texts, "raw_selection_request": True}
 
-    SELECTION_PROMPT_STACK[new_id] = {"text": text, "raw_selection_request": True}
+
+@app.route('/raw_select', methods=['POST'])
+def raw_select():
+    global PROMPT_STACK
+    global SELECTION_PROMPT_STACK
+
+    texts = request.json["texts"]
+    new_id = request.json["id"]
+
+    make_raw_select(texts, new_id)
+
     return jsonify({"collision": False})
 
 
@@ -111,7 +135,10 @@ def answer():
 @app.route('/textpost', methods=['POST'])
 def textpost():
     global PROMPT_STACK
+    global RETENTION_STACK
     global N_RETENTION
+    global RETENTION_PROBA_ID
+
     new_id = request.form["id"]
     mood = request.form.get("mood")
 
@@ -153,6 +180,17 @@ def textpost():
         n_candidates_target = max(0, n_candidates_target - N_RETENTION)
         print(f"with {N_RETENTION} on stack, only need {n_candidates_target}")
 
+        if RETENTION_STACK is not None and RETENTION_PROBA_VIA_GENERATOR:
+                url = "http://0.0.0.0:5000/raw_select"
+            data = {"texts": RETENTION_STACK}
+            new_retention_proba_id = bridge_service_unique_id(url, data)
+
+            if new_retention_proba_id != RETENTION_PROBA_ID:
+                make_raw_select(data["texts"], new_retention_proba_id)
+                if RETENTION_PROBA_ID in RESULT_STACK:
+                    RESULT_STACK.pop(RETENTION_PROBA_ID)
+                RETENTION_PROBA_ID = new_retention_proba_id
+
     kwargs["best_of"] = n_candidates_target
 
     print(f"AB test: fork {fork}, N_RETENTION {N_RETENTION}, kwargs {kwargs}")
@@ -190,43 +228,55 @@ def pollgenerator():
     global GENERATION_RESULT_STACK
     global RESULT_STACK
 
-    RELEVANT_RESULT_STACK = GENERATION_RESULT_STACK
-
     print(request.json)
     posted_results = request.json["results"]
 
+    handled_selection_ids = set()
+
     for result_id, result in posted_results.items():
         if result_id in PROMPT_STACK:
-            if PROMPT_STACK[result_id].get("type") != "raw_continuations":
-                if result_id not in RELEVANT_RESULT_STACK:
-                    RELEVANT_RESULT_STACK[result_id] = result
+            if PROMPT_STACK[result_id].get("type") == "raw_select":
+                RESULT_STACK[result_id] = result
+                handled_selection_ids.add(result_id)
+                continue
+            elif PROMPT_STACK[result_id].get("type") != "raw_continuations":
+                if result_id not in GENERATION_RESULT_STACK:
+                    GENERATION_RESULT_STACK[result_id] = result
                 else:
-                    if 'continuations' not in RELEVANT_RESULT_STACK[result_id]:
-                        print(f"weirdness: no continuations for {result_id}, have keys {RELEVANT_RESULT_STACK[result_id].keys()}")
-                        RELEVANT_RESULT_STACK[result_id]['continuations'] = []
+                    if all([new_ in GENERATION_RESULT_STACK[result_id].get('continuations', [])
+                            for new_ in result.get('continuations', [])]):
+                        print("duplicate detected, skipping")
+                    else:
+                        for list_key in ['continuations', 'selection_proba']:
+                            if list_key not in GENERATION_RESULT_STACK[result_id]:
+                                print(f"weirdness: no {list_key} for {result_id}, have keys {GENERATION_RESULT_STACK[result_id].keys()}")
+                                GENERATION_RESULT_STACK[result_id][list_key] = []
 
-                    RELEVANT_RESULT_STACK[result_id]['continuations'].extend(result.get('continuations', []))
-                    RELEVANT_RESULT_STACK[result_id]['continuations'] = list(set(RELEVANT_RESULT_STACK[result_id]['continuations']))
-                RELEVANT_RESULT_STACK[result_id]["done"] = False
+                            GENERATION_RESULT_STACK[result_id][list_key].extend(result.get(list_key, []))
+                GENERATION_RESULT_STACK[result_id]["done"] = False
             else:
                 # TODO: move this over to be like the above block, if we ever plan to use "raw_continuations" again
                 RESULT_STACK[result_id] = result
 
             n_desired = PROMPT_STACK[result_id]["n_desired"]
-            n_acquired = len(RELEVANT_RESULT_STACK[result_id]['continuations'])
+            n_acquired = len(GENERATION_RESULT_STACK[result_id]['continuations'])
+            n_remaining = n_desired - n_acquired
 
-            if PROMPT_STACK[result_id]['kwargs']['best_of'] > n_desired:
-                print(f"{result_id}: updating best_of from {PROMPT_STACK[result_id]['kwargs']['best_of']} to {n_desired}")
-                PROMPT_STACK[result_id]['kwargs']['best_of'] = n_desired
-            if n_acquired >= n_desired:
+            if PROMPT_STACK[result_id]['kwargs']['best_of'] > n_remaining:
+                print(f"{result_id}: updating best_of from {PROMPT_STACK[result_id]['kwargs']['best_of']} to {n_remaining}")
+                PROMPT_STACK[result_id]['kwargs']['best_of'] = n_remaining
+            if n_remaining <= 0:
                 print(f"done with {result_id}: have {n_acquired} of {n_desired}")
-                RELEVANT_RESULT_STACK[result_id]["done"] = True
+                GENERATION_RESULT_STACK[result_id]["done"] = True
             else:
                 print(f"continuing {result_id}: have {n_acquired} of {n_desired}")
 
-    for result_id in RELEVANT_RESULT_STACK.keys():
-        if RELEVANT_RESULT_STACK[result_id]["done"] and result_id in PROMPT_STACK:
+    for result_id in GENERATION_RESULT_STACK.keys():
+        if GENERATION_RESULT_STACK[result_id]["done"] and result_id in PROMPT_STACK:
             PROMPT_STACK.pop(result_id)
+
+    for result_id in handled_selection_ids:
+        PROMPT_STACK.pop(result_id)
 
     return jsonify(PROMPT_STACK)
 
@@ -235,7 +285,9 @@ def pollselector():
     global GENERATION_RESULT_STACK
     global SELECTION_PROMPT_STACK
     global RESULT_STACK
+    global RETENTION_STACK
     global N_RETENTION
+    global RETENTION_PROBA_ID
 
     transferred_ids = set()
     for id_, result in GENERATION_RESULT_STACK.items():
@@ -247,9 +299,20 @@ def pollselector():
         GENERATION_RESULT_STACK.pop(id_)
 
     posted_results = request.json["results"]
-    N_RETENTION = request.json.get("n_retention")
+    RETENTION_STACK = request.json.get("retention_stack")
+    if RETENTION_STACK is not None:
+        if RETENTION_STACK is not None and RETENTION_PROBA_VIA_GENERATOR:
+            url = bridge_service_url + "/raw_select"
+            data = {"texts": RETENTION_STACK}
+            new_retention_proba_id = bridge_service_unique_id(url, data)
+
+            if new_retention_proba_id != RETENTION_PROBA_ID:
+                make_raw_select(data["texts"], new_retention_proba_id)
+                RETENTION_PROBA_ID = new_retention_proba_id
+
+        N_RETENTION = len(RETENTION_STACK)
+        print(f"N_RETENTION: {N_RETENTION}")
     print(posted_results)
-    print(f"N_RETENTION: {N_RETENTION}")
 
     handled_ids = set()
 
@@ -261,7 +324,12 @@ def pollselector():
     for result_id in handled_ids:
         SELECTION_PROMPT_STACK.pop(result_id)
 
-    return jsonify(SELECTION_PROMPT_STACK)
+    RETENTION_STACK_PROBA = None
+    if RETENTION_PROBA_ID in RESULT_STACK:
+        RETENTION_STACK_PROBA = RESULT_STACK[RETENTION_PROBA_ID]["selection_proba"]
+
+    return jsonify({"SELECTION_PROMPT_STACK": SELECTION_PROMPT_STACK,
+                    "RETENTION_STACK_PROBA": RETENTION_STACK_PROBA})
 
 
 @app.route('/getresult', methods=['POST'])

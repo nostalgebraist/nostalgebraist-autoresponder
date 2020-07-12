@@ -7,13 +7,14 @@ UNAME_CHAR = "友"
 ORIG_POST_CHAR = "翰"
 START_DUMMY = "⭒"
 
+ALWAYS_USE_A_CHAR_OPERATIONAL = True
 EOT_FULL = "<|endoftext|>"
 
-RECURSE_INTO = {"p", "blockquote", "div", "h2", "figure"}
-INCLUDE_TAGNAME = {"blockquote", "em", "i", "b", "u", "h2"}
+RECURSE_INTO = {"p", "blockquote", "div", "em", "i", "b", "u", "strong", "h2", "figure", }
+INCLUDE_TAGNAME = {"blockquote", "em", "i", "b", "u", "strong", "h2", }
 INCLUDE_VERBATIM = {"li", "ul", "ol"}
-NEWLINE_AFTER = {"blockquote", "h2"}
-DOUBLE_NEWLINE_AFTER = {"p", "br"}
+NEWLINE_AFTER = {"blockquote", "h2", }
+DOUBLE_NEWLINE_AFTER = {"p", "br", "img"}
 AVOID = {"header", }
 USE_IMAGE_ANALYSIS = {"img"}
 
@@ -25,8 +26,11 @@ import bs4
 from bs4 import BeautifulSoup
 
 from image_analysis import extract_text_from_url
-IMAGE_ANALYSIS_FN = lambda elem: extract_text_from_url(elem.attrs.get("src"))
 
+def IMAGE_ANALYSIS_FN(elem):
+    image_text = extract_text_from_url(elem.attrs.get("src"))
+    print(f"for {elem}, analysis text is\n\t{image_text}\n")
+    return image_text
 
 def lprint(s, prefix=""):
     print(f"{prefix}{s}", end=f"\n\n{prefix}---------\n\n")
@@ -109,7 +113,7 @@ def _get_unname_from_a(elem, in_h2, is_first, uname_config):
     href = elem.attrs.get("href", "")
     if len(set(elem.attrs.get("class", set())).intersection({"tumblr_blog", "username", "js-hover-trigger-TumblelogPopover"}))>0:
         uname = elem.text
-    elif is_first:
+    elif "tumblr.com" in href and is_first:
         uname = elem.text
     elif ".tumblr.com" in href and in_h2:
         uname = href.partition(".tumblr.com")[0]
@@ -119,14 +123,17 @@ def _get_unname_from_a(elem, in_h2, is_first, uname_config):
     return map_uname(uname, uname_config)
 
 
-def _process_elem(elem, uname_config, text_processor_maps, uname_levels=[""], quote_level=0, skip_colon=False, in_h2=False, is_first=False, reblog=False, debug=True,):
+def _process_elem(elem, uname_config, text_processor_maps, uname_levels=[""], quote_level=0, skip_colon=False, in_h2=False, is_first=False, reblog=False, debug=True, do_image_analysis=True, get_image_urls=False,
+reply_post_next_a=False, reply_post_url=None, user_defined_image_analysis=IMAGE_ANALYSIS_FN):
     if debug:
         print(f"\t! for this {elem.name}, reblog={reblog}")
     text_units = []
     meta = {"reblog": reblog, "tags": False, "is_quotes": False,
             "uname_levels": uname_levels, "quote_level": quote_level,
             "skip_colon": skip_colon, "ask_done": False, "in_h2": in_h2,
-            "is_first": is_first, }
+            "is_first": is_first, "image_urls": set(),
+            "reply_post_next_a": reply_post_next_a, "reply_post_url": reply_post_url}
+
 
     if is_whitespace_string(elem):
         return text_units, meta
@@ -136,12 +143,13 @@ def _process_elem(elem, uname_config, text_processor_maps, uname_levels=[""], qu
             if str(elem).strip(whitespace) == ":":
                 meta["skip_colon"] = False
                 return text_units, meta
-            elif "replied to your" in str(elem):
-                # TODO: special thing for replies?
-                pass
 
     if isinstance(elem, bs4.element.NavigableString):
-        return [text_processor(str(elem), text_processor_maps)], meta
+        if "replied to your" in str(elem):
+            meta["reply_post_next_a"] = True
+            return [], meta
+        else:
+            return [text_processor(str(elem), text_processor_maps)], meta
 
     if not isinstance(elem, bs4.element.Tag):
         print(f"warning: skipping element of type {type(elem)}")
@@ -171,14 +179,12 @@ def _process_elem(elem, uname_config, text_processor_maps, uname_levels=[""], qu
                                                          skip_colon=meta["skip_colon"],
                                                          in_h2=meta["in_h2"] or elem.name == "h2",
                                                          is_first=meta['is_first'] and len("".join(text_units))==0,
-                                                         reblog=reblog_for_blockquotes)
-            if debug:
-                print(f"\t(recur) {elem2.name} ({ix2}) got: reblog_for_blockquotes={reblog_for_blockquotes}, uname_levels={uname_levels}, quote_level={quote_level}, text_units=\n")
-                for _ in recur_text_units:
-                    lprint(_.replace("\n", "\\n"), prefix="\t\t")
-                print(f"\t{recur_meta}")
-                print(f"\t(recur) {elem2.name} ({ix2}) done\n")
-
+                                                         reblog=reblog_for_blockquotes,
+                                                         do_image_analysis=do_image_analysis,
+                                                         get_image_urls=get_image_urls,
+                                                         reply_post_next_a=meta["reply_post_next_a"],
+                                                         reply_post_url=meta["reply_post_url"],
+                                                         user_defined_image_analysis=user_defined_image_analysis)
             text_units.extend(recur_text_units)
             if recur_meta["reblog"]:
                 reblog_for_blockquotes = True
@@ -186,6 +192,17 @@ def _process_elem(elem, uname_config, text_processor_maps, uname_levels=[""], qu
                 reblog_for_blockquotes = False
             meta["reblog"] = reblog_for_blockquotes
             meta["skip_colon"] = recur_meta["skip_colon"]
+            meta["image_urls"].update(recur_meta["image_urls"])
+            meta["reply_post_next_a"] = recur_meta["reply_post_next_a"]
+            if recur_meta["reply_post_url"] is not None:
+                meta["reply_post_url"] = recur_meta["reply_post_url"]
+
+            if debug:
+                print(f"\t(recur) {elem2.name} ({ix2}) got: reblog_for_blockquotes={reblog_for_blockquotes}, uname_levels={uname_levels}, quote_level={quote_level}")
+                print(f"\t{recur_meta}")
+                print(f"\t(recur) {elem2.name} ({ix2}) done\n")
+
+
 
     if elem.name == "footer":
         meta["tags"] = True
@@ -204,20 +221,26 @@ def _process_elem(elem, uname_config, text_processor_maps, uname_levels=[""], qu
 
             me_you_char = A_CHAR if reblog_uname == map_uname("nostalgebraist-autoresponder", uname_config) else Q_CHAR
             name_unit = name_unit + me_you_char
+            if ALWAYS_USE_A_CHAR_OPERATIONAL and reblog_uname == map_uname("nostalgebraist-autoresponder", uname_config):
+                name_unit = A_CHAR
             text_units.append(name_unit)
-            meta["uname_levels"].append(uname_char + reblog_uname + me_you_char)
+            meta["uname_levels"].append(name_unit)
             meta["skip_colon"] = True
+        elif meta["reply_post_next_a"]:
+            meta["reply_post_next_a"] = False
+            meta["reply_post_url"] = elem.attrs.get("href", None)
         else:
             text_units.append(text_processor(elem.text, text_processor_maps))
 
     elif elem.name in INCLUDE_VERBATIM:
         text_units.append(elem.decode())
-    elif elem.name in USE_IMAGE_ANALYSIS:
-        image_text = IMAGE_ANALYSIS_FN(elem)
-        print(f"for {elem}, analysis text is\n\t{image_text}\n")
+    elif elem.name in USE_IMAGE_ANALYSIS and do_image_analysis:
+        image_text = user_defined_image_analysis(elem)
         if image_text is not None:
             if len(image_text) > 0:
                 text_units.append(image_text)
+        if get_image_urls:
+            meta['image_urls'].add(elem.attrs.get("src"))
     elif elem.name not in RECURSE_INTO:
         text_units.append(text_processor(elem.text, text_processor_maps))
 
@@ -248,10 +271,12 @@ def _process_elem(elem, uname_config, text_processor_maps, uname_levels=[""], qu
     return text_units, meta
 
 
-def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_operate"):
+def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_operate",
+                 do_image_analysis=True, get_image_urls=False, user_defined_image_analysis=IMAGE_ANALYSIS_FN):
     text_processor_maps = make_text_processor_maps(uname_config)
 
     text_units = []
+    ask_prefix_text_units = []
 
     uname_levels = [""]
     quote_level = 0
@@ -261,8 +286,11 @@ def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_ope
     main_post_marked = False
 
     reblog = False
+    reply_post_next_a = False
+    reply_post_url = None
 
-    post_metadata = {"is_quotes": False, "is_ask": False, "is_reblog": False, "is_orig": False}
+    post_metadata = {"is_quotes": False, "is_ask": False, "is_reblog": False, "is_orig": False,
+                     "image_urls": set(), "reply_post_url": reply_post_url}
 
     soup_iter = soup.article if use_article else soup.body
     for ix, elem in enumerate(soup_iter):
@@ -271,7 +299,9 @@ def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_ope
             lprint("")
 
         is_first = len("".join(text_units)) == 0
-        elem_text_units, elem_meta = _process_elem(elem, uname_config, text_processor_maps, uname_levels=uname_levels, quote_level=quote_level, skip_colon=skip_colon, is_first=is_first, debug=debug, reblog=reblog)
+        elem_text_units, elem_meta = _process_elem(elem, uname_config, text_processor_maps, uname_levels=uname_levels, quote_level=quote_level, skip_colon=skip_colon, is_first=is_first, debug=debug, reblog=reblog,
+           do_image_analysis=do_image_analysis, get_image_urls=get_image_urls,
+           reply_post_url=reply_post_url, reply_post_next_a=reply_post_next_a, user_defined_image_analysis=user_defined_image_analysis)
         if debug:
             print(f"({ix} {elem.name}) got: uname_levels={uname_levels}, quote_level={quote_level}, text_units=\n")
             for _ in elem_text_units:
@@ -284,6 +314,10 @@ def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_ope
         quote_level = elem_meta["quote_level"]
         skip_colon = elem_meta["skip_colon"]
         reblog = elem_meta["reblog"]
+        reply_post_next_a = elem_meta["reply_post_next_a"]
+        reply_post_url = elem_meta["reply_post_url"]
+
+        post_metadata["reply_post_url"] = reply_post_url
 
         # tags
         if elem_meta["tags"]:
@@ -291,6 +325,15 @@ def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_ope
             post_metadata["is_quotes"] = elem_meta["is_quotes"]
 
         text_units.extend(elem_text_units)
+
+        if get_image_urls:
+            post_metadata["image_urls"].update(elem_meta["image_urls"])
+
+        # handle bug processing reblogged asks when the ask text is in the html body
+        # as in the scraper corpus (but not the API payloads)
+        if (elem_meta["reblog"] == True) and (post_metadata["is_ask"]) and (main_post_marked):
+            main_post_marked = False
+            text_units = [u for u in text_units if u != A_CHAR]
 
         # reblog stuff
         if elem_meta["reblog"] == True:
@@ -300,9 +343,15 @@ def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_ope
             text_units.append(A_CHAR)
             main_post_marked = True
         if elem_meta["ask_done"] == True and not main_post_marked:
+            ask_prefix_text_units = [u for u in text_units]
+            text_units = []
+
             text_units.append(A_CHAR)
             main_post_marked = True
             post_metadata["is_ask"] = True
+
+        if debug:
+            print(f"text units so far:\n\t{[ask_prefix_text_units, text_units]}")
 
     # clean up initial blockquote uname junk
     initial_uname_units = []
@@ -312,7 +361,7 @@ def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_ope
         if unit.startswith("</h2>"):
             in_title = False
             initial_title_units.append(unit)
-        elif unit.startswith("<h2>"):
+        elif unit.startswith("<h2>") and len(initial_uname_units)==0:
             in_title = True
             initial_title_units.append(unit)
         elif in_title:
@@ -332,11 +381,12 @@ def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_ope
             print(f"remaining units: {text_units}")
             print()
 
+    text_units = ask_prefix_text_units + text_units
     # print(text_units)
     processed = "".join(text_units).rstrip(" ") + EOT_FULL
 
     # orig stuff
-    if Q_CHAR not in processed and UNAME_CHAR not in processed:
+    if not post_metadata["is_ask"] and not post_metadata["is_reblog"]:
         processed = ORIG_POST_CHAR + processed
         post_metadata["is_orig"] = True
 

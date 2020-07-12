@@ -21,6 +21,7 @@ def load_dataset(enc, path, combine):
 
     token_chunks = []
     raw_text = ''
+    accum_text = ''
     for path in tqdm.tqdm(paths):
         if path.endswith('.npz'):
             # Pre-encoded
@@ -30,15 +31,22 @@ def load_dataset(enc, path, combine):
         else:
             # Plain text
             with open(path, 'r') as fp:
-                raw_text += fp.read()
+                raw_text = fp.read()
             if len(raw_text) >= combine:
                 tokens = np.stack(enc.encode(raw_text))
                 token_chunks.append(tokens)
                 raw_text = ''
             else:
                 raw_text += '<|endoftext|>'
-    if raw_text:
-        tokens = np.stack(enc.encode(raw_text))
+                accum_text += raw_text
+
+            if accum_text and len(accum_text) >= combine:
+                tokens = np.stack(enc.encode(accum_text))
+                token_chunks.append(tokens)
+                accum_text = ''
+
+    if accum_text:
+        tokens = np.stack(enc.encode(accum_text))
         token_chunks.append(tokens)
     return token_chunks
 
@@ -159,3 +167,63 @@ class TextSampler(object):
           print(repr(line))
         return tokens[0:length]
 
+def random_indices(n, rs=np.random):
+    for ix in rs.choice(range(n), n, replace=False):
+        yield ix
+
+def infinite_random_dataset_indices(data_size, sample_len, rs=np.random, verbose=False):
+    while True:
+        offset = rs.randint(low=0, high=sample_len)
+        max_ix = data_size // sample_len
+        generation = random_indices(max_ix, rs=rs)
+        if verbose:
+            print("reset")
+            print(f"offset: {offset}")
+        for ix in generation:
+            yield sample_len*ix + offset
+
+class RobSampler:
+    def __init__(self, dataset, sample_length, verbose=False, seed=None):
+        self.dataset = dataset
+        self.sample_length = sample_length
+        self.total_size = len(self.dataset)
+        self.verbose = verbose
+
+        self.rs = np.random.RandomState(seed=seed)
+        self.sample_generator = infinite_random_dataset_indices(
+            data_size=self.total_size, sample_len=self.sample_length, rs=self.rs,
+            verbose=self.verbose
+        )
+
+        self.dataset_with_wrap = np.concatenate([self.dataset, self.dataset[:self.sample_length]])
+
+    def _get_n_indices(self, n: int):
+        results = []
+        while len(results) < n:
+            results.append(next(self.sample_generator))
+        return results
+
+    def sample_n(self, n: int):
+        ixs = self._get_n_indices(n)
+        results = [self.dataset_with_wrap[ix:ix+self.sample_length] for ix in ixs]
+        return results
+
+    def sample(self):
+        return self.sample_n(1)[0]
+
+class RobSamplerInterface:
+    def __init__(self, chunks, seed=None, verbose=False):
+        self.samplers = {}
+        self.dataset = np.concatenate(chunks)  # don't care about chunks
+        self.total_size = len(self.dataset)
+        self.seed = seed
+        self.verbose = verbose
+
+    def sample(self, length):
+        int_len = int(length)
+        if int_len not in self.samplers:
+            self.samplers[int_len] = RobSampler(dataset=self.dataset,
+                                                sample_length=length,
+                                                seed=self.seed,
+                                                verbose=self.verbose)
+        return self.samplers[int_len].sample()

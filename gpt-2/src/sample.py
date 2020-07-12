@@ -59,7 +59,7 @@ def midde_p_logits(logits, p_base):
 
 
 
-def sample_sequence(*, hparams, length, start_token=None, batch_size=None, context=None, temperature=1, top_k=0, top_p=0.0, middle_p=0.0, epsilon=-1e10, stop_at_EOT=False, better_length=True, enc=None, steps_per_print=10, prints_per_newline=18):
+def sample_sequence(*, hparams, length, start_token=None, batch_size=None, context=None, temperature=1, top_k=0, top_p=0.0, middle_p=0.0, epsilon=-1e10, stop_at_EOT=False, eot_workaround=False, better_length=True, enc=None, steps_per_print=10, prints_per_newline=18):
     if start_token is None:
         assert context is not None, 'Specify exactly one of start_token and context!'
     else:
@@ -70,7 +70,11 @@ def sample_sequence(*, hparams, length, start_token=None, batch_size=None, conte
         EOT_TOKEN = enc.encode("<|endoftext|>")[0]
         EOT_TOKEN2 = enc.encode("<|endoftext|>")[1]
         print(f"EOT_TOKEN: {EOT_TOKEN}")
+
+        if not eot_workaround:
+            EOT_TOKEN2 = enc.encode("<|endoftext|>")[1]
         print(f"EOT_TOKEN2: {EOT_TOKEN2}")
+
     elif stop_at_EOT:
         raise ValueError("must supply enc when stop_at_EOT=True")
 
@@ -133,7 +137,10 @@ def sample_sequence(*, hparams, length, start_token=None, batch_size=None, conte
 
             if stop_at_EOT:
                 print("stop_at_EOT in cond")
-                eot_cond = tf.logical_not(tf.reduce_all( tf.reduce_any(tf.logical_and(tf.equal(tf.dtypes.cast(args[2][:, :-1], tf.int32), EOT_TOKEN), tf.equal(tf.dtypes.cast(args[2][:, 1:], tf.int32), EOT_TOKEN2), ) , axis=1 ), axis=0 ) )
+                if eot_workaround:
+                    eot_cond = tf.logical_not(tf.reduce_all( tf.reduce_any(tf.equal(tf.dtypes.cast(args[2][:, 1:], tf.int32), EOT_TOKEN) , axis=1 ), axis=0 ) )
+                else:
+                    eot_cond = tf.logical_not(tf.reduce_all( tf.reduce_any(tf.logical_and(tf.equal(tf.dtypes.cast(args[2][:, :-1], tf.int32), EOT_TOKEN), tf.equal(tf.dtypes.cast(args[2][:, 1:], tf.int32), EOT_TOKEN2), ) , axis=1 ), axis=0 ) )
             else:
                 eot_cond = True
 

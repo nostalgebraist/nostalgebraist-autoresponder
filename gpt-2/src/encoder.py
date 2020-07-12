@@ -40,7 +40,7 @@ def get_pairs(word):
     return pairs
 
 class Encoder:
-    def __init__(self, encoder, bpe_merges, errors='replace'):
+    def __init__(self, encoder, bpe_merges, errors='replace', eot_workaround=False):
         self.encoder = encoder
         self.decoder = {v:k for k,v in self.encoder.items()}
         self.errors = errors # how to handle errors in decoding
@@ -50,7 +50,11 @@ class Encoder:
         self.cache = {}
 
         # Should haved added re.IGNORECASE so BPE merges can happen for capitalized versions of contractions
-        self.pat = re.compile(r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
+        if eot_workaround:
+            self.pat = re.compile(r"""<\|endoftext\|>|'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+(?!\|endoftext\|>|endoftext\|>)|\s+(?!\S)|\s+""")
+            self.cache["<|endoftext|>"] = "<|endoftext|>"
+        else:
+            self.pat = re.compile(r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
 
     def bpe(self, token):
         if token in self.cache:
@@ -105,7 +109,7 @@ class Encoder:
         text = bytearray([self.byte_decoder[c] for c in text]).decode('utf-8', errors=self.errors)
         return text
 
-def get_encoder(model_name):
+def get_encoder(model_name, eot_workaround=False):
     with open(os.path.join('models', model_name, 'encoder.json'), 'r') as f:
         encoder = json.load(f)
     with open(os.path.join('models', model_name, 'vocab.bpe'), 'r', encoding="utf-8") as f:
@@ -114,4 +118,5 @@ def get_encoder(model_name):
     return Encoder(
         encoder=encoder,
         bpe_merges=bpe_merges,
+        eot_workaround=eot_workaround
     )

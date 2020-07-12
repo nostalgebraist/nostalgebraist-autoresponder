@@ -15,7 +15,7 @@ from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python import pywrap_tensorflow
 
 import model, sample, encoder
-from load_dataset import load_dataset, Sampler, TextSampler
+from load_dataset import load_dataset, Sampler, TextSampler, RobSamplerInterface
 from accumulate import AccumulatingOptimizer
 import memory_saving_gradients
 from glob import glob
@@ -75,6 +75,8 @@ parser.add_argument('--save_on_ctrlc', default=False, action='store_true', help=
 parser.add_argument('--debug_on_ctrlc', default=False, action='store_true', help='When execution is interrupted, attach a debugger (pdb.set_trace())')
 parser.add_argument('--float16', default=False, action='store_true', help='Use float16 weights?')
 parser.add_argument('--dtype', type=str, default='float32', help='dtype. <float32|float16|bfloat16>.')
+parser.add_argument('--eot_workaround', default=False, action='store_true', help='Handle EOT properly')
+parser.add_argument('--rob_sampler', default=False, action='store_true', help="Use Rob's sampler")
 
 # 1.5B
 #parser.add_argument('--n_ctx', type=int, default=1024, help='For a fresh model, how large should n_ctx be?')
@@ -146,7 +148,7 @@ def randomize(context, hparams, p):
 
 def main():
     args = parser.parse_args()
-    enc = encoder.get_encoder(args.model_name)
+    enc = encoder.get_encoder(args.model_name, eot_workaround=args.eot_workaround)
     hparams = model.default_hparams()
     hparams.res_dropout = args.dropout
     hparams.attn_dropout = args.dropout
@@ -343,8 +345,17 @@ def main():
         def make_sampler(dataset, enc, seed, combine):
           if os.path.isdir(dataset) or dataset.endswith('.npz'):
             chunks = load_dataset(enc, dataset, combine)
+            if args.rob_sampler:
+                data_sampler = RobSamplerInterface(chunks, seed=seed)
+            else:
             data_sampler = Sampler(chunks, seed=seed)
             print('dataset has', data_sampler.total_size, 'tokens', len(chunks), 'chunks')
+
+            if args.eot_workaround:
+                n_verify = 50
+                verify_workaround = [enc.encoder['<|endoftext|>'] in data_sampler.sample(1024)
+                                     for _ in range(n_verify)]
+                print(f"{sum(verify_workaround)} of {n_verify} contain EOT")
           else:
             data_sampler = TextSampler(dataset, enc, seed=seed)
           return data_sampler
@@ -402,6 +413,11 @@ def main():
                         index + 1, text)
                     print(text)
                     all_text.append(text)
+                    if args.eot_workaround:
+                        verify_workaround = enc.encoder['<|endoftext|>'] in out[i]
+                        verify_str = f"EOT in sample: {verify_workaround}"
+                        print(verify_str)
+                        all_text.append(verify_str)
                     index += 1
             maketree(os.path.join(SAMPLE_DIR, args.run_name))
             with open(

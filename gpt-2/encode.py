@@ -12,14 +12,15 @@ from load_dataset import load_dataset
 parser = argparse.ArgumentParser(
     description='Pre-encode text files into tokenized training set.',
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--model_name', metavar='MODEL', type=str, default='117M', help='Pretrained model name')
+parser.add_argument('--model_name', metavar='MODEL', type=str, default='1558M', help='Pretrained model name')
 parser.add_argument('--combine', metavar='CHARS', type=int, default=50000, help='Concatenate files with <|endoftext|> separator into chunks of this minimum size')
 parser.add_argument('in_text', metavar='PATH', type=str, help='Input file, directory, or glob pattern (utf-8 text).')
 parser.add_argument('out_npz', metavar='OUT.npz', type=str, help='Output file path')
+parser.add_argument('--eot_workaround', default=False, action='store_true', help='Handle EOT properly')
 
 def main():
     args = parser.parse_args()
-    enc = encoder.get_encoder(args.model_name)
+    enc = encoder.get_encoder(args.model_name, eot_workaround=args.eot_workaround)
     print('Reading files')
     chunks = load_dataset(enc, args.in_text, args.combine)
     print('Writing', args.out_npz)

@@ -2,7 +2,24 @@
 
 Code for the tumblr bot [nostalgebraist-autoresponder](https://nostalgebraist-autoresponder.tumblr.com/).
 
-For some context, see [here](https://nostalgebraist.tumblr.com/tagged/nostalgebraist-autoresponder-meta) and particularly [here](https://nostalgebraist.tumblr.com/post/617940524224151552/i-imagine-some-people-have-been-curious-to-hear).
+For some context, see:
+
+- the bot's [About/FAQ page](https://nostalgebraist-autoresponder.tumblr.com/about)
+- [my tumblr tag for posts about the bot](https://nostalgebraist.tumblr.com/tagged/nostalgebraist-autoresponder-meta)
+- [this technical overview post](https://nostalgebraist.tumblr.com/post/617940524224151552/i-imagine-some-people-have-been-curious-to-hear) (somewhat out of date)
+
+#### Update, 11/19/20
+
+It's been a while since I last synced up this repo with the "real" one I use to operate and develop the bot.  Nothing has changed dramatically, but I've made various changes that aren't reflected here, e.g.:
+
+- Sampling with [Mirostat](https://arxiv.org/abs/2007.14966) algorithm
+- Using "forum-like" natural language delimeters rather than arbitrary non-English characters
+- Better tumblr API caching and ratelimit management
+- Code and modeling improvements to the selector model
+- Making the sentiment model an additional GPT-2 head (like the selector) rather than relying on an external service
+- Shifting more code out of Jupyter into .py files, relying more on imports when notebooks are unavoidable (for Colab)
+
+When I next have time to get this repo up to date, I'll also switch over to it for operation and development, making this divergence impossible.
 
 ### Disclaimers
 

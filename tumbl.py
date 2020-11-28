@@ -2,11 +2,15 @@
 Tumblr API layer and main loop of the bot during operation.
 """
 from typing import Set
-import uuid, hashlib
+import uuid, hashlib, sys
 from datetime import datetime, timedelta
 from string import punctuation, whitespace
 from itertools import product
+from collections import defaultdict
 
+sys.path.append("src/")
+
+from tqdm import tqdm
 import pytumblr, requests, time, re, os, pickle, numpy as np, pandas as pd
 
 from bot_config import BotSpecificConstants
@@ -18,15 +22,27 @@ from reply_munging import mockup_xkit_reply, bootstrap_draft_inject_reply
 from pytumblr_wrapper import RateLimitClient
 from response_cache import ResponseCache, PostIdentifier, ReplyIdentifier, CachedResponseType, UserInputIdentifier, UserInputType
 
-from sentiment import SentimentCache
+from side_judgements import SideJudgmentCache
 from mood import DEFAULT_MOOD, random_mood_at_pst_datetime
-from mood_dynamic import compute_dynamic_moodspec_at_time, create_mood_graph
+from mood_dynamic import compute_dynamic_moodspec_at_time, create_mood_graph, mood_buff_v2, WINDOW_LENGTH_DAYS, pos_sent_to_logit_diff
 
 from munging_shared import *
 from bridge_shared import bridge_service_unique_id, wait_for_result, side_judgments_from_gpt2_service
 
+from autoresponder_static_v8 import timestamp_to_v8_format
+
+from traceability import on_post_creation_callback
+
 EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
+
+# TODO: move to BotSpecificConstants
+SLEEP_TIME = 60
+SLEEP_TIME_OFFPEAK = 360
+PEAK_HOURS_START = 8
+PEAK_HOURS_END = 24
+PEAK_HOURS_FRAC = (PEAK_HOURS_END-PEAK_HOURS_START)/24
+EFFECTIVE_SLEEP_TIME =  PEAK_HOURS_FRAC*SLEEP_TIME + (1-PEAK_HOURS_FRAC) * SLEEP_TIME_OFFPEAK
 
 # load a bunch of stuff from json into global namespace -- for a long time this stuff was hardcoded in this file, prefer in json for public release
 bot_specific_constants = BotSpecificConstants.load()
@@ -34,71 +50,124 @@ bot_specific_constants = BotSpecificConstants.load()
 REBLOG_START_TS = bot_specific_constants.REBLOG_START_TS
 DASH_START_TS = bot_specific_constants.DASH_START_TS
 NO_REBLOG_IDS = bot_specific_constants.NO_REBLOG_IDS
+DEF_REBLOG_IDS = bot_specific_constants.DEF_REBLOG_IDS
 FORCE_TRAIL_HACK_IDS = bot_specific_constants.FORCE_TRAIL_HACK_IDS
 blogName = bot_specific_constants.blogName
 dash_blogName = bot_specific_constants.dash_blogName
-base_client = bot_specific_constants.base_client
-dashboard_client = bot_specific_constants.dashboard_client
+private_clients = bot_specific_constants.private_clients
+dashboard_clients = bot_specific_constants.dashboard_clients
 bridge_service_url = bot_specific_constants.bridge_service_url
 USER_AVOID_LIST = bot_specific_constants.USER_AVOID_LIST
 DASH_TAG_AVOID_LIST = bot_specific_constants.DASH_TAG_AVOID_LIST
 REPLY_USER_AUTO_ACCEPT_LIST = bot_specific_constants.REPLY_USER_AUTO_ACCEPT_LIST
 bad_strings = bot_specific_constants.bad_strings
 bad_strings_shortwords = bot_specific_constants.bad_strings_shortwords
+LIMITED_USERS = bot_specific_constants.LIMITED_USERS
+LIMITED_USERS_PROBS = bot_specific_constants.LIMITED_USERS_PROBS(EFFECTIVE_SLEEP_TIME)
+LIMITED_SUBSTRINGS = bot_specific_constants.LIMITED_SUBSTRINGS
+SCREENED_USERS = bot_specific_constants.SCREENED_USERS
 
-
-def process_post_from_html_body(body: str) -> str:
-    soup = BeautifulSoup(body, features="lxml")
-    processed, _ = process_post(soup, use_article=False)
-    return processed
-
-SLEEP_TIME = 180
+private_client = private_clients[0]
+dashboard_client = dashboard_clients[0]
+tank_client = dashboard_clients[0]
 
 REBLOG_BOOTSTRAP_TEXT = "asdfghjkllkj"
-MAY_2020_TRAIL_HACK = True
-JUNE_2020_LINKPOST_HACK = True
-QUEUE_SAFETY = False
+QUEUE_SAFETY = True
 
 FOLLOW_COMMAND = "!follow"
 UNFOLLOW_COMMAND = "!unfollow"
 MOOD_GRAPH_COMMAND = "!mood"
 MOOD_GRAPH_N_DAYS = 1
 MOOD_GRAPH_DAYS_STRING = "day" if MOOD_GRAPH_N_DAYS == 1 else f"{MOOD_GRAPH_N_DAYS} days"
-MOOD_GRAPH_EXPLAINER_STRING = """<p>This is a graph of my mood over the last {days_string}.</p><p>My mood affects the tone of the posts I make.</p><p>It fluctuates from day to day, and also reacts in real time to the tone of the things you say to me.</p><p>I posted this graph by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. To request a graph at any time, sent an ask with the text "!mood".</p>"""
+MOOD_GRAPH_EXPLAINER_STRING = """<p>This is a graph of my mood over the last {days_string}.</p><p>My mood affects the tone of the posts I make.</p><p>It fluctuates from day to day, and also reacts in real time to the tone of the things you say to me.</p><p></p>If you notice my mood suddenly jumping up or down at midnight, you're seeing me switch from one day's mood baseline to the next. (Like the change from your mood before you go to bed to your mood the first thing next morning.)<p>I posted this graph by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. To request a graph at any time, send an ask with the text "!mood".</p>"""
 
-DASH_REBLOG_SELECTION_CUTOFF = 0.2
-DASH_REBLOG_MOOD_BUFF_SCALE = (0.2/0.25)
+if datetime(2020, 7, 13) < datetime.now() < datetime(2020, 7, 21):
+    MOOD_GRAPH_EXPLAINER_STRING += """<p><i>(NOTE: Mood graphs now look a little different than they used to.  The same variable is plotted, but it has been scaled to give more space to the top and bottom of the range, and less space to the middle.</i></p><p><i>This message will vanish on 7/21/20.)</i></p>"""
+
+DASH_REBLOG_SELECTION_CUTOFF = 0.45
+DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.125
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.925
-DASH_REBLOG_CONTINUATION_CUTOFF = 0.6
-FOLLOWER_MULTIPLIERS = False
+DASH_REBLOG_CONTINUATION_CUTOFF = 0.55
+
+DASH_REBLOG_REQUIRE_COMMENT = False #  ! experimental
 
 MOOD = True
 MOOD_DYN = True
+SAVE_USER_INPUT_SENTIMENTS = True
+MOOD_BUFFS_V2 = True
+MOOD_STALE_SECONDS = 60 * 10
+mood_computed_most_recently = None
 
-WRITE_POSTS_WHEN_QUEUE_BELOW = 2
+WRITE_POSTS_WHEN_QUEUE_BELOW = 4
 N_TO_WRITE = 1
 
 INDIRECT_REBLOGS = False
+REPLY_RELEVANCE_V2 = True
 
-base_ratelimit_client = RateLimitClient.from_tumblr_rest_client(base_client, blogName)
-dashboard_ratelimit_client = RateLimitClient.from_tumblr_rest_client(dashboard_client, blogName)
+#TODO: consider whether to do datetime triggering
+HALLOWEEN_2K20_BEHAVIOR = False
+HALLOWEEN_2K20_BEHAVIOR_TESTING = False
 
-client = base_client
-ratelimit_client = base_ratelimit_client
+FIC_TRIGGER = True
+FIC_TRIGGER_TESTING = False
 
+GLOBAL_TESTING_FLAG = False
+
+def roll_for_limited_users(name, text=""):
+    text_screener = lambda s: any([subs in s.lower() for subs in LIMITED_SUBSTRINGS])
+    if (name not in LIMITED_USERS) and not text_screener(text):
+        return True
+    if (name not in LIMITED_USERS) and text_screener(text):
+        name = "___LIMITED_SUBSTRINGS___"
+    roll = np.random.rand()
+    if roll < LIMITED_USERS_PROBS[name]:
+        print(f"allowing response to {name} with text_screener={text_screener(text)}: roll {roll:.1%} < LIMITED_USERS_PROBS[{repr(name)}] {LIMITED_USERS_PROBS[name]:.1%}")
+        return True
+    else:
+        print(f"not responding to {name} with text_screener={text_screener(text)} this time: roll {roll:.1%} >= LIMITED_USERS_PROBS[{repr(name)}] {LIMITED_USERS_PROBS[name]:.1%}")
+        return False
+
+def halloween_format_post_specifier(post_spec: dict):
+    choice_ix_tags = []
+    if post_spec['continuation_index'] == post_spec['choice_ix']:
+        choice_ix_tags = ["🎃 ~chosen candiate~: i'd choose this as my response use on a normal day"]
+
+    halloween_tags = [
+        "🎃 nostalgebraist autoresponder halloween 2020",
+        f"🎃 response number {post_spec['continuation_index']+1} of {post_spec['n_continuations']} generated for this input",] +\
+    choice_ix_tags + [
+        f"🎃 PROBABILITY THIS POST IS AWESOME: {post_spec['proba']:.1%}",
+        f"🎃 CHEER LEVEL: {post_spec['pos_sentiment']:.1%}",
+        f"🎃 CHAOS LEVEL: {post_spec['mirotarg']:.1f}",
+    ]
+
+    formatted_post_spec = {k: v for k, v in post_spec.items()}
+    formatted_post_spec['tags'] = halloween_tags + post_spec['tags']
+
+    return formatted_post_spec
+
+
+def sleep_time(verbose=True, multiplier=1):
+    now = datetime.now()
+    is_peak_hours = (now.hour >= PEAK_HOURS_START) and (now.hour < PEAK_HOURS_END)
+    result = SLEEP_TIME if is_peak_hours else SLEEP_TIME_OFFPEAK
+    result *= multiplier
+    if verbose:
+        print(f"sleep time={result}s | is_peak_hours={is_peak_hours} | now={now}")
+    return result
 
 def next_queued_post_time():
-    queue_current = client.queue(blogName)['posts']
+    queue_current = private_client.queue(blogName)['posts']
 
-    client.create_text(blogName, state="queue", body=REBLOG_BOOTSTRAP_TEXT)
+    private_client.create_text(blogName, state="queue", body=REBLOG_BOOTSTRAP_TEXT)
     time.sleep(0.1)
 
-    queue_plus_next = client.queue(blogName)['posts']
+    queue_plus_next = private_client.queue(blogName)['posts']
     while len(queue_plus_next) <= len(queue_current):
         time.sleep(0.1)
-        queue_plus_next = client.queue(blogName)['posts']
-    client.delete_post(blogName, queue_plus_next[-1]['id'])
+        queue_plus_next = private_client.queue(blogName)['posts']
+    private_client.delete_post(blogName, queue_plus_next[-1]['id'])
 
     next_queued_ts = max([int(p.get("scheduled_publish_time", 0)) for p in queue_plus_next])
     next_queued_dt = datetime.fromtimestamp(next_queued_ts)
@@ -106,23 +175,33 @@ def next_queued_post_time():
     print(f"inferred next_queued_dt {next_queued_dt}")
     return next_queued_dt
 
-def determine_mood(response_cache: ResponseCache, window_length_days=4,
-                   for_queue=False, verbose=True, return_mood_value=False):
+def determine_mood(response_cache: ResponseCache, dt=None, window_length_days=WINDOW_LENGTH_DAYS,
+                   verbose=True, return_mood_value=False):
+    global mood_computed_most_recently
     if not MOOD:
         return "unrestricted"
     try:
-        if for_queue:
-            dt = next_queued_post_time()
-        else:
-            # now
+        if dt is None:
             dt = datetime.now()
         if MOOD_DYN:
+            do_recompute_mood = True
+            if mood_computed_most_recently is None:
+                print("recomputing mood: no saved mood")
+            elif np.abs((dt - mood_computed_most_recently[0]).total_seconds()) > MOOD_STALE_SECONDS:
+                print(f"recomputing mood: saved mood at {mood_computed_most_recently[0]} is too far from {dt}")
+            else:
+                do_recompute_mood = False
+                print(f"using saved mood from {mood_computed_most_recently[0]} at {dt}")
+            if do_recompute_mood:
             mood, mood_value = compute_dynamic_moodspec_at_time(response_cache,
                                                                 time=dt,
                                                                 window_length_days=window_length_days,
                                                                 verbose=verbose)
+                mood_computed_most_recently = (dt, mood, mood_value)
+            else:
+                mood, mood_value = mood_computed_most_recently[1], mood_computed_most_recently[2]
             if verbose:
-                print(f"mood_value: {mood_value:.3f}")
+                print(f"mood: pos sent {mood_value:.3f} | logit diff {pos_sent_to_logit_diff(mood_value):+.3f}")
         else:
             mood = random_mood_at_pst_datetime(dt)
             mood_value = None
@@ -134,7 +213,10 @@ def determine_mood(response_cache: ResponseCache, window_length_days=4,
         return mood, mood_value
     return mood
 
-def answer_from_gpt2_service(data: dict):
+def answer_from_gpt2_service(data: dict, ts=None):
+    if ts is None:
+        ts = datetime.now()
+    data['v8_timestamp'] = timestamp_to_v8_format(ts)
     new_id = bridge_service_unique_id(bridge_service_url, data)
 
     data_to_send = dict()
@@ -143,10 +225,21 @@ def answer_from_gpt2_service(data: dict):
 
     r = requests.post(url, data=data_to_send)
     result = wait_for_result(new_id)
+
+    # for logging, add any input fields that didn't make the round trip
+    for k, v in data.items():
+        if k not in result:
+            print(f"adding key {k}")
+            result[k] = v
+
     return result
 
-def text_post_from_gpt2_service(mood=None):
+def text_post_from_gpt2_service(mood=None, ts=None):
     data = {"mood": mood}
+
+    if ts is None:
+        ts = datetime.now()
+    data['v8_timestamp'] = timestamp_to_v8_format(ts)
     url = bridge_service_url + "/textpost"
     new_id = bridge_service_unique_id(url, data)
 
@@ -157,13 +250,20 @@ def text_post_from_gpt2_service(mood=None):
     data["id"] = new_id
     r = requests.post(url, data=data_to_send)
     result = wait_for_result(new_id)
+
+    # for logging, add any input fields that didn't make the round trip
+    for k, v in data.items():
+        if k not in result:
+            print(f"adding key {k}")
+            result[k] = v
+
     return result
 
 def strip_spurious_blognames_from_tags(client, tags, auto_accept_list=set()):
     def okay_to_keep(tag):
         if tag in auto_accept_list:
             return True
-        result = client.blog_info(tag)
+        result = private_client.blog_info(tag)
         if "errors" not in result:
             return False
         return True
@@ -207,21 +307,32 @@ def autopublish_screener(asking_name: str, question: str, answer: str, tags: lis
     if asking_name == "nostalgebraist" and screen_robnost:
         print("screened because robnost")
         return False
+    if asking_name == "Anonymous" and SCREEN_ANON:
+        print("screened because anon")
+        return False
+    if asking_name in SCREENED_USERS:
+        print(f"screened because asking_name={asking_name}")
+        return False
     return True
 
-def make_text_post(client, blogname, post, tags=[], to_queue=True, to_drafts=False):
+def make_text_post(blogname, post, tags=[], to_queue=True, to_drafts=False,
+                   asking_name="", question="", log_data=None):
     if to_queue:
         if QUEUE_SAFETY:
             if autopublish_screener("", "", post, tags):
                 state = "queue"
             else:
-                # only used when QUEUE_SAFETY=True
                 state = "draft"
-                tags.append("TO QUEUE PLEASE THANK YOU ROB!!")
         else:
             state = "queue"
     else:
-        state = "draft" if (to_drafts or (not autopublish_screener("", "", post, tags))) else "published"
+        screener_result = autopublish_screener(asking_name, question, post, tags)
+        print(f"autopublish_screener says: {screener_result}")
+        state = "draft" if (to_drafts or (not screener_result)) else "published"
+
+    if GLOBAL_TESTING_FLAG:
+        print(f"GLOBAL_TESTING_FLAG --> draft")
+        state = "draft"
 
     post = format_post_for_api(post)
 
@@ -233,15 +344,19 @@ def make_text_post(client, blogname, post, tags=[], to_queue=True, to_drafts=Fal
     if len(tags) > 0:
         kwargs["tags"] = tags
 
-    client.create_text(blogname, **kwargs)
+    api_response = private_client.create_text(blogname, **kwargs)
+    if log_data is not None:
+        log_data["requested__state"] = state
+        on_post_creation_callback(api_response, log_data)
+    return api_response
 
-def answer_ask(client, blogname, ask_id, asking_name, question, answer, tags=[], to_drafts=False, is_reblog=False, reblog_key=None):
+def answer_ask(blogname, ask_id, asking_name, question, answer, tags=[], to_drafts=False, is_reblog=False, reblog_key=None, log_data=None):
     if is_reblog:
         url = "/v2/blog/{}/post/reblog".format(blogname)
-        valid_options = ['id', 'reblog_key', 'comment'] + client._post_valid_options()
+        valid_options = ['id', 'reblog_key', 'comment'] + private_client._post_valid_options()
     else:
         url = "/v2/blog/{}/post/edit".format(blogname)
-        valid_options = ['id'] + client._post_valid_options('answer')
+        valid_options = ['id'] + private_client._post_valid_options('answer')
         valid_options += ['answer']
 
     if asking_name not in tags:
@@ -251,16 +366,22 @@ def answer_ask(client, blogname, ask_id, asking_name, question, answer, tags=[],
 
     tags = [t.partition(eot_end_segment)[0] for t in tags]
     tags = [t.partition('<|')[0] for t in tags]  # temporarily support old EOT format
+    tags = [t.strip(',') for t in tags]  # V8
 
     tags = [t for t in tags if len(t)>0]
     tags = strip_avoid_listed_blognames_from_tags(client, tags)
 
-    # Take a list of tags and make them acceptable for upload
-    tags = ",".join(tags)
-
-    screener_question = "" if is_reblog else question
+    # screener_question = "" if is_reblog else question
+    screener_question = question  # TODO: remember why i wanted to do the thing in the previous line...
     print(f"autopublish_screener says: {autopublish_screener(asking_name, screener_question, answer, tags, screen_robnost=True)}")
     state = "draft" if (to_drafts or (not autopublish_screener(asking_name, screener_question, answer, tags, screen_robnost=True))) else "published"
+
+    if GLOBAL_TESTING_FLAG:
+        print(f"GLOBAL_TESTING_FLAG --> draft")
+        state = "draft"
+
+    # Take a list of tags and make them acceptable for upload
+    tags = ",".join(tags)
 
     answer = format_post_for_api(answer)
 
@@ -271,36 +392,67 @@ def answer_ask(client, blogname, ask_id, asking_name, question, answer, tags=[],
         data = {"id": ask_id, "answer": answer, "tags": tags,
          "state": state}
 
-    return client.send_api_request('post', url, data, valid_options)
+    api_response = private_client.send_api_request('post', url, data, valid_options)
+    if log_data is not None:
+        log_data["requested__state"] = state
+        on_post_creation_callback(api_response, log_data)
+    return api_response
 
 
-def switch_client_to(client_to_use: pytumblr.TumblrRestClient, ratelimit_client_to_use: RateLimitClient):
-    global response_cache
-    global ratelimit_client
+def switch_tank_client_to(client_to_use: RateLimitClient,
+                     response_cache: ResponseCache):
+    global tank_client
 
     response_cache.client = client_to_use
-    ratelimit_client = ratelimit_client_to_use
+    tank_client = client_to_use
+    return response_cache
 
+def switch_private_client_to(client_to_use: RateLimitClient,
+                             ):
+    global private_client
+    private_client = client_to_use
 
-def _compute_checkprob_from_ratelimits(requests_needed_to_check=80, verbose=True):
-    all_clients = [
-        {"name": "base_client", "tumblr": base_client, "rate": base_ratelimit_client},
-        {"name": "dashboard_client", "tumblr": dashboard_client, "rate": dashboard_ratelimit_client}
-        ]
+def _compute_checkprob_from_ratelimits(requests_needed_to_check: int,
+                                       response_cache: ResponseCache,
+                                       verbose=True):
+    global private_client
 
-    checkprobs = [_compute_checkprob_from_ratelimits_single_client(cl["rate"], requests_needed_to_check, verbose)
+    all_clients = [{"name": f"private_client_{i}", "client": cl}
+                   for i, cl in enumerate(private_clients)]
+    all_clients.extend(
+        [{"name": f"dashboard_client_{i}", "client": cl}
+         for i, cl in enumerate(dashboard_clients)]
+    )
+
+    checkprobs = [_compute_checkprob_from_ratelimits_single_client(cl["client"], requests_needed_to_check, verbose)
                   for cl in all_clients]
 
     ix_to_use = np.argmax(checkprobs)
     cl_to_use = all_clients[ix_to_use]
 
-    if response_cache.client.request.consumer_key != cl_to_use["tumblr"].request.consumer_key:
-        switch_client_to(cl_to_use["tumblr"], cl_to_use["rate"])
-        print(f"switched to {cl_to_use['name']}")
+    if response_cache.client.request.consumer_key != cl_to_use["client"].request.consumer_key:
+        response_cache = switch_tank_client_to(
+            cl_to_use["client"], response_cache
+        )
+        print(f"switched tank client to {cl_to_use['name']}")
+
+    private_checkprobs = [p for cl, p in zip(private_clients, checkprobs) if cl["can_be_private"]]
+
+    ix_to_use = np.argmax(private_checkprobs)
+    cl_to_use = private_clients[ix_to_use]
+
+    if private_client.request.consumer_key != cl_to_use["tumblr"].request.consumer_key:
+        switch_private_client_to(cl_to_use["tumblr"], cl_to_use["rate"])
+        print(f"switched private client to {cl_to_use['name']}")
 
     # TODO: think about this... not sure the math makes sense
     combined_checkprob = sum(checkprobs)
-    return combined_checkprob
+
+    # don't check if the base clients have no requests left
+    if sum(private_checkprobs) == 0:
+        combined_checkprob = 0.
+
+    return combined_checkprob, response_cache
 
 def _compute_checkprob_from_ratelimits_single_client(ratelimit_client_to_check: RateLimitClient,
                                                      requests_needed_to_check=80,
@@ -316,7 +468,7 @@ def _compute_checkprob_from_ratelimits_single_client(ratelimit_client_to_check: 
             hour_remaining = ratelimit_data["hour"]["remaining"]
 
             # if we checked *every* cycle, we could support up this many requests per check
-            requests_per_cycle = SLEEP_TIME * effective_max_rate
+            requests_per_cycle = EFFECTIVE_SLEEP_TIME * effective_max_rate
 
             # we'll check only a fraction `checkprob` of the cycles, to support up to `requests_needed_to_check`
             checkprob = requests_per_cycle / requests_needed_to_check
@@ -334,7 +486,7 @@ def _compute_checkprob_from_ratelimits_single_client(ratelimit_client_to_check: 
                 checkprob = 0.
         except Exception as e:
             print(f"encountered {e} during _compute_checkprob_from_ratelimits, waiting...")
-            time.sleep(SLEEP_TIME*5)
+            time.sleep(sleep_time(multiplier=5))
 
     return checkprob
 
@@ -348,13 +500,13 @@ class LoopPersistentData:
                  timestamps={},
                  reblog_keys={},
                  last_seen_ts=0,
-                 n_posts_to_check_base=150,
+                 n_posts_to_check_base=240,
                  n_posts_to_check_dash=210,
                  offset_=0,
                  requests_per_check_history=[],
-                 apriori_requests_per_check=20,
-                 sentiment_cache: SentimentCache=SentimentCache(),
-                 follower_names=set(),
+                 apriori_requests_per_check=25,
+                 side_judgment_cache: SideJudgmentCache=SideJudgmentCache(),
+                 follower_names=None,
                  ):
         self.reblogs_from_me = reblogs_from_me
         self.reblog_worthy_dash_posts = reblog_worthy_dash_posts
@@ -367,7 +519,7 @@ class LoopPersistentData:
         self.offset_ = offset_
         self.requests_per_check_history = requests_per_check_history
         self.apriori_requests_per_check = apriori_requests_per_check
-        self.sentiment_cache = sentiment_cache
+        self.side_judgment_cache = side_judgment_cache
         self.follower_names = follower_names
 
         if len(self.requests_per_check_history) == 0:
@@ -375,7 +527,7 @@ class LoopPersistentData:
                                                     self.apriori_requests_per_check]
                                                    )
 
-def update_follower_names(loop_persistent_data, response_cache):
+def update_follower_names_v1(loop_persistent_data, response_cache):
     offset = 0
     response = response_cache.client.blog_following(dash_blogName, offset=offset)
     total_blogs = response.get("total_blogs")
@@ -395,16 +547,24 @@ def update_follower_names(loop_persistent_data, response_cache):
         loop_persistent_data.follower_names = names
     return loop_persistent_data
 
+def update_follower_names_v2(loop_persistent_data, response_cache):
+    if loop_persistent_data.follower_names is None:
+        loop_persistent_data.follower_names = set()
+        loop_persistent_data = update_follower_names_v1(loop_persistent_data, response_cache)
+    return loop_persistent_data
+
+update_follower_names = update_follower_names_v2
 
 def respond_to_reblogs_replies(identifiers, reply_set, loop_persistent_data, response_cache,
                                proba_threshold=None, is_user_input=True):
     for reblog_identifier in identifiers:
+        if not roll_for_limited_users(reblog_identifier.blog_name):
+            continue
         print(f"\n\t--> begin handling {reblog_identifier}\n")
         is_reply = reblog_identifier in reply_set
-        if is_reply:
-            pass
-        else:
-            item_post = response_cache.query(CachedResponseType.POSTS, reblog_identifier)
+        halloweenize = (HALLOWEEN_2K20_BEHAVIOR or HALLOWEEN_2K20_BEHAVIOR_TESTING) and is_user_input  # currently is_user_input = is_dashboard
+        if halloweenize:
+            print(f'\t🎃 halloweenizing {reblog_identifier} 🎃')
 
         def _find_bootstrap_draft(drafts):
 
@@ -414,21 +574,18 @@ def respond_to_reblogs_replies(identifiers, reply_set, loop_persistent_data, res
                 return bootstrap_drafts[0]
             return None
 
-        api_response = answer_ask(client, blogName, ask_id=reblog_identifier.id_, asking_name=blogName if is_reply else reblog_identifier.blog_name, question="", answer=REBLOG_BOOTSTRAP_TEXT, is_reblog=True, to_drafts=True, reblog_key=loop_persistent_data.reblog_keys[reblog_identifier])
+        api_response = answer_ask(blogName, ask_id=reblog_identifier.id_, asking_name=blogName if is_reply else reblog_identifier.blog_name, question="", answer=REBLOG_BOOTSTRAP_TEXT, is_reblog=True, to_drafts=True, reblog_key=loop_persistent_data.reblog_keys[reblog_identifier])
 
         if api_response.get('meta', {}).get('status') == 403:
+            print(f"got 403 for {reblog_identifier}\n, skipping")
+            print(f"details:")
+            print(api_response)
             continue
 
-        d_boot = None
-        n_boot_tries = 0
-        while d_boot is None:
-            time.sleep(2**n_boot_tries-1)
-            drafts = client.drafts(blogName)["posts"]
-            d_boot = _find_bootstrap_draft(drafts)
-            n_boot_tries += 1
+        d_boot = private_client.posts(blogName, id=api_response['id'])["posts"][0]
 
         processed = process_post_from_post_payload(d_boot)
-        question = processed[:processed.index(REBLOG_BOOTSTRAP_TEXT)]
+        question = processed.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
 
         if is_reply:
             question = bootstrap_draft_inject_reply(question,
@@ -436,16 +593,17 @@ def respond_to_reblogs_replies(identifiers, reply_set, loop_persistent_data, res
                                                     reply_body=loop_persistent_data.reply_metadata[reblog_identifier]['reply_note']['reply_text'])
         print(f"\n\t--> using question:\n---------\n{question}\n---------\n")
 
-        # TODO: DRY (this repeats code from answer() in bridge_service.py)
-        if "question" in d_boot and "asking_name" in d_boot:
-            ask_prefix = UNAME_CHAR + d_boot["asking_name"] + Q_CHAR + "\n" + d_boot["question"] + "\n"
-            question = ask_prefix + question
-            print(f"ask_prefix: {ask_prefix}")
-        else:
-            print(f"didn't find ask keys; have keys {d_boot.keys()}")
-        gpt2_output = answer_from_gpt2_service(data={'question': question, 'asking_name': reblog_identifier.blog_name, 'exact_prompt': True, 'mood': determine_mood(response_cache)})
+        loop_persistent_data.side_judgment_cache.save()
+        gpt2_output = answer_from_gpt2_service(data={'question': question,
+                                                     'asking_name': reblog_identifier.blog_name,
+                                                     'exact_prompt': True,
+                                                     'mood': determine_mood(response_cache),
+                                                     'return_all_conts': int(halloweenize),
+                                                     'selector_cut_to_final_exchange': int(is_reply)}
+                                               )
+        loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
 
-        if is_user_input:
+        if SAVE_USER_INPUT_SENTIMENTS and (REPLY_RELEVANCE_V2 or (not is_reply)) and is_user_input:
             input_type = UserInputType.REPLY if is_reply else UserInputType.REBLOG
             timestamp = reblog_identifier.timestamp if is_reply else loop_persistent_data.timestamps[reblog_identifier]
             user_input_identifier = UserInputIdentifier(input_type=input_type,
@@ -465,13 +623,56 @@ def respond_to_reblogs_replies(identifiers, reply_set, loop_persistent_data, res
                 print(f"!!skipping proba threshold for {reblog_identifier} because key 'proba' not in gpt2_output:\n\t{gpt2_output}\n")
             else:
                 proba = gpt2_output["proba"]
-                if proba < proba_threshold and int(reblog_identifier.id_) not in DEF_REBLOG_IDS:
-                    print(f"not reblogging {reblog_identifier}:\n\tour proba {proba:.1%} < threshold {proba_threshold:.1%}")
+                numeric_threshold = ((np.random.rand()-0.5)*(0.35/0.5))+0.5 if proba_threshold == "roll" else proba_threshold
+                if proba < numeric_threshold and int(reblog_identifier.id_) not in DEF_REBLOG_IDS:
+                    print(f"not reblogging {reblog_identifier}:\n\tour proba {proba:.1%} < threshold {numeric_threshold:.1%}")
                     okay_to_reply = False
                 else:
-                    print(f"reblogging {reblog_identifier}:\n\tour proba {proba:.1%} >= threshold {proba_threshold:.1%}")
+                    print(f"reblogging {reblog_identifier}:\n\tour proba {proba:.1%} >= threshold {numeric_threshold:.1%}")
+
+        log_data = gpt2_output
+        log_data["post_type"] = "reply" if is_reply else "reblog"
+        log_data["input_ident"] = reblog_identifier
+        log_data["question"] = question
+
+        post_specifiers_from_gpt2 = [gpt2_output]
+
+        if halloweenize:
+            all_form_to_regular_form = {
+                "all_posts": "post",
+                "all_tags": "tags",
+                "all_proba": "proba",
+                "all_mirotarg": "mirotarg",
+                }
+            post_specifiers_from_gpt2 = [
+                {
+                    "continuation_index": i,
+                    "n_continuations": len(gpt2_output['all_posts']),
+                    "choice_ix": gpt2_output["choice_ix"],
+                    "post": post_,
+                    "tags": tags_,
+                    "proba": proba_,
+                    "pos_sentiment": pos_sentiment_,
+                    "mirotarg": mirotarg_,
+                }
+                for i, (post_, tags_, proba_, pos_sentiment_, mirotarg_) in enumerate(zip(
+                    gpt2_output['all_posts'],
+                    gpt2_output['all_tags'],
+                    gpt2_output['all_proba'],
+                    gpt2_output['all_pos_sentiment'],
+                    gpt2_output['all_mirotarg'],
+                    ))
+                ]
+            post_specifiers_from_gpt2 = [halloween_format_post_specifier(ps) for ps in post_specifiers_from_gpt2]
+
+        multiposting = len(post_specifiers_from_gpt2)>1
 
         if is_reply and okay_to_reply:
+            for i, post_specifier in enumerate(post_specifiers_from_gpt2):
+                if i>0:
+                    time.sleep(5 if HALLOWEEN_2K20_BEHAVIOR_TESTING else 0.1)
+                if multiposting:
+                    print(f'🎃 response {i+1}/{len(post_specifiers_from_gpt2)} to {reblog_identifier} 🎃')
             mocked_up = mockup_xkit_reply(
                 post_url=loop_persistent_data.reply_metadata[reblog_identifier]['post']['post_url'],
                 post_summary=loop_persistent_data.reply_metadata[reblog_identifier]['post']['summary'],
@@ -479,20 +680,31 @@ def respond_to_reblogs_replies(identifiers, reply_set, loop_persistent_data, res
                 reply_blog_url=loop_persistent_data.reply_metadata[reblog_identifier]['reply_note']['blog_url'],
                 reply_body=loop_persistent_data.reply_metadata[reblog_identifier]['reply_note']['reply_text']
                 )
-            make_text_post(client, blogName, mocked_up + "\n" + gpt2_output["post"], tags=gpt2_output["tags"], to_queue=False)
+                to_drafts = HALLOWEEN_2K20_BEHAVIOR_TESTING
+                make_text_post(blogName, mocked_up + "\n" + post_specifier["post"], tags=post_specifier["tags"], to_queue=False, asking_name=reblog_identifier.blog_name, question=question, log_data=log_data if i==0 else None, to_drafts=to_drafts)
         elif okay_to_reply:
-            answer_ask(client, blogName, ask_id=reblog_identifier.id_, asking_name=reblog_identifier.blog_name, question=question, answer=gpt2_output["post"], tags=gpt2_output["tags"], is_reblog=True, reblog_key=loop_persistent_data.reblog_keys[reblog_identifier])
+            for i, post_specifier in enumerate(post_specifiers_from_gpt2):
+                if i>0:
+                    time.sleep(5 if HALLOWEEN_2K20_BEHAVIOR_TESTING else 0.1)
+                if multiposting:
+                    print(f'🎃 response {i+1}/{len(post_specifiers_from_gpt2)} to {reblog_identifier} 🎃')
+                screener_question = response_cache.query(CachedResponseType.POSTS, reblog_identifier, care_about_notes=False).get("reblog", {}).get("comment", "")
+                print(f"using screener_question: {repr(screener_question)}")
+                to_drafts = HALLOWEEN_2K20_BEHAVIOR_TESTING
+                answer_ask(blogName, ask_id=reblog_identifier.id_, asking_name=reblog_identifier.blog_name, question=screener_question, answer=post_specifier["post"], tags=post_specifier["tags"], is_reblog=True, reblog_key=loop_persistent_data.reblog_keys[reblog_identifier], log_data=log_data, to_drafts=to_drafts)
 
         time.sleep(0.5)
-        client.delete_post(blogName, d_boot['id'])
+        private_client.delete_post(blogName, d_boot['id'])
         if is_reply:
-            response_cache.mark_reply_handled(reblog_identifier)
+            if not HALLOWEEN_2K20_BEHAVIOR_TESTING:
+                response_cache.mark_reply_handled(reblog_identifier)
         else:
-            response_cache.mark_handled(reblog_identifier)
+            if not HALLOWEEN_2K20_BEHAVIOR_TESTING:
+                response_cache.mark_handled(reblog_identifier)
     return loop_persistent_data, response_cache
 
 
-def is_reblog_worthy_when_responding(post_payload, note_payload):
+def is_reblog_worthy_when_responding(post_payload, note_payload, verbose=True):
     comment_ = post_payload['reblog'].get("comment", "")
     has_comment = len(comment_) > 0
 
@@ -501,41 +713,72 @@ def is_reblog_worthy_when_responding(post_payload, note_payload):
     else:
         is_reblog_worthy = (note_payload['reblog_parent_blog_name'] == blogName) and has_comment
 
+    for trail_entry in post_payload.get('trail', []):
+        if trail_entry.get('blog', {}).get('name', '') in USER_AVOID_LIST:
+            if verbose:
+                print("\trejecting: trail user avoid list")
+            is_reblog_worthy = False
+        if int(trail_entry.get('post', {}).get('id', -1)) in NO_REBLOG_IDS:
+            if verbose:
+                print("\trejecting: reblog id avoid list")
+            is_reblog_worthy = False
+
     return is_reblog_worthy
 
 
-def get_selection_prob(texts):
-    data = {"texts": texts}
-    url = bridge_service_url + "/raw_select"
-    new_id = bridge_service_unique_id(url, data)
+def text_for_side_judgments(post_identifier, post_payload, response_cache, loop_persistent_data, verbose=True,
+                            legacy_config=False):
+    text = response_cache.get_cached_post_body(post_identifier)
 
-    data_to_send = dict()
-    data_to_send.update(data)
-    data_to_send["id"] = new_id
+    if legacy_config:
+        write_config = {"chop_on_a_char": True, "add_tags": True, "swap_in_frank": True, "add_empty_response": False}
+    else:
+        write_config = {"chop_on_a_char": False, "add_tags": False, "swap_in_frank": False, "add_empty_response": True}
 
-    r = requests.post(url, data=data_to_send)
-    result = wait_for_result(new_id, wait_first_time=2, wait_recheck_time=1)
-    return result
+    if text is None:
+        text = write_text_for_side_judgment(post_payload, **write_config)
+        response_cache.mark_post_body(post_identifier, text)
+    return text
 
 
-def is_reblog_worthy_on_dash(post_payload, response_cache, loop_persistent_data, mood_value, follower_multipliers):
+def side_judgements_for_text(text, loop_persistent_data):
+    side_judgements = loop_persistent_data.side_judgment_cache.query(text)
+    prob = side_judgements["selection_proba"]
+    sentiment = side_judgements["sentiment"]["allen_schema"]
+    return prob, sentiment
+
+
+def is_statically_reblog_worthy_on_dash(post_payload, response_cache, loop_persistent_data, verbose=True):
+    post_identifier = PostIdentifier(post_payload['blog_name'], str(post_payload['id']))
+
     if post_payload.get("id") in DEF_REBLOG_IDS:
         return True
+
+    trail = post_payload.get('trail', [])
+    if len(trail) > 1:
+        if trail[-2].get("blog", {}).get("name", "") == blogName:
+            return False
 
     comment_ = post_payload.get('reblog', {}).get("comment", "")
     has_comment = len(comment_) > 0
 
     if not has_comment:
-        return False
+        if DASH_REBLOG_REQUIRE_COMMENT:
+            return False
+        else:
+            trail = post_payload.get('trail', [])
+            if len(trail) > 0:
+                if trail[-1].get("blog", {}).get("name", "") == blogName:
+                    return False
 
     if post_payload.get("note_count") >= 500:
         if verbose:
-            print("\trejecting: notes >= 500")
+            print(f"\trejecting {post_identifier}: notes >= 500")
         return False
 
     if post_payload.get("type") in {"video"}:
         if verbose:
-            print("\trejecting: is video")
+            print(f"\trejecting {post_identifier}: is video")
         return False
 
     # tag avoid list
@@ -551,20 +794,23 @@ def is_reblog_worthy_on_dash(post_payload, response_cache, loop_persistent_data,
     # user avoid list
     if post_payload.get('source_title', '') in USER_AVOID_LIST:
         if verbose:
-            print("\trejecting: OP user avoid list")
+            print(f"\trejecting {post_identifier}: OP user avoid list")
         return False
 
     for trail_entry in post_payload.get('trail', []):
         if trail_entry.get('blog', {}).get('name', '') in USER_AVOID_LIST:
             if verbose:
-                print("\trejecting: trail user avoid list")
+                print(f"\trejecting {post_identifier}: trail user avoid list")
             return False
         if int(trail_entry.get('post', {}).get('id', -1)) in NO_REBLOG_IDS:
             if verbose:
-                print("\trejecting: reblog id avoid list")
+                print(f"\trejecting {post_identifier}: reblog id avoid list")
             return False
 
-    post_identifier = PostIdentifier(post_payload['blog_name'], str(post_payload['id']))
+    if f'@{blogName}' in comment_:
+        if verbose:
+            print(f"reblogging {post_identifier} from dash:\n\ti'm tagged in commment {comment_}")
+        return True
 
     # must follow OP
     post_OP = None
@@ -576,57 +822,29 @@ def is_reblog_worthy_on_dash(post_payload, response_cache, loop_persistent_data,
         except (KeyError, IndexError, TypeError):
             pass
     if post_OP is None:
-        print(f"not reblogging {post_identifier} from dash:\n\tcouldn't find post OP in payload\n{post_payload}")
-        return False
-    elif post_OP not in loop_persistent_data.follower_names:
-        print(f"not reblogging {post_identifier} from dash:\n\ti don't follow OP {post_OP}")
-        return False
-
-    if f'@{blogName}' in comment_:
-        print(f"reblogging {post_identifier} from dash:\n\ti'm tagged in commment {comment_}")
-        return True
-
-    sentiment, pos_sentiment, neg_sentiment, prob = None, None, None, None
-
-    text = response_cache.get_cached_post_body(post_identifier)
-
-    if text is None:
-        # need body processing
-        processed = process_post_from_post_payload(post_payload)
-        if processed is None:
+        if verbose:
+            print(f"not reblogging {post_identifier} from dash:\n\tcouldn't find post OP in payload\n{post_payload}")
             return False
-
-        if ORIG_POST_CHAR in processed:
-            text = processed[processed.index(ORIG_POST_CHAR)+1:]
-        elif A_CHAR in processed:
-            text = processed[[ix for ix, c in enumerate(processed) if c == A_CHAR][-1]+1:]
-        else:
-            if verbose:
-                print("\trejecting: parse fail")
+    elif post_OP not in loop_persistent_data.follower_names and post_OP != blogName:
+        if verbose:
+            print(f"not reblogging {post_identifier} from dash:\n\ti don't follow OP {post_OP}")
             return False
-        if T_CHAR in text:
-            text = text.partition(T_CHAR)[0]
-        if text.endswith("<|endoftext|>"):
-            text = text[:-len("<|endoftext|>")].rstrip("\n")
+    return True
 
-        tags = post_payload.get("tags", [])
-        text += T_CHAR + " ".join(["#" + t for t in tags])
-        response_cache.mark_post_body(post_identifier, text)
+
+def is_dynamically_reblog_worthy_on_dash(post_payload, response_cache, loop_persistent_data, mood_value, follower_multipliers, verbose=True):
+    post_identifier = PostIdentifier(post_payload['blog_name'], str(post_payload['id']))
+
+    pos_sentiment, neg_sentiment = None, None
+    text = text_for_side_judgments(post_identifier, post_payload, response_cache, loop_persistent_data)
+    if not text:
+        return False
+    prob, sentiment = side_judgements_for_text(text, loop_persistent_data)
 
     if len(text) < 10:
         if verbose:
-            print("\trejecting: length<10")
+            print(f"\trejecting {post_identifier}: length<10")
         return False
-
-    if post_identifier in response_cache.text_selector_probs:
-        prob = response_cache.text_selector_probs[post_identifier]
-
-    sentiment = loop_persistent_data.sentiment_cache.query(text.partition(T_CHAR)[0])
-
-    # scoring
-    if prob is None:
-        prob = get_selection_probs([text])[0]
-        response_cache.mark_text_selector_prob(post_identifier, prob)
 
     if sentiment is None:
         reblog_worthy_neg_sentiment = True  # don't depend on allen too heavily
@@ -637,7 +855,10 @@ def is_reblog_worthy_on_dash(post_payload, response_cache, loop_persistent_data,
         reblog_worthy_neg_sentiment = neg_sentiment < DASH_REBLOG_MAX_NEG_SENTIMENT
 
     if pos_sentiment is not None and mood_value is not None:
-        mood_buff = DASH_REBLOG_MOOD_BUFF_SCALE * (mood_value - 0.5) * (pos_sentiment - 0.5)
+        if MOOD_BUFFS_V2:
+            mood_buff = DASH_REBLOG_MOOD_BUFF_SCALE * mood_buff_v2(mood_value, pos_sentiment)
+        else:
+            mood_buff = DASH_REBLOG_MOOD_BUFF_SCALE * ((mood_value - 0.5) * (pos_sentiment - 0.5))/0.25
     else:
         mood_buff = 0.
 
@@ -655,33 +876,55 @@ def is_reblog_worthy_on_dash(post_payload, response_cache, loop_persistent_data,
 
     reblog_worthy_prob = (buffed_prob > DASH_REBLOG_SELECTION_CUTOFF)
 
-    reblog_worthy = reblog_worthy_prob and reblog_worthy_neg_sentiment
+    # override prob if i'm tagged
+    comment_ = post_payload.get('reblog', {}).get("comment", "")
+    reblog_worthy_taggedme = f'@{blogName}' in comment_
 
-    print(f"got prob {prob:.1%} for post {post_payload.get('id')} from {post_payload.get('blog_name')}")
-    print(f"follower_mult {follower_mult:.2f} * (prob {prob:.1%} + mood_buff {mood_buff:.1%} + random_buff {random_buff:.1%}) = buffed_prob {buffed_prob:.1%}")
+    reblog_worthy = (reblog_worthy_prob or reblog_worthy_taggedme) and reblog_worthy_neg_sentiment
 
-    if neg_sentiment is not None:
-        print(f"got neg_sentiment {neg_sentiment:.1%} for post {post_payload.get('id')} from {post_payload.get('blog_name')}")
+    if verbose:
+        print(f"got prob {prob:.1%} for post {post_payload.get('id')} from {post_payload.get('blog_name')}")
+        print(f"follower_mult {follower_mult:.2f} * (prob {prob:.1%} + mood_buff {mood_buff:.1%} + random_buff {random_buff:.1%}) = buffed_prob {buffed_prob:.1%}")
+
+        if neg_sentiment is not None:
+            print(f"got neg_sentiment {neg_sentiment:.1%} for post {post_payload.get('id')} from {post_payload.get('blog_name')}")
 
     if reblog_worthy and not response_cache.is_handled(post_identifier):
         # explain choice
         explanation = f"reblogging {post_identifier} from dash: "
         explanation += f"\n\tbuffed_prob: {buffed_prob:.0%} vs. {DASH_REBLOG_SELECTION_CUTOFF:.1%}"
+        if reblog_worthy_taggedme:
+            explanation += f"\n\toverriding prob: i'm tagged in comment"
         if neg_sentiment is not None:
             explanation += f"\n\tneg_sentiment: {neg_sentiment:.0%} vs. {DASH_REBLOG_MAX_NEG_SENTIMENT:.0%}"
         print(explanation)
     return reblog_worthy
 
 
+def is_reblog_worthy_on_dash(post_payload, response_cache, loop_persistent_data, mood_value, follower_multipliers,
+                             verbose=True):
+    statically_reblog_worthy = is_statically_reblog_worthy_on_dash(post_payload, response_cache, loop_persistent_data, verbose=verbose)
+
+    if not statically_reblog_worthy:
+        return False
+
+    dynamically_reblog_worthy = is_dynamically_reblog_worthy_on_dash(
+        post_payload, response_cache, loop_persistent_data, mood_value, follower_multipliers, verbose=verbose
+    )
+
+    return dynamically_reblog_worthy
+
+
 def review_reblogs_from_me(note_payloads,
                            loop_persistent_data,
                            response_cache):
-    for r in note_payloads[::-1]:
+    note_payload_iter = tqdm(note_payloads[::-1]) if len(note_payloads) > 5 else note_payloads[::-1]
+    for r in note_payload_iter:
         reblog_identifier = PostIdentifier(r['blog_name'], r['post_id'])
 
         r_to_me = r.get("blog_name") == blogName
 
-        post2 = response_cache.query(CachedResponseType.POSTS, reblog_identifier)
+        post2 = response_cache.query(CachedResponseType.POSTS, reblog_identifier, care_about_notes=False)
         if post2 is None:
             # non-200 response
             print(f"skipping {reblog_identifier}: non-200 response")
@@ -699,7 +942,8 @@ def review_reblogs_from_me(note_payloads,
                 response_cache.mark_handled(PostIdentifier(direct_ancestor['blog']['name'], direct_ancestor['post']['id']))
         else:
             is_reblog_worthy = is_reblog_worthy_when_responding(post_payload=post2,
-                                                                note_payload=r)
+                                                                note_payload=r,
+                                                                verbose=VERBOSE_LOGS)
 
         if is_reblog_worthy:
             loop_persistent_data.reblogs_from_me.add(reblog_identifier)
@@ -718,12 +962,12 @@ def review_reblogs_from_me(note_payloads,
             if do_get_sentiment:
 
                 text_for_sentiment = r.get("added_text")
-                if text_for_sentiment is None or loop_persistent_data.sentiment_cache.query(text_for_sentiment) is None:
+                if text_for_sentiment is None:
                     if VERBOSE_LOGS:
                         print(f"couldn't find text for sentiment (added_text) in {user_input_identifier}")
                         print(f"have note payload {r}")
                 else:
-                    sent = loop_persistent_data.sentiment_cache.query(text_for_sentiment)
+                    sent = loop_persistent_data.side_judgment_cache.query(text_for_sentiment)['sentiment']['allen_schema']
                     sent['text_for_sentiment'] = text_for_sentiment
                     response_cache.mark_user_input_sentiment(user_input_identifier, sent)
                     print(f"for {reblog_identifier}, recorded {sent} for\n\t{text_for_sentiment}")
@@ -742,7 +986,8 @@ def review_dashboard_post(post_payload,
                                                 response_cache=response_cache,
                                                 loop_persistent_data=loop_persistent_data,
                                                 mood_value=mood_value,
-                                                follower_multipliers=follower_multipliers)
+                                                follower_multipliers=follower_multipliers,
+                                                verbose=VERBOSE_LOGS)
 
     if is_reblog_worthy:
         loop_persistent_data.reblog_worthy_dash_posts.add(post_identifier)
@@ -785,7 +1030,7 @@ def get_relevant_replies_from_notes(post_payload,
             return replies_to_handle, loop_persistent_data, response_cache
 
         reply_context_post_identifier = PostIdentifier(blogName, reply_context_post_id)
-        reply_context_post = response_cache.query(CachedResponseType.POSTS, reply_context_post_identifier)
+        reply_context_post = response_cache.query(CachedResponseType.POSTS, reply_context_post_identifier, care_about_notes=False)
 
         reply_identifier = ReplyIdentifier(n['blog_name'], reply_context_post_id, n['timestamp'])
 
@@ -824,11 +1069,12 @@ def get_relevant_replies_from_notes(post_payload,
         if do_get_sentiment:
 
             text_for_sentiment = n.get("reply_text")
-            if text_for_sentiment is None or loop_persistent_data.sentiment_cache.query(text_for_sentiment) is None:
-                print(f"couldn't find text for sentiment (reply_text) in {reply_identifier}")
-                print(f"have note payload {n}")
+            if text_for_sentiment is None:
+                if VERBOSE_LOGS:
+                    print(f"couldn't find text for sentiment (reply_text) in {reply_identifier}")
+                    print(f"have note payload {n}")
             else:
-                sent = loop_persistent_data.sentiment_cache.query(text_for_sentiment)
+                        sent = loop_persistent_data.side_judgment_cache.query(text_for_sentiment)['sentiment']['allen_schema']
                 sent['text_for_sentiment'] = text_for_sentiment
                 response_cache.mark_user_input_sentiment(user_input_identifier, sent)
                 print(f"for {reply_identifier}, recorded {sent} for\n\t{text_for_sentiment}")
@@ -903,7 +1149,8 @@ def do_reblog_reply_handling(loop_persistent_data: LoopPersistentData,
                              is_dashboard: bool=False,
                              pseudo_dashboard: bool=False,
                              mood_value: float=None):
-    count_check_requests_start = ratelimit_client.get_ratelimit_data()['day']['remaining']
+    relevant_client = dashboard_client if is_dashboard else response_cache.client
+    count_check_requests_start = relevant_client.get_ratelimit_data()['day']['remaining']
 
     if is_dashboard and not pseudo_dashboard:
         post_getter = lambda **kwargs: response_cache.record_response_to_cache(dashboard_client.dashboard(**kwargs), care_about_notes=False)["posts"]
@@ -933,7 +1180,7 @@ def do_reblog_reply_handling(loop_persistent_data: LoopPersistentData,
 
         loop_persistent_data = update_follower_names(loop_persistent_data, response_cache)
     else:
-        post_getter = lambda **kwargs: response_cache.record_response_to_cache(response_cache.client.posts(blogName, **kwargs))["posts"]
+        post_getter = lambda **kwargs: response_cache.record_response_to_cache(response_cache.client.posts(blogName, **kwargs), care_about_notes=False)["posts"]
         start_ts = REBLOG_START_TS
 
     if is_dashboard and FOLLOWER_MULTIPLIERS:
@@ -957,7 +1204,10 @@ def do_reblog_reply_handling(loop_persistent_data: LoopPersistentData,
 
     next_ = [p for p in post_getter(limit=limit_, offset=offset_, notes_info=(not is_dashboard)) if
                 p['timestamp'] > start_ts and
-                p['id'] not in NO_REBLOG_IDS]
+                p['id'] not in NO_REBLOG_IDS and
+                not any([int(trail_entry.get('post', {}).get('id', -1)) in NO_REBLOG_IDS
+                         for trail_entry in p.get('trail', [])])
+                ]
     posts.extend(next_)
     offset_ += len(next_)
     while len(next_) != 0 and len(posts) < n_posts_to_check:
@@ -965,18 +1215,34 @@ def do_reblog_reply_handling(loop_persistent_data: LoopPersistentData,
         time.sleep(0.1)
         next_ = [p for p in post_getter(limit=limit_, offset=offset_, notes_info=(not is_dashboard)) if
                     p['timestamp'] > start_ts and
-                    p['id'] not in NO_REBLOG_IDS]
+                    p['id'] not in NO_REBLOG_IDS and
+                    not any([int(trail_entry.get('post', {}).get('id', -1)) in NO_REBLOG_IDS
+                             for trail_entry in p.get('trail', [])])
+                    ]
         posts.extend(next_)
         offset_ += len(next_)
 
     print(f"{len(posts)} posts retrieved")
 
-    ### loop through posts
-    for post_ix, post in enumerate(posts[:n_posts_to_check]):
+    if is_dashboard:
+        # batch up dash posts for side judgment computation
+        texts_for_side_judgments = []
+        statically_worthy_posts = []
+        for post_ix, post in enumerate(tqdm(posts[:n_posts_to_check])):
+            if is_statically_reblog_worthy_on_dash(post, response_cache, loop_persistent_data, verbose=False):
         post_identifier = PostIdentifier(post['blog_name'], post['id'])
-        display_ident = post_identifier if is_dashboard else post['id']
-        print(f"{post_ix}/{n_posts_to_check}: {display_ident}")
+                text = text_for_side_judgments(post_identifier, post, response_cache, loop_persistent_data)
+                if text:
+                    texts_for_side_judgments.append(text)
+                    statically_worthy_posts.append(post)
+        print(f"{len(texts_for_side_judgments)}/{n_posts_to_check} statically reblog worthy")
+        loop_persistent_data.side_judgment_cache.query_multi(texts_for_side_judgments, verbose=VERBOSE_LOGS)
+    else:
+        statically_worthy_posts = posts[:n_posts_to_check]
 
+    ### loop through posts
+    for post_ix, post in enumerate(tqdm(statically_worthy_posts)):
+        post_identifier = PostIdentifier(post['blog_name'], post['id'])
         ### get reblogs to deal with
 
         if is_dashboard:
@@ -984,7 +1250,12 @@ def do_reblog_reply_handling(loop_persistent_data: LoopPersistentData,
                 post, loop_persistent_data, response_cache, mood_value, follower_multipliers
             )
         else:
-            notes = response_cache.query(CachedResponseType.NOTES, post_identifier, expected_notes=post['note_count'])
+            try:
+                notes = response_cache.query(CachedResponseType.NOTES, post_identifier, expected_notes=post['note_count'],
+                                             notes_field=post.get("notes"))
+            except Exception as e:
+                print(f"encountered {repr(e)} trying to get notes for {post_identifier}, notes field was {post.get('notes')}")
+                continue
 
             updated_last_seen_ts = max([n['timestamp'] for n in notes] + [updated_last_seen_ts])
 
@@ -1016,6 +1287,24 @@ def do_reblog_reply_handling(loop_persistent_data: LoopPersistentData,
                              (loop_persistent_data.timestamps[r] > start_ts and
                              not response_cache.is_handled(r))]
 
+    blog_names_to_reblog_idents = defaultdict(list)
+    for r in reblogs_to_handle:
+        blog_names_to_reblog_idents[r.blog_name].append(r)
+
+    for bn, rs in blog_names_to_reblog_idents.items():
+        for r in rs[1:]:
+            print(f"\t * user equity rule*: saving {r} for later...")
+            reblogs_to_handle.remove(r)
+
+    blog_names_to_reply_idents = defaultdict(list)
+    for r in replies_to_handle:
+        blog_names_to_reply_idents[r.blog_name].append(r)
+
+    for bn, rs in blog_names_to_reply_idents.items():
+        for r in rs[1:]:
+            print(f"\t * user equity rule*: saving {r} for later...")
+            replies_to_handle.remove(r)
+
     print(f"{len(reblogs_to_handle)} reblogs to handle")
     if len(reblogs_to_handle) > 0:
         print(f"handling reblogs:")
@@ -1040,11 +1329,14 @@ def do_reblog_reply_handling(loop_persistent_data: LoopPersistentData,
 
     ### post-check stuff
 
-    count_check_requests_end = ratelimit_client.get_ratelimit_data()['day']['remaining']
+    count_check_requests_end = relevant_client.get_ratelimit_data()['day']['remaining']
     count_check_requests_diff = count_check_requests_start - count_check_requests_end
     print(f"used {count_check_requests_diff} requests in this check")
 
-    if not is_dashboard:
+    if is_dashboard:
+        # record calls for this check -- hack
+        loop_persistent_data.requests_per_check_history[-1] += count_check_requests_diff
+    else:
         # record calls for this check
         loop_persistent_data.requests_per_check_history.append(count_check_requests_diff)
 
@@ -1056,25 +1348,40 @@ def do_reblog_reply_handling(loop_persistent_data: LoopPersistentData,
 
 
 def do_ask_handling(loop_persistent_data, response_cache):
-    submissions = client.submission(blogName)["posts"]
+    submissions = private_client.submission(blogName)["posts"]
     n_asks = len(submissions)
     print(f"processing {n_asks} new asks")
     print()
 
+    blog_names_to_asks = defaultdict(list)
+    for r in submissions[::-1]:
+        blog_names_to_asks[r['asking_name']].append(r)
+
+    for bn, rs in blog_names_to_asks.items():
+        for r in rs[1:]:
+            print(f"\t * user equity rule*: saving {r['asking_name']}, question={r['question']} for later...")
+            submissions.remove(r)
+
     for x in submissions[::-1]:
+        if not roll_for_limited_users(x['asking_name'], text=x['question']):
+            continue
         if x.get('summary', '') == FOLLOW_COMMAND:
             try:
                 dashboard_client.follow(x['asking_name'])
+                loop_persistent_data = update_follower_names_v2(loop_persistent_data, response_cache)
+                loop_persistent_data.follower_names.add(x['asking_name'])
             except Exception:
                 continue
-            client.delete_post(blogName, x['id'])
+            private_client.delete_post(blogName, x['id'])
             print(f"followed {x['asking_name']}")
         elif x.get('summary', '') == UNFOLLOW_COMMAND:
             try:
                 dashboard_client.unfollow(x['asking_name'])
+                loop_persistent_data = update_follower_names_v2(loop_persistent_data, response_cache)
+                loop_persistent_data.follower_names.remove(x['asking_name'])
             except Exception:
                 continue
-            client.delete_post(blogName, x['id'])
+            private_client.delete_post(blogName, x['id'])
             print(f"unfollowed {x['asking_name']}")
         elif x.get('summary', '') == MOOD_GRAPH_COMMAND:
             path = create_mood_graph(
@@ -1082,18 +1389,35 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 start_time=datetime.now()-pd.Timedelta(days=MOOD_GRAPH_N_DAYS),
                 end_time=datetime.now()
                 )
-            base_client.create_photo(blogName,
+            private_client.create_photo(blogName,
                                      state="published" if x['asking_name'] != "nostalgebraist" else "draft",
                                      data=path,
                                      caption=MOOD_GRAPH_EXPLAINER_STRING.format(days_string=MOOD_GRAPH_DAYS_STRING,
                                                                                 asking_name=x['asking_name'],
                                                                                 asking_url=x['asking_url'])
                                      )
-            client.delete_post(blogName, x['id'])
+            private_client.delete_post(blogName, x['id'])
         else:
-            for k, v in x.items():
-                print(f"{k}: {v}")
+            for k in ["id", "post_url", "date", "timestamp", "asking_name", "asking_url", "summary", "question"]:
+                print(f"{k}: {x[k]}")
             question = inverse_format_post_for_api(x["question"])
+
+            forced_tags_string = ""
+
+            write_fic_override = 0
+            if FIC_TRIGGER:
+                fic_triger_criterion = any([subs in x["question"].lower()
+                                            for subs in ["tell me a story", "a story about", "write a story",]])
+                print(f"fic_triger_criterion: {fic_triger_criterion} with x['question']: {x['question']}")
+                if FIC_TRIGGER_TESTING:
+                    fic_triger_criterion = fic_triger_criterion and (x["asking_name"] == "nostalgebraist")
+                    print(f"fic_triger_criterion: {fic_triger_criterion} with x['asking_name']: {x['asking_name']}")
+
+                if fic_triger_criterion:
+                    print('fic_triger_criterion passed')
+                    # forced_tags_string += " #original fiction"
+                    write_fic_override = 1
+
 
             user_input_identifier = UserInputIdentifier(input_type=UserInputType.ASK,
                                                         blog_name=x["asking_name"],
@@ -1107,44 +1431,59 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 do_get_sentiment = True
             if do_get_sentiment:
                 text_for_sentiment = question
-                if text_for_sentiment is None or loop_persistent_data.sentiment_cache.query(text_for_sentiment) is None:
+                if text_for_sentiment is None:
                     if VERBOSE_LOGS:
                         print(f"couldn't find text for sentiment (question) in {user_input_identifier}")
                         print(f"have submission payload {x}")
                 else:
-                    sent = loop_persistent_data.sentiment_cache.query(text_for_sentiment)
+                    sent = loop_persistent_data.side_judgment_cache.query(text_for_sentiment)['sentiment']['allen_schema']
                     sent['text_for_sentiment'] = text_for_sentiment
                     response_cache.mark_user_input_sentiment(user_input_identifier, sent)
                     print(f"for {user_input_identifier}, recorded {sent} for\n\t{text_for_sentiment}")
 
+            loop_persistent_data.side_judgment_cache.save()
             gpt2_output = answer_from_gpt2_service(data={'question': question, 'asking_name': x['asking_name'],
-                                                         'mood': determine_mood(response_cache)})
+                                                         'mood': determine_mood(response_cache),
+                                                         'forced_tags_string': forced_tags_string,
+                                                         'write_fic_override': write_fic_override})
+            loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
 
             if response_cache.get_cached_user_input_sentiment(user_input_identifier) is not None:
                 sent = response_cache.get_cached_user_input_sentiment(user_input_identifier)
                 sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
                 sent["generated_ts"] = datetime.now()
                 response_cache.mark_user_input_sentiment(user_input_identifier, sent)
-
-            answer_ask(client, blogName, ask_id=x['id'], asking_name=x['asking_name'], question=question, answer=gpt2_output["post"], tags=gpt2_output["tags"])
+            log_data = gpt2_output
+            log_data["post_type"] = "ask"
+            log_data["input_ident"] = (x['id'], x['asking_name'])
+            log_data["question"] = question
+            answer_ask(blogName, ask_id=x['id'], asking_name=x['asking_name'], question=question, answer=gpt2_output["post"], tags=gpt2_output["tags"], log_data=log_data)
     return loop_persistent_data, response_cache, n_asks
 
 
 def do_queue_handling(response_cache: ResponseCache):
-    queue = client.queue(blogName, limit=20)['posts']
+    queue = private_client.queue(blogName, limit=20)['posts']
 
     n_posts_in_queue = len(queue)
     print(f"{n_posts_in_queue} posts in queue")
 
     if n_posts_in_queue < WRITE_POSTS_WHEN_QUEUE_BELOW:
-        mood_for_queue_writing = determine_mood(response_cache, for_queue=True)
-
         for textpost_ix in range(N_TO_WRITE):
-            print(f"writing new text post... ({textpost_ix}/{N_TO_WRITE})")
-            gpt2_output = text_post_from_gpt2_service(mood=mood_for_queue_writing)
-            make_text_post(client, blogName, post=gpt2_output["post"], tags=gpt2_output["tags"])
+            dt = next_queued_post_time()
+            mood_for_queue_writing = determine_mood(response_cache, dt=dt)
 
-        n_posts_in_queue = len(client.queue(blogName, limit=40)['posts'])
+            print(f"writing new text post... ({textpost_ix}/{N_TO_WRITE})")
+            loop_persistent_data.side_judgment_cache.save()
+            gpt2_output = text_post_from_gpt2_service(mood=mood_for_queue_writing, ts=dt)
+            loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
+
+            log_data = gpt2_output
+            log_data["post_type"] = "textpost"
+            log_data["input_ident"] = None
+            log_data["question"] = None
+            make_text_post(blogName, post=gpt2_output["post"], tags=gpt2_output["tags"], log_data=gpt2_output)
+
+        n_posts_in_queue = len(private_client.queue(blogName, limit=20)['posts'])
         print(f"now {n_posts_in_queue} posts in queue")
 
 
@@ -1152,8 +1491,10 @@ def mainloop(loop_persistent_data: LoopPersistentData,
              response_cache: ResponseCache):
     ### decide whether we'll do the reblog/reply check
 
-    requests_needed_to_check = np.percentile(loop_persistent_data.requests_per_check_history, 75)
-    checkprob = _compute_checkprob_from_ratelimits(requests_needed_to_check)
+    requests_needed_to_check = np.percentile(loop_persistent_data.requests_per_check_history[-30:], 75)
+    checkprob, response_cache = _compute_checkprob_from_ratelimits(
+        requests_needed_to_check, response_cache
+        )
 
     print(f"using checkprob: {checkprob:.1%}, with last_seen_ts={loop_persistent_data.last_seen_ts}")
 
@@ -1167,13 +1508,17 @@ def mainloop(loop_persistent_data: LoopPersistentData,
 
     n_posts_to_check_dash = loop_persistent_data.n_posts_to_check_dash
 
-    relevant_ratelimit_data = base_ratelimit_client.get_ratelimit_data()
-    if relevant_ratelimit_data["effective_remaining"]>0:
-        ### do asks check
-        loop_persistent_data, response_cache, n_asks = do_ask_handling(loop_persistent_data, response_cache)
-        if n_asks > 0:
-            loop_persistent_data.sentiment_cache.save()
+    def _mainloop_asks_block(loop_persistent_data, response_cache, save_after=True):
+        relevant_ratelimit_data = private_ratelimit_client.get_ratelimit_data()
+        if relevant_ratelimit_data["effective_remaining"]>0:
+            loop_persistent_data, response_cache, n_asks = do_ask_handling(loop_persistent_data, response_cache)
+            if (n_asks > 0) and save_after:
+                loop_persistent_data.side_judgment_cache.save()
             response_cache.save()
+        return loop_persistent_data, response_cache
+
+    ### do asks check
+    loop_persistent_data, response_cache = _mainloop_asks_block(loop_persistent_data, response_cache)
 
     ### do reblog/reply check
     if n_posts_to_check > 0:
@@ -1182,9 +1527,12 @@ def mainloop(loop_persistent_data: LoopPersistentData,
             loop_persistent_data, response_cache, n_posts_to_check
             )
         response_cache.save()
-        loop_persistent_data.sentiment_cache.save()
+        loop_persistent_data.side_judgment_cache.save()
 
-    if relevant_ratelimit_data["effective_remaining"]>0:
+        ### do another asks check
+        loop_persistent_data, response_cache = _mainloop_asks_block(loop_persistent_data, response_cache)
+
+    if n_posts_to_check > 0:
         # dash check
         if dashboard_ratelimit_client.get_ratelimit_data()["effective_remaining"] > 0:
             print("checking dash...")
@@ -1205,14 +1553,19 @@ def mainloop(loop_persistent_data: LoopPersistentData,
                     pseudo_dashboard=True
                 )
 
+        ### do another asks check
+        loop_persistent_data, response_cache = _mainloop_asks_block(loop_persistent_data, response_cache, save_after=False)
+
+    relevant_ratelimit_data = private_ratelimit_client.get_ratelimit_data()
+    if relevant_ratelimit_data["effective_remaining"]>0:
         response_cache.save()
-        loop_persistent_data.sentiment_cache.save()
+        loop_persistent_data.side_judgment_cache.save()
 
         ### do queue check
         do_queue_handling(response_cache)
 
         # inform us about drafts
-        drafts = client.drafts(blogName)["posts"]
+        drafts = private_client.drafts(blogName)["posts"]
         print(f"{len(drafts)} waiting for review")
     else:
         print("skipping asks, queue, drafts until we're no longer rate limited")
@@ -1226,14 +1579,14 @@ def mainloop(loop_persistent_data: LoopPersistentData,
     return loop_persistent_data, response_cache
 
 if __name__ == "__main__":
-    response_cache = ResponseCache.load(client)
-    sentiment_cache = SentimentCache.load()
-    loop_persistent_data = LoopPersistentData(sentiment_cache=sentiment_cache)
+    response_cache = ResponseCache.load(tank_client)
+    side_judgment_cache = SideJudgmentCache.load()
+    loop_persistent_data = LoopPersistentData(side_judgment_cache=side_judgment_cache)
 
     while True:
         try:
             loop_persistent_data, response_cache = mainloop(loop_persistent_data, response_cache)
-            time.sleep(SLEEP_TIME)
-        except (requests.exceptions.ConnectionError, KeyError):
+            time.sleep(sleep_time())
+        except (requests.exceptions.ConnectionError, KeyError, ValueError):
             print("hit an error, waiting for a little while...")
-            time.sleep(SLEEP_TIME*5)
+            time.sleep(sleep_time(multiplier=5))

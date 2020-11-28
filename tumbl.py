@@ -23,7 +23,7 @@ from mood import DEFAULT_MOOD, random_mood_at_pst_datetime
 from mood_dynamic import compute_dynamic_moodspec_at_time, create_mood_graph
 
 from munging_shared import *
-from bridge_shared import bridge_service_unique_id
+from bridge_shared import bridge_service_unique_id, wait_for_result, side_judgments_from_gpt2_service
 
 EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
@@ -133,25 +133,6 @@ def determine_mood(response_cache: ResponseCache, window_length_days=4,
     if return_mood_value:
         return mood, mood_value
     return mood
-
-def wait_for_result(new_id, wait_first_time=60, wait_recheck_time=10):
-    started_waiting_ts = time.time()
-    data = {"id": new_id}
-    time.sleep(wait_first_time)
-    result = requests.post(bridge_service_url + "/getresult", data=data).json()
-    n_tries = 0
-
-    while not result["done"]:
-        n_tries += 1
-        print(f"waiting for result, tried {n_tries} time(s)")
-        print(f"result: {result}")
-        time.sleep(wait_recheck_time)
-        result = requests.post(bridge_service_url + "/getresult", data=data).json()
-
-    done_waiting_ts = time.time()
-    dt = done_waiting_ts - started_waiting_ts
-    print(f"Turnaround time: {dt//60:.0f} min {dt%60:.0f}s")
-    return result["result"]
 
 def answer_from_gpt2_service(data: dict):
     new_id = bridge_service_unique_id(bridge_service_url, data)

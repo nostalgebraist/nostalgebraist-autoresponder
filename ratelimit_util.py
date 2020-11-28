@@ -1,9 +1,15 @@
-"""a not-especially-good wrapper around the ratelimit info in tumblr API response"""
+"""a wrapper around pytumblr's client with tools for ratelimit info, no $&^!ing param validation, etc"""
 import pytumblr
+
+RAW_RESPONSES_FOR_DEBUG = False
+LOG_CALLS_FOR_DEBUG = False
 
 class HeaderTumblrRequest(pytumblr.TumblrRequest):
     def json_parse(self, response):
+        self.last_headers = response.headers
+        if RAW_RESPONSES_FOR_DEBUG:
         return response
+        return super().json_parse(response)
 
 class RateLimitClient(pytumblr.TumblrRestClient):
     def __init__(self, consumer_key, consumer_secret="", oauth_token="", oauth_secret="", host="https://api.tumblr.com", blogName=None):
@@ -14,6 +20,16 @@ class RateLimitClient(pytumblr.TumblrRestClient):
 
         self.request = HeaderTumblrRequest(consumer_key, consumer_secret, oauth_token, oauth_secret, host)
 
+    def send_api_request(self, method, url, params={}, valid_parameters=[], needs_api_key=False):
+        if LOG_CALLS_FOR_DEBUG:
+            print(f"!requesting {url} with {repr(params)}")
+        extras = [key for key in params.keys() if key not in valid_parameters]
+        valid_parameters_extended = valid_parameters + extras
+        return super().send_api_request(method,
+                                        url,
+                                        params=params,
+                                        valid_parameters=valid_parameters_extended,
+                                        needs_api_key=needs_api_key)
 
     @staticmethod
     def from_tumblr_rest_client(client: pytumblr.TumblrRestClient, blogName):
@@ -25,9 +41,11 @@ class RateLimitClient(pytumblr.TumblrRestClient):
                                )
 
     def get_ratelimit_data(self):
+        if not hasattr(self.request, "last_headers"):
+            print("warning: no ratelimit data found, sending a request from ratelimit client")
         response = self.posts(self.blogName, limit=1)
 
-        headers = response.headers
+        headers = self.request.last_headers
         results = {}
 
         results["day"] = {"remaining": int(headers["X-Ratelimit-Perday-Remaining"]),

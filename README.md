@@ -83,7 +83,7 @@ The model for layer 2, the generator, should be fine-tuned on an appropriately s
   - `generator.ipynb`
 - Core helper code used by the scripts
   - `bot_config.py` (loader for string constants like API keys, "bad words" to screen for, etc)
-  - `ratelimit_util.py` (tumblr API helper)
+  - `pytumblr_wrapper.py` (tumblr API helper)
   - `response_cache.py` (originally tumblr API helper, has now scope creeped into being a general-purpose cache)
   - `reblogs_v5.py` (text munger to convert structured tumblr data into text for GPT-2)
 - Helper code for specific, less central features

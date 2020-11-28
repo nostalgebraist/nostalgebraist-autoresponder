@@ -10,7 +10,7 @@ import os, textwrap, time, pickle
 from bs4 import BeautifulSoup
 from reblogs_v5 import *
 
-from ratelimit_util import RateLimitClient
+from pytumblr_wrapper import RateLimitClient
 from response_cache import ResponseCache, PostIdentifier, CachedResponseType
 
 from munging_shared import get_body, process_post_from_post_payload

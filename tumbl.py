@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 
 from reply_munging import mockup_xkit_reply, bootstrap_draft_inject_reply
 
-from ratelimit_util import RateLimitClient
+from pytumblr_wrapper import RateLimitClient
 from response_cache import ResponseCache, PostIdentifier, ReplyIdentifier, CachedResponseType, UserInputIdentifier, UserInputType
 
 from sentiment import SentimentCache

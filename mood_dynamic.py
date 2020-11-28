@@ -18,8 +18,22 @@ STEP_SEC = 30 * 1
 TAU_SEC = 3600 * 12
 TAU_SEC_2ND = 60 * 60
 
-RESPONSE_SCALE_BASE = 0.1 # 0.2 #0.5
-DETERMINER_CENTER = -2.4 # -1.5 #-2
+RESPONSE_SCALE_BASE = 0.15 #0.1 # 0.2 #0.5
+DETERMINER_CENTER = -3.1 #-2.4 # -1.5 #-2
+DETERMINER_CENTER_UPDATES = {pd.Timestamp('2020-08-20 01:00:00'): -2.4,
+                             pd.Timestamp('2020-08-25 14:00:00'): -2.,
+                             pd.Timestamp('2020-08-31 09:15:00'): -2.4,
+                             pd.Timestamp('2020-09-16 06:00:00'): -2.1,
+                             pd.Timestamp('2020-10-28 17:00:00'): -2.4,
+                             pd.Timestamp('2020-11-04 11:00:00'): -2.78,
+                             pd.Timestamp('2020-11-13 19:00:00'): -2.7,
+                             pd.Timestamp('2020-11-15 07:30:00'): -2.6,}
+DETERMINER_MULTIPLIER_UPDATES = {pd.Timestamp('2020-08-25 17:00:00'): 0.1/RESPONSE_SCALE_BASE,
+                                 pd.Timestamp('2020-10-21 21:15:00'): 0.075/RESPONSE_SCALE_BASE,
+                                 pd.Timestamp('2020-11-16 10:45:00'): 0.0667/RESPONSE_SCALE_BASE,
+                                 pd.Timestamp('2020-11-25 11:30:00'): 0.1/RESPONSE_SCALE_BASE,
+                                 pd.Timestamp('2020-11-27 08:55:00'): 0.15/RESPONSE_SCALE_BASE,
+                                 }
 
 MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP = {
  'only_sad': 0.094,
@@ -36,6 +50,8 @@ _ordered_cutoffs_moods = [(c, [k for k, v in MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP
 
 GENERATED_TS_FIRST_STABLE = pd.Timestamp('2020-05-26 19:00:00')
 
+WINDOW_LENGTH_DAYS = 2.5
+
 def logit_diff_to_pos_sent(x):
     return 1/(1+np.exp(-x))
 
@@ -49,6 +65,11 @@ def convert_p75_generated_logit_diff_to_user_input_logit_diff(x):
 def convert_user_input_logit_diff_to_p75_generated_logit_diff(x):
     # one-time empirical (lr fit)
     return (x+1.4965600283833032)/1.24462721
+
+def mood_buff_v2(x, y):
+    prod = pos_sent_to_logit_diff(x) * pos_sent_to_logit_diff(y)
+    result = logit_diff_to_pos_sent(np.sign(prod) * np.sqrt(np.abs(prod)))  # in (0, 1)
+    return 2*(result-0.5)  # in (-1, 1)
 
 def dynamic_mood_value_to_mood_interp(value, verbose=True) -> str:
     upper_name = None
@@ -94,12 +115,16 @@ class DynamicMoodSystem:
                  tau_sec_2nd: float=TAU_SEC_2ND,
                  response_scale_base: float=RESPONSE_SCALE_BASE,
                  determiner_center: float=DETERMINER_CENTER,
+                 determiner_center_updates: dict=DETERMINER_CENTER_UPDATES,
+                 determiner_multiplier_updates: dict=DETERMINER_MULTIPLIER_UPDATES,
                  ):
         self.step_sec = step_sec
         self.tau_sec = tau_sec
         self.tau_sec_2nd = tau_sec_2nd
         self.response_scale_base = response_scale_base
         self.determiner_center = determiner_center
+        self.determiner_center_updates = determiner_center_updates
+        self.determiner_multiplier_updates = determiner_multiplier_updates
 
     @property
     def response_scale(self) -> float:
@@ -122,6 +147,22 @@ class DynamicMoodSystem:
         matrices = self.system_matrices
         system = lti(matrices[0], matrices[1], [[0, 1]], matrices[3])
         return system
+
+    def determiner_center_series(self, determiner: pd.Series) -> pd.Series:
+        determiner_center_s = pd.Series([self.determiner_center for _ in determiner.index],
+                                        index=determiner.index)
+        for time in sorted(self.determiner_center_updates.keys()):
+            determiner_center_s.loc[time:] = self.determiner_center_updates[time]
+
+        return determiner_center_s
+
+    def determiner_multiplier_series(self, determiner: pd.Series) -> pd.Series:
+        determiner_multiplier_s = pd.Series([1. for _ in determiner.index],
+                                            index=determiner.index)
+        for time in sorted(self.determiner_multiplier_updates.keys()):
+            determiner_multiplier_s.loc[time:] = self.determiner_multiplier_updates[time]
+
+        return determiner_multiplier_s
 
 
 def compute_dynamic_mood_inputs(response_cache: ResponseCache) -> pd.DataFrame:
@@ -154,6 +195,13 @@ def compute_dynamic_mood_inputs(response_cache: ResponseCache) -> pd.DataFrame:
     _filter = df.generated_logit_diff.notnull()
     df.loc[_filter, "p75_generated_logit_diff"] = df.loc[_filter, "generated_logit_diff"].apply(
         lambda l: np.percentile(l, 75)
+    )
+
+    df["determiner"] = df.apply(
+        lambda row: convert_p75_generated_logit_diff_to_user_input_logit_diff(row.p75_generated_logit_diff)
+        if (np.isfinite(row.p75_generated_logit_diff) and (row.generated_ts == row.generated_ts))
+        else row.logit_diff,
+        axis=1
     )
 
     mood_inputs = df.set_index("time")
@@ -190,17 +238,13 @@ def compute_dynamic_mood_over_interval(mood_inputs: pd.DataFrame,
         system = DynamicMoodSystem()
 
     if use_p75:
-        determiner = mood_inputs.apply(
-            lambda row: convert_p75_generated_logit_diff_to_user_input_logit_diff(row.p75_generated_logit_diff)
-            if (np.isfinite(row.p75_generated_logit_diff) and (row.generated_ts == row.generated_ts))
-            else row.logit_diff,
-            axis=1
-        )
+        determiner = mood_inputs.determiner
     else:
         determiner = mood_inputs.logit_diff
 
-    sentiment_centered = (determiner - system.determiner_center)
-    sentiment_centered = sentiment_centered.loc[start_time:]
+    sentiment_centered = (determiner - system.determiner_center_series(determiner))
+    sentiment_centered = system.determiner_multiplier_series(sentiment_centered) * sentiment_centered
+    sentiment_centered = sentiment_centered.loc[start_time:end_time]
     sentiment_centered_indexed = sentiment_centered.resample(f"{system.step_sec}s").sum()
 
     extra_ts_ix = pd.date_range(
@@ -232,7 +276,7 @@ def compute_dynamic_mood_over_interval(mood_inputs: pd.DataFrame,
 
 def compute_dynamic_mood_at_time(mood_inputs: pd.DataFrame,
                                  time: datetime=None,
-                                 window_length_days: float=None,  # pass None for unbounded
+                                 window_length_days: float=WINDOW_LENGTH_DAYS,  # pass None for unbounded
                                  system: DynamicMoodSystem=None,
                                  apply_daily_offset: bool=True,
                                  use_p75: bool=True) -> float:
@@ -276,15 +320,17 @@ def compute_dynamic_moodspec_at_time(response_cache: ResponseCache,
 def create_mood_graph(response_cache: ResponseCache,
                       start_time: datetime=None,
                       end_time: datetime=None,
+                      window_length_days: float=WINDOW_LENGTH_DAYS,
                       system: DynamicMoodSystem=None,
                       in_logit_diff_space: bool=True,
                       save_image: bool=True) -> str:
     ytrans = pos_sent_to_logit_diff if in_logit_diff_space else lambda x: x
 
     mood_inputs = compute_dynamic_mood_inputs(response_cache)
-    lti_series = compute_dynamic_mood_over_interval(mood_inputs, start_time, end_time, system).apply(ytrans)
+    lti_series = compute_dynamic_mood_over_interval(mood_inputs, start_time-pd.Timedelta(days=window_length_days), end_time, system).apply(ytrans)
+    lti_series = lti_series.loc[start_time:end_time]
 
-    plt.figure(figsize=(8, 6))
+    fig = plt.figure(figsize=(8, 6))
     plt.plot(lti_series.index, lti_series.values, label="Mood", c='k')
 
     colors = {"only_happy": "#000080",
@@ -314,4 +360,6 @@ def create_mood_graph(response_cache: ResponseCache,
         image_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + ".png"
         path = "mood_images/" + image_name
         plt.savefig(path, bbox_inches='tight')
+        plt.close(fig)
         return path
+    plt.close(fig)

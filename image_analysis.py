@@ -4,7 +4,7 @@ import os
 import time
 from io import BytesIO
 
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 import boto3
 import requests
 
@@ -15,23 +15,33 @@ IMAGE_DIR = "analysis_images/"
 
 rek = boto3.client('rekognition')
 
+ACCEPTABLE_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif"}
+
+def xtn_from_headers(response: requests.models.Response):
+    return "." + response.headers.get('Content-Type', '').partition('/')[-1]
+
 
 def url_to_frame_bytes(url: str, fps: float=1., max_frames: int=10) -> List[bytes]:
     try:
         name = url.rpartition("/")[-1]
-        xtn = "." + name.rpartition(".")[-1]
+        xtn_from_url = "." + name.rpartition(".")[-1]
 
         r = requests.get(url)
         if r.status_code != 200:
             print(f"encountered code {r.status_code} trying to get {url}")
             return []
 
-        if xtn in {".png", ".jpg", ".jpeg"}:
-            return [r.content]
-        elif xtn == ".gif":
+        xtn = xtn_from_url
+        if xtn not in ACCEPTABLE_IMAGE_EXTENSIONS:
+            xtn = xtn_from_headers(r)
+
+        if xtn == ".gif":
             return gif_bytes_to_frame_bytes(r.content, fps=fps, max_frames=max_frames)
-        else:
-            print(f"encountered unknown extension {xtn} in {url}")
+        elif xtn in ACCEPTABLE_IMAGE_EXTENSIONS:
+            return [r.content]
+
+        # if we reach this, nothing worked
+        print(f"encountered unknown extension in {url}, Content-Type {r.headers.get('Content-Type')}")
             return []
     except Exception as e:
         print(f"encountered {e} trying to get {url}")
@@ -108,7 +118,8 @@ def execute_callspecs(specs: List[CallSpec], b: bytes, sleep_time: float=0.33,
     if postprocessor_kwargs is None:
         postprocessor_kwargs = [{} for _ in specs]
 
-    for spec, kwargs in tqdm(zip(specs, postprocessor_kwargs)):
+    iter = tqdm(zip(specs, postprocessor_kwargs)) if len(specs)>1 else zip(specs, postprocessor_kwargs)
+    for spec, kwargs in iter:
         results.update(execute_callspec(spec, b,  **kwargs))
 
         time.sleep(sleep_time)
@@ -122,9 +133,11 @@ def batch_execute_callspecs(specs: List[CallSpec], byte_list: List[bytes], sleep
     if postprocessor_kwargs is None:
         postprocessor_kwargs = [{} for _ in specs]
 
-    for b in tqdm(byte_list):
+    iter = tqdm(byte_list) if len(byte_list)>1 else byte_list
+    for b in iter:
         results_one = {}
-        for spec, kwargs in tqdm(zip(specs, postprocessor_kwargs)):
+        iter = tqdm(zip(specs, postprocessor_kwargs)) if len(specs)>1 else zip(specs, postprocessor_kwargs)
+        for spec, kwargs in iter:
             results_one.update(execute_callspec(spec, b,  **kwargs))
 
             time.sleep(sleep_time)
@@ -271,7 +284,7 @@ only_text_rek_kwargs = [{"threshold": 80}]
 
 # utils / putting things together
 
-def collect_text(results: List[dict]) -> str:
+def collect_text(results: List[dict], deduplicate=True) -> str:
     lines = []
 
     for entry in results:
@@ -279,12 +292,19 @@ def collect_text(results: List[dict]) -> str:
             entry_lines = [text_line["text"] for text_line in entry["text_lines"]]
             lines.append("\n".join(entry_lines))
 
+    if deduplicate:
+        lines_dedup = []
+        for l in lines:
+            if l not in lines_dedup:
+                lines_dedup.append(l)
+        lines = lines_dedup
+
     return "\n".join(lines)
 
-def extract_text_from_url(url: str) -> str:
+def extract_text_from_url(url: str, deduplicate=True, sleep_time: float=0.33,) -> str:
     frame_bytes = url_to_frame_bytes(url)
-    results = batch_execute_callspecs(only_text_rek_specs, postprocessor_kwargs=only_text_rek_kwargs, byte_list=frame_bytes)
-    return collect_text(results)
+    results = batch_execute_callspecs(only_text_rek_specs, postprocessor_kwargs=only_text_rek_kwargs, byte_list=frame_bytes, sleep_time=sleep_time)
+    return collect_text(results, deduplicate=deduplicate)
 
 
 

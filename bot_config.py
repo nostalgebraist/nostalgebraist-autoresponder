@@ -24,9 +24,12 @@ class BotSpecificConstants:
                  REPLY_USER_AUTO_ACCEPT_LIST: Set[str]=set(),
                  bad_strings: Set[str]=set(),
                  bad_strings_shortwords: Set[str]=set(),
+                 okay_superstrings: Set[str]=set(),
+                 likely_obscured_strings: Set[str]=set(),
+                 profane_strings: Set[str]=set(),
                  LIMITED_USERS: dict,
                  LIMITED_SUBSTRINGS: set,
-                 SCREENED_USERS: set
+                 SCREENED_USERS: set,
                  ):
         self.blogName = blogName
         self.dash_blogName = dash_blogName
@@ -67,6 +70,15 @@ class BotSpecificConstants:
 
         # form elements of bad_strings from these surrounded by various whitespace/punctuation
         self.bad_strings_shortwords = bad_strings_shortwords
+
+        # TODO: document
+        self.okay_superstrings = okay_superstrings
+
+        # TODO: document
+        self.likely_obscured_strings = likely_obscured_strings
+
+        # TODO: document
+        self.profane_strings = profane_strings
 
         # TODO: document
         self.LIMITED_USERS = LIMITED_USERS

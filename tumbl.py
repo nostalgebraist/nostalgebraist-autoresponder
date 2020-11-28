@@ -60,8 +60,11 @@ bridge_service_url = bot_specific_constants.bridge_service_url
 USER_AVOID_LIST = bot_specific_constants.USER_AVOID_LIST
 DASH_TAG_AVOID_LIST = bot_specific_constants.DASH_TAG_AVOID_LIST
 REPLY_USER_AUTO_ACCEPT_LIST = bot_specific_constants.REPLY_USER_AUTO_ACCEPT_LIST
-bad_strings = bot_specific_constants.bad_strings
+bad_strings_base = bot_specific_constants.bad_strings
 bad_strings_shortwords = bot_specific_constants.bad_strings_shortwords
+okay_superstrings = bot_specific_constants.okay_superstrings
+likely_obscured_strings = bot_specific_constants.likely_obscured_strings
+profane_strings = bot_specific_constants.profane_strings
 LIMITED_USERS = bot_specific_constants.LIMITED_USERS
 LIMITED_USERS_PROBS = bot_specific_constants.LIMITED_USERS_PROBS(EFFECTIVE_SLEEP_TIME)
 LIMITED_SUBSTRINGS = bot_specific_constants.LIMITED_SUBSTRINGS
@@ -277,8 +280,18 @@ def strip_avoid_listed_blognames_from_tags(client, tags):
             ]
 
 def autopublish_screener(asking_name: str, question: str, answer: str, tags: list, screen_robnost=True):
-    review_string = (asking_name + " " + question + " " + answer + " " + " ".join(tags)).lower()
+    profanity_strictness = False
+    if asking_name == "bukbot":
+        profanity_strictness = True
+        print("profanity_strictness: ON")
 
+    review_string = (asking_name + " " + question + " " + answer + " " + " ".join(tags)).lower()
+    if not profanity_strictness:
+        for s in okay_superstrings:
+            review_string = review_string.replace(s, "")
+    bad_strings = {s for s in bad_strings_base}
+    if profanity_strictness:
+        bad_strings.update(profane_strings)
     for short_word in bad_strings_shortwords:
         for w, p in product(whitespace, punctuation):
             bad_strings.add(w + short_word + p)
@@ -287,21 +300,38 @@ def autopublish_screener(asking_name: str, question: str, answer: str, tags: lis
 
     bad_strings = bad_strings.union(USER_AVOID_LIST)
 
-    if any([s in review_string for s in bad_strings]):
-        strings_found = [s for s in bad_strings if s in review_string]
+    leetspeak = {
+        "1": "i",
+        "!": "i",
+        "4": "a",
+        "3": "e",
+        "@": "a",
+        "$": "s",
+        }
+    review_string_no_leetspeak = "".join([leetspeak.get(c, c) for c in review_string])
+    review_string_no_spacing = "".join([c for c in review_string if c not in whitespace])
+    review_string_no_spacing_only_alphanumeric = "".join([c for c in review_string if c.isalnum()])
 
-        for sf in strings_found:
-            start_ix = max(0, review_string.index(sf) - 25)
-            end_ix = review_string.index(sf) + len(sf) + 25
-            sf_formatted = review_string[start_ix:end_ix]
+    for review_string_subtype, bad_string_group in [
+        (review_string, bad_strings),
+        (review_string_no_leetspeak, bad_strings),
+        (review_string_no_spacing, likely_obscured_strings),
+        (review_string_no_spacing_only_alphanumeric, likely_obscured_strings),
+        ]:
+        if any([s in review_string_subtype for s in bad_string_group]):
+            strings_found = [s for s in bad_string_group if s in review_string_subtype]
 
-            if start_ix > 0:
-                sf_formatted = "... " + sf_formatted
-            if end_ix < len(review_string):
-                sf_formatted = sf_formatted +  "... "
+            for sf in strings_found:
+                start_ix = max(0, review_string_subtype.index(sf) - 25)
+                end_ix = review_string_subtype.index(sf) + len(sf) + 25
+                sf_formatted = review_string_subtype[start_ix:end_ix]
 
-            print(f"\t{sf}: |{repr(sf_formatted)}|")
+                if start_ix > 0:
+                    sf_formatted = "... " + sf_formatted
+                if end_ix < len(review_string_subtype):
+                    sf_formatted = sf_formatted +  "... "
 
+                    print(f"\t{sf}: |{repr(sf_formatted)}|")
 
         return False
     if asking_name == "nostalgebraist" and screen_robnost:

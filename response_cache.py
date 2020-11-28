@@ -11,7 +11,10 @@ from datetime import datetime
 
 import pytumblr, time, os, pickle
 
-from munging_shared import NO_REBLOG_IDS
+from bot_config import BotSpecificConstants
+
+bot_specific_constants = BotSpecificConstants.load()
+NO_REBLOG_IDS = bot_specific_constants.NO_REBLOG_IDS
 
 PostIdentifier = namedtuple("PostIdentifier", "blog_name id_")
 ReplyIdentifier = namedtuple("ReplyIdentifier", "blog_name id_ timestamp")

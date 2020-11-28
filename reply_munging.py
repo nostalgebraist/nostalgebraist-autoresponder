@@ -1,4 +1,3 @@
-"""hacks to imitate what respond-to-replies looks like in xkit"""
 from munging_shared import UNAME_CHAR, Q_CHAR, A_CHAR
 from bs4 import BeautifulSoup
 
@@ -18,7 +17,7 @@ def bootstrap_draft_inject_reply(processed_bootstrap_draft: str,
                                  reply_body: str):
     result = ""
 
-    result += processed_bootstrap_draft[:-1] # strip prompting A_CHAR
+    result += processed_bootstrap_draft.rpartition(A_CHAR)[0]  # strip prompting A_CHAR
 
     postpend = UNAME_CHAR + reply_blog_name + Q_CHAR + reply_body + "\n\n" + A_CHAR
     result += postpend

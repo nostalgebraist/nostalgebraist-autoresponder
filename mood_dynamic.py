@@ -276,9 +276,13 @@ def compute_dynamic_moodspec_at_time(response_cache: ResponseCache,
 def create_mood_graph(response_cache: ResponseCache,
                       start_time: datetime=None,
                       end_time: datetime=None,
-                      system: DynamicMoodSystem=None) -> str:
+                      system: DynamicMoodSystem=None,
+                      in_logit_diff_space: bool=True,
+                      save_image: bool=True) -> str:
+    ytrans = pos_sent_to_logit_diff if in_logit_diff_space else lambda x: x
+
     mood_inputs = compute_dynamic_mood_inputs(response_cache)
-    lti_series = compute_dynamic_mood_over_interval(mood_inputs, start_time, end_time, system)
+    lti_series = compute_dynamic_mood_over_interval(mood_inputs, start_time, end_time, system).apply(ytrans)
 
     plt.figure(figsize=(8, 6))
     plt.plot(lti_series.index, lti_series.values, label="Mood", c='k')
@@ -294,13 +298,20 @@ def create_mood_graph(response_cache: ResponseCache,
                      "only_happy": ":D"}
 
     for k in ["only_happy", "only_non_sad", "only_non_happy", "only_sad"]:
-        plt.axhline(MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP[k], label=display_names[k], ls='--', c=colors[k])
+        plt.axhline(ytrans(MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP[k]), label=display_names[k], ls='--', c=colors[k])
+
+    if in_logit_diff_space:
+        default_top = pos_sent_to_logit_diff(MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP['only_happy'])+1.5
+        default_bottom = pos_sent_to_logit_diff(MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP['only_sad'])-1.5
+
+        plt.ylim(min(default_bottom, lti_series.min()), max(default_top, lti_series.max()))
 
     plt.legend(fontsize=16, );
     plt.tick_params(labelsize=16)
     plt.tick_params(axis='x', labelrotation=80)
 
-    image_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + ".png"
-    path = "mood_images/" + image_name
-    plt.savefig(path, bbox_inches='tight')
-    return path
+    if save_image:
+        image_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + ".png"
+        path = "mood_images/" + image_name
+        plt.savefig(path, bbox_inches='tight')
+        return path

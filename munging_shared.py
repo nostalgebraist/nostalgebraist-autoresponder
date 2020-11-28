@@ -1,14 +1,17 @@
 """tumblr API <--> preprocessed text tools I need in more than one place"""
 import re
+import json
 
 import reblogs_v5
 from bs4 import BeautifulSoup
+from wcwidth import wcwidth
 
 VERBOSE_LOGS = False
 
 MAY_2020_TRAIL_HACK = True
 JUNE_2020_TRAIL_HACK_UPDATE = True
-FORCE_TRAIL_HACK_IDS = {621279018200760320}
+AUGUST_2020_TRAIL_HACK_ADDON = True
+FORCE_TRAIL_HACK_IDS = {621279018200760320, 624899848589688832}
 JUNE_2020_LINKPOST_HACK = True
 
 Q_CHAR = "会"
@@ -18,8 +21,19 @@ T_CHAR = "职"
 UNAME_CHAR = "友"
 ORIG_POST_CHAR = "翰"
 
+def sanitize_user_input_outer_shell(text):
+    # to be applied to stuff near the tumblr API level
+    sanitized_text = text
+
+    # zero-width joiners etc
+    sanitized_text = ''.join([c for c in sanitized_text if wcwidth(c) != 0])
+
+    return sanitized_text
 
 def format_post_for_api(post):
+    # temporary hack
+    post = post.replace(ORIG_POST_CHAR, "").replace("Blog post by Frank", "").replace("Book review by Frank", "").replace("Original fiction by Frank", "").lstrip("\n")
+
     post = "<p>" + post + "</p>"
     post = re.sub("\n", "</p><p>", post)
     return post
@@ -31,6 +45,7 @@ def inverse_format_post_for_api(post):
         post = post[:-len("</p>")]
     post = re.sub(r"</p><p>", "\n", post)
     post = re.sub(r"<br>", "\n", post)
+    post = sanitize_user_input_outer_shell(post)
     if VERBOSE_LOGS:
         print(post)
     return post
@@ -69,24 +84,50 @@ def get_body(post: dict):
             return None
     if MAY_2020_TRAIL_HACK and len(post.get('trail', [])) > 0:
         # check if body looks malformed
+        is_malformed_body = False
+        malformed_explainer = ""
         if JUNE_2020_TRAIL_HACK_UPDATE:
-            diagnostic_substring = "".join(body.rpartition("</blockquote>")[:2])
-            is_malformed_body = diagnostic_substring.endswith("</blockquote></blockquote>")
-            malformed_explainer = f"likely malformed body:\ndiagnostic_substring\n\t{diagnostic_substring}\n\nends with </blockquote></blockquote>"
+            is_malformed_body_june, malformed_explainer_june = malformed_diagnostic_june_2020(body)
+            if not is_malformed_body and is_malformed_body_june:
+                is_malformed_body = True
+                malformed_explainer = malformed_explainer_june
         else:
             body_users = re.findall(r"\/\/(.+?).tumblr.com", body)
             trail_users = [item['blog']['name'] for item in post['trail']]
             is_malformed_body = any([(t!=b) for t, b in zip(trail_users, body_users)])
             malformed_explainer = f"likely malformed body:\n\tbody_users {body_users} vs\n\ttrail_users {trail_users}\nwith body {body}"
 
+        if AUGUST_2020_TRAIL_HACK_ADDON:
+            is_malformed_body_aug, malformed_explainer_aug = malformed_diagnostic_august_2020(body)
+            if not is_malformed_body and is_malformed_body_aug:
+                is_malformed_body = True
+                malformed_explainer = malformed_explainer_aug
+
         if is_malformed_body:
             if VERBOSE_LOGS:
                 print(malformed_explainer)
             body = body_via_trail_hack(post)
-    if any([item.get('post', {}).get('id') in FORCE_TRAIL_HACK_IDS
+    if any([int(item.get('post', {}).get('id', -1)) in FORCE_TRAIL_HACK_IDS
             for item in post.get('trail', [])]):
         body = body_via_trail_hack(post)
+
+    body = sanitize_user_input_outer_shell(body)
+
     return body
+
+
+def malformed_diagnostic_june_2020(body):
+    diagnostic_substring = "".join(body.rpartition("</blockquote>")[:2])
+    is_malformed_body = diagnostic_substring.endswith("</blockquote></blockquote>")
+    malformed_explainer = f"likely malformed body:\ndiagnostic_substring\n\t{diagnostic_substring}\n\nends with </blockquote></blockquote>"
+    return is_malformed_body, malformed_explainer
+
+def malformed_diagnostic_august_2020(body):
+    body_re = re.compile(r"<p><a.*?class=\"tumblr_blog\".*?>.+?</a>:</p><blockquote>")
+    diagnostic_segments = re.split(body_re, body.replace("\n", ""))
+    is_malformed_body = not all([len(item)==0 for item in diagnostic_segments[:-1]])
+    malformed_explainer = f"likely malformed body:\ndiagnostic_segments\n\t{diagnostic_segments}\n\nsuggest text is interleaved with early blockquotes"
+    return is_malformed_body, malformed_explainer
 
 
 def body_via_trail_hack(post: dict):
@@ -106,7 +147,7 @@ def body_via_trail_hack(post: dict):
     return "".join(my_units)
 
 
-def process_post_from_html_body(body: str) -> str:
+def process_post_from_html_body(body: str, debug=False) -> str:
     # warning: doesn't handle ask prefixes
     # if you want to go from an API payload to text, use process_post_from_post_payload
 
@@ -114,16 +155,16 @@ def process_post_from_html_body(body: str) -> str:
         return body
 
     soup = BeautifulSoup(body, features="lxml")
-    processed, _ = reblogs_v5.process_post(soup, use_article=False)
+    processed, _ = reblogs_v5.process_post(soup, use_article=False, debug=debug)
 
     return processed
 
-def process_post_from_post_payload(post: dict) -> str:
+def process_post_from_post_payload(post: dict, debug=False) -> str:
     body = get_body(post)
     if body is None:
         return None
 
-    processed = process_post_from_html_body(body)
+    processed = process_post_from_html_body(body, debug=debug)
 
     if len(processed) == 0:
         # assume we should use A_CHAR here, we should never write a textpost of length 0
@@ -139,4 +180,73 @@ def process_post_from_post_payload(post: dict) -> str:
     else:
         if VERBOSE_LOGS:
             print(f"didn't find ask keys; have keys {post.keys()}")
+    if post.get("title") is not None and len(post["title"]) > 0:
+        title_prefix = f"<h2>{post['title']}</h2>\n"
+        processed = title_prefix + processed
+        if VERBOSE_LOGS:
+            print(f"title_prefix: {title_prefix}")
     return processed
+
+# profanity tools
+# currently unused
+
+def keep_only_nonenglish_script(wash_lists):
+    lists = {}
+    for locale, words in wash_lists.items():
+        words_filtered = [w for w in words if any([ord(c)>256 for c in w])]
+        if len(words_filtered) > 0:
+            lists[locale] = words_filtered
+    return lists
+
+def flatten_wash_lists(wash_lists):
+    entries = []
+    for locale, words in wash_lists.items():
+        for w in words:
+            entries.append({"word": w, "locale": locale})
+    return entries
+
+def load_wash_lists():
+    with open("washyourmouthoutwithsoap_multilingual_profanity.json", "r", encoding="utf-8") as f:
+        wash_lists=json.load(f)
+    wash_lists = keep_only_nonenglish_script(wash_lists)
+    wash_lists = flatten_wash_lists(wash_lists)
+    return wash_lists
+
+# "pretending the post is by me" tools
+
+def write_text_for_side_judgment(post_payload, chop_on_a_char=True, add_tags=True, swap_in_frank=True, add_empty_response=False):
+    processed = process_post_from_post_payload(post_payload)
+    if processed is None:
+        return False
+
+    if ORIG_POST_CHAR in processed:
+        text = processed[processed.index(ORIG_POST_CHAR)+1:]
+        if not swap_in_frank:
+            text = UNAME_CHAR + post_payload['blog_name'] + Q_CHAR + text
+    elif A_CHAR in processed:
+        if chop_on_a_char:
+            text = processed[[ix for ix, c in enumerate(processed) if c == A_CHAR][-1]+1:]
+            if not swap_in_frank:
+                text = UNAME_CHAR + post_payload['blog_name'] + Q_CHAR + text
+        else:
+            text = processed
+            if not swap_in_frank:
+                text = text.replace(A_CHAR, UNAME_CHAR + post_payload['blog_name'] + Q_CHAR)
+    else:
+        print("\trejecting: parse fail")
+        return False
+    if T_CHAR in text:
+        text = text.partition(T_CHAR)[0]
+    if text.endswith("<|endoftext|>"):
+        text = text[:-len("<|endoftext|>")].rstrip("\n")
+
+    if add_empty_response:
+        text = text + A_CHAR
+
+    tags = post_payload.get("tags", [])
+    if not add_tags:
+        tags = []
+    text += T_CHAR + " ".join(["#" + t for t in tags])
+    if ORIG_POST_CHAR not in text and A_CHAR not in text and UNAME_CHAR not in text:
+        text = ORIG_POST_CHAR + text
+    return text

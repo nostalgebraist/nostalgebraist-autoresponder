@@ -19,7 +19,9 @@ It's been a while since I last synced up this repo with the "real" one I use to 
 - Making the sentiment model an additional GPT-2 head (like the selector) rather than relying on an external service
 - Shifting more code out of Jupyter into .py files, relying more on imports when notebooks are unavoidable (for Colab)
 
-When I next have time to get this repo up to date, I'll also switch over to it for operation and development, making this divergence impossible.
+I'm working on gradually moving these changes into this repo.  My work branch for that effort is [11-28-29-syncing-with-dev-repo](https://github.com/nostalgebraist/nostalgebraist-autoresponder/tree/11-28-29-syncing-with-dev-repo).
+ 
+When I next have time to get this repo _fully_ up to date, I'll also switch over to it for operation and development, making further divergence impossible.
 
 ### Disclaimers
 

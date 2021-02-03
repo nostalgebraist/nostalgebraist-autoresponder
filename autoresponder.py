@@ -1,11 +1,13 @@
 import sys
 import json
 import os
+import subprocess
 import pickle
 import re
 import time
 from string import whitespace
 from textwrap import wrap, fill
+from functools import partial
 # TODO: use the following
 # import textwrap
 
@@ -32,7 +34,7 @@ from autoresponder_config import *
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
-drivedir = os.getcwd()
+drivedir = "/content/drive/MyDrive/gpt-2/"
 os.chdir("/")
 
 enc = encoder.get_encoder(model_name, eot_workaround=EOT_WORKAROUND)
@@ -48,8 +50,13 @@ chunks = load_dataset(enc, dataset, 50000)
 data_sampler = Sampler(chunks)
 start_token = None
 
+if V10:
+    CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V10"]
+else:
+    CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V9"]
+
 if FORUMLIKE:
-    ORIG_POST_CHAR = ORIG_POST_CHAR_FORUMLIKE
+    ORIG_POST_CHAR = CONTROL_SEG_CONFIG['ORIG_POST_CHAR_FORUMLIKE']
 else:
     ORIG_POST_CHAR = ORIG_POST_CHAR_CHINESE
 
@@ -66,26 +73,6 @@ def make_session(reset=True):
       mirostat_lr = tf.placeholder(shape=[], dtype=tf.float32)
       mirostat_mu_from_past = tf.placeholder(tf.float32, [batch_size,])
 
-      output = sample.sample_sequence(
-          stop_at_EOT=True, better_length=better_length,
-          eot_workaround=EOT_WORKAROUND,
-          enc=enc,
-          hparams=hparams, length=pre_continue_length,
-          start_token=start_token,
-          context=context,
-          batch_size=batch_size,
-          temperature=pre_continue_temperature, top_k=pre_continue_top_k,
-          top_p=pre_continue_top_p,
-          middle_p=pre_continue_middle_p,
-          chop_lowest=pre_continue_chop_lowest, chop_highest=pre_continue_chop_highest,
-          return_presents=True,
-          pasts=None,
-          mirostat=pre_continue_mirostat,
-          mirostat_surprise_target=mirostat_target,
-          mirostat_lr=mirostat_lr,
-          mirostat_trunc=MIRO_TRUNC,
-          mirostat_v2=MIRO_V2,
-      )
       # TODO: DRY
       output_with_presents = sample.sample_sequence(
           stop_at_EOT=True, better_length=better_length,
@@ -106,6 +93,7 @@ def make_session(reset=True):
           mirostat_lr=mirostat_lr,
           mirostat_trunc=MIRO_TRUNC,
           mirostat_v2=MIRO_V2,
+          disable_prints=True,
       )
       # TODO: DRY
       continue_output = sample.sample_sequence(
@@ -127,34 +115,52 @@ def make_session(reset=True):
           mirostat_lr=mirostat_lr,
           mirostat_trunc=MIRO_TRUNC,
           mirostat_v2=MIRO_V2,
+          disable_prints=True,
       )
-      # TODO: DRY
-      continue_output_no_presents = sample.sample_sequence(
-          stop_at_EOT=True, better_length=better_length,
-          eot_workaround=EOT_WORKAROUND,
-          enc=enc,
-          hparams=hparams, length=length,
-          start_token=start_token,
-          context=context,
-          batch_size=batch_size,
-          temperature=temperature, top_k=top_k, top_p=top_p,
-          middle_p=middle_p,
-          chop_lowest=chop_lowest, chop_highest=chop_highest,
-          return_presents=True,
-          pasts=None,
-          mirostat=MIRO,
-          mirostat_surprise_target=mirostat_target,
-          mirostat_mu_init=mirostat_mu_from_past,
-          mirostat_lr=mirostat_lr,
-          mirostat_trunc=MIRO_TRUNC,
-          mirostat_v2=MIRO_V2,
-      )
-  return sess, context, sample_pasts, output, output_with_presents, continue_output, continue_output_no_presents, mirostat_target, mirostat_lr, mirostat_mu_from_past
+      manual_presents_op = model.model(hparams=hparams, X=context)['present']
 
-sess, context, sample_pasts, output, output_with_presents, continue_output, continue_output_no_presents, mirostat_target, mirostat_lr, mirostat_mu_from_past = make_session()
+  return sess, context, sample_pasts, output_with_presents, continue_output, manual_presents_op, mirostat_target, mirostat_lr, mirostat_mu_from_past
 
-def load_ckpt_with_retries(model_name, session):
-  ckpt = tflex.latest_checkpoint(os.path.join('models', model_name))
+sess, context, sample_pasts, output_with_presents, continue_output, manual_presents_op, mirostat_target, mirostat_lr, mirostat_mu_from_past = make_session()
+
+def load_from_gdrive_with_gs_fallback(load_fn,
+                                      relative_path,
+                                      gs_command,
+                                      retries=False, **kwargs):
+    local_gdrive_path = os.path.join(drivedir, relative_path)
+    local_gs_path = os.path.join("/", relative_path)
+    print(f"local_gdrive_path: {local_gdrive_path}")
+    print(f"local_gs_path: {local_gs_path}")
+
+    try:
+        print(f"trying to load from {local_gdrive_path}...")
+        return load_fn(path=local_gdrive_path, retries=False, **kwargs)
+    except (OSError, FileNotFoundError, KeyError):
+        print(f"falling back to {local_gs_path}...")
+
+        enclosing_dir = local_gs_path.rpartition("/")[0]
+        os.makedirs(enclosing_dir, exist_ok=True)
+
+        enclosing_dir_exists = os.path.exists(enclosing_dir)
+        target_exists = os.path.exists(local_gs_path)
+
+        print(f"enclosing dir {enclosing_dir} exists?: {enclosing_dir_exists}")
+        print(f"target {local_gs_path} exists?: {target_exists}")
+
+        if not target_exists:
+            print(f"downlading from gs...")
+            subprocess.check_output(gs_command, shell=True)
+        try:
+            return load_fn(path=local_gs_path, retries=retries, **kwargs)
+        except:
+            print(f"downlading from gs...")
+            subprocess.check_output(gs_command, shell=True)
+            return load_fn(path=local_gs_path, retries=retries, **kwargs)
+
+def load_ckpt_with_retries(path, session, retries=True):
+  ckpt = tflex.latest_checkpoint(path)
+  if ckpt is None:
+      raise FileNotFoundError
   saver = tflex.Saver()
 
   load_done = False
@@ -165,9 +171,17 @@ def load_ckpt_with_retries(model_name, session):
         saver.restore(session, ckpt)
         load_done = True
     except Exception as e:
-      print(f"encountered {e}, retrying...")
+      if retries:
+          print(f"encountered {e}, retrying...")
+      else:
+          raise e
 
-load_ckpt_with_retries(model_name, sess)
+load_from_gdrive_with_gs_fallback(
+    load_fn=load_ckpt_with_retries,
+    relative_path=os.path.join('models', model_name),
+    gs_command=gs_command_get_model,
+    session=sess,
+)
 
 def get_prompted_continuation(prompt: str,
                               continue_if_cut_off=False,
@@ -177,8 +191,9 @@ def get_prompted_continuation(prompt: str,
                               override_disable_forumlike=False,
                               mirotarg=None,  # TODO: allow vary across batch, add noise inside this fn
                               mirolr=MIRO_LR,
-                              forced_tags_string="",
-                              write_fic_override=False,):
+                              forced_tags_string=None,
+                              write_fic_override=False,
+                              startup_presents=None,):
     if mirotarg is None:
         mirotarg = np.random.choice(MIRO_TARGET_ALL)
     mu_init_scale = 1. if MIRO_V2 else 2.
@@ -221,9 +236,14 @@ def get_prompted_continuation(prompt: str,
 
     first_step_with_miro = 1 if MIRO_ONLY_ON_CONTINUE else 0
 
-    recompute_presents = True
     done = False
-    presents = None
+    recompute_presents = False
+    if startup_presents is None:
+        print("computing startup presents")
+        startup_presents = sess.run(manual_presents_op,
+                                    feed_dict={context: [bct[:-1] for bct in batch_context_tokens]})
+    presents = startup_presents
+
     miromu = None
     mirosurprises, miroks = None, None
     while not done:
@@ -231,21 +251,29 @@ def get_prompted_continuation(prompt: str,
       with sess.as_default():
           if recompute_presents:
               print("recomputing presents")
+              presents = sess.run(manual_presents_op,
+                                  feed_dict={context: [bct[:-1] for bct in batch_context_tokens]})
               if this_batch_continue_steps >= first_step_with_miro:
                   if miromu is None:
                     miromu = mu_init_scale*mirotarg*np.ones((batch_size,))
                   print(f"miromu on entry: {miromu}")
-                  sample_output_dict = sess.run(continue_output_no_presents, feed_dict={
+                  sample_output_dict = sess.run(
+                      continue_output,  # continue_output_no_presents,
+                      feed_dict={
                       context: batch_context_tokens,
                       mirostat_target: mirotarg,
                       mirostat_lr: mirolr,
                       mirostat_mu_from_past: miromu,
+                          sample_pasts: presents,  # !
                   })
               else:
-                  sample_output_dict = sess.run(output, feed_dict={
+                  sample_output_dict = sess.run(
+                      output_with_presents,  # output,
+                      feed_dict={
                         context: batch_context_tokens,
                         mirostat_target: mirotarg,
                         mirostat_lr: mirolr,
+                          sample_pasts: presents,  # !
                   })
           else:
               print("using saved presents")
@@ -253,7 +281,9 @@ def get_prompted_continuation(prompt: str,
                   if miromu is None:
                     miromu = mu_init_scale*mirotarg*np.ones((batch_size,))
                   print(f"miromu on entry: {miromu}")
-                  sample_output_dict = sess.run(continue_output, feed_dict={
+                  sample_output_dict = sess.run(
+                      continue_output,
+                      feed_dict={
                       context: batch_context_tokens,
                       sample_pasts: presents,
                       mirostat_target: mirotarg,
@@ -261,7 +291,9 @@ def get_prompted_continuation(prompt: str,
                       mirostat_mu_from_past: miromu,
                   })
               else:
-                  sample_output_dict = sess.run(output_with_presents, feed_dict={
+                  sample_output_dict = sess.run(
+                      output_with_presents,
+                      feed_dict={
                       context: batch_context_tokens,
                       sample_pasts: presents,
                       mirostat_target: mirotarg,
@@ -324,7 +356,7 @@ def get_prompted_continuation(prompt: str,
         next_prompts_contonly = ["".join(subtexts[1:]) for subtexts in continuations]
         is_not_finished = [
                            ((eot_end_segment not in c) and
-                           (not contains_control_chars(c)) and
+                           (not contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG)) and
                            (len([char for char in c if char == T_CHAR]) < 2) and
                             not rep)
                            for c, rep in zip(next_prompts_contonly, is_repeating)
@@ -386,7 +418,7 @@ def get_prompted_continuation(prompt: str,
         text = text.split(eot_end_segment)[0] + eot_end_segment
       continuations_.append(text)
 
-    return continuations_
+    return continuations_, startup_presents
 
 def parse_continuation(continuation: str, verbose=True, wrap=False):
     if verbose:
@@ -420,17 +452,24 @@ def get_prompt_from_dataset(dataset):
     if FORUMLIKE:
         roll = np.random.rand()
         if roll < FORUMLIKE_REVIEW_PROB:
-            look_for = REVIEW_CHAR_FORUMLIKE
+            look_for = CONTROL_SEG_CONFIG['REVIEW_CHAR_FORUMLIKE']
             overrides["v8_timestamp"] = ""
+            overrides["v10_timestamp"] = ""
         elif roll < FORUMLIKE_REVIEW_PROB + FORUMLIKE_FIC_PROB:
-            look_for = ORIG_FICTION_CHAR_FORUMLIKE
+            look_for = CONTROL_SEG_CONFIG['ORIG_FICTION_CHAR_FORUMLIKE']
             overrides["v8_timestamp"] = ""
+            overrides["v10_timestamp"] = ""
             overrides["tag_string_raw"] = "#original fiction"
         else:
-            look_for = ORIG_POST_CHAR_FORUMLIKE
+            look_for = CONTROL_SEG_CONFIG['ORIG_POST_CHAR_FORUMLIKE']
         print(f"using look_for={repr(look_for)}")
     else:
         look_for = "翰"
+
+    if V10:
+        prompt = look_for
+        return prompt, overrides
+
     while segment[:len(look_for)] != look_for: # V4
         while len(segments) == 0:
             segments = enc.decode(data_sampler.sample(1024)).split("<|endoftext|>")[1:]
@@ -465,49 +504,65 @@ def basic_n_continuations(prompt, N,
                           continue_if_cut_off=False,
                           avoid_if_profane=False,
                           v8_timestamp="",
+                          v10_timestamp="",
                           max_continue_steps=MAX_CONTINUE_STEPS,
                           mirotarg=None,
-                          forced_tags_string="",
+                          forced_tags_string=None,
                           write_fic_override=False,
+                          override_disable_forumlike=False,
                           verbose=False):
   continuation_side_data = []
 
   if mirotarg is None:
       mirotarg = np.random.choice(MIRO_TARGET_ALL)
 
+  relevant_timestamp = v10_timestamp if V10 else v8_timestamp
+
   if prompt_from_dataset:
       prompt, textpost_overrides = get_prompt_from_dataset(dataset)
+      v8_timestamp = textpost_overrides.get("v8_timestamp", v8_timestamp)
+      v10_timestamp = textpost_overrides.get("v10_timestamp", v10_timestamp)
+      relevant_timestamp = v10_timestamp if V10 else v8_timestamp
+
       if V8:
-        ts_string = format_segment_v8_time(textpost_overrides.get("v8_timestamp", v8_timestamp))
-        tag_string = format_segment_v8_tags(textpost_overrides.get("tag_string_raw", ""))
+        ts_string = format_segment_v8_time(relevant_timestamp,
+                                           control_seg_config=CONTROL_SEG_CONFIG)
+        if CONTROL_SEG_CONFIG['flags']['add_control_prefix_to_forced_tag_strings']:
+            tag_string = format_segment_v8_tags(textpost_overrides.get("tag_string_raw", ""),
+                                                control_seg_config=CONTROL_SEG_CONFIG)
+        else:
+            tag_string = textpost_overrides.get("tag_string_raw", "")
         prompt = globally_format_v8(doc_tagless=prompt,
                                     ts_string=ts_string,
                                     interlocutor_string=format_segment_v8_interlocutors(""),
-                                    tag_string=tag_string)
+                                    tag_string=tag_string,
+                                    control_seg_config=CONTROL_SEG_CONFIG)
   elif V8:
-    prompt = join_time_sidechannel(prompt, v8_timestamp)
+    prompt = join_time_sidechannel(prompt, relevant_timestamp)
 
   if GLOBAL_DEBUG:
       print(f"in basic_n_continuations, using prompt: {repr(prompt)}")
   continuations = []
+  startup_presents = None
   while len(continuations) < N:
     print(f"\ncontinuing, have {len(continuations)} of {N}\n")
 
-    this_batch_continuations = get_prompted_continuation(prompt,
+    this_batch_continuations, startup_presents = get_prompted_continuation(prompt,
                                                          continue_if_cut_off=continue_if_cut_off,
                                                          max_continue_steps=max_continue_steps,
                                                          verbose=verbose,
-                                                         override_disable_forumlike=prompt_from_dataset,
+                                                         override_disable_forumlike=prompt_from_dataset or override_disable_forumlike,
                                                          mirotarg=mirotarg,
                                                          forced_tags_string=forced_tags_string,
                                                          write_fic_override=write_fic_override,
+                                                         startup_presents=startup_presents,
                                                          )
 
     for c in this_batch_continuations:
-      if contains_control_chars(c):
+      if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
         if split_on_control_char:
           #min_ix = min([i for i, char in enumerate(c) if char in {Q_CHAR, A_CHAR, ORIG_POST_CHAR, UNAME_CHAR}])
-          min_ix = first_control_char(c)[1]
+          min_ix = first_control_char(c, control_seg_config=CONTROL_SEG_CONFIG)[1]
           csub = c[:min_ix]
           print(f"splitting on control char:")
           print(f"\t{len(c)} chars, {len(c.split(' '))} words-->\n\t{len(csub)} chars, {len(csub.split(' '))} words")
@@ -523,7 +578,7 @@ def basic_n_continuations(prompt, N,
         print(f"rejecting because length under {avoid_half_if_under} and roll {roll}: \n{fill(c)}\n")
       elif (not c.endswith(eot_end_segment)) and avoid_if_cut_off:
         print(f"rejecting because cut off: \n{fill(c)}\n")
-      elif (c.lstrip("\n").startswith("<blockquote")) and avoid_initial_blockquote:
+      elif (c.partition("\n")[2].lstrip(" \n").startswith("<blockquote")) and avoid_initial_blockquote:
         print(f"rejecting because initial blockquote: \n{fill(c)}\n")
       elif (len([char for char in c if char == T_CHAR]) >= 2):
         print(f"rejecting because multiple T_CHAR: \n{fill(c)}\n")
@@ -544,7 +599,7 @@ def basic_n_continuations(prompt, N,
       if EOT_PREPEND and continuation.startswith("<|endoftext|>"):
         continuation = continuation[len("<|endoftext|>"):]
       if FORUMLIKE and continuation.startswith(ORIG_POST_CHAR_CHINESE):
-          continuation = ORIG_POST_CHAR_FORUMLIKE + continuation.lstrip(ORIG_POST_CHAR_CHINESE)
+          continuation = CONTROL_SEG_CONFIG['ORIG_POST_CHAR_FORUMLIKE'] + continuation.lstrip(ORIG_POST_CHAR_CHINESE)
     continuations_.append(continuation)
   continuations = continuations_
 
@@ -934,6 +989,37 @@ hparams_select_sentiment = HParams(
       orth_init=True,
   )
 
+def load_variables_with_retries(path, var_list, session, multi_calib=False, retries=True):
+  done = False
+  tries = 0
+  while not done:
+    try:
+      print(f'loading from {path}')
+      tflex.load_variables(path, session=sess, var_list=var_list)
+      done=True
+    except Exception as e:
+      if not retries:
+        raise e
+      if tries > 5:
+        break
+      print(f"encountered {e}, retrying...")
+      tries += 1
+
+  display(var_list)
+
+  if multi_calib:
+    with open(path.rpartition("/")[0] + "/lr_calib_resp.pkl", "rb") as f:
+      lr_calib_resp = pickle.load(f)
+    with open(path.rpartition("/")[0] + "/lr_calib_orig.pkl", "rb") as f:
+      lr_calib_orig = pickle.load(f)
+  else:
+    with open(path.rpartition("/")[0] + "/lr_calib.pkl", "rb") as f:
+      lr_calib = pickle.load(f)
+      lr_calib_resp = lr_calib
+      lr_calib_orig = lr_calib
+  return lr_calib_resp, lr_calib_orig
+
+
 if SELECT_VIA_GENERATOR:
   with sess.as_default():
     context_for_h = tf.placeholder(tf.int32, [batch_size_for_h, None])
@@ -962,31 +1048,15 @@ if SELECT_VIA_GENERATOR:
   and not any([on in var.name for on in old_names])
   ]
 
-  done = False
-  tries = 0
-  while not done:
-    try:
-      print(f'loading from {ckpt_select}')
-      tflex.load_variables(ckpt_select, session=sess, var_list=var_list)
-      done=True
-    except Exception as e:
-      if tries > 5:
-        break
-      print(f"encountered {e}, retrying...")
-      tries += 1
+  lr_calib_resp, lr_calib_orig = load_from_gdrive_with_gs_fallback(
+      load_fn=partial(load_variables_with_retries,
+                      var_list=var_list,
+                      multi_calib=MULTI_LR_CALIB,),
+      relative_path=ckpt_select,
+      gs_command=gs_command_get_selector,
+      session=sess,
+  )
 
-  display(var_list)
-
-  if MULTI_LR_CALIB:
-    with open(ckpt_select.rpartition("/")[0] + "/lr_calib_resp.pkl", "rb") as f:
-      lr_calib_resp = pickle.load(f)
-    with open(ckpt_select.rpartition("/")[0] + "/lr_calib_orig.pkl", "rb") as f:
-      lr_calib_orig = pickle.load(f)
-  else:
-    with open(ckpt_select.rpartition("/")[0] + "/lr_calib.pkl", "rb") as f:
-      lr_calib = pickle.load(f)
-      lr_calib_resp = lr_calib
-      lr_calib_orig = lr_calib
 
 if SENTIMENT_VIA_GENERATOR:
   with sess.as_default():
@@ -1008,23 +1078,16 @@ if SENTIMENT_VIA_GENERATOR:
   var_list = [var for var in tf.trainable_variables()
   if sentiment_select_scope in var.name]
 
-  done = False
-  tries = 0
-  while not done:
-    try:
-      print(f'loading from {ckpt_sentiment}')
-      tflex.load_variables(ckpt_sentiment, session=sess, var_list=var_list)
-      done=True
-    except Exception as e:
-      if tries > 5:
-        break
-      print(f"encountered {e}, retrying...")
-      tries += 1
+  lr_calib_sentiment, _ = load_from_gdrive_with_gs_fallback(
+      load_fn=partial(load_variables_with_retries,
+                      var_list=var_list,
+                      multi_calib=False,),
+      relative_path=ckpt_sentiment,
+      gs_command=gs_command_get_sentiment,
+      session=sess,
+  )
 
-  display(var_list)
 
-  with open(ckpt_sentiment.rpartition("/")[0] + "/lr_calib.pkl", "rb") as f:
-    lr_calib_sentiment = pickle.load(f)
 
 if SELECT_VIA_GENERATOR:
   import scipy.special
@@ -1040,14 +1103,18 @@ if SELECT_VIA_GENERATOR:
       for end_segment in {eot_end_segment, '<|'}:  # explicitly support old <| thing, for now
           if text.endswith(end_segment):
             text = text[:-len(end_segment)]
-      if EOT_PREPEND and text.startswith(EOT_FULL) and not SELECTOR_EOT_PREPEND:
-        text = text[len(EOT_FULL):]
       if T_CHAR not in text and (not V8):
         text = text + T_CHAR
 
       text = final_munge_before_neural(text,
                                           override_disable_forumlike=override_disable_forumlike,
                                           left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE)
+
+    if EOT_PREPEND:
+      if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
+          text = text[len(EOT_FULL):]
+      if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
+          text = EOT_FULL + text
 
       if truncate_at_right:
         batch_context.append(enc.encode(text)[-(length_-1):] + [SELECTION_TOK])
@@ -1120,6 +1187,14 @@ if SENTIMENT_VIA_GENERATOR:
       # if FORUMLIKE:
       #   text = substitute_forumlike(text, shuffle=False, infer_first=False)
       text = re.sub(r"\<.*?\>", "", text)  # sentiment-specific
+
+      if EOT_PREPEND:
+        # do this after the regex so it sticks
+        if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
+            text = text[len(EOT_FULL):]
+        if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
+            text = EOT_FULL + text
+
       batch_context.append(enc.encode(text)[:length_] + [SELECTION_TOK])
       if debug:
         print(f"in single_batch_predict_sentiment, predicting on:\n{enc.decode(batch_context[-1])}\n")
@@ -1163,6 +1238,18 @@ if SENTIMENT_VIA_GENERATOR:
 
 RESULT_STACK = {}
 
+def _make_alt_timestamps(v10_timestamp):
+    if v10_timestamp is None:
+        return []
+
+    alts = []
+    months = ["January", "February", "March", "April", "May", "June", "July", "August", "September",  "November", "December"]
+    years = ["2019", "2020", "2021"][::-1]
+    for year in years:
+        for month in months:
+            alts.append(v10_timestamp.replace("January", month).replace("2021", year))
+    return alts
+
 def serve_answer(data):
   print("\n------------\n")
   print("serving answer for\n")
@@ -1187,9 +1274,17 @@ def serve_answer(data):
     avoid_if_cut_off = False
 
   selector_cut_to_final_exchange = kwargs.get("selector_cut_to_final_exchange", False)
-  forced_tags_string = kwargs.get("forced_tags_string", "")
+  forced_tags_string = kwargs.get("forced_tags_string", None)
   write_fic_override = kwargs.get("write_fic_override", False)
   print(f"write_fic_override: {write_fic_override}")
+
+  v8_timestamp=data.get("v8_timestamp", "")
+  v10_timestamp=data.get("v10_timestamp", "")
+  relevant_timestamp = v10_timestamp if V10 else v8_timestamp
+
+  override_disable_forumlike = False
+  if prompt.startswith(CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"]):
+      override_disable_forumlike = True
 
   if kwargs.get("V5"):
     continuations, continuation_side_data = basic_n_continuations(prompt, N=kwargs['best_of'],
@@ -1201,18 +1296,20 @@ def serve_answer(data):
                                             avoid_initial_blockquote=avoid_initial_blockquote,
                                             continue_if_cut_off=continue_if_cut_off,
                                             avoid_if_profane=avoid_if_profane,
-                                            v8_timestamp=data.get("v8_timestamp", ""),
+                                            v8_timestamp=v8_timestamp,
+                                            v10_timestamp=v10_timestamp,
                                             forced_tags_string=forced_tags_string,
-                                            write_fic_override=write_fic_override,)
+                                            write_fic_override=write_fic_override,
+                                            override_disable_forumlike=override_disable_forumlike,)
     parsed = data.copy()
     parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
     parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
 
     if SELECT_VIA_GENERATOR:
       if SELECTOR_CAN_SEE_PROMPTS:
-        if selector_cut_to_final_exchange:
+        if selector_cut_to_final_exchange and not override_disable_forumlike:
             prompt_cut = cut_to_final_exchange_chinese(prompt)
-            selector_inputs = [prompt_cut + c for c in continuations]
+            selector_inputs = [prompt_cut + final_munge_after_neural(c) for c in continuations]
         else:
             selector_inputs = [prompt + c for c in continuations]
       else:
@@ -1222,14 +1319,25 @@ def serve_answer(data):
                                                     infer_first=False,
                                                     left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE)
             prompt_finalchar = prompt_forumlike[
-                                      last_control_char(prompt_forumlike, incl_number=False)[1]:]
+                                      last_control_char(prompt_forumlike, incl_number=False, control_seg_config=CONTROL_SEG_CONFIG)[1]:]
             selector_inputs = [prompt_finalchar + c for c in continuations]
         else:
           selector_inputs = [A_CHAR + c for c in continuations]
+
+      if DO_ALT_TIMESTAMPS:
+          for alt_ts in _make_alt_timestamps(v10_timestamp):
+              alt_selector_inputs = pd.DataFrame(
+                  {"selector_inputs": [join_time_sidechannel(s, alt_ts) for s in selector_inputs]}
+              )
+              entry_selection_results = predict_select(alt_selector_inputs, lr_calib_resp, debug=True)
+              listkey = f"alt_selection_proba__{alt_ts.replace(' ', '_')}"
+              parsed[listkey] = [float(p) for p in entry_selection_results["probs"]]
+
+      selector_inputs = [join_time_sidechannel(s, relevant_timestamp) for s in selector_inputs]
       selector_inputs=pd.DataFrame({"selector_inputs": selector_inputs})
       if GLOBAL_DEBUG:
         print(f"passing to predict_select: {selector_inputs}")
-      selection_results = predict_select(selector_inputs, lr_calib_resp, debug=GLOBAL_DEBUG)
+      selection_results = predict_select(selector_inputs, lr_calib_resp, debug=True, override_disable_forumlike=override_disable_forumlike)
       parsed["selection_proba"] = [float(p) for p in selection_results["probs"]]
       if SENTIMENT_VIA_GENERATOR:
         selector_inputs=pd.DataFrame({"selector_inputs": parsed["continuations"]})
@@ -1274,6 +1382,7 @@ def serve_textpost(data):
                                             prompt_from_dataset=kwargs.get("prompt_from_dataset"),
                                             avoid_initial_blockquote=avoid_initial_blockquote,
                                             v8_timestamp=data.get("v8_timestamp"),
+                                            v10_timestamp=data.get("v10_timestamp", ""),
                                             continue_if_cut_off=continue_if_cut_off)
     except Exception as e:
       if EVEN_BETTER_LENGTH:
@@ -1288,6 +1397,7 @@ def serve_textpost(data):
                                             prompt_from_dataset=kwargs.get("prompt_from_dataset"),
                                             avoid_initial_blockquote=avoid_initial_blockquote,
                                             v8_timestamp=data.get("v8_timestamp"),
+                                            v10_timestamp=data.get("v10_timestamp", ""),
                                             continue_if_cut_off=False)
     parsed = data.copy()
     parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
@@ -1295,13 +1405,17 @@ def serve_textpost(data):
 
     if SELECT_VIA_GENERATOR:
       if FORUMLIKE:
-        selector_inputs = [c.replace(REVIEW_CHAR_FORUMLIKE, ORIG_POST_CHAR_FORUMLIKE) for c in continuations]
+        selector_inputs = [c for c in continuations]
+        for alt_char in [CONTROL_SEG_CONFIG['REVIEW_CHAR_FORUMLIKE'],
+                         CONTROL_SEG_CONFIG['ORIG_FICTION_CHAR_FORUMLIKE']]:
+            selector_inputs = [s.replace(alt_char, CONTROL_SEG_CONFIG['ORIG_POST_CHAR_FORUMLIKE'])
+                     for s in selector_inputs]
       else:
         selector_inputs = [A_CHAR + c for c in continuations]
       selector_inputs=pd.DataFrame({"selector_inputs": selector_inputs})
       if GLOBAL_DEBUG:
         print(f"passing to predict_select: {selector_inputs}")
-      selection_results = predict_select(selector_inputs, lr_calib_orig, debug=GLOBAL_DEBUG, override_disable_forumlike=True)
+      selection_results = predict_select(selector_inputs, lr_calib_orig, debug=True, override_disable_forumlike=True)
       parsed["selection_proba"] = [float(p) for p in selection_results["probs"]]
 
       if SENTIMENT_VIA_GENERATOR:
@@ -1329,16 +1443,18 @@ def serve_raw_select(data):
 
   # texts = [s.lstrip("翰") for s in texts]
   if V8:
-    texts = [join_time_sidechannel(s, data.get("v8_timestamp", "")) for s in texts]
+    vX_timestamp = data.get("v10_timestamp", "") if V10 else data.get("v8_timestamp", "")
+    texts = [join_time_sidechannel(s, vX_timestamp) for s in texts]
     texts = [s
              if len(find_all_control_chars_chinese(s)) > 0
              else ORIG_POST_CHAR_CHINESE + s
              for s in texts]
-    texts = [final_munge_before_neural_v8(s) for s in texts]
+    texts = [final_munge_before_neural(s) for s in texts]
   else:
       if FORUMLIKE:
-          for alt_char in [REVIEW_CHAR_FORUMLIKE, ORIG_FICTION_CHAR_FORUMLIKE]:
-              texts = [s.replace(alt_char, ORIG_POST_CHAR_FORUMLIKE)
+          for alt_char in [CONTROL_SEG_CONFIG['REVIEW_CHAR_FORUMLIKE'],
+                           CONTROL_SEG_CONFIG['ORIG_FICTION_CHAR_FORUMLIKE']]:
+              texts = [s.replace(alt_char, CONTROL_SEG_CONFIG['ORIG_POST_CHAR_FORUMLIKE'])
                        for s in texts]
       texts = [s if ORIG_POST_CHAR in s else ORIG_POST_CHAR + s
                for s in texts]
@@ -1389,6 +1505,36 @@ def poll(capture_ident=None, dummy=False):
       elif data["type"] == "raw_select":
         RESULT_STACK[prompt_id] = serve_raw_select(data)
 
+      sampling_info = {
+          "MIRO": MIRO,
+          "MIRO_LR": MIRO_LR,
+          "MIRO_ONLY_ON_CONTINUE": MIRO_ONLY_ON_CONTINUE,
+          "length": length,
+          "T": temperature,
+          "p": top_p,
+          "chop_lowest": chop_lowest,
+          "chop_highest": chop_highest,
+          "pre_continue_length": pre_continue_length,
+          "pre_continue_T": pre_continue_temperature,
+          "pre_continue_p": pre_continue_top_p,
+      }
+
+      model_info = {
+          "model_name": model_name,
+          "ckpt_select": ckpt_select,
+          "ckpt_sentiment": ckpt_sentiment,
+          "hparams_select": {k: v
+                             for k, v in hparams_select.values().items()
+                             if k not in {"dtype", "adapt_layers"}
+                             },
+          "hparams_select_sentiment": {k: v
+                                       for k, v in hparams_select_sentiment.values().items()
+                                       if k not in {"dtype", "adapt_layers"}
+                                       },
+          "sampling_info": sampling_info,
+      }
+      RESULT_STACK[prompt_id]['model_info'] = model_info
+
     # print("done generating for this poll")
 
     if len(PROMPT_STACK) > 0:
@@ -1430,6 +1576,20 @@ def poll_no_capture(capture_ident=None, dummy=False):
       elif data["type"] == "raw_select":
         RESULT_STACK[prompt_id] = serve_raw_select(data)
 
+      sampling_info = {
+          "MIRO": MIRO,
+          "MIRO_LR": MIRO_LR,
+          "MIRO_ONLY_ON_CONTINUE": MIRO_ONLY_ON_CONTINUE,
+          "length": length,
+          "T": temperature,
+          "p": top_p,
+          "chop_lowest": chop_lowest,
+          "chop_highest": chop_highest,
+          "pre_continue_length": pre_continue_length,
+          "pre_continue_T": pre_continue_temperature,
+          "pre_continue_p": pre_continue_top_p,
+      }
+
       model_info = {
           "model_name": model_name,
           "ckpt_select": ckpt_select,
@@ -1442,6 +1602,7 @@ def poll_no_capture(capture_ident=None, dummy=False):
                                        for k, v in hparams_select_sentiment.values().items()
                                        if k not in {"dtype", "adapt_layers"}
                                        },
+          "sampling_info": sampling_info,
       }
       RESULT_STACK[prompt_id]['model_info'] = model_info
 

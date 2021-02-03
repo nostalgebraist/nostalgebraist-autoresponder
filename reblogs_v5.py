@@ -6,10 +6,14 @@ T_CHAR = "职"
 UNAME_CHAR = "友"
 ORIG_POST_CHAR = "翰"
 START_DUMMY = "⭒"
+V10_ASK_CHAR = "要"
+
+V10_CHARS_TO_LEGACY_CHARS = {V10_ASK_CHAR: Q_CHAR}
 
 ALWAYS_USE_A_CHAR_OPERATIONAL = True
-TRY_LINKS_FOR_IMAGES = True
+TRY_LINKS_FOR_IMAGES = False
 INCLUDE_HREF_FOR_A = True
+
 EOT_FULL = "<|endoftext|>"
 
 RECURSE_INTO = {"p", "blockquote", "div", "em", "i", "b", "u", "strong", "h2", "figure", }
@@ -23,26 +27,23 @@ USE_IMAGE_ANALYSIS = {"img"}
 from string import whitespace
 from itertools import product
 import os
+from functools import partial
 
 import bs4
 from bs4 import BeautifulSoup
 
-from image_analysis import extract_text_from_url, xtn_from_headers
+from image_analysis import extract_and_format_text_from_url, V9_IMAGE_FORMATTER, ImageAnalysisCache
 
-def IMAGE_ANALYSIS_FN(elem, verbose=True):
+def IMAGE_ANALYSIS_FN(elem, image_formatter=V9_IMAGE_FORMATTER, image_analysis_cache=None, verbose=True):
     url_attr = "href" if elem.name == "a" else "src"
-    image_text = extract_text_from_url(elem.attrs.get(url_attr))
-    if verbose:
-        print(f"for {elem}, analysis text is\n{image_text}\n")
-    return image_text
 
-def PRE_V9_IMAGE_FORMATTER(image_text):
-    return "\n" + image_text + "\n"
+    if elem.attrs.get(url_attr) is None:
+        return None
 
-def V9_IMAGE_FORMATTER(image_text):
-    return "\n" + "\n=======\n" + image_text + "\n=======\n"
+    if image_analysis_cache is not None:
+        return image_analysis_cache.extract_and_format_text_from_url(elem.attrs.get(url_attr), image_formatter=image_formatter)
+    return extract_and_format_text_from_url(elem.attrs.get(url_attr), image_formatter=image_formatter)
 
-IMAGE_FORMATTER = V9_IMAGE_FORMATTER
 
 def lprint(s, prefix=""):
     print(f"{prefix}{s}", end=f"\n\n{prefix}---------\n\n")
@@ -56,13 +57,22 @@ def map_uname(uname: str, uname_config: str="frank"):
         uname_map = {"nostalgebraist": "nostalgebraist-autoresponder",
                      "nostalgebraist-autoresponder": "nostalgebraist",
                      "aprilwitching-deactivated201808": "aprilwitching"}
+    elif uname_config == "frank_v10_train":
+        uname_map = {"nostalgebraist": "Frank",
+                     "aprilwitching-deactivated201808": "aprilwitching"}
     elif uname_config == "frank_v5_operate":
-        uname_map = {"nostalgebraist": "nostalgebraist-my-father"}
+        uname_map = {"nostalgebraist": "nostalgebraist-my-father",
+                     "nostalgebraist-autoresponder": "Frank",
+                     }
+    elif uname_config == "frank_v10_operate":
+        uname_map = {"nostalgebraist": "nostalgebraist",
+                     "nostalgebraist-autoresponder": "Frank"}
+
     return uname_map.get(uname, uname)
 
 
 def make_text_processor_maps(uname_config: str="frank"):
-    if uname_config == "frank_v5_train":
+    if uname_config in ["frank_v5_train", "frank_v10_train"]:
         maps = [("nostalgebraist", "nostalgebraist-autoresponder")]
         maps = maps + [(m[0].capitalize(), m[1].capitalize()) for m in maps]
 
@@ -83,9 +93,12 @@ def make_text_processor_maps(uname_config: str="frank"):
 
 def text_processor(text: str, maps):
     for m in maps:
+        orig = text
         text = text.replace(m[0], m[1])
         if m[0].startswith(START_DUMMY):
             text = (START_DUMMY+text).replace(m[0], m[1]).lstrip(START_DUMMY)
+        if text != orig:
+            print(f"text_processor: {orig} -> {text}")
     return text
 
 
@@ -123,7 +136,8 @@ def _tags_from_footer(footer):
 
 def _format_asking_title(elem, uname_config):
     asker_name, _, question = elem.text.partition(" asked:")
-    return [UNAME_CHAR, map_uname(asker_name, uname_config), Q_CHAR, "\n", question.lstrip(" ")]
+    ask_char = V10_ASK_CHAR
+    return [UNAME_CHAR, map_uname(asker_name, uname_config), ask_char, "\n", question.lstrip(" ")]
 
 
 def _get_unname_from_a(elem, in_h2, is_first, uname_config):
@@ -143,7 +157,7 @@ def _get_unname_from_a(elem, in_h2, is_first, uname_config):
 
 
 def _process_elem(elem, uname_config, text_processor_maps, uname_levels=[""], quote_level=0, skip_colon=False, in_h2=False, is_first=False, reblog=False, debug=True, do_image_analysis=True, get_image_urls=False,
-reply_post_next_a=False, reply_post_url=None, user_defined_image_analysis=IMAGE_ANALYSIS_FN, user_defined_image_formatter=IMAGE_FORMATTER):
+reply_post_next_a=False, reply_post_url=None, user_defined_image_analysis=IMAGE_ANALYSIS_FN, user_defined_image_formatter=V9_IMAGE_FORMATTER):
     if debug:
         print(f"\t! for this {elem.name}, reblog={reblog}, is_first={is_first}")
     text_units = []
@@ -244,7 +258,7 @@ reply_post_next_a=False, reply_post_url=None, user_defined_image_analysis=IMAGE_
 
             me_you_char = A_CHAR if reblog_uname == map_uname("nostalgebraist-autoresponder", uname_config) else Q_CHAR
             name_unit = name_unit + me_you_char
-            if ALWAYS_USE_A_CHAR_OPERATIONAL and reblog_uname == map_uname("nostalgebraist-autoresponder", uname_config):
+            if ALWAYS_USE_A_CHAR_OPERATIONAL and map_uname(reblog_uname, uname_config) == "Frank":
                 name_unit = A_CHAR
             text_units.append(name_unit)
             meta["uname_levels"].append(name_unit)
@@ -254,12 +268,11 @@ reply_post_next_a=False, reply_post_url=None, user_defined_image_analysis=IMAGE_
             meta["reply_post_url"] = elem.attrs.get("href", None)
         else:
             image_units_for_a = []
-            if TRY_LINKS_FOR_IMAGES:
-                image_text = user_defined_image_analysis(elem)
+            if TRY_LINKS_FOR_IMAGES and do_image_analysis:
+                image_text = user_defined_image_analysis(elem, image_formatter=user_defined_image_formatter)
                 # TODO: DRY
                 if image_text is not None:
-                    if len(image_text) > 0:
-                        image_units_for_a.append(user_defined_image_formatter(image_text))
+                    image_units_for_a.append(image_text)
                     if get_image_urls:
                         meta['image_urls'].add(elem.attrs.get("href"))
             if len(image_units_for_a) > 0:
@@ -282,10 +295,9 @@ reply_post_next_a=False, reply_post_url=None, user_defined_image_analysis=IMAGE_
     elif elem.name in INCLUDE_VERBATIM:
         text_units.append(elem.decode())
     elif elem.name in USE_IMAGE_ANALYSIS and do_image_analysis:
-        image_text = user_defined_image_analysis(elem)
+        image_text = user_defined_image_analysis(elem, image_formatter=user_defined_image_formatter)
         if image_text is not None:
-            if len(image_text) > 0:
-                text_units.append(user_defined_image_formatter(image_text))
+            text_units.append(image_text)
         if get_image_urls:
             meta['image_urls'].add(elem.attrs.get("src"))
     elif elem.name not in RECURSE_INTO:
@@ -319,7 +331,12 @@ reply_post_next_a=False, reply_post_url=None, user_defined_image_analysis=IMAGE_
 
 
 def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_operate",
-                 do_image_analysis=True, get_image_urls=False, user_defined_image_analysis=IMAGE_ANALYSIS_FN, user_defined_image_formatter=IMAGE_FORMATTER):
+                 do_image_analysis=True, get_image_urls=False,
+                 user_defined_image_analysis=IMAGE_ANALYSIS_FN,
+                 user_defined_image_formatter=V9_IMAGE_FORMATTER,
+                 image_analysis_cache: ImageAnalysisCache=None,
+                 V10=True):
+    user_defined_image_analysis = partial(user_defined_image_analysis, image_analysis_cache=image_analysis_cache)
     text_processor_maps = make_text_processor_maps(uname_config)
 
     text_units = []
@@ -355,7 +372,6 @@ def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_ope
                 lprint(_.replace("\n", "\\n"), prefix="\t")
             print(elem_meta)
             print(f"({ix}) done\n")
-
 
         uname_levels = elem_meta["uname_levels"]
         quote_level = elem_meta["quote_level"]
@@ -416,10 +432,13 @@ def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_ope
             initial_title_units.append(unit)
         elif in_title:
             initial_title_units.append(unit)
-        elif not (unit.rstrip("\n").startswith(UNAME_CHAR) or (ALWAYS_USE_A_CHAR_OPERATIONAL and unit.rstrip("\n") == A_CHAR) or (unit == "\n") or (unit == "\n\n")):
+        elif unit.rstrip("\n").startswith(UNAME_CHAR) or (ALWAYS_USE_A_CHAR_OPERATIONAL and unit.rstrip("\n") == A_CHAR):
+            initial_uname_units.append(unit)
+        elif not ((unit == "\n") or (unit == "\n\n")):
+            # we continue past newlines bc there might be more usernames
             break
         else:
-            initial_uname_units.append(unit)
+            break
     if len(initial_uname_units) > 1:
         if debug:
             print(f"got uname units: {initial_uname_units}")
@@ -439,5 +458,9 @@ def process_post(soup, debug=False, use_article=True, uname_config="frank_v5_ope
     if not post_metadata["is_ask"] and not post_metadata["is_reblog"] and post_metadata["reply_post_url"] is None:
         processed = ORIG_POST_CHAR + processed
         post_metadata["is_orig"] = True
+
+    if not V10:
+        for c in V10_CHARS_TO_LEGACY_CHARS.keys():
+            processed = processed.replace(c, V10_CHARS_TO_LEGACY_CHARS[c])
 
     return processed, post_metadata

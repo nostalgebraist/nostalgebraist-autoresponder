@@ -4,7 +4,7 @@ import requests
 import time
 import os
 from string import whitespace
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from mood import logit_diff_to_pos_sent
 from bridge_shared import side_judgments_from_gpt2_service
@@ -89,6 +89,27 @@ class SideJudgmentCache:
         if self.cache is None:
             self.cache = {}
 
+    def remove_oldest(self, max_hours=12, dryrun=False):
+        last_allowed_time = datetime.now() - timedelta(hours=max_hours)
+
+        existing_cache = self.cache
+
+        allowed_keys = {k for k, v in existing_cache.items()
+                        if 'last_accessed_time' in v and
+                        v['last_accessed_time'] >= last_allowed_time}
+
+        new_cache = {k: existing_cache[k] for k in existing_cache.keys()
+                    if k in allowed_keys}
+
+        before_len = len(existing_cache)
+        delta_len = before_len - len(new_cache)
+
+        if dryrun:
+            print(f"remove_oldest: would drop {delta_len} of {before_len} side judgments")
+        else:
+            print(f"remove_oldest: dropping {delta_len} of {before_len} side judgments")
+            self.cache = new_cache
+
     def record(self, text: str, payload: dict):
         self.cache[text] = munge_side_judgment_payload(payload, extract_ix=0)
 
@@ -166,4 +187,6 @@ class SideJudgmentCache:
                 print(f"loaded side judgment cache with length {len(cache)}")
         else:
             print(f"initialized side judgment cache")
-        return SideJudgmentCache(path, cache)
+        loaded = SideJudgmentCache(path, cache)
+        loaded.remove_oldest()
+        return loaded

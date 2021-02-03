@@ -12,8 +12,13 @@ from bridge_shared import side_judgments_from_gpt2_service
 SENTIMENT_VIA_GENERATOR = True
 
 
-def get_multi_side_judgments(texts: list, wait_first_time=1.5, wait_recheck_time=1, use_allen_payload_schema=True):
+def get_multi_side_judgments(texts: list,
+                             v8_timestamps=None,
+                             v10_timestamps=None,
+                             wait_first_time=1.5, wait_recheck_time=1, use_allen_payload_schema=True):
     response = side_judgments_from_gpt2_service(texts,
+                                                 v8_timestamps=v8_timestamps,
+                                                 v10_timestamps=v10_timestamps,
                                                  wait_first_time=wait_first_time,
                                                  wait_recheck_time=wait_recheck_time)
     result = [munge_side_judgment_payload(response, extract_ix=ix, use_allen_payload_schema=use_allen_payload_schema)
@@ -21,8 +26,13 @@ def get_multi_side_judgments(texts: list, wait_first_time=1.5, wait_recheck_time
     return result
 
 
-def get_side_judgments(text: str, wait_first_time=1.5, wait_recheck_time=1, use_allen_payload_schema=True):
+def get_side_judgments(text: str,
+                       v8_timestamp=None,
+                       v10_timestamp=None,
+                       wait_first_time=1.5, wait_recheck_time=1, use_allen_payload_schema=True):
     return get_multi_side_judgments([text],
+                                    v8_timestamps=None if v8_timestamp is None else [v8_timestamp],
+                                    v10_timestamps=None if v10_timestamp is None else [v10_timestamp],
                                     wait_first_time=wait_first_time,
                                     wait_recheck_time=wait_recheck_time,
                                     use_allen_payload_schema=use_allen_payload_schema
@@ -113,9 +123,13 @@ class SideJudgmentCache:
     def record(self, text: str, payload: dict):
         self.cache[text] = munge_side_judgment_payload(payload, extract_ix=0)
 
-    def query(self, text: str, sleep_time: float=0.2):
+    def query(self,
+              text: str,
+              v8_timestamp=None,
+              v10_timestamp=None,
+              sleep_time: float=0.2):
         if text not in self.cache:
-            response = get_side_judgments(text)
+            response = get_side_judgments(text, v8_timestamp=v8_timestamp, v10_timestamp=v10_timestamp)
             if response is None:
                 return response
             if response['sentiment'] is None:
@@ -138,7 +152,11 @@ class SideJudgmentCache:
             self.cache[text]['last_accessed_time'] = datetime.now()
             return self.cache[text]
 
-    def query_multi(self, texts: list, sleep_time: float=0.2, batch_size: int=4, verbose=True):
+    def query_multi(self,
+                    texts: list,
+                    v8_timestamps=None,
+                    v10_timestamps=None,
+                    sleep_time: float=0.2, batch_size: int=4, verbose=True):
         now = datetime.now()
 
         results = [self.cache.get(t, None) for t in texts]
@@ -155,7 +173,10 @@ class SideJudgmentCache:
         batch_texts = [[texts[ix] for ix in b] for b in batch_ixs]
         if verbose:
             print(f"query_multi:\n\tbatch_texts={batch_texts}\n")
-        batch_responses = [get_multi_side_judgments(bt) for bt in batch_texts]
+        batch_responses = [get_multi_side_judgments(bt,
+                                                    v8_timestamps=v8_timestamps,
+                                                    v10_timestamps=v10_timestamps)
+                           for bt in batch_texts]
         if verbose:
             print(f"query_multi:\n\tbatch_responses={batch_responses}\n")
         for b, br, bt in zip(batch_ixs, batch_responses, batch_texts):
@@ -168,6 +189,7 @@ class SideJudgmentCache:
         return results
 
     def save(self, verbose=True, do_backup=True):
+        self.remove_oldest()
         with open(self.path, "wb") as f:
             pickle.dump(self.cache, f)
         if do_backup:

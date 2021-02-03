@@ -7,6 +7,7 @@ import os
 import numpy as np
 import re
 import uuid
+from datetime import datetime
 
 from flask import Flask, escape, request, jsonify
 
@@ -14,12 +15,28 @@ from bot_config import BotSpecificConstants
 from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
 from bridge_shared import bridge_service_unique_id
 
+import sys
+sys.path.append("src/")
+from autoresponder_static import DEFAULT_CSC
+from autoresponder_static_v8 import timestamp_to_v8_format, timestamp_to_v10_format
+
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_url = bot_specific_constants.bridge_service_url
 
+TRADE_QUALITY_FOR_SPEED = False
+
 logit_diff_sample_series = load_logit_diff_sample()
-EXPECTED_REJECTION_MULT = 0.5
-TEXTPOST_N_CANDIDATES_TARGET = 20
+EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
+
+# note to self: trying to be more random about textposts / use retention_stack less
+# to give the selector more training signal
+#
+# interventions:
+#   - fewer candidates
+#   - higher eps in eps_greedy
+#   - higher retention_stack proba cutoff (to the point that the stack is usu. small)
+TEXTPOST_N_CANDIDATES_TARGET = 15 if (not TRADE_QUALITY_FOR_SPEED) else 12
+# TEXTPOST_N_CANDIDATES_TARGET = 20 if (not TRADE_QUALITY_FOR_SPEED) else 18
 
 Q_CHAR = "会"
 A_CHAR = "域"
@@ -45,17 +62,22 @@ RETENTION_STACK = None
 N_RETENTION = None
 RETENTION_PROBA_ID = None
 
-GENERATIONS_PER_REQUEST = 3
+GENERATIONS_PER_REQUEST = 1
 
 ### FLASK
 app = Flask(__name__)
 
-def make_raw_select(texts, new_id, v8_timestamps=None):
+def make_raw_select(texts, new_id, v8_timestamps=None, v10_timestamps=None):
     global PROMPT_STACK
     global SELECTION_PROMPT_STACK
 
     if RAW_SELECT_VIA_GENERATOR:
-        PROMPT_STACK[new_id] = {"texts": texts, "v8_timestamps": v8_timestamps, "type": "raw_select"}
+        PROMPT_STACK[new_id] = {"texts": texts,
+                                "type": "raw_select"}
+        if v8_timestamps is not None:
+            PROMPT_STACK[new_id]["v8_timestamp"] = v8_timestamps[0]  # TODO: make not weird
+        if v10_timestamps is not None:
+            PROMPT_STACK[new_id]["v10_timestamp"] = v10_timestamps[0]  # TODO: make not weird
         print(f"made raw_select: {PROMPT_STACK[new_id]}")
     else:
         SELECTION_PROMPT_STACK[new_id] = {"texts": texts, "raw_selection_request": True}
@@ -69,8 +91,9 @@ def raw_select():
     texts = request.json["texts"]
     new_id = request.json["id"]
     v8_timestamps = request.json.get("v8_timestamps", None)
+    v10_timestamps = request.json.get("v10_timestamps", None)
 
-    make_raw_select(texts, new_id, v8_timestamps)
+    make_raw_select(texts, new_id, v8_timestamps=v8_timestamps, v10_timestamps=v10_timestamps)
 
     return jsonify({"collision": False})
 
@@ -84,26 +107,29 @@ def answer():
     mood = request.form.get("mood")
     exact_prompt = request.form.get("exact_prompt", False)
     v8_timestamp = request.form.get("v8_timestamp", "")
+    v10_timestamp = request.form.get("v10_timestamp", "")
     forced_tags_string = request.form.get("forced_tags_string", "")
     write_fic_override = bool(int(request.form.get("write_fic_override", 0)))
+    write_review_override = bool(int(request.form.get("write_review_override", 0)))
     return_all_conts = bool(int(request.form.get("return_all_conts", False)))
     selector_cut_to_final_exchange = bool(int(request.form.get("selector_cut_to_final_exchange", False)))
 
     if not exact_prompt:
-        prompt = UNAME_CHAR + request.form["asking_name"] + Q_CHAR + "\n" + prompt + "\n" + A_CHAR
+        prompt = UNAME_CHAR + request.form["asking_name"] + DEFAULT_CSC['ASK_CHAR'] + "\n" + prompt + "\n" + A_CHAR
     elif (not exact_prompt):
         prompt = Q_CHAR + prompt + "\n" + A_CHAR
     print(f'got prompt: {prompt}')
 
-    kwargs = {"best_of": 13, "verbose": True, "V5": True,
+    kwargs = {"best_of": 13 if (not TRADE_QUALITY_FOR_SPEED) else 10,
+              "verbose": True, "V5": True,
               "mood": get_mood_by_name(mood),
               "return_all_conts": return_all_conts,
               "selector_cut_to_final_exchange": selector_cut_to_final_exchange,
               "forced_tags_string": forced_tags_string,
               "write_fic_override": write_fic_override}
 
-    if kwargs["write_fic_override"]:
-        kwargs["best_of"] = 8
+    if kwargs["write_fic_override"] or write_review_override:
+        kwargs["best_of"] = 8 if not (TRADE_QUALITY_FOR_SPEED) else 6
 
     expected_rejection_frac = estimate_expected_rejections(
         min_logit_diff=kwargs['mood']['min_allowed_score'],
@@ -122,6 +148,8 @@ def answer():
         return jsonify({"collision": True})
     kwargs["strategy"] = "proportional_winnowed"
     kwargs["avoid_if_under"] = 10
+    if kwargs["write_fic_override"]:
+        kwargs["avoid_if_under"] = 100
     kwargs["avoid_half_if_under"] = 15
     kwargs["avoid_if_cut_off"] = False
     kwargs["split_on_control_char"] = True
@@ -130,18 +158,15 @@ def answer():
     if request.form["asking_name"] == "bukbot":
         kwargs["avoid_if_profane"] = True
     if True:
-            fork = "B" if np.random.rand() > 1 else "A"
-        if fork == "A":
-            strategy = "proportional_winnowed"
-        elif fork == "B":
-            strategy = "uniform"
-        else:
-            print(f"!!fork {fork} not understood".upper())
-            strategy = "proportional"
-        kwargs["strategy"] = strategy
-        kwargs["AB_fork"] = fork
+    fork = "B" if np.random.rand() > 1 else "A"
+    strategy = "proportional_winnowed"
+    eps = 0.1
+    kwargs["strategy"] = strategy
+    kwargs["eps"] = eps
+
+    kwargs["AB_fork"] = fork
     generation_id = str(uuid.uuid4())
-    PROMPT_STACK[generation_id] = {"type": "answer", "prompt": prompt, "kwargs": kwargs, "base_id": new_id, "v8_timestamp": v8_timestamp}
+        PROMPT_STACK[generation_id] = {"type": "answer", "prompt": prompt, "kwargs": kwargs, "base_id": new_id, "v8_timestamp": v8_timestamp, "v10_timestamp": v10_timestamp}
     PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"]["best_of"]
     PROMPT_STACK[generation_id]["kwargs"]["best_of"] = GENERATIONS_PER_REQUEST
     print(f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}")
@@ -157,6 +182,7 @@ def textpost():
     new_id = request.form["id"]
     mood = request.form.get("mood")
     v8_timestamp = request.form.get("v8_timestamp", "")
+    v10_timestamp = request.form.get("v10_timestamp", "")
     return_all_conts = bool(int(request.form.get("return_all_conts", False)))
 
     kwargs = {"best_of": 10,
@@ -173,8 +199,11 @@ def textpost():
     kwargs["avoid_initial_blockquote"] = True
     if True:
         fork = "B" if np.random.rand() > 1 else "A"
-        strategy = "proportional_winnowed" if fork == "A" else "uniform"
+        strategy = "proportional_winnowed"
+        # strategy = "eps_greedy"
+        eps = 0.25
         kwargs["strategy"] = strategy
+        kwargs["eps"] = eps
         kwargs["AB_fork"] = fork
 
     n_candidates_target = TEXTPOST_N_CANDIDATES_TARGET
@@ -203,7 +232,9 @@ def textpost():
             new_retention_proba_id = bridge_service_unique_id(url, data)
 
             if new_retention_proba_id != RETENTION_PROBA_ID:
-                make_raw_select(data["texts"], new_retention_proba_id)
+                ts = datetime.now()
+                v10_timestamps = [timestamp_to_v10_format(ts) for _ in data["texts"]]
+                make_raw_select(data["texts"], new_retention_proba_id, v10_timestamps=v10_timestamps)
                 if RETENTION_PROBA_ID in RESULT_STACK:
                     RESULT_STACK.pop(RETENTION_PROBA_ID)
                 RETENTION_PROBA_ID = new_retention_proba_id
@@ -213,7 +244,7 @@ def textpost():
     print(f"AB test: fork {fork}, N_RETENTION {N_RETENTION}, kwargs {kwargs}")
 
     generation_id = str(uuid.uuid4())
-    PROMPT_STACK[generation_id] = {"type": "textpost", "kwargs": kwargs, "base_id": new_id, "v8_timestamp": v8_timestamp}
+    PROMPT_STACK[generation_id] = {"type": "textpost", "kwargs": kwargs, "base_id": new_id, "v8_timestamp": v8_timestamp, "v10_timestamp": v10_timestamp}
     PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"]["best_of"]
     PROMPT_STACK[generation_id]["kwargs"]["best_of"] = GENERATIONS_PER_REQUEST
     print(f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}")
@@ -323,7 +354,9 @@ def pollselector():
             new_retention_proba_id = bridge_service_unique_id(url, data)
 
             if new_retention_proba_id != RETENTION_PROBA_ID:
-                make_raw_select(data["texts"], new_retention_proba_id)
+                ts = datetime.now()
+                v10_timestamps = [timestamp_to_v10_format(ts) for _ in data["texts"]]
+                make_raw_select(data["texts"], new_retention_proba_id, v10_timestamps=v10_timestamps)
                 RETENTION_PROBA_ID = new_retention_proba_id
 
         N_RETENTION = len(RETENTION_STACK)

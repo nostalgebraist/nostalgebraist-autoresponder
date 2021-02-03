@@ -23,3 +23,24 @@ def bootstrap_draft_inject_reply(processed_bootstrap_draft: str,
     result += postpend
 
     return result
+
+def post_body_find_reply_data(post_body: str):
+    seg1, _, seg2 = post_body.partition(" replied to your post  <a href=\"")
+
+    url = seg2.partition(">")[0]
+    urlseg = url.partition("/post/")[2]
+    pid = urlseg.rpartition("/")[0]
+
+    replier_seg = seg1
+    if replier_seg.endswith(">"):
+        replier_seg = replier_seg.rpartition("<")[0]
+
+    replier_name = replier_seg.rpartition("@")[2]
+
+    try:
+        return int(pid), replier_name
+    except:
+        msg = f"couldn't extract reply metadata from\n{post_body}\nwith"
+        msg += f"\n\tseg={seg1}\n\tseg2={seg2}\n\turl={url}"
+        print(msg)
+        return None, None

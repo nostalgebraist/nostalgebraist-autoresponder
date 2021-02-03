@@ -17,7 +17,7 @@ from bot_config import BotSpecificConstants
 from reblogs_v5 import process_post
 from bs4 import BeautifulSoup
 
-from reply_munging import mockup_xkit_reply, bootstrap_draft_inject_reply
+from reply_munging import mockup_xkit_reply, bootstrap_draft_inject_reply, post_body_find_reply_data
 
 from pytumblr_wrapper import RateLimitClient
 from response_cache import ResponseCache, PostIdentifier, ReplyIdentifier, CachedResponseType, UserInputIdentifier, UserInputType
@@ -114,6 +114,8 @@ HALLOWEEN_2K20_BEHAVIOR_TESTING = False
 
 FIC_TRIGGER = True
 FIC_TRIGGER_TESTING = False
+
+RTS_COMMAND = "rts"
 
 GLOBAL_TESTING_FLAG = False
 
@@ -276,7 +278,8 @@ def strip_spurious_blognames_from_tags(client, tags, auto_accept_list=set()):
 def strip_avoid_listed_blognames_from_tags(client, tags):
     return [tag for tag in tags
             if not any([substring in tag for substring in USER_AVOID_LIST]) and
-            "myc" not in tag
+            "myc" not in tag and
+            tag != RTS_COMMAND
             ]
 
 def autopublish_screener(asking_name: str, question: str, answer: str, tags: list, screen_robnost=True):
@@ -1517,8 +1520,80 @@ def do_queue_handling(response_cache: ResponseCache):
         print(f"now {n_posts_in_queue} posts in queue")
 
 
+def do_rts(response_cache):
+    drafts = private_client.drafts(blogName, reblog_info=True)["posts"]
+    to_send_back = [p for p in drafts if RTS_COMMAND in p['tags']]
+    print(f"RTS: {len(to_send_back)}/{len(drafts)}")
+    for p in to_send_back:
+        pid = p.get('id')
+        print(f"trying to RTS {pid}...")
+
+        if 'reblogged_from_id' in p and 'reblogged_from_name' in p:
+            pi = PostIdentifier(p['reblogged_from_name'], p['reblogged_from_id'])
+            print(f"\tidentified as reblog from {pi}")
+            print(f"\tresponse_cache.is_handled({pi}) before: {response_cache.is_handled(pi)}")
+            response_cache.mark_unhandled(pi)
+            print(f"\tresponse_cache.is_handled({pi}) after: {response_cache.is_handled(pi)}")
+            private_client.delete_post(blogName, id=pid)
+        elif p.get('type') == 'answer':
+            print(f"\tidentified as answer to ask")
+            private_client.edit_post(blogName, id=pid, state="submission")
+        elif "replied to your post" in p.get('body', ''):
+            print(f"\tidentified as answer to reply")
+            reply_post_id, replier_name = post_body_find_reply_data(p['body'])
+
+            if reply_post_id is None or replier_name is None:
+                print(f"couldn't RTS: couldn't find reply post ID")
+            else:
+                possible_rids = [ri
+                                 for ri in response_cache.replies_handled
+                                 if ri.blog_name == replier_name and
+                                 str(ri.id_) == str(reply_post_id)]
+                if len(possible_rids) == 0:
+                    print(f"couldn't RTS: found 0 reply idents that match replier_name={replier_name}, reply_post_id={reply_post_id}")
+                    continue
+                elif len(possible_rids) == 1:
+                    rid = possible_rids[0]
+                else:
+                    timestamps_to_possible_rids = {ri.timestamp: ri for ri in possible_rids}
+
+                    reply_post_ident = PostIdentifier(blogName, reply_post_id)
+                    reply_post_notes = response_cache.normalized_lookup(CachedResponseType.NOTES, reply_post_ident)
+
+                    relevant_notes = [n for n in reply_post_notes
+                                      if n.get('type') == 'reply' and
+                                      'reply_text' in n and
+                                      n.get('blog_name') == replier_name and
+                                      n.get('timestamp', -1) in timestamps_to_possible_rids
+                                      ]
+                    text_matching_notes = [{k: n[k] for k in ['reply_text', 'timestamp']}
+                                           for n in relevant_notes
+                                           if n['reply_text'] in p['body']
+                                           ]
+                    if len(text_matching_notes) > 0:
+                        print(f"picking between {text_matching_notes}")
+                        longest_text_matching_note = sorted(text_matching_notes,
+                                                            key=lambda n_: len(n_['reply_text'])
+                                                            )[-1]
+                        print(f"chose {longest_text_matching_note}")
+                        chosen_ts = longest_text_matching_note['timestamp']
+                        rid = timestamps_to_possible_rids[chosen_ts]
+                    else:
+                        print(f"couldn't RTS: couldn't find note matches to {possible_rids}")
+
+                print(f"\tidentified as answer to {rid}")
+                response_cache.cache['replies_handled'].remove(rid)
+                private_client.delete_post(blogName, id=pid)
+        else:
+            print(f"don't know how to RTS {pid}!")
+
+    return response_cache
+
 def mainloop(loop_persistent_data: LoopPersistentData,
              response_cache: ResponseCache):
+    # DEBUG
+    response_cache = do_rts(response_cache)
+
     ### decide whether we'll do the reblog/reply check
 
     requests_needed_to_check = np.percentile(loop_persistent_data.requests_per_check_history[-30:], 75)
@@ -1571,17 +1646,20 @@ def mainloop(loop_persistent_data: LoopPersistentData,
                 loop_persistent_data, response_cache, n_posts_to_check_dash, is_dashboard=True, mood_value=mood_value
             )
         else:
-            psd_checkprob = checkprob * (requests_needed_to_check / 80)  # quick estimate
-            check_roll = np.random.rand()
-            if check_roll >= psd_checkprob:
-                print(f"skipping pseudo-dash check this time ({check_roll:.2f} >= {psd_checkprob})...")
-            else:
-                print("checking pseudo-dash...")
-                _, mood_value = determine_mood(response_cache, return_mood_value=True)
-                loop_persistent_data, response_cache = do_reblog_reply_handling(
-                    loop_persistent_data, response_cache, n_posts_to_check_dash, is_dashboard=True, mood_value=mood_value,
-                    pseudo_dashboard=True
-                )
+            print("skipping dash check this time")
+            #
+            #
+            # psd_checkprob = checkprob * (requests_needed_to_check / 80)  # quick estimate
+            # check_roll = np.random.rand()
+            # if check_roll >= psd_checkprob:
+            #     print(f"skipping pseudo-dash check this time ({check_roll:.2f} >= {psd_checkprob})...")
+            # else:
+            #     print("checking pseudo-dash...")
+            #     _, mood_value = determine_mood(response_cache, return_mood_value=True)
+            #     loop_persistent_data, response_cache = do_reblog_reply_handling(
+            #         loop_persistent_data, response_cache, n_posts_to_check_dash, is_dashboard=True, mood_value=mood_value,
+            #         pseudo_dashboard=True
+            #     )
 
         ### do another asks check
         loop_persistent_data, response_cache = _mainloop_asks_block(loop_persistent_data, response_cache, save_after=False)
@@ -1591,12 +1669,15 @@ def mainloop(loop_persistent_data: LoopPersistentData,
         response_cache.save()
         loop_persistent_data.side_judgment_cache.save()
 
-        ### do queue check
-        do_queue_handling(response_cache)
+        ### do rts
+        response_cache = do_rts(response_cache)
 
         # inform us about drafts
         drafts = private_client.drafts(blogName)["posts"]
         print(f"{len(drafts)} waiting for review")
+
+        ### do queue check
+        do_queue_handling(response_cache)
     else:
         print("skipping asks, queue, drafts until we're no longer rate limited")
         print(relevant_ratelimit_data)

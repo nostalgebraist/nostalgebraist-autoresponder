@@ -55,8 +55,12 @@ EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
 FIC_COLDSTART = True
-REVIEW_COLDSTART = True
+REVIEW_COLDSTART = False
+IMAGE_COLDSTART = False
 
+FIC_COLDSTART_DELTA = 0.2  # 0.1
+REVIEW_COLDSTART_DELTA = 0.1
+IMAGE_COLDSTART_DELTA = 0.1
 
 def load_retention():
     global RETENTION_STACK
@@ -152,12 +156,6 @@ def winndow_probabilities(proba, lower=0.333, upper=0.667):
 
 def get_continuation_sentiments(side_judgment_cache, continuations, sleep_time=0.2):
     continuations_stripped = []
-    for c in continuations:
-        if T_CHAR in c:
-            c_stripped = c.partition(T_CHAR)[0]
-        else:
-            c_stripped = c
-        continuations_stripped.append(c_stripped)
 
     continuation_sentiments = [side_judgment_cache.query(c, sleep_time=sleep_time)['sentiment']['allen_schema'] for c in tqdm(continuations)]
     return continuation_sentiments
@@ -199,6 +197,10 @@ def sentiment_screen(side_judgment_cache, continuations, mood, selection_proba=N
         exclusion_mask[exclude_upper] = True
     else:
         print(f"couldn't find any with {score_fn}<={max_allowed_score}, lowest is {scores.min()}")
+
+    if exclusion_mask.all():
+        print(f"! not excluding any because all were excluded")
+        exclusion_mask = np.zeros_like(scores, dtype=bool)
 
     retained_continuation_sentiments = [sent
                                         for mask, sent in zip(exclusion_mask, all_continuation_sentiments)
@@ -272,6 +274,9 @@ def serve_selection(data):
   if REVIEW_COLDSTART:
       selection_proba = do_review_coldstart(continuations, selection_proba)
 
+  if IMAGE_COLDSTART:
+      selection_proba = do_image_coldstart(continuations, selection_proba)
+
   sentiment_logit_diffs = data.get("sentiment_logit_diffs")
   if selection_proba is not None:
       print(f"len(selection_proba): {len(selection_proba)} vs len(continuations): {len(continuations)}")
@@ -289,6 +294,9 @@ def serve_selection(data):
   strategy = "proportional"
   if "strategy" in kwargs:
     strategy = kwargs['strategy']
+  eps = 0.1
+  if "eps" in kwargs:
+      eps = kwargs["eps"]
 
   if (data['type'] == 'textpost') and (strategy != "uniform"):
       continuations += sorted(RETENTION_STACK)
@@ -327,6 +335,15 @@ def serve_selection(data):
   if strategy == "argmax":
     #choice_ix = preds.argmax()
     choice_ix = proba.argmax()
+  elif strategy == "eps_greedy":
+    print(f"choosing between preds {proba}\n")
+    roll = np.random.rand()
+    if roll < eps:
+      print(f"choosing randomly: roll {roll} < eps {eps}")
+      choice_ix = np.random.choice(list(range(len(proba))))
+    else:
+      print(f"choosing greedily: roll {roll} >= eps {eps}")
+      choice_ix = proba.argmax()
   elif strategy == "proportional" or strategy == "proportional_winnowed":
     #note_preds = np.exp(preds)-1
     #probs = note_preds / sum(note_preds)
@@ -364,6 +381,13 @@ def serve_selection(data):
   parsed["pos_sentiment"] = float(chosen_pos_sent)
   parsed["mirotarg"] = chosen_mirotarg
   parsed["all_pos_sentiment"] = [float(pos_sent(s)) for s in all_continuation_sentiments]
+  parsed["all_proba"] = [float(p) for p in selection_proba]
+  parsed["all_mirotarg"] = mirotarg
+  for k in data.keys():
+      if "alt_selection_proba" in k:
+          parsed[f"all_{k}"] = [float(p) for p in data[k]]
+
+  parsed["choice_ix"] = int(choice_ix)
   parsed["mood"] = mood
   if return_all_conts:
       all_parsed = [parse_continuation(c) for c in continuations]
@@ -371,9 +395,6 @@ def serve_selection(data):
       all_tags = [p['tags'] for p in all_parsed]
       parsed["all_posts"] = all_posts
       parsed["all_tags"] = all_tags
-      parsed["all_proba"] = [float(p) for p in selection_proba]
-      parsed["all_mirotarg"] = mirotarg
-      parsed["choice_ix"] = int(choice_ix)
 
   parsed["base_id"] = base_id
 
@@ -429,8 +450,9 @@ def do_coldstart(continuations, selection_proba, substring, delta):
             selection_proba_.append(p)
     return selection_proba_
 
-do_fic_coldstart = partial(do_coldstart, substring="#original fiction", delta=0.2)
-do_review_coldstart = partial(do_coldstart, substring="Author: <b>", delta=0.2)
+do_fic_coldstart = partial(do_coldstart, substring="#original fiction", delta=FIC_COLDSTART_DELTA)
+do_review_coldstart = partial(do_coldstart, substring="Author: <b>", delta=REVIEW_COLDSTART_DELTA)
+do_image_coldstart = partial(do_coldstart, substring="\n=======\n", delta=IMAGE_COLDSTART_DELTA)
 
 def apply_retention_cutoff():
     global RETENTION_STACK

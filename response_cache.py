@@ -7,7 +7,7 @@ the mood feature.
 """
 from collections import namedtuple
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytumblr, time, os, pickle
 
@@ -40,11 +40,11 @@ class ResponseCache:
         if "replies_handled" not in self.cache:
             self.cache["replies_handled"] = set()
 
-        # TODO: deprecate
+        # TODO: deprecate (now in SentimentCache?)
         if "text_selector_probs" not in self.cache:
             self.cache["text_selector_probs"] = {}
 
-        # TODO: deprecate
+        # TODO: deprecate (now in SentimentCache)
         if "text_sentiments" not in self.cache:
             self.cache["text_sentiments"] = {}
 
@@ -71,9 +71,12 @@ class ResponseCache:
                 print(f"loaded response cache with lengths {lengths}")
         else:
             print(f"initialized response cache")
-        return ResponseCache(client, path, cache)
+        loaded = ResponseCache(client, path, cache)
+        loaded.remove_oldest()
+        return loaded
 
     def save(self, verbose=True, do_backup=True):
+        self.remove_oldest()
         with open(self.path, "wb") as f:
             pickle.dump(self.cache, f)
         if do_backup:
@@ -83,6 +86,35 @@ class ResponseCache:
         if verbose:
             lengths = {k: len(self.cache[k]) for k in CachedResponseType}
             print(f"saved response cache with lengths {lengths}")
+
+    def remove_oldest(self, max_hours=18, dryrun=False):
+        lat = self.cache["last_accessed_time"]
+        existing_p = self.cache[CachedResponseType.POSTS]
+        existing_n = self.cache[CachedResponseType.NOTES]
+
+        last_allowed_time = datetime.now() - timedelta(hours=max_hours)
+
+        allowed_p = {pi for pi, t in lat.items()
+                     if t >= last_allowed_time}
+
+        new_p = {pi: existing_p[pi] for pi in existing_p
+                 if pi in allowed_p}
+        new_n = {pi: existing_n[pi] for pi in existing_n
+                 if pi in allowed_p}
+
+        before_len_p = len(existing_p)
+        before_len_n = len(existing_n)
+        delta_len_p = before_len_p - len(new_p)
+        delta_len_n = before_len_n - len(new_n)
+
+        if dryrun:
+            print(f"remove_oldest: would drop {delta_len_p} of {before_len_p} POSTS")
+            print(f"remove_oldest: would drop {delta_len_n} of {before_len_n} NOTES")
+        else:
+            print(f"remove_oldest: dropping {delta_len_p} of {before_len_p} POSTS")
+            print(f"remove_oldest: dropping {delta_len_n} of {before_len_n} NOTES")
+            self.cache[CachedResponseType.POSTS] = new_p
+            self.cache[CachedResponseType.NOTES] = new_n
 
     def record_response_to_cache(self, response: dict, care_about_notes=True, care_about_likes=False):
         if response.get('response') == "You do not have permission to view this blog":
@@ -99,7 +131,6 @@ class ResponseCache:
         for response_core in response['posts']:
             identifier = PostIdentifier(response_core["blog_name"], response_core["id"])
             post_payload = {k: v for k, v in response_core.items() if k != "notes"}
-            notes = response_core.get('notes', [])
 
             notes = self.normalized_lookup(CachedResponseType.NOTES, identifier)
             if notes is None:

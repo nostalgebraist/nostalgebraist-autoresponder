@@ -1,10 +1,18 @@
 """tumblr API <--> preprocessed text tools I need in more than one place"""
 import re
 import json
+import sys
+sys.path.append("src/")
 
 import reblogs_v5
 from bs4 import BeautifulSoup
 from wcwidth import wcwidth
+
+from autoresponder_static import *
+
+from image_analysis import extract_and_format_text_from_url, V9_IMAGE_FORMATTER
+
+from text_segmentation import make_image_simple
 
 VERBOSE_LOGS = False
 
@@ -27,6 +35,10 @@ def sanitize_user_input_outer_shell(text):
 
     # zero-width joiners etc
     sanitized_text = ''.join([c for c in sanitized_text if wcwidth(c) != 0])
+
+    # image delimiter
+    # TODO: define this value only once
+    sanitized_text = sanitized_text.replace("=======", "")
 
     return sanitized_text
 
@@ -147,7 +159,7 @@ def body_via_trail_hack(post: dict):
     return "".join(my_units)
 
 
-def process_post_from_html_body(body: str, debug=False) -> str:
+def process_post_from_html_body(body: str, debug=False, V10=True, image_analysis_cache=None) -> str:
     # warning: doesn't handle ask prefixes
     # if you want to go from an API payload to text, use process_post_from_post_payload
 
@@ -155,23 +167,24 @@ def process_post_from_html_body(body: str, debug=False) -> str:
         return body
 
     soup = BeautifulSoup(body, features="lxml")
-    processed, _ = reblogs_v5.process_post(soup, use_article=False, debug=debug)
+    processed, _ = reblogs_v5.process_post(soup, use_article=False, debug=debug, V10=V10, image_analysis_cache=image_analysis_cache)
 
     return processed
 
-def process_post_from_post_payload(post: dict, debug=False) -> str:
+def process_post_from_post_payload(post: dict, debug=False, V10=True, image_analysis_cache=None) -> str:
     body = get_body(post)
     if body is None:
         return None
 
-    processed = process_post_from_html_body(body, debug=debug)
+    processed = process_post_from_html_body(body, debug=debug, V10=V10, image_analysis_cache=image_analysis_cache)
 
     if len(processed) == 0:
         # assume we should use A_CHAR here, we should never write a textpost of length 0
         processed = A_CHAR + "<|endoftext|>"
 
     if "question" in post and "asking_name" in post:
-        ask_prefix = UNAME_CHAR + post["asking_name"] + Q_CHAR + "\n" + inverse_format_post_for_api(post["question"]) + "\n"
+        ask_char = reblogs_v5.V10_ASK_CHAR if V10 else Q_CHAR
+        ask_prefix = UNAME_CHAR + post["asking_name"] + ask_char + "\n" + inverse_format_post_for_api(post["question"]) + "\n"
         if ORIG_POST_CHAR in processed:
             processed = processed.replace(ORIG_POST_CHAR, A_CHAR)
         processed = ask_prefix + processed
@@ -186,6 +199,133 @@ def process_post_from_post_payload(post: dict, debug=False) -> str:
         if VERBOSE_LOGS:
             print(f"title_prefix: {title_prefix}")
     return processed
+
+def screener_string_from_bootstrap_draft(d, image_analysis_cache=None):
+    processed = process_post_from_post_payload(d, image_analysis_cache=image_analysis_cache)
+    cchars = find_all_control_chars_chinese(processed)
+
+    if len(cchars)==0:
+        msg=f"screener_string_from_bootstrap_draft:\n\tweirdness: couldn't find control chars in {processed} for {d}"
+        print(msg)
+        return ""
+    if cchars[-1][0] == A_CHAR:
+        # should always be true for bootstrap drafts, but just for generality
+        cchars = cchars[:-1]
+
+    start_ix = 0
+    for cc1, cc2 in zip(cchars[:-1], cchars[1:]):
+        if cc1[0]==A_CHAR:
+            # if we wrote the post in cc1, we know everything's good until the start of cc2
+            start_ix = cc2[1]
+
+    screener_string = processed[start_ix:]
+    return screener_string
+
+# image stuff
+
+def find_images_and_sub_text(
+    text: str,
+    image_formatter=V9_IMAGE_FORMATTER,
+    image_analysis_cache=None,
+    verbose=False,
+    ):
+    text_subbed = text
+
+    for match in re.finditer(r"(<img src=\")([^\"]+)(\"[^>]*>)", text):
+        if image_analysis_cache is not None:
+            imtext = image_analysis_cache.extract_and_format_text_from_url(match.group(2))
+        else:
+            imtext = extract_and_format_text_from_url(match.group(2))
+        text_subbed = text_subbed.replace(match.group(0), imtext,)
+
+    text_subbed = re.sub(r"<figure[^>]*>", "", text_subbed)
+    text_subbed = text_subbed.replace("</figure>", "")
+
+    return text_subbed
+
+def upload_images_to_tumblr_urls(images, keys, client, blogname):
+    if len(images) != len(keys):
+        print(f"!! warning: in upload_images_to_tumblr_urls, got {len(images)} images but {len(keys)} keys")
+        return {}
+    if len(images) == 0:
+        return {}
+    paths = [f"analysis_images/temp{i}.jpg" for i, im in enumerate(images)]
+    for p, im in zip(paths, images):
+        im.save(p, format="jpeg")
+
+    r = client.create_photo(blogname, state="draft", data=paths)
+
+    r2 = client.posts(blogname, id=r['id'])['posts'][0]
+    urls = [ph['original_size'] for ph in r2['photos']]
+
+    client.delete_post(blogname, id=r['id'])
+
+    return {k: url for k, url in zip(keys, urls)}
+
+def find_text_images_and_sub_real_images(
+    text,
+    client,
+    blogname,
+    verbose=False,
+    dryrun=False,
+    ):
+    def vprint(*args, **kwargs):
+        if verbose:
+            print(*args, **kwargs)
+
+    orig_text = text
+
+    text = text.strip(' \n')
+
+    if text.startswith("======="):
+        text = "\n\n" + text
+
+    if text.endswith("======="):
+        text = text + "\n"
+
+    imtext_regex = r"(\n=======\n)(.+?)(=======\n)"
+    figure_format = """<figure data-orig-height="{h}" data-orig-width="{w}"><img src="{url}" data-orig-height="{h}" data-orig-width="{w}"/></figure>"""
+    imtexts = set()
+    ims_checksum = 0
+
+    for match in re.finditer(imtext_regex, text, flags=re.DOTALL, ):
+        imtext = match.group(2).rstrip("\n")
+        imtexts.add(imtext)
+        ims_checksum += 1
+
+    vprint(f"find_text_images_and_sub_real_images: found {len(imtexts)} imtexts")
+
+    if dryrun:
+        return text, ims_checksum
+
+    images = []
+    keys = []
+    for imtext in imtexts:
+        if len(imtext) > 0:
+            images.append(make_image_simple(imtext))
+            keys.append(imtext)
+
+    imtexts_to_tumblr_images = upload_images_to_tumblr_urls(images, keys, client, blogname)
+
+    vprint(f"find_text_images_and_sub_real_images: uploaded {len(imtexts)} images")
+
+    def _replace_with_figure(match):
+        imtext = match.group(2).rstrip("\n")
+        if imtext in imtexts_to_tumblr_images:
+            tumblr_image = imtexts_to_tumblr_images[imtext]
+            vprint(f"find_text_images_and_sub_real_images: subbing {repr(tumblr_image)} for {repr(imtext)}")
+            return figure_format.format(url=tumblr_image['url'], h=tumblr_image['height'], w=tumblr_image['width'])
+        else:
+            vprint(f"find_text_images_and_sub_real_images: nothing to sub for {repr(imtext)}")
+            return ""
+    text_subbed = re.sub(imtext_regex, _replace_with_figure, text, flags=re.DOTALL,)
+
+    happened = len(imtexts_to_tumblr_images)>0
+    if not happened:
+        text_subbed = orig_text  # ensure no munging for matching went through
+    return text_subbed, happened
+
+
 
 # profanity tools
 # currently unused
@@ -214,8 +354,8 @@ def load_wash_lists():
 
 # "pretending the post is by me" tools
 
-def write_text_for_side_judgment(post_payload, chop_on_a_char=True, add_tags=True, swap_in_frank=True, add_empty_response=False):
-    processed = process_post_from_post_payload(post_payload)
+def write_text_for_side_judgment(post_payload, image_analysis_cache=None, chop_on_a_char=True, add_tags=True, swap_in_frank=True, add_empty_response=False):
+    processed = process_post_from_post_payload(post_payload, image_analysis_cache=image_analysis_cache)
     if processed is None:
         return False
 

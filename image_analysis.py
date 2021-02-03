@@ -2,11 +2,13 @@
 from typing import NamedTuple, Optional, Callable, List, Tuple
 import os
 import time
+import pickle
 from io import BytesIO
 
 from tqdm.autonotebook import tqdm
 import boto3
 import requests
+import urllib3
 
 from PIL import Image
 from moviepy.editor import VideoFileClip
@@ -17,18 +19,25 @@ rek = boto3.client('rekognition')
 
 ACCEPTABLE_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif"}
 
-def xtn_from_headers(response: requests.models.Response):
+AR_DETECT_TEXT_CONFIDENCE_THRESHOLD = 95
+
+def xtn_from_headers(response: urllib3.response.HTTPResponse, # requests.models.Response
+                     ):
     return "." + response.headers.get('Content-Type', '').partition('/')[-1]
 
 
-def url_to_frame_bytes(url: str, fps: float=1., max_frames: int=10) -> List[bytes]:
+def url_to_frame_bytes(url: str, fps: float=1., max_frames: int=10, http=None) -> List[bytes]:
     try:
+        if http is None:
+            http = urllib3.PoolManager()
+
         name = url.rpartition("/")[-1]
         xtn_from_url = "." + name.rpartition(".")[-1]
 
-        r = requests.get(url)
-        if r.status_code != 200:
-            print(f"encountered code {r.status_code} trying to get {url}")
+        r = http.request('GET', url)
+
+        if r.status != 200:
+            print(f"encountered code {r.status} trying to get {url}")
             return []
 
         xtn = xtn_from_url
@@ -36,13 +45,14 @@ def url_to_frame_bytes(url: str, fps: float=1., max_frames: int=10) -> List[byte
             xtn = xtn_from_headers(r)
 
         if xtn == ".gif":
-            return gif_bytes_to_frame_bytes(r.content, fps=fps, max_frames=max_frames)
+            return gif_bytes_to_frame_bytes(
+                r.data,
+                fps=fps, max_frames=max_frames)
         elif xtn in ACCEPTABLE_IMAGE_EXTENSIONS:
-            return [r.content]
+            return [r.data]
 
         # if we reach this, nothing worked
-        print(f"encountered unknown extension in {url}, Content-Type {r.headers.get('Content-Type')}")
-            return []
+        return []
     except Exception as e:
         print(f"encountered {e} trying to get {url}")
         return []
@@ -64,7 +74,7 @@ def gif_bytes_to_frame_bytes(b: bytes, fps: float=1., max_frames: int=10) -> Lis
 
     frame_indices = list(range(0, int(n_frames_to_save)+1))
 
-    clip.write_images_sequence(os.path.join(IMAGE_DIR, "temp_%04d.png"), fps=fps)
+    clip.write_images_sequence(os.path.join(IMAGE_DIR, "temp_%04d.png"), fps=fps, verbose=False, logger=None)
 
     for ix in frame_indices:
         fn = os.path.join(IMAGE_DIR, f"temp_{ix:04d}.png")
@@ -102,7 +112,10 @@ def execute_callspec(spec: CallSpec, b: bytes,  **postprocessor_kwargs) -> dict:
     try:
         response = spec.method(b, **spec.kwargs)
 
-        raw_results = {k: response.get(k) for k in spec.response_keys}
+        if spec.response_keys is not None:
+            raw_results = {k: response.get(k) for k in spec.response_keys}
+        else:
+            raw_results = response
         if spec.postprocessor is not None:
             results = spec.postprocessor(raw_results, **postprocessor_kwargs)
         else:
@@ -127,16 +140,16 @@ def execute_callspecs(specs: List[CallSpec], b: bytes, sleep_time: float=0.33,
     return results
 
 def batch_execute_callspecs(specs: List[CallSpec], byte_list: List[bytes], sleep_time: float=0.33,
-                            postprocessor_kwargs: List[dict]=None) -> dict:
+                            postprocessor_kwargs: List[dict]=None, verbose=True) -> dict:
     results = []
 
     if postprocessor_kwargs is None:
         postprocessor_kwargs = [{} for _ in specs]
 
-    iter = tqdm(byte_list) if len(byte_list)>1 else byte_list
+    iter = tqdm(byte_list) if (verbose and len(byte_list)>1) else byte_list
     for b in iter:
         results_one = {}
-        iter = tqdm(zip(specs, postprocessor_kwargs)) if len(specs)>1 else zip(specs, postprocessor_kwargs)
+        iter = tqdm(zip(specs, postprocessor_kwargs)) if (verbose and len(specs)>1) else zip(specs, postprocessor_kwargs)
         for spec, kwargs in iter:
             results_one.update(execute_callspec(spec, b,  **kwargs))
 
@@ -154,7 +167,7 @@ def labels_found(entry, threshold=0):
     return {"label_" + item.get('Name'): item.get('Confidence', 100) for item in entry_labels
             if item.get('Confidence', 100) >= threshold}
 
-def text_lines_found(entry, threshold=0, corner_ignore_thresh=0.05):
+def text_lines_found(entry, threshold=95, corner_ignore_thresh=0.05):
     def _not_corner(item):
         bb = item.get("Geometry", {}).get("BoundingBox", {})
         top, left, width, height = bb.get("Top"), bb.get("Left"), bb.get("Width"), bb.get("Height")
@@ -172,7 +185,8 @@ def text_lines_found(entry, threshold=0, corner_ignore_thresh=0.05):
     results = {"text_lines":
         [{
             "Confidence": item.get('Confidence', 100),
-            "text": item.get("DetectedText")
+            "text": item.get("DetectedText"),
+            "BoundingBox": item.get("Geometry", {}).get("BoundingBox", {})
             }
          for ix, item in enumerate(entry_text_lines)
          if item.get('Confidence', 100) >= threshold and _not_corner(item)]
@@ -256,6 +270,13 @@ detect_text_spec = CallSpec(
     postprocessor=text_lines_found,
 )
 
+detect_text_actually_raw_response_spec = CallSpec(
+    method=lambda b, **kwargs: rek.detect_text(Image={"Bytes": b}, **kwargs),
+    kwargs={},
+    response_keys=['TextDetections'],  # other key is request http metadata
+    postprocessor=None,
+)
+
 recognize_celebrities_spec = CallSpec(
     method=lambda b, **kwargs: rek.recognize_celebrities(Image={"Bytes": b}, **kwargs),
     kwargs={},
@@ -279,19 +300,23 @@ autoreponder_rek_kwargs = [
     {"threshold": 80},  # text
     ]
 
-only_text_rek_kwargs = [{"threshold": 80}]
+only_text_rek_kwargs_original_flavor = [{"threshold": 80}]  # used for corpora through v10, etc
+only_text_rek_kwargs = [{"threshold": AR_DETECT_TEXT_CONFIDENCE_THRESHOLD}]
 
 
 # utils / putting things together
 
-def collect_text(results: List[dict], deduplicate=True) -> str:
+def collect_text(results: List[dict], deduplicate=True, return_raw=False) -> str:
     lines = []
 
+    usable_entries = []
     for entry in results:
         if "text_lines" in entry:
+            usable_entries.append(entry)
             entry_lines = [text_line["text"] for text_line in entry["text_lines"]]
             lines.append("\n".join(entry_lines))
 
+    lines_all = lines
     if deduplicate:
         lines_dedup = []
         for l in lines:
@@ -299,13 +324,129 @@ def collect_text(results: List[dict], deduplicate=True) -> str:
                 lines_dedup.append(l)
         lines = lines_dedup
 
+    if return_raw:
+        collected_text = "\n".join(lines)
+        if len(usable_entries) != len(lines_all):
+            print(f"warning: len(usable_entries)={len(usable_entries)} but len(lines_all)={len(lines_all)}")
+            print(f"usable_entries: {usable_entries}\nlines_all: {lines_all}")
+        raw = []
+        for e, l in zip(usable_entries, lines_all):
+            d = {"line": l}
+            d.update(e)
+            raw.append(d)
+        return collected_text, raw
     return "\n".join(lines)
 
-def extract_text_from_url(url: str, deduplicate=True, sleep_time: float=0.33,) -> str:
-    frame_bytes = url_to_frame_bytes(url)
-    results = batch_execute_callspecs(only_text_rek_specs, postprocessor_kwargs=only_text_rek_kwargs, byte_list=frame_bytes, sleep_time=sleep_time)
-    return collect_text(results, deduplicate=deduplicate)
+def extract_text_from_url(url: str, deduplicate=True, sleep_time: float=0.1, http=None, verbose=True,
+                           downsize_to=[640, 540], return_url_etc=False, return_raw=False, xtra_raw=False) -> str:
+    return_raw = return_raw or xtra_raw
 
+    if http is None:
+        http = urllib3.PoolManager()
+
+    url_ = url
+    r_pre = http.request('GET', url_, preload_content=False)
+    nbytes_ = int(r_pre.headers.get('Content-Length', -1))
+    r_pre.release_conn()
+
+    if downsize_to is not None and nbytes_ > 0:
+        try:
+            for downsize in downsize_to:
+                seg, _, xtn = url_.rpartition(".")
+                seg2, _, orig_size = seg.rpartition("_")
+                newurl = seg2 + "_" + str(downsize) + "." + xtn
+
+                r_pre = http.request('GET', newurl, preload_content=False)
+                nbytes_new = int(r_pre.headers['Content-Length'])
+                r_pre.release_conn()
+
+                if r_pre.status != 200:
+                    raise ValueError
+
+                if nbytes_new < nbytes_:
+                    if verbose:
+                        print(f"{url_}\n\t--> {newurl}")
+                    url_ = newurl
+                    nbytes_ = nbytes_new
+        except:
+            if verbose:
+                print(f"couldn't downsize: {url}")
+
+    frame_bytes = url_to_frame_bytes(url_, http=http)
+
+    specs = [detect_text_actually_raw_response_spec] if xtra_raw else only_text_rek_specs
+    results = batch_execute_callspecs(specs, postprocessor_kwargs=only_text_rek_kwargs, byte_list=frame_bytes, sleep_time=sleep_time, verbose=verbose)
+
+    if xtra_raw:
+        ctext = (None, results)
+    else:
+        ctext = collect_text(results, return_raw=return_raw, deduplicate=deduplicate)
+    if return_url_etc:
+        return ctext, url_, nbytes_
+    return ctext
+
+def PRE_V9_IMAGE_FORMATTER(image_text):
+    return "\n" + image_text + "\n"
+
+def V9_IMAGE_FORMATTER(image_text):
+    return "\n" + "\n=======\n" + image_text + "\n=======\n"
+
+def extract_and_format_text_from_url(
+    url: str,
+    image_formatter=V9_IMAGE_FORMATTER,
+    verbose=False,
+    ):
+    image_text = extract_text_from_url(url)
+    if verbose and len(image_text) > 0:
+        print(f"for {url}, analysis text is\n{image_text}\n")
+    if len(image_text) > 0:
+        return image_formatter(image_text)
+    return ""
+
+class ImageAnalysisCache:
+    def __init__(self, path="image_analysis_cache.pkl.gz", cache=None):
+        self.path = path
+        self.cache = cache
+
+        if self.cache is None:
+            self.cache = {}
+
+    def extract_and_format_text_from_url(
+        self,
+        url: str,
+        image_formatter=V9_IMAGE_FORMATTER,
+        verbose=False,
+        ):
+        # TODO: integrate downsizing
+        if url in self.cache:
+            text = self.cache[url]
+        else:
+            text = extract_and_format_text_from_url(url, image_formatter=image_formatter, verbose=verbose)
+            self.cache[url] = text
+        return text
+
+    def save(self, verbose=True, do_backup=True):
+        with open(self.path, "wb") as f:
+            pickle.dump(self.cache, f)
+        if do_backup:
+            # TODO: better path handling
+            with open(self.path[:-len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
+                pickle.dump(self.cache, f)
+        if verbose:
+            print(f"saved image analysis cache with length {len(self.cache)}")
+
+    @staticmethod
+    def load(path: str="image_analysis_cache.pkl.gz", verbose=True) -> 'ImageAnalysisCache':
+        cache = None
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                cache = pickle.load(f)
+            if verbose:
+                print(f"loaded image analysis cache with length {len(cache)}")
+        else:
+            print(f"initialized image analysis cache")
+        loaded = ImageAnalysisCache(path, cache)
+        return loaded
 
 
 # development helpers

@@ -166,8 +166,6 @@ def winndow_probabilities(proba, lower=0.333, upper=0.667):
 
 
 def get_continuation_sentiments(side_judgment_cache, continuations, sleep_time=0.2):
-    continuations_stripped = []
-
     continuation_sentiments = [
         side_judgment_cache.query(c, sleep_time=sleep_time)["sentiment"]["allen_schema"]
         for c in tqdm(continuations)
@@ -485,10 +483,7 @@ def serve_selection(data):
         non_newline_ixs = [ix for ix, c in enumerate(post) if c != "\n"]
         if len(non_newline_ixs) > 0:
             newline_switch_ix = max(non_newline_ixs) + 1
-            trailing_newlines = post[newline_switch_ix:]
             post = post[:newline_switch_ix]
-        else:
-            trailing_newlines = ""
     else:
         print(f"not AB testing, have kwargs {kwargs}")
 
@@ -633,9 +628,6 @@ def poll():
         time.sleep(1)
 
 
-import time
-
-
 def loop_poll(period=60):
     while True:
         try:
@@ -652,7 +644,7 @@ def selector_main_loop():
 
     load_retention()
     if not SELECT_VIA_GENERATOR:
-        load_selector_model(MODEL_NAME, verify=VERIFY_MODEL)
+        raise ValueError("SELECT_VIA_GENERATOR=False is no longer implemented")
 
     loop_poll(period=5)
 

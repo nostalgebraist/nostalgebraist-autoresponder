@@ -2,25 +2,24 @@
 Coordinating switchboard that handles communication between the generator, selector, and
 tumblr API compontents.
 """
-import json
-import os
 import numpy as np
-import re
 import uuid
 from datetime import datetime
 
-from flask import Flask, escape, request, jsonify
+from flask import Flask, request, jsonify
 
 from bot_config import BotSpecificConstants
 from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
 from bridge_shared import bridge_service_unique_id
 
 import sys
+
 sys.path.append("src/")
 from autoresponder_static import DEFAULT_CSC
-from autoresponder_static_v8 import timestamp_to_v8_format, timestamp_to_v10_format
+from autoresponder_static_v8 import timestamp_to_v10_format
 
 bot_specific_constants = BotSpecificConstants.load()
+bridge_service_port = bot_specific_constants.bridge_service_port
 bridge_service_url = bot_specific_constants.bridge_service_url
 
 TRADE_QUALITY_FOR_SPEED = False
@@ -67,23 +66,27 @@ GENERATIONS_PER_REQUEST = 1
 ### FLASK
 app = Flask(__name__)
 
+
 def make_raw_select(texts, new_id, v8_timestamps=None, v10_timestamps=None):
     global PROMPT_STACK
     global SELECTION_PROMPT_STACK
 
     if RAW_SELECT_VIA_GENERATOR:
-        PROMPT_STACK[new_id] = {"texts": texts,
-                                "type": "raw_select"}
+        PROMPT_STACK[new_id] = {"texts": texts, "type": "raw_select"}
         if v8_timestamps is not None:
-            PROMPT_STACK[new_id]["v8_timestamp"] = v8_timestamps[0]  # TODO: make not weird
+            PROMPT_STACK[new_id]["v8_timestamp"] = v8_timestamps[
+                0
+            ]  # TODO: make not weird
         if v10_timestamps is not None:
-            PROMPT_STACK[new_id]["v10_timestamp"] = v10_timestamps[0]  # TODO: make not weird
+            PROMPT_STACK[new_id]["v10_timestamp"] = v10_timestamps[
+                0
+            ]  # TODO: make not weird
         print(f"made raw_select: {PROMPT_STACK[new_id]}")
     else:
         SELECTION_PROMPT_STACK[new_id] = {"texts": texts, "raw_selection_request": True}
 
 
-@app.route('/raw_select', methods=['POST'])
+@app.route("/raw_select", methods=["POST"])
 def raw_select():
     global PROMPT_STACK
     global SELECTION_PROMPT_STACK
@@ -93,12 +96,14 @@ def raw_select():
     v8_timestamps = request.json.get("v8_timestamps", None)
     v10_timestamps = request.json.get("v10_timestamps", None)
 
-    make_raw_select(texts, new_id, v8_timestamps=v8_timestamps, v10_timestamps=v10_timestamps)
+    make_raw_select(
+        texts, new_id, v8_timestamps=v8_timestamps, v10_timestamps=v10_timestamps
+    )
 
     return jsonify({"collision": False})
 
 
-@app.route('/', methods=['POST'])
+@app.route("/", methods=["POST"])
 def answer():
     global PROMPT_STACK
 
@@ -112,36 +117,56 @@ def answer():
     write_fic_override = bool(int(request.form.get("write_fic_override", 0)))
     write_review_override = bool(int(request.form.get("write_review_override", 0)))
     return_all_conts = bool(int(request.form.get("return_all_conts", False)))
-    selector_cut_to_final_exchange = bool(int(request.form.get("selector_cut_to_final_exchange", False)))
+    selector_cut_to_final_exchange = bool(
+        int(request.form.get("selector_cut_to_final_exchange", False))
+    )
 
     if not exact_prompt:
-        prompt = UNAME_CHAR + request.form["asking_name"] + DEFAULT_CSC['ASK_CHAR'] + "\n" + prompt + "\n" + A_CHAR
-    elif (not exact_prompt):
+        prompt = (
+            UNAME_CHAR
+            + request.form["asking_name"]
+            + DEFAULT_CSC["ASK_CHAR"]
+            + "\n"
+            + prompt
+            + "\n"
+            + A_CHAR
+        )
+    elif not exact_prompt:
         prompt = Q_CHAR + prompt + "\n" + A_CHAR
-    print(f'got prompt: {prompt}')
+    print(f"got prompt: {prompt}")
 
-    kwargs = {"best_of": 13 if (not TRADE_QUALITY_FOR_SPEED) else 10,
-              "verbose": True, "V5": True,
-              "mood": get_mood_by_name(mood),
-              "return_all_conts": return_all_conts,
-              "selector_cut_to_final_exchange": selector_cut_to_final_exchange,
-              "forced_tags_string": forced_tags_string,
-              "write_fic_override": write_fic_override}
+    kwargs = {
+        "best_of": 13 if (not TRADE_QUALITY_FOR_SPEED) else 10,
+        "verbose": True,
+        "V5": True,
+        "mood": get_mood_by_name(mood),
+        "return_all_conts": return_all_conts,
+        "selector_cut_to_final_exchange": selector_cut_to_final_exchange,
+        "forced_tags_string": forced_tags_string,
+        "write_fic_override": write_fic_override,
+    }
 
     if kwargs["write_fic_override"] or write_review_override:
         kwargs["best_of"] = 8 if not (TRADE_QUALITY_FOR_SPEED) else 6
 
     expected_rejection_frac = estimate_expected_rejections(
-        min_logit_diff=kwargs['mood']['min_allowed_score'],
-        max_logit_diff=kwargs['mood']['max_allowed_score'],
-        logit_diff_sample_series=logit_diff_sample_series
-        )
+        min_logit_diff=kwargs["mood"]["min_allowed_score"],
+        max_logit_diff=kwargs["mood"]["max_allowed_score"],
+        logit_diff_sample_series=logit_diff_sample_series,
+    )
 
-    raw_extra_best_of = int(np.round(kwargs["best_of"]/(1-expected_rejection_frac))) - kwargs["best_of"]
-    discounted_extra_best_of = int(np.round(raw_extra_best_of * EXPECTED_REJECTION_MULT))
+    raw_extra_best_of = (
+        int(np.round(kwargs["best_of"] / (1 - expected_rejection_frac)))
+        - kwargs["best_of"]
+    )
+    discounted_extra_best_of = int(
+        np.round(raw_extra_best_of * EXPECTED_REJECTION_MULT)
+    )
 
-    print(f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over best_of={kwargs['best_of']}")
-    kwargs['best_of'] += discounted_extra_best_of
+    print(
+        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over best_of={kwargs['best_of']}"
+    )
+    kwargs["best_of"] += discounted_extra_best_of
     print(f"discounting to {discounted_extra_best_of} --> best_of={kwargs['best_of']}")
 
     if any([d.get("base_id") == new_id for d in PROMPT_STACK.values()]):
@@ -158,7 +183,7 @@ def answer():
     if request.form["asking_name"] == "bukbot":
         kwargs["avoid_if_profane"] = True
     if True:
-    fork = "B" if np.random.rand() > 1 else "A"
+        fork = "B" if np.random.rand() > 1 else "A"
     strategy = "proportional_winnowed"
     eps = 0.1
     kwargs["strategy"] = strategy
@@ -166,13 +191,25 @@ def answer():
 
     kwargs["AB_fork"] = fork
     generation_id = str(uuid.uuid4())
-        PROMPT_STACK[generation_id] = {"type": "answer", "prompt": prompt, "kwargs": kwargs, "base_id": new_id, "v8_timestamp": v8_timestamp, "v10_timestamp": v10_timestamp}
-    PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"]["best_of"]
+    PROMPT_STACK[generation_id] = {
+        "type": "answer",
+        "prompt": prompt,
+        "kwargs": kwargs,
+        "base_id": new_id,
+        "v8_timestamp": v8_timestamp,
+        "v10_timestamp": v10_timestamp,
+    }
+    PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"][
+        "best_of"
+    ]
     PROMPT_STACK[generation_id]["kwargs"]["best_of"] = GENERATIONS_PER_REQUEST
-    print(f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}")
+    print(
+        f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
+    )
     return jsonify({"collision": False})
 
-@app.route('/textpost', methods=['POST'])
+
+@app.route("/textpost", methods=["POST"])
 def textpost():
     global PROMPT_STACK
     global RETENTION_STACK
@@ -185,10 +222,14 @@ def textpost():
     v10_timestamp = request.form.get("v10_timestamp", "")
     return_all_conts = bool(int(request.form.get("return_all_conts", False)))
 
-    kwargs = {"best_of": 10,
-              "prompt_from_dataset": True, "verbose": True, "V5": True,
-              "mood": get_mood_by_name(mood),
-              "return_all_conts": return_all_conts}
+    kwargs = {
+        "best_of": 10,
+        "prompt_from_dataset": True,
+        "verbose": True,
+        "V5": True,
+        "mood": get_mood_by_name(mood),
+        "return_all_conts": return_all_conts,
+    }
 
     if any([d.get("base_id") == new_id for d in PROMPT_STACK.values()]):
         return jsonify({"collision": True})
@@ -210,31 +251,42 @@ def textpost():
 
     # TODO: DRY
     expected_rejection_frac = estimate_expected_rejections(
-        min_logit_diff=kwargs['mood']['min_allowed_score'],
-        max_logit_diff=kwargs['mood']['max_allowed_score'],
-        logit_diff_sample_series=logit_diff_sample_series
-        )
+        min_logit_diff=kwargs["mood"]["min_allowed_score"],
+        max_logit_diff=kwargs["mood"]["max_allowed_score"],
+        logit_diff_sample_series=logit_diff_sample_series,
+    )
 
-    raw_extra_best_of = int(np.round(n_candidates_target/(1-expected_rejection_frac))) - n_candidates_target
-    discounted_extra_best_of = int(np.round(raw_extra_best_of * EXPECTED_REJECTION_MULT))
+    raw_extra_best_of = (
+        int(np.round(n_candidates_target / (1 - expected_rejection_frac)))
+        - n_candidates_target
+    )
+    discounted_extra_best_of = int(
+        np.round(raw_extra_best_of * EXPECTED_REJECTION_MULT)
+    )
 
-    print(f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over n_candidates_target={n_candidates_target}")
+    print(
+        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over n_candidates_target={n_candidates_target}"
+    )
     n_candidates_target += discounted_extra_best_of
-    print(f"discounting to {discounted_extra_best_of} --> n_candidates_target={n_candidates_target}")
+    print(
+        f"discounting to {discounted_extra_best_of} --> n_candidates_target={n_candidates_target}"
+    )
 
     if N_RETENTION is not None:
         n_candidates_target = max(0, n_candidates_target - N_RETENTION)
         print(f"with {N_RETENTION} on stack, only need {n_candidates_target}")
 
         if RETENTION_STACK is not None and RETENTION_PROBA_VIA_GENERATOR:
-                url = "http://0.0.0.0:5000/raw_select"
+            url = bridge_service_url + "/raw_select"
             data = {"texts": RETENTION_STACK}
             new_retention_proba_id = bridge_service_unique_id(url, data)
 
             if new_retention_proba_id != RETENTION_PROBA_ID:
                 ts = datetime.now()
                 v10_timestamps = [timestamp_to_v10_format(ts) for _ in data["texts"]]
-                make_raw_select(data["texts"], new_retention_proba_id, v10_timestamps=v10_timestamps)
+                make_raw_select(
+                    data["texts"], new_retention_proba_id, v10_timestamps=v10_timestamps
+                )
                 if RETENTION_PROBA_ID in RESULT_STACK:
                     RESULT_STACK.pop(RETENTION_PROBA_ID)
                 RETENTION_PROBA_ID = new_retention_proba_id
@@ -244,33 +296,24 @@ def textpost():
     print(f"AB test: fork {fork}, N_RETENTION {N_RETENTION}, kwargs {kwargs}")
 
     generation_id = str(uuid.uuid4())
-    PROMPT_STACK[generation_id] = {"type": "textpost", "kwargs": kwargs, "base_id": new_id, "v8_timestamp": v8_timestamp, "v10_timestamp": v10_timestamp}
-    PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"]["best_of"]
+    PROMPT_STACK[generation_id] = {
+        "type": "textpost",
+        "kwargs": kwargs,
+        "base_id": new_id,
+        "v8_timestamp": v8_timestamp,
+        "v10_timestamp": v10_timestamp,
+    }
+    PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"][
+        "best_of"
+    ]
     PROMPT_STACK[generation_id]["kwargs"]["best_of"] = GENERATIONS_PER_REQUEST
-    print(f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}")
-    return jsonify({"collision": False})
-
-@app.route('/rawcont', methods=['POST'])
-def raw_cont():
-    global PROMPT_STACK
-    new_id = request.form["id"]
-    prompt = request.form["prompt"]
-    best_of = int(request.form["best_of"])
-    prompt_from_dataset = request.form.get("prompt_from_dataset", False)
-
-    kwargs = {"best_of": best_of, "prompt_from_dataset": prompt_from_dataset, "verbose": True, }
-
-    if new_id in PROMPT_STACK:
-            return jsonify({"collision": True})
-
-    PROMPT_STACK[new_id] = {"type": "raw_continuations", "prompt": prompt, "kwargs": kwargs}
-    PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"]["best_of"]
-    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = GENERATIONS_PER_REQUEST
-
+    print(
+        f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
+    )
     return jsonify({"collision": False})
 
 
-@app.route('/pollgenerator', methods=['POST'])
+@app.route("/pollgenerator", methods=["POST"])
 def pollgenerator():
     global PROMPT_STACK
     global GENERATION_RESULT_STACK
@@ -291,27 +334,43 @@ def pollgenerator():
                 if result_id not in GENERATION_RESULT_STACK:
                     GENERATION_RESULT_STACK[result_id] = result
                 else:
-                    if all([new_ in GENERATION_RESULT_STACK[result_id].get('continuations', [])
-                            for new_ in result.get('continuations', [])]):
+                    if all(
+                        [
+                            new_
+                            in GENERATION_RESULT_STACK[result_id].get(
+                                "continuations", []
+                            )
+                            for new_ in result.get("continuations", [])
+                        ]
+                    ):
                         print("duplicate detected, skipping")
                     else:
-                        for list_key in ['continuations', 'selection_proba', 'sentiment_logit_diffs', 'mirotarg']:
+                        for list_key in [
+                            "continuations",
+                            "selection_proba",
+                            "sentiment_logit_diffs",
+                            "mirotarg",
+                        ]:
                             if list_key not in GENERATION_RESULT_STACK[result_id]:
                                 GENERATION_RESULT_STACK[result_id][list_key] = []
 
-                            GENERATION_RESULT_STACK[result_id][list_key].extend(result.get(list_key, []))
+                            GENERATION_RESULT_STACK[result_id][list_key].extend(
+                                result.get(list_key, [])
+                            )
                 GENERATION_RESULT_STACK[result_id]["done"] = False
             else:
                 # TODO: move this over to be like the above block, if we ever plan to use "raw_continuations" again
                 RESULT_STACK[result_id] = result
 
             n_desired = PROMPT_STACK[result_id]["n_desired"]
-            n_acquired = len(GENERATION_RESULT_STACK[result_id]['continuations'])
+            n_acquired = len(GENERATION_RESULT_STACK[result_id]["continuations"])
             n_remaining = n_desired - n_acquired
 
-            if PROMPT_STACK[result_id]['kwargs']['best_of'] > n_remaining:
-                print(f"{result_id}: updating best_of from {PROMPT_STACK[result_id]['kwargs']['best_of']} to {n_remaining}")
-                PROMPT_STACK[result_id]['kwargs']['best_of'] = n_remaining
+            if PROMPT_STACK[result_id]["kwargs"]["best_of"] > n_remaining:
+                print(
+                    f"{result_id}: updating best_of from {PROMPT_STACK[result_id]['kwargs']['best_of']} to {n_remaining}"
+                )
+                PROMPT_STACK[result_id]["kwargs"]["best_of"] = n_remaining
             if n_remaining <= 0:
                 print(f"done with {result_id}: have {n_acquired} of {n_desired}")
                 GENERATION_RESULT_STACK[result_id]["done"] = True
@@ -327,7 +386,8 @@ def pollgenerator():
 
     return jsonify(PROMPT_STACK)
 
-@app.route('/pollselector', methods=['POST'])
+
+@app.route("/pollselector", methods=["POST"])
 def pollselector():
     global GENERATION_RESULT_STACK
     global SELECTION_PROMPT_STACK
@@ -356,7 +416,9 @@ def pollselector():
             if new_retention_proba_id != RETENTION_PROBA_ID:
                 ts = datetime.now()
                 v10_timestamps = [timestamp_to_v10_format(ts) for _ in data["texts"]]
-                make_raw_select(data["texts"], new_retention_proba_id, v10_timestamps=v10_timestamps)
+                make_raw_select(
+                    data["texts"], new_retention_proba_id, v10_timestamps=v10_timestamps
+                )
                 RETENTION_PROBA_ID = new_retention_proba_id
 
         N_RETENTION = len(RETENTION_STACK)
@@ -377,11 +439,15 @@ def pollselector():
     if RETENTION_PROBA_ID in RESULT_STACK:
         RETENTION_STACK_PROBA = RESULT_STACK[RETENTION_PROBA_ID]["selection_proba"]
 
-    return jsonify({"SELECTION_PROMPT_STACK": SELECTION_PROMPT_STACK,
-                    "RETENTION_STACK_PROBA": RETENTION_STACK_PROBA})
+    return jsonify(
+        {
+            "SELECTION_PROMPT_STACK": SELECTION_PROMPT_STACK,
+            "RETENTION_STACK_PROBA": RETENTION_STACK_PROBA,
+        }
+    )
 
 
-@app.route('/getresult', methods=['POST'])
+@app.route("/getresult", methods=["POST"])
 def getresult():
     global PROMPT_STACK
     global RESULT_STACK
@@ -400,10 +466,9 @@ def getresult():
     return jsonify(response)
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     try:
-        app.run(host="0.0.0.0", debug=True)
+        app.run(host="0.0.0.0", port=bridge_service_port, debug=False)
     except KeyboardInterrupt:
         print("closing session...")
-        sess_.close()
         raise KeyboardInterrupt

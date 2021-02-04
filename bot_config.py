@@ -6,33 +6,37 @@ from pytumblr_wrapper import RateLimitClient
 
 API_KEYS_TYPE = List[str]
 
+
 class BotSpecificConstants:
     """Values specific to my development environment and/or the social context of my bot, e.g. specific posts IDs where I need apply some override, or specific users I need to treat specially, etc"""
-    def __init__(self,
-                 blogName: str,
-                 dash_blogName: str,
-                 REBLOG_START_TS: int,
-                 DASH_START_TS: int,
-                 private_clients_api_keys: List[API_KEYS_TYPE],
-                 dashboard_clients_api_keys: List[API_KEYS_TYPE],
-                 bridge_service_url: str,
-                 BUCKET_NAME: str,
-                 NO_REBLOG_IDS: Set[int]=set(),
-                 DEF_REBLOG_IDS: Set[int]=set(),
-                 FORCE_TRAIL_HACK_IDS: Set[int]=set(),
-                 USER_AVOID_LIST: Set[str]=set(),
-                 TAG_AVOID_LIST: Set[str]=set(),
-                 DASH_TAG_AVOID_LIST: Set[str]=set(),
-                 REPLY_USER_AUTO_ACCEPT_LIST: Set[str]=set(),
-                 bad_strings: Set[str]=set(),
-                 bad_strings_shortwords: Set[str]=set(),
-                 okay_superstrings: Set[str]=set(),
-                 likely_obscured_strings: Set[str]=set(),
-                 profane_strings: Set[str]=set(),
-                 LIMITED_USERS: Dict[str, float]=dict(),
-                 LIMITED_SUBSTRINGS: Dict[str, float]=dict(),
-                 SCREENED_USERS: Set[str]=set(),
-                 ):
+
+    def __init__(
+        self,
+        blogName: str,
+        dash_blogName: str,
+        REBLOG_START_TS: int,
+        DASH_START_TS: int,
+        private_clients_api_keys: List[API_KEYS_TYPE],
+        dashboard_clients_api_keys: List[API_KEYS_TYPE],
+        bridge_service_host: str,
+        bridge_service_port: int,
+        BUCKET_NAME: str,
+        NO_REBLOG_IDS: Set[int] = set(),
+        DEF_REBLOG_IDS: Set[int] = set(),
+        FORCE_TRAIL_HACK_IDS: Set[int] = set(),
+        USER_AVOID_LIST: Set[str] = set(),
+        TAG_AVOID_LIST: Set[str] = set(),
+        DASH_TAG_AVOID_LIST: Set[str] = set(),
+        REPLY_USER_AUTO_ACCEPT_LIST: Set[str] = set(),
+        bad_strings: Set[str] = set(),
+        bad_strings_shortwords: Set[str] = set(),
+        okay_superstrings: Set[str] = set(),
+        likely_obscured_strings: Set[str] = set(),
+        profane_strings: Set[str] = set(),
+        LIMITED_USERS: Dict[str, float] = dict(),
+        LIMITED_SUBSTRINGS: Dict[str, float] = dict(),
+        SCREENED_USERS: Set[str] = set(),
+    ):
         self.blogName = blogName
         self.dash_blogName = dash_blogName
 
@@ -55,8 +59,10 @@ class BotSpecificConstants:
         self.private_clients_api_keys = private_clients_api_keys
         self.dashboard_clients_api_keys = dashboard_clients_api_keys
 
-        # should be localhost port 5000 if you run bridge service w/o modification
-        self.bridge_service_url = bridge_service_url
+        # should be localhost if you run bridge service w/o modification
+        self.bridge_service_host = bridge_service_host
+
+        self.bridge_service_port = bridge_service_port
 
         # name of Google Cloud Storage bucket used to store models and data
         self.BUCKET_NAME = BUCKET_NAME
@@ -102,7 +108,7 @@ class BotSpecificConstants:
         self.SCREENED_USERS = SCREENED_USERS
 
     @staticmethod
-    def load(path: str="config.json") -> 'BotSpecificConstants':
+    def load(path: str = "config.json") -> "BotSpecificConstants":
         with open(path, "r", encoding="utf-8") as f:
             constants = json.load(f)
 
@@ -118,9 +124,9 @@ class BotSpecificConstants:
             "okay_superstrings",
             "likely_obscured_strings",
             "profane_strings",
-            "SCREENED_USERS"
-            }
-    
+            "SCREENED_USERS",
+        }
+
         for list_to_set_key in list_to_set_keys:
             constants[list_to_set_key] = set(constants[list_to_set_key])
         return BotSpecificConstants(**constants)
@@ -128,20 +134,27 @@ class BotSpecificConstants:
     @property
     def base_clients(self) -> List[RateLimitClient]:
         return [
-            RateLimitClient.from_tumblr_rest_client(
-                pytumblr.TumblrRestClient(*keys)
-            )
-            for keys in self.private_clients_api_keys]
+            RateLimitClient.from_tumblr_rest_client(pytumblr.TumblrRestClient(*keys))
+            for keys in self.private_clients_api_keys
+        ]
 
     @property
     def dashboard_clients(self) -> List[RateLimitClient]:
         return [
-            RateLimitClient.from_tumblr_rest_client(
-                pytumblr.TumblrRestClient(*keys)
-            )
-            for keys in self.dashboard_client_api_keys]
+            RateLimitClient.from_tumblr_rest_client(pytumblr.TumblrRestClient(*keys))
+            for keys in self.dashboard_client_api_keys
+        ]
+
+    @property
+    def bridge_service_url(self):
+        return self.bridge_service_host + ":" + str(self.bridge_service_port)
 
     def LIMITED_USERS_PROBS(self, EFFECTIVE_SLEEP_TIME) -> dict:
-        LIMITED_USERS_MINUTES_LOWER_BOUNDS = {name: hours*60 for name, hours in self.LIMITED_USERS.items()}
-        LIMITED_USERS_PROBS = {name: EFFECTIVE_SLEEP_TIME/(60*lb) for name, lb in LIMITED_USERS_MINUTES_LOWER_BOUNDS.items()}
+        LIMITED_USERS_MINUTES_LOWER_BOUNDS = {
+            name: hours * 60 for name, hours in self.LIMITED_USERS.items()
+        }
+        LIMITED_USERS_PROBS = {
+            name: EFFECTIVE_SLEEP_TIME / (60 * lb)
+            for name, lb in LIMITED_USERS_MINUTES_LOWER_BOUNDS.items()
+        }
         return LIMITED_USERS_PROBS

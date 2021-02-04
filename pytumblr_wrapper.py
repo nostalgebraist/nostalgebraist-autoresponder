@@ -8,7 +8,7 @@ class HeaderTumblrRequest(pytumblr.TumblrRequest):
     def json_parse(self, response):
         self.last_headers = response.headers
         if RAW_RESPONSES_FOR_DEBUG:
-        return response
+            return response
         return super().json_parse(response)
 
 class RateLimitClient(pytumblr.TumblrRestClient):

@@ -1,4 +1,4 @@
-from typing import List, Set
+from typing import List, Set, Dict
 import json
 
 import pytumblr
@@ -16,6 +16,7 @@ class BotSpecificConstants:
                  private_clients_api_keys: List[API_KEYS_TYPE],
                  dashboard_clients_api_keys: List[API_KEYS_TYPE],
                  bridge_service_url: str,
+                 BUCKET_NAME: str,
                  NO_REBLOG_IDS: Set[int]=set(),
                  DEF_REBLOG_IDS: Set[int]=set(),
                  FORCE_TRAIL_HACK_IDS: Set[int]=set(),
@@ -28,9 +29,9 @@ class BotSpecificConstants:
                  okay_superstrings: Set[str]=set(),
                  likely_obscured_strings: Set[str]=set(),
                  profane_strings: Set[str]=set(),
-                 LIMITED_USERS: dict,
-                 LIMITED_SUBSTRINGS: set,
-                 SCREENED_USERS: set,
+                 LIMITED_USERS: Dict[str, float]=dict(),
+                 LIMITED_SUBSTRINGS: Dict[str, float]=dict(),
+                 SCREENED_USERS: Set[str]=set(),
                  ):
         self.blogName = blogName
         self.dash_blogName = dash_blogName
@@ -51,11 +52,14 @@ class BotSpecificConstants:
         self.FORCE_TRAIL_HACK_IDS = FORCE_TRAIL_HACK_IDS
 
         # tumblr api keys (4 strings per key)
-        self.private_clients_api_keys = base_client_api_keys
-        self.dashboard_clients_api_keys = dashboard_client_api_keys
+        self.private_clients_api_keys = private_clients_api_keys
+        self.dashboard_clients_api_keys = dashboard_clients_api_keys
 
         # should be localhost port 5000 if you run bridge service w/o modification
         self.bridge_service_url = bridge_service_url
+
+        # name of Google Cloud Storage bucket used to store models and data
+        self.BUCKET_NAME = BUCKET_NAME
 
         # don't interact or mention these users
         self.USER_AVOID_LIST = USER_AVOID_LIST
@@ -101,10 +105,23 @@ class BotSpecificConstants:
     def load(path: str="config.json") -> 'BotSpecificConstants':
         with open(path, "r", encoding="utf-8") as f:
             constants = json.load(f)
-        for list_to_set_key in {"NO_REBLOG_IDS", "FORCE_TRAIL_HACK_IDS",
-                                "USER_AVOID_LIST", "TAG_AVOID_LIST", "DASH_TAG_AVOID_LIST",
-                                "REPLY_USER_AUTO_ACCEPT_LIST", "bad_strings",
-                                "bad_strings_shortwords"}:
+
+        list_to_set_keys = {
+            "NO_REBLOG_IDS",
+            "FORCE_TRAIL_HACK_IDS",
+            "USER_AVOID_LIST",
+            "TAG_AVOID_LIST",
+            "DASH_TAG_AVOID_LIST",
+            "REPLY_USER_AUTO_ACCEPT_LIST",
+            "bad_strings",
+            "bad_strings_shortwords",
+            "okay_superstrings",
+            "likely_obscured_strings",
+            "profane_strings",
+            "SCREENED_USERS"
+            }
+    
+        for list_to_set_key in list_to_set_keys:
             constants[list_to_set_key] = set(constants[list_to_set_key])
         return BotSpecificConstants(**constants)
 

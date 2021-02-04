@@ -20,6 +20,7 @@ class BotSpecificConstants:
                  DEF_REBLOG_IDS: Set[int]=set(),
                  FORCE_TRAIL_HACK_IDS: Set[int]=set(),
                  USER_AVOID_LIST: Set[str]=set(),
+                 TAG_AVOID_LIST: Set[str]=set(),
                  DASH_TAG_AVOID_LIST: Set[str]=set(),
                  REPLY_USER_AUTO_ACCEPT_LIST: Set[str]=set(),
                  bad_strings: Set[str]=set(),
@@ -59,34 +60,41 @@ class BotSpecificConstants:
         # don't interact or mention these users
         self.USER_AVOID_LIST = USER_AVOID_LIST
 
+        # bot-written post tags are removed if they contain any of these (substring matches, case-insensitive)
+        self.TAG_AVOID_LIST = TAG_AVOID_LIST
+
         # don't reblog from dash if tags contain these (substring matches)
         self.DASH_TAG_AVOID_LIST = DASH_TAG_AVOID_LIST
 
         # for frequent repliers who don't otherwise trigger "OK to respond to this reply" logic
         self.REPLY_USER_AUTO_ACCEPT_LIST = REPLY_USER_AUTO_ACCEPT_LIST
 
-        # draft instead of auto-publish when contains these substrings
+        # write draft instead of auto-publish when post/tags contain these substrings
         self.bad_strings = bad_strings
 
         # form elements of bad_strings from these surrounded by various whitespace/punctuation
         self.bad_strings_shortwords = bad_strings_shortwords
 
-        # TODO: document
+        # ignore items from `bad_strings` when they appear inside of these longer strings
+        # e.g. if we wanted to filter "sex" without filtering "anne sexton"
         self.okay_superstrings = okay_superstrings
 
-        # TODO: document
+        # like bad_strings, but we attempt to detect these even if the user is trying to obscure them
+        # with e.g. zero-width unicode or l33tsp34k
         self.likely_obscured_strings = likely_obscured_strings
 
-        # TODO: document
+        # like bad_strings, but only used in contexts where we're trying to keep the language rated PG
         self.profane_strings = profane_strings
 
-        # TODO: document
+        # `LIMITED_USERS` allows limiting the rate at which we interact with certain users, e.g. bots who post extremely often or people who send huge numbers of asks
+        #
+        # `LIMITED_USERS` should be a dict with usernames as keys.  the values are floats.  a value of X means approximately "respond to this user at most once per X hours."
         self.LIMITED_USERS = LIMITED_USERS
 
-        # TODO: document
+        # like `LIMITED_USERS`, but triggers the limiting on the presence of a substring in the input, rather than the name of the user
         self.LIMITED_SUBSTRINGS = LIMITED_SUBSTRINGS
 
-        # TODO: document
+        # write draft instead of auto-publish when responding to these users
         self.SCREENED_USERS = SCREENED_USERS
 
     @staticmethod
@@ -94,7 +102,7 @@ class BotSpecificConstants:
         with open(path, "r", encoding="utf-8") as f:
             constants = json.load(f)
         for list_to_set_key in {"NO_REBLOG_IDS", "FORCE_TRAIL_HACK_IDS",
-                                "USER_AVOID_LIST", "DASH_TAG_AVOID_LIST",
+                                "USER_AVOID_LIST", "TAG_AVOID_LIST", "DASH_TAG_AVOID_LIST",
                                 "REPLY_USER_AUTO_ACCEPT_LIST", "bad_strings",
                                 "bad_strings_shortwords"}:
             constants[list_to_set_key] = set(constants[list_to_set_key])

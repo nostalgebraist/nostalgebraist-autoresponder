@@ -61,6 +61,7 @@ private_clients = bot_specific_constants.private_clients
 dashboard_clients = bot_specific_constants.dashboard_clients
 bridge_service_url = bot_specific_constants.bridge_service_url
 USER_AVOID_LIST = bot_specific_constants.USER_AVOID_LIST
+TAG_AVOID_LIST = bot_specific_constants.TAG_AVOID_LIST
 DASH_TAG_AVOID_LIST = bot_specific_constants.DASH_TAG_AVOID_LIST
 REPLY_USER_AUTO_ACCEPT_LIST = bot_specific_constants.REPLY_USER_AUTO_ACCEPT_LIST
 bad_strings_base = bot_specific_constants.bad_strings
@@ -316,8 +317,8 @@ def strip_spurious_blognames_from_tags(client, tags, auto_accept_list=set()):
 
 def strip_avoid_listed_blognames_from_tags(client, tags):
     return [tag for tag in tags
-            if not any([substring in tag for substring in USER_AVOID_LIST]) and
-            "myc" not in tag and
+            if not any([substring in tag.lower() for substring in USER_AVOID_LIST]) and
+            not any([substring in tag.lower() for substring in TAG_AVOID_LIST]) and
             tag != RTS_COMMAND
             ]
 
@@ -903,7 +904,7 @@ def is_statically_reblog_worthy_on_dash(post_payload, response_cache, loop_persi
 
     # tag avoid list
     tags = post_payload.get("tags", [])
-    if any([substring in t
+    if any([substring in t.lower()
             for t in tags
             for substring in DASH_TAG_AVOID_LIST]
            ):

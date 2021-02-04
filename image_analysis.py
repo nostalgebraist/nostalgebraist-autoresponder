@@ -1,5 +1,5 @@
 """aws rekognition for seeing images on tumblr"""
-from typing import NamedTuple, Optional, Callable, List, Tuple
+from typing import NamedTuple, Optional, Callable, List
 import os
 import time
 import pickle
@@ -7,7 +7,6 @@ from io import BytesIO
 
 from tqdm.autonotebook import tqdm
 import boto3
-import requests
 import urllib3
 
 from PIL import Image
@@ -15,18 +14,22 @@ from moviepy.editor import VideoFileClip
 
 IMAGE_DIR = "analysis_images/"
 
-rek = boto3.client('rekognition')
+rek = boto3.client("rekognition")
 
 ACCEPTABLE_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif"}
 
 AR_DETECT_TEXT_CONFIDENCE_THRESHOLD = 95
 
-def xtn_from_headers(response: urllib3.response.HTTPResponse, # requests.models.Response
-                     ):
-    return "." + response.headers.get('Content-Type', '').partition('/')[-1]
+
+def xtn_from_headers(
+    response: urllib3.response.HTTPResponse,  # requests.models.Response
+):
+    return "." + response.headers.get("Content-Type", "").partition("/")[-1]
 
 
-def url_to_frame_bytes(url: str, fps: float=1., max_frames: int=10, http=None) -> List[bytes]:
+def url_to_frame_bytes(
+    url: str, fps: float = 1.0, max_frames: int = 10, http=None
+) -> List[bytes]:
     try:
         if http is None:
             http = urllib3.PoolManager()
@@ -34,7 +37,7 @@ def url_to_frame_bytes(url: str, fps: float=1., max_frames: int=10, http=None) -
         name = url.rpartition("/")[-1]
         xtn_from_url = "." + name.rpartition(".")[-1]
 
-        r = http.request('GET', url)
+        r = http.request("GET", url)
 
         if r.status != 200:
             print(f"encountered code {r.status} trying to get {url}")
@@ -45,9 +48,7 @@ def url_to_frame_bytes(url: str, fps: float=1., max_frames: int=10, http=None) -
             xtn = xtn_from_headers(r)
 
         if xtn == ".gif":
-            return gif_bytes_to_frame_bytes(
-                r.data,
-                fps=fps, max_frames=max_frames)
+            return gif_bytes_to_frame_bytes(r.data, fps=fps, max_frames=max_frames)
         elif xtn in ACCEPTABLE_IMAGE_EXTENSIONS:
             return [r.data]
 
@@ -57,7 +58,10 @@ def url_to_frame_bytes(url: str, fps: float=1., max_frames: int=10, http=None) -
         print(f"encountered {e} trying to get {url}")
         return []
 
-def gif_bytes_to_frame_bytes(b: bytes, fps: float=1., max_frames: int=10) -> List[bytes]:
+
+def gif_bytes_to_frame_bytes(
+    b: bytes, fps: float = 1.0, max_frames: int = 10
+) -> List[bytes]:
     frame_bytes = []
 
     path = os.path.join(IMAGE_DIR, f"temp.gif")
@@ -69,12 +73,14 @@ def gif_bytes_to_frame_bytes(b: bytes, fps: float=1., max_frames: int=10) -> Lis
 
     n_frames_to_save = clip.duration * fps
     if n_frames_to_save > max_frames:
-        fps = int(max_frames/clip.duration)
+        fps = int(max_frames / clip.duration)
         n_frames_to_save = clip.duration * fps
 
-    frame_indices = list(range(0, int(n_frames_to_save)+1))
+    frame_indices = list(range(0, int(n_frames_to_save) + 1))
 
-    clip.write_images_sequence(os.path.join(IMAGE_DIR, "temp_%04d.png"), fps=fps, verbose=False, logger=None)
+    clip.write_images_sequence(
+        os.path.join(IMAGE_DIR, "temp_%04d.png"), fps=fps, verbose=False, logger=None
+    )
 
     for ix in frame_indices:
         fn = os.path.join(IMAGE_DIR, f"temp_{ix:04d}.png")
@@ -90,6 +96,7 @@ def gif_bytes_to_frame_bytes(b: bytes, fps: float=1., max_frames: int=10) -> Lis
 
     return frame_bytes
 
+
 def path_to_bytes(path: str) -> bytes:
     bio = BytesIO()
 
@@ -102,13 +109,15 @@ def path_to_bytes(path: str) -> bytes:
     bio.close()
     return b
 
+
 class CallSpec(NamedTuple):
     method: Callable
     kwargs: dict
     response_keys: List[str]
     postprocessor: Optional[Callable] = None
 
-def execute_callspec(spec: CallSpec, b: bytes,  **postprocessor_kwargs) -> dict:
+
+def execute_callspec(spec: CallSpec, b: bytes, **postprocessor_kwargs) -> dict:
     try:
         response = spec.method(b, **spec.kwargs)
 
@@ -125,122 +134,173 @@ def execute_callspec(spec: CallSpec, b: bytes,  **postprocessor_kwargs) -> dict:
         print(f"encountered {e}")
         return {}
 
-def execute_callspecs(specs: List[CallSpec], b: bytes, sleep_time: float=0.33,
-                      postprocessor_kwargs: List[dict]=None) -> dict:
+
+def execute_callspecs(
+    specs: List[CallSpec],
+    b: bytes,
+    sleep_time: float = 0.33,
+    postprocessor_kwargs: List[dict] = None,
+) -> dict:
     results = {}
     if postprocessor_kwargs is None:
         postprocessor_kwargs = [{} for _ in specs]
 
-    iter = tqdm(zip(specs, postprocessor_kwargs)) if len(specs)>1 else zip(specs, postprocessor_kwargs)
+    iter = (
+        tqdm(zip(specs, postprocessor_kwargs))
+        if len(specs) > 1
+        else zip(specs, postprocessor_kwargs)
+    )
     for spec, kwargs in iter:
-        results.update(execute_callspec(spec, b,  **kwargs))
+        results.update(execute_callspec(spec, b, **kwargs))
 
         time.sleep(sleep_time)
 
     return results
 
-def batch_execute_callspecs(specs: List[CallSpec], byte_list: List[bytes], sleep_time: float=0.33,
-                            postprocessor_kwargs: List[dict]=None, verbose=True) -> dict:
+
+def batch_execute_callspecs(
+    specs: List[CallSpec],
+    byte_list: List[bytes],
+    sleep_time: float = 0.33,
+    postprocessor_kwargs: List[dict] = None,
+    verbose=True,
+) -> dict:
     results = []
 
     if postprocessor_kwargs is None:
         postprocessor_kwargs = [{} for _ in specs]
 
-    iter = tqdm(byte_list) if (verbose and len(byte_list)>1) else byte_list
+    iter = tqdm(byte_list) if (verbose and len(byte_list) > 1) else byte_list
     for b in iter:
         results_one = {}
-        iter = tqdm(zip(specs, postprocessor_kwargs)) if (verbose and len(specs)>1) else zip(specs, postprocessor_kwargs)
+        iter = (
+            tqdm(zip(specs, postprocessor_kwargs))
+            if (verbose and len(specs) > 1)
+            else zip(specs, postprocessor_kwargs)
+        )
         for spec, kwargs in iter:
-            results_one.update(execute_callspec(spec, b,  **kwargs))
+            results_one.update(execute_callspec(spec, b, **kwargs))
 
             time.sleep(sleep_time)
         results.append(results_one)
 
     return results
 
+
 # rekognition callspecs
 
+
 def labels_found(entry, threshold=0):
-    if 'Labels' not in entry:
+    if "Labels" not in entry:
         return {}
-    entry_labels = entry['Labels']
-    return {"label_" + item.get('Name'): item.get('Confidence', 100) for item in entry_labels
-            if item.get('Confidence', 100) >= threshold}
+    entry_labels = entry["Labels"]
+    return {
+        "label_" + item.get("Name"): item.get("Confidence", 100)
+        for item in entry_labels
+        if item.get("Confidence", 100) >= threshold
+    }
+
 
 def text_lines_found(entry, threshold=95, corner_ignore_thresh=0.05):
     def _not_corner(item):
         bb = item.get("Geometry", {}).get("BoundingBox", {})
-        top, left, width, height = bb.get("Top"), bb.get("Left"), bb.get("Width"), bb.get("Height")
+        top, left, width, height = (
+            bb.get("Top"),
+            bb.get("Left"),
+            bb.get("Width"),
+            bb.get("Height"),
+        )
         if top is None or left is None or width is None or height is None:
             return True  # default permissive
         right = left + width
         bottom = top + height
-        corner_diagnostic_x = min(left, 1-right)
-        corner_diagnostic_y = min(top, 1-bottom)
-        return (corner_diagnostic_x > corner_ignore_thresh) or (corner_diagnostic_y > corner_ignore_thresh)
+        corner_diagnostic_x = min(left, 1 - right)
+        corner_diagnostic_y = min(top, 1 - bottom)
+        return (corner_diagnostic_x > corner_ignore_thresh) or (
+            corner_diagnostic_y > corner_ignore_thresh
+        )
 
-    if 'TextDetections' not in entry:
+    if "TextDetections" not in entry:
         return {}
-    entry_text_lines = [item for item in entry['TextDetections'] if item.get("Type") == "LINE"]
-    results = {"text_lines":
-        [{
-            "Confidence": item.get('Confidence', 100),
-            "text": item.get("DetectedText"),
-            "BoundingBox": item.get("Geometry", {}).get("BoundingBox", {})
+    entry_text_lines = [
+        item for item in entry["TextDetections"] if item.get("Type") == "LINE"
+    ]
+    results = {
+        "text_lines": [
+            {
+                "Confidence": item.get("Confidence", 100),
+                "text": item.get("DetectedText"),
+                "BoundingBox": item.get("Geometry", {}).get("BoundingBox", {}),
             }
-         for ix, item in enumerate(entry_text_lines)
-         if item.get('Confidence', 100) >= threshold and _not_corner(item)]
-        }
+            for ix, item in enumerate(entry_text_lines)
+            if item.get("Confidence", 100) >= threshold and _not_corner(item)
+        ]
+    }
     # if len(results["text_lines"]) > 0:
     #     print(f"found\n\t{results['text_lines']}")
     #     print(f"raw:\n\t{entry_text_lines}")
     return results
 
+
 def moderation_labels(entry, threshold=0):
-    if 'ModerationLabels' not in entry:
+    if "ModerationLabels" not in entry:
         return {}
-    entry_mod = entry['ModerationLabels']
-    return {"moderation_" + item.get('Name'): item.get('Confidence', 100) for item in entry_mod
-            if item.get('Confidence', 100) >= threshold}
+    entry_mod = entry["ModerationLabels"]
+    return {
+        "moderation_" + item.get("Name"): item.get("Confidence", 100)
+        for item in entry_mod
+        if item.get("Confidence", 100) >= threshold
+    }
+
 
 def face_features(entry, threshold=0):
     def _handle_dict(d, prefix=""):
         confidence = None
-        if 'Value' in d and d.get('Value') in [True, False]:
-            confidence = d['Confidence'] if d.get("Value", True) else 100-d['Confidence']
+        if "Value" in d and d.get("Value") in [True, False]:
+            confidence = (
+                d["Confidence"] if d.get("Value", True) else 100 - d["Confidence"]
+            )
             if confidence < threshold:
                 return {}
             return {prefix: confidence}
-        elif 'Confidence' in d and d['Confidence'] < threshold:
+        elif "Confidence" in d and d["Confidence"] < threshold:
             return {}
 
-        if 'Type' in d:
-            return {prefix + "_" + d['Type']: d['Confidence']}
+        if "Type" in d:
+            return {prefix + "_" + d["Type"]: d["Confidence"]}
 
-        if 'Value' in d:
-            return {prefix + "_" + d['Value']: d['Confidence']}
+        if "Value" in d:
+            return {prefix + "_" + d["Value"]: d["Confidence"]}
 
         return {prefix + k: v for k, v in d.items()}
 
-    if 'FaceDetails' not in entry:
+    if "FaceDetails" not in entry:
         return {}
-    entry_face = entry['FaceDetails']
+    entry_face = entry["FaceDetails"]
 
     results = {}
 
     for ix, face in enumerate(entry_face):
         for attribute_key, attribute in face.items():
-            if attribute_key in {'Landmarks', 'BoundingBox',}:
+            if attribute_key in {
+                "Landmarks",
+                "BoundingBox",
+            }:
                 continue
             if isinstance(attribute, dict):
-                results.update(_handle_dict(attribute, prefix=f"face{ix}_" + attribute_key))
+                results.update(
+                    _handle_dict(attribute, prefix=f"face{ix}_" + attribute_key)
+                )
             elif isinstance(attribute, list):
                 for sub_attribute in attribute:
-                    results.update(_handle_dict(sub_attribute, prefix=f"face{ix}_" + attribute_key))
+                    results.update(
+                        _handle_dict(sub_attribute, prefix=f"face{ix}_" + attribute_key)
+                    )
             else:
                 results.update({f"face{ix}_" + attribute_key: attribute})
 
     return results
+
 
 detect_labels_spec = CallSpec(
     method=lambda b, **kwargs: rek.detect_labels(Image={"Bytes": b}, **kwargs),
@@ -257,7 +317,9 @@ detect_faces_spec = CallSpec(
 )
 
 detect_moderation_labels_spec = CallSpec(
-    method=lambda b, **kwargs: rek.detect_moderation_labels(Image={"Bytes": b}, **kwargs),
+    method=lambda b, **kwargs: rek.detect_moderation_labels(
+        Image={"Bytes": b}, **kwargs
+    ),
     kwargs={},
     response_keys=["ModerationLabels"],
     postprocessor=moderation_labels,
@@ -273,24 +335,25 @@ detect_text_spec = CallSpec(
 detect_text_actually_raw_response_spec = CallSpec(
     method=lambda b, **kwargs: rek.detect_text(Image={"Bytes": b}, **kwargs),
     kwargs={},
-    response_keys=['TextDetections'],  # other key is request http metadata
+    response_keys=["TextDetections"],  # other key is request http metadata
     postprocessor=None,
 )
 
 recognize_celebrities_spec = CallSpec(
     method=lambda b, **kwargs: rek.recognize_celebrities(Image={"Bytes": b}, **kwargs),
     kwargs={},
-    response_keys=["CelebrityFaces"]
+    response_keys=["CelebrityFaces"],
 )
 
 all_rek_specs = [
-    detect_labels_spec, detect_faces_spec, detect_moderation_labels_spec,
-    detect_text_spec, recognize_celebrities_spec
+    detect_labels_spec,
+    detect_faces_spec,
+    detect_moderation_labels_spec,
+    detect_text_spec,
+    recognize_celebrities_spec,
 ]
 
-autoreponder_rek_specs = [
-    detect_labels_spec, detect_faces_spec, detect_text_spec
-]
+autoreponder_rek_specs = [detect_labels_spec, detect_faces_spec, detect_text_spec]
 
 only_text_rek_specs = [detect_text_spec]
 
@@ -298,13 +361,16 @@ autoreponder_rek_kwargs = [
     {"threshold": 90},  # labels
     {"threshold": 70},  # faces
     {"threshold": 80},  # text
-    ]
+]
 
-only_text_rek_kwargs_original_flavor = [{"threshold": 80}]  # used for corpora through v10, etc
+only_text_rek_kwargs_original_flavor = [
+    {"threshold": 80}
+]  # used for corpora through v10, etc
 only_text_rek_kwargs = [{"threshold": AR_DETECT_TEXT_CONFIDENCE_THRESHOLD}]
 
 
 # utils / putting things together
+
 
 def collect_text(results: List[dict], deduplicate=True, return_raw=False) -> str:
     lines = []
@@ -327,7 +393,9 @@ def collect_text(results: List[dict], deduplicate=True, return_raw=False) -> str
     if return_raw:
         collected_text = "\n".join(lines)
         if len(usable_entries) != len(lines_all):
-            print(f"warning: len(usable_entries)={len(usable_entries)} but len(lines_all)={len(lines_all)}")
+            print(
+                f"warning: len(usable_entries)={len(usable_entries)} but len(lines_all)={len(lines_all)}"
+            )
             print(f"usable_entries: {usable_entries}\nlines_all: {lines_all}")
         raw = []
         for e, l in zip(usable_entries, lines_all):
@@ -337,16 +405,26 @@ def collect_text(results: List[dict], deduplicate=True, return_raw=False) -> str
         return collected_text, raw
     return "\n".join(lines)
 
-def extract_text_from_url(url: str, deduplicate=True, sleep_time: float=0.1, http=None, verbose=True,
-                           downsize_to=[640, 540], return_url_etc=False, return_raw=False, xtra_raw=False) -> str:
+
+def extract_text_from_url(
+    url: str,
+    deduplicate=True,
+    sleep_time: float = 0.1,
+    http=None,
+    verbose=True,
+    downsize_to=[640, 540],
+    return_url_etc=False,
+    return_raw=False,
+    xtra_raw=False,
+) -> str:
     return_raw = return_raw or xtra_raw
 
     if http is None:
         http = urllib3.PoolManager()
 
     url_ = url
-    r_pre = http.request('GET', url_, preload_content=False)
-    nbytes_ = int(r_pre.headers.get('Content-Length', -1))
+    r_pre = http.request("GET", url_, preload_content=False)
+    nbytes_ = int(r_pre.headers.get("Content-Length", -1))
     r_pre.release_conn()
 
     if downsize_to is not None and nbytes_ > 0:
@@ -356,8 +434,8 @@ def extract_text_from_url(url: str, deduplicate=True, sleep_time: float=0.1, htt
                 seg2, _, orig_size = seg.rpartition("_")
                 newurl = seg2 + "_" + str(downsize) + "." + xtn
 
-                r_pre = http.request('GET', newurl, preload_content=False)
-                nbytes_new = int(r_pre.headers['Content-Length'])
+                r_pre = http.request("GET", newurl, preload_content=False)
+                nbytes_new = int(r_pre.headers["Content-Length"])
                 r_pre.release_conn()
 
                 if r_pre.status != 200:
@@ -374,8 +452,16 @@ def extract_text_from_url(url: str, deduplicate=True, sleep_time: float=0.1, htt
 
     frame_bytes = url_to_frame_bytes(url_, http=http)
 
-    specs = [detect_text_actually_raw_response_spec] if xtra_raw else only_text_rek_specs
-    results = batch_execute_callspecs(specs, postprocessor_kwargs=only_text_rek_kwargs, byte_list=frame_bytes, sleep_time=sleep_time, verbose=verbose)
+    specs = (
+        [detect_text_actually_raw_response_spec] if xtra_raw else only_text_rek_specs
+    )
+    results = batch_execute_callspecs(
+        specs,
+        postprocessor_kwargs=only_text_rek_kwargs,
+        byte_list=frame_bytes,
+        sleep_time=sleep_time,
+        verbose=verbose,
+    )
 
     if xtra_raw:
         ctext = (None, results)
@@ -385,23 +471,27 @@ def extract_text_from_url(url: str, deduplicate=True, sleep_time: float=0.1, htt
         return ctext, url_, nbytes_
     return ctext
 
+
 def PRE_V9_IMAGE_FORMATTER(image_text):
     return "\n" + image_text + "\n"
 
+
 def V9_IMAGE_FORMATTER(image_text):
     return "\n" + "\n=======\n" + image_text + "\n=======\n"
+
 
 def extract_and_format_text_from_url(
     url: str,
     image_formatter=V9_IMAGE_FORMATTER,
     verbose=False,
-    ):
+):
     image_text = extract_text_from_url(url)
     if verbose and len(image_text) > 0:
         print(f"for {url}, analysis text is\n{image_text}\n")
     if len(image_text) > 0:
         return image_formatter(image_text)
     return ""
+
 
 class ImageAnalysisCache:
     def __init__(self, path="image_analysis_cache.pkl.gz", cache=None):
@@ -416,12 +506,14 @@ class ImageAnalysisCache:
         url: str,
         image_formatter=V9_IMAGE_FORMATTER,
         verbose=False,
-        ):
+    ):
         # TODO: integrate downsizing
         if url in self.cache:
             text = self.cache[url]
         else:
-            text = extract_and_format_text_from_url(url, image_formatter=image_formatter, verbose=verbose)
+            text = extract_and_format_text_from_url(
+                url, image_formatter=image_formatter, verbose=verbose
+            )
             self.cache[url] = text
         return text
 
@@ -430,13 +522,15 @@ class ImageAnalysisCache:
             pickle.dump(self.cache, f)
         if do_backup:
             # TODO: better path handling
-            with open(self.path[:-len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
+            with open(self.path[: -len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
                 pickle.dump(self.cache, f)
         if verbose:
             print(f"saved image analysis cache with length {len(self.cache)}")
 
     @staticmethod
-    def load(path: str="image_analysis_cache.pkl.gz", verbose=True) -> 'ImageAnalysisCache':
+    def load(
+        path: str = "image_analysis_cache.pkl.gz", verbose=True
+    ) -> "ImageAnalysisCache":
         cache = None
         if os.path.exists(path):
             with open(path, "rb") as f:
@@ -451,27 +545,30 @@ class ImageAnalysisCache:
 
 # development helpers
 def bbox_show(obj_dict, im):
-    bbox = obj_dict['BoundingBox']
-    left = bbox['Left']
-    top = bbox['Top']
-    abs_box = (im.size[0] * bbox['Left'],
-               im.size[1] * bbox['Top'],
-               im.size[0] * (bbox['Left'] + bbox['Width']),
-               im.size[1] * (bbox['Top'] + bbox['Height']))
+    bbox = obj_dict["BoundingBox"]
+    abs_box = (
+        im.size[0] * bbox["Left"],
+        im.size[1] * bbox["Top"],
+        im.size[0] * (bbox["Left"] + bbox["Width"]),
+        im.size[1] * (bbox["Top"] + bbox["Height"]),
+    )
     im.crop(abs_box).show()
 
+
 def labels_bbox_show(results, im):
-    for l in results['Labels']:
-        for inst in l['Instances']:
-            print((l.get('Name'), inst), end="\n\n")
+    for l in results["Labels"]:
+        for inst in l["Instances"]:
+            print((l.get("Name"), inst), end="\n\n")
             bbox_show(inst, im)
-            _ = input()
+            input()
+
 
 def faces_bbox_show(results, im):
-    for face in results['FaceDetails']:
+    for face in results["FaceDetails"]:
         print(face, end="\n\n")
         bbox_show(face, im)
-        _ = input()
+        input()
+
 
 raw_detect_faces_spec = CallSpec(
     method=lambda b, **kwargs: rek.detect_faces(Image={"Bytes": b}, **kwargs),

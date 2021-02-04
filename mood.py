@@ -1,8 +1,9 @@
 """define mood concept, compute pseudo-random (reproducible) daily mood offset"""
 import pickle
-from datetime import datetime, timedelta
+from datetime import datetime
 
-import numpy as np, pandas as pd
+import numpy as np
+import pandas as pd
 
 
 DEFAULT_MOOD = "unrestricted"

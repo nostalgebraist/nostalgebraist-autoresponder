@@ -1263,13 +1263,13 @@ def is_statically_reblog_worthy_on_dash(
             print(
                 f"not reblogging {post_identifier} from dash:\n\tcouldn't find post OP in payload\n{post_payload}"
             )
-            return False
+        return False
     elif post_OP not in loop_persistent_data.follower_names and post_OP != blogName:
         if verbose:
             print(
                 f"not reblogging {post_identifier} from dash:\n\ti don't follow OP {post_OP}"
             )
-            return False
+        return False
     return True
 
 

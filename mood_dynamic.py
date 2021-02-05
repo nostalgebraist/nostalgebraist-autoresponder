@@ -24,6 +24,8 @@ from mood import (
     pos_sent_to_logit_diff,
 )
 
+MOOD_IMAGE_DIR = "mood_images/"
+
 STEP_SEC = 30 * 1
 TAU_SEC = 3600 * 12
 TAU_SEC_2ND = 60 * 60
@@ -510,7 +512,7 @@ def create_mood_graph(
 
     if save_image:
         image_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + ".png"
-        path = "mood_images/" + image_name
+        path = MOOD_IMAGE_DIR + image_name
         plt.savefig(path, bbox_inches="tight")
         plt.close(fig)
         return path

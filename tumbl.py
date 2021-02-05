@@ -644,7 +644,22 @@ def answer_ask(
             "state": state,
         }
     else:
-        data = {"id": ask_id, "answer": answer, "tags": tags, "state": state}
+        if BEAMSPLIT_TESTING_FLAG:
+            url = "/v2/blog/{}/post/".format(blogname)
+            beamsplit_testing_body = "".join(
+                [
+                    format_post_for_api(f"ask_id:\n\n{ask_id}\n\n"),
+                    format_post_for_api(f"question:\n\n{question}\n\n"),
+                    answer,
+                ]
+            )
+            data = {
+                "body": beamsplit_testing_body,
+                "tags": tags.split(","),
+                "state": state,
+            }
+        else:
+            data = {"id": ask_id, "answer": answer, "tags": tags, "state": state}
 
     api_response = private_client.send_api_request("post", url, data, valid_options)
     if log_data is not None:

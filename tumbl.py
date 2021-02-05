@@ -1,21 +1,22 @@
 """
 Tumblr API layer and main loop of the bot during operation.
 """
-from typing import Set
-import uuid, hashlib, sys, os
-from datetime import datetime, timedelta
+import sys
+import os
+from datetime import datetime
 from string import punctuation, whitespace
 from itertools import product
 from collections import defaultdict
 
+import requests
+import time
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+
 sys.path.append("src/")
 
-from tqdm import tqdm
-import pytumblr, requests, time, re, os, pickle, numpy as np, pandas as pd
-
 from bot_config import BotSpecificConstants
-from reblogs_v5 import process_post
-from bs4 import BeautifulSoup
 
 from reply_munging import (
     mockup_xkit_reply,
@@ -123,7 +124,7 @@ DASH_REBLOG_RANDOM_BUFF_SCALE = 0.125
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
 DASH_REBLOG_CONTINUATION_CUTOFF = 0.5  # "roll" # 0.5
 
-DASH_REBLOG_REQUIRE_COMMENT = False  #  ! experimental
+DASH_REBLOG_REQUIRE_COMMENT = False  # ! experimental
 
 MOOD = True
 MOOD_DYN = True
@@ -170,7 +171,9 @@ GLOBAL_TESTING_FLAG = False
 
 
 def roll_for_limited_users(name, text=""):
-    text_screener = lambda s: any([subs in s.lower() for subs in LIMITED_SUBSTRINGS])
+    def text_screener(s):
+        return any([subs in s.lower() for subs in LIMITED_SUBSTRINGS])
+
     if (name not in LIMITED_USERS) and not text_screener(text):
         return True
     roll = np.random.rand()
@@ -329,7 +332,7 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
     data_to_send.update(data)
     data_to_send["id"] = new_id
 
-    r = requests.post(bridge_service_url, data=data_to_send)
+    requests.post(bridge_service_url, data=data_to_send)
     result = wait_for_result(new_id)
 
     # for logging, add any input fields that didn't make the round trip
@@ -361,7 +364,7 @@ def text_post_from_gpt2_service(mood=None, ts=None):
     data_to_send["id"] = new_id
 
     data["id"] = new_id
-    r = requests.post(url, data=data_to_send)
+    requests.post(url, data=data_to_send)
     result = wait_for_result(new_id)
 
     # for logging, add any input fields that didn't make the round trip
@@ -971,12 +974,6 @@ def respond_to_reblogs_replies(
         post_specifiers_from_gpt2 = [gpt2_output]
 
         if halloweenize:
-            all_form_to_regular_form = {
-                "all_posts": "post",
-                "all_tags": "tags",
-                "all_proba": "proba",
-                "all_mirotarg": "mirotarg",
-            }
             post_specifiers_from_gpt2 = [
                 {
                     "continuation_index": i,
@@ -1666,10 +1663,18 @@ def do_reblog_reply_handling(
         "remaining"
     ]
 
-    if is_dashboard and not pseudo_dashboard:
-        post_getter = lambda **kwargs: response_cache.record_response_to_cache(
+    def dashboard_post_getter(**kwargs):
+        return response_cache.record_response_to_cache(
             dashboard_client.dashboard(**kwargs), care_about_notes=False
         )["posts"]
+
+    def reblogs_post_getter(**kwargs):
+        return response_cache.record_response_to_cache(
+            response_cache.client.posts(blogName, **kwargs), care_about_notes=False
+        )["posts"]
+
+    if is_dashboard and not pseudo_dashboard:
+        post_getter = dashboard_post_getter
         start_ts = max(DASH_START_TS, loop_persistent_data.last_seen_ts)
     elif is_dashboard:
 
@@ -1707,9 +1712,7 @@ def do_reblog_reply_handling(
             loop_persistent_data, response_cache
         )
     else:
-        post_getter = lambda **kwargs: response_cache.record_response_to_cache(
-            response_cache.client.posts(blogName, **kwargs), care_about_notes=False
-        )["posts"]
+        post_getter = reblogs_post_getter
         start_ts = REBLOG_START_TS
 
     if is_dashboard and FOLLOWER_MULTIPLIERS:
@@ -1841,9 +1844,7 @@ def do_reblog_reply_handling(
                 for n in notes
                 if n["type"] == "reblog"
                 and n.get("reblog_parent_blog_name", "") == blogName
-                and
-                # n['timestamp'] >= loop_persistent_data.last_seen_ts and
-                not response_cache.is_handled(
+                and not response_cache.is_handled(
                     PostIdentifier(n.get("blog_name", ""), n.get("post_id", ""))
                 )
                 and int(n["post_id"]) not in NO_REBLOG_IDS

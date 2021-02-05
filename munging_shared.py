@@ -8,7 +8,11 @@ from wcwidth import wcwidth
 
 from autoresponder_static import find_all_control_chars_chinese
 
-from image_analysis import extract_and_format_text_from_url, V9_IMAGE_FORMATTER
+from image_analysis import (
+    extract_and_format_text_from_url,
+    V9_IMAGE_FORMATTER,
+    IMAGE_DIR,
+)
 
 from text_segmentation import make_image_simple
 
@@ -306,7 +310,7 @@ def upload_images_to_tumblr_urls(images, keys, client, blogname):
         return {}
     if len(images) == 0:
         return {}
-    paths = [f"analysis_images/temp{i}.jpg" for i, im in enumerate(images)]
+    paths = [f"{IMAGE_DIR}/temp{i}.jpg" for i, im in enumerate(images)]
     for p, im in zip(paths, images):
         im.save(p, format="jpeg")
 

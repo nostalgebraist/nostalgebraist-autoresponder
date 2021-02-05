@@ -120,7 +120,9 @@ def predict_sentiment_legacy(text: str, rtok=None, sleep_time=0.1):
 
 
 class SideJudgmentCache:
-    def __init__(self, path: str = "side_judgment_cache.pkl.gz", cache: dict = None):
+    def __init__(
+        self, path: str = "data/side_judgment_cache.pkl.gz", cache: dict = None
+    ):
         self.path = path
         self.cache = cache
         # from transformers.tokenization_roberta import RobertaTokenizer
@@ -254,7 +256,7 @@ class SideJudgmentCache:
 
     @staticmethod
     def load(
-        path: str = "side_judgment_cache.pkl.gz", verbose=True
+        path: str = "data/side_judgment_cache.pkl.gz", verbose=True
     ) -> "SideJudgmentCache":
         cache = None
         if os.path.exists(path):

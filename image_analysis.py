@@ -494,7 +494,7 @@ def extract_and_format_text_from_url(
 
 
 class ImageAnalysisCache:
-    def __init__(self, path="image_analysis_cache.pkl.gz", cache=None):
+    def __init__(self, path="data/image_analysis_cache.pkl.gz", cache=None):
         self.path = path
         self.cache = cache
 
@@ -529,7 +529,7 @@ class ImageAnalysisCache:
 
     @staticmethod
     def load(
-        path: str = "image_analysis_cache.pkl.gz", verbose=True
+        path: str = "data/image_analysis_cache.pkl.gz", verbose=True
     ) -> "ImageAnalysisCache":
         cache = None
         if os.path.exists(path):

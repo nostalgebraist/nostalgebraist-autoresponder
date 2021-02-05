@@ -68,7 +68,7 @@ class ResponseCache:
             self.cache["last_accessed_time"] = {}
 
     @staticmethod
-    def load(client, path="response_cache.pkl.gz", verbose=True):
+    def load(client, path="data/response_cache.pkl.gz", verbose=True):
         cache = None
         if os.path.exists(path):
             with open(path, "rb") as f:

@@ -8,6 +8,8 @@ TIME_SIDECHANNEL_CHAR = "\U0001f552"  # clock symbol 🕒
 """V8 format: time of post"""
 
 # utilities for laptop side
+
+
 def get_ts_from_fn(fn):
     if fn is None:
         return None
@@ -271,9 +273,10 @@ def final_munge_before_neural_v10(doc, **kwargs):
 
 def final_munge_after_neural_v10(text):
     # strip orig post starters
-    expect_tag_prefix = False
-    if ORIG_FICTION_CHAR_FORUMLIKE_V10 in text or REVIEW_CHAR_FORUMLIKE_V10 in text:
-        expect_tag_prefix = False
+
+    # expect_tag_prefix = False
+    # if ORIG_FICTION_CHAR_FORUMLIKE_V10 in text or REVIEW_CHAR_FORUMLIKE_V10 in text:
+    #     expect_tag_prefix = False
     for cchar in [
         ORIG_POST_CHAR_FORUMLIKE_V10,
         REVIEW_CHAR_FORUMLIKE_V10,

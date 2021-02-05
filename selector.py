@@ -17,7 +17,7 @@ import time
 from tqdm import tqdm
 
 from bot_config import BotSpecificConstants
-from side_judgments import SideJudgmentCache
+from side_judgments import SideJudgmentCache, SELECT_VIA_GENERATOR
 
 Q_CHAR = "会"
 A_CHAR = "域"
@@ -41,7 +41,6 @@ VERIFY_MODEL = False
 RETENTION_CUTOFF = 0.6
 ENFORCE_RETENTION_CUTOFF = True
 
-SELECT_VIA_GENERATOR = True
 EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 

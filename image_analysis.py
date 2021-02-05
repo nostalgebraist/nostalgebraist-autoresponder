@@ -12,7 +12,7 @@ import urllib3
 from PIL import Image
 from moviepy.editor import VideoFileClip
 
-IMAGE_DIR = "analysis_images/"
+IMAGE_DIR = "data/analysis_images/"
 
 rek = boto3.client("rekognition")
 

@@ -24,7 +24,7 @@ from mood import (
     pos_sent_to_logit_diff,
 )
 
-MOOD_IMAGE_DIR = "mood_images/"
+MOOD_IMAGE_DIR = "data/mood_images/"
 
 STEP_SEC = 30 * 1
 TAU_SEC = 3600 * 12

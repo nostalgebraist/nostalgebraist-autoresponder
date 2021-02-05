@@ -166,6 +166,7 @@ except Exception as e:
 RTS_COMMAND = "rts"
 
 GLOBAL_TESTING_FLAG = True
+BEAMSPLIT_TESTING_FLAG = True
 
 
 def roll_for_limited_users(name, text=""):
@@ -324,7 +325,8 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
         data["v8_timestamp"] = ""
         data["v10_timestamp"] = ""
 
-    data["na_beamsplit"] = True
+    if BEAMSPLIT_TESTING_FLAG:
+        data["na_beamsplit"] = True
     new_id = bridge_service_unique_id(bridge_service_url, data)
 
     data_to_send = dict()
@@ -357,7 +359,8 @@ def text_post_from_gpt2_service(mood=None, ts=None):
 
     url = bridge_service_url + "/textpost"
 
-    data["na_beamsplit"] = True
+    if BEAMSPLIT_TESTING_FLAG:
+        data["na_beamsplit"] = True
     new_id = bridge_service_unique_id(url, data)
 
     data_to_send = dict()
@@ -389,11 +392,16 @@ def strip_spurious_blognames_from_tags(client, tags, auto_accept_list=set()):
     return [tag for tag in tags if okay_to_keep(tag)]
 
 
-def strip_avoid_listed_blognames_from_tags(client, tags):
+def strip_avoid_listed_strings_from_tags(tags):
     return [
         tag
         for tag in tags
-        if not any([substring in tag.lower() for substring in USER_AVOID_LIST])
+        if not any(
+            [
+                substring in tag.lower()
+                for substring in USER_AVOID_LIST.union(scraped_usernames)
+            ]
+        )
         and not any([substring in tag.lower() for substring in TAG_AVOID_LIST])
         and tag != RTS_COMMAND
     ]
@@ -501,10 +509,6 @@ def make_text_post(
         print(f"autopublish_screener says: {screener_result}")
         state = "draft" if (to_drafts or (not screener_result)) else "published"
 
-    if GLOBAL_TESTING_FLAG:
-        print(f"GLOBAL_TESTING_FLAG --> draft")
-        state = "draft"
-
     if IMAGE_CREATION:
         presub_post = post
         post, images_were_created = find_text_images_and_sub_real_images(
@@ -521,12 +525,19 @@ def make_text_post(
         print("image delimiter still in post")
         state = "draft"
 
+    if GLOBAL_TESTING_FLAG:
+        print(f"GLOBAL_TESTING_FLAG --> draft")
+        orig_state = state
+        state = "draft"
+        if BEAMSPLIT_TESTING_FLAG:
+            tags = ["BEAMSPLIT dummy branch", f"intended state: {orig_state}"] + tags
+
     post = format_post_for_api(post)
 
     tags = [t.partition(eot_end_segment)[0] for t in tags]
     tags = [t.partition("<|")[0] for t in tags]  # temporarily support old EOT format
 
-    tags = strip_avoid_listed_blognames_from_tags(client, tags)
+    tags = strip_avoid_listed_strings_from_tags(tags)
     kwargs = {"state": state, "body": post}
     if len(tags) > 0:
         kwargs["tags"] = tags
@@ -572,7 +583,7 @@ def answer_ask(
     tags = [t.strip(",") for t in tags]  # V8
 
     tags = [t for t in tags if len(t) > 0]
-    tags = strip_avoid_listed_blognames_from_tags(client, tags)
+    tags = strip_avoid_listed_strings_from_tags(tags)
 
     # screener_question = "" if is_reblog else question
     screener_question = (
@@ -594,13 +605,6 @@ def answer_ask(
         else "published"
     )
 
-    if GLOBAL_TESTING_FLAG:
-        print(f"GLOBAL_TESTING_FLAG --> draft")
-        state = "draft"
-
-    # Take a list of tags and make them acceptable for upload
-    tags = ",".join(tags)
-
     if IMAGE_CREATION:
         presub_answer = answer
         answer, images_were_created = find_text_images_and_sub_real_images(
@@ -618,6 +622,16 @@ def answer_ask(
     if "=======" in answer:
         print("image delimiter still in post")
         state = "draft"
+
+    if GLOBAL_TESTING_FLAG:
+        print(f"GLOBAL_TESTING_FLAG --> draft")
+        orig_state = state
+        state = "draft"
+        if BEAMSPLIT_TESTING_FLAG:
+            tags = ["BEAMSPLIT dummy branch", f"intended state: {orig_state}"] + tags
+
+    # Take a list of tags and make them acceptable for upload
+    tags = ",".join(tags)
 
     answer = format_post_for_api(answer)
 
@@ -849,14 +863,6 @@ def respond_to_reblogs_replies(
         ) and is_user_input  # currently is_user_input = not is_dashboard
         if halloweenize:
             print(f"\t🎃 halloweenizing {reblog_identifier} 🎃")
-
-        def _find_bootstrap_draft(drafts):
-            bootstrap_drafts = [
-                d for d in drafts if REBLOG_BOOTSTRAP_TEXT in get_body(d)
-            ]
-            if len(bootstrap_drafts) > 0:
-                return bootstrap_drafts[0]
-            return None
 
         api_response = answer_ask(
             blogName,
@@ -1718,12 +1724,7 @@ def do_reblog_reply_handling(
         post_getter = reblogs_post_getter
         start_ts = REBLOG_START_TS
 
-    if is_dashboard and FOLLOWER_MULTIPLIERS:
-        follower_multipliers = get_follower_multipliers(
-            response_cache, loop_persistent_data
-        )
-    else:
-        follower_multipliers = None
+    follower_multipliers = None
 
     # we need follower names for reply relevance v2
     loop_persistent_data = update_follower_names(loop_persistent_data, response_cache)

@@ -149,9 +149,10 @@ FAKE_V10_YEAR_MONTH = "December 2020"
 IMAGE_CREATION = True
 IMAGE_CREATION_TESTING = False
 
+# TODO: move these files once we'rve fully jumped ship to this repo!
 scraped_username_dirs = [
-    "data/autoresponder_v9/v0/post_outflow_im/segments_with_metadata/",
-    "data/autoresponder_v9/v1/post_outflow_im/segments_with_metadata/",
+    "../gpt-2/data/autoresponder_v9/v0/post_outflow_im/segments_with_metadata/",
+    "../gpt-2/data/autoresponder_v9/v1/post_outflow_im/segments_with_metadata/",
 ]
 scraped_usernames = set()
 try:
@@ -323,7 +324,7 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
         data["v8_timestamp"] = ""
         data["v10_timestamp"] = ""
 
-    data['na_beamsplit'] = True
+    data["na_beamsplit"] = True
     new_id = bridge_service_unique_id(bridge_service_url, data)
 
     data_to_send = dict()
@@ -356,7 +357,7 @@ def text_post_from_gpt2_service(mood=None, ts=None):
 
     url = bridge_service_url + "/textpost"
 
-    data['na_beamsplit'] = True
+    data["na_beamsplit"] = True
     new_id = bridge_service_unique_id(url, data)
 
     data_to_send = dict()

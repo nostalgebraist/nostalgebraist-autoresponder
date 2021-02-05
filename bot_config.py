@@ -132,17 +132,21 @@ class BotSpecificConstants:
         return BotSpecificConstants(**constants)
 
     @property
-    def base_clients(self) -> List[RateLimitClient]:
+    def private_clients(self) -> List[RateLimitClient]:
         return [
-            RateLimitClient.from_tumblr_rest_client(pytumblr.TumblrRestClient(*keys))
+            RateLimitClient.from_tumblr_rest_client(
+                pytumblr.TumblrRestClient(*keys), self.blogName
+            )
             for keys in self.private_clients_api_keys
         ]
 
     @property
     def dashboard_clients(self) -> List[RateLimitClient]:
         return [
-            RateLimitClient.from_tumblr_rest_client(pytumblr.TumblrRestClient(*keys))
-            for keys in self.dashboard_client_api_keys
+            RateLimitClient.from_tumblr_rest_client(
+                pytumblr.TumblrRestClient(*keys), self.dash_blogName
+            )
+            for keys in self.dashboard_clients_api_keys
         ]
 
     @property

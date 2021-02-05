@@ -31,7 +31,7 @@ from response_cache import (
     UserInputType,
 )
 
-from side_judgements import SideJudgmentCache
+from side_judgments import SideJudgmentCache
 from mood import DEFAULT_MOOD, random_mood_at_pst_datetime
 from mood_dynamic import (
     compute_dynamic_moodspec_at_time,
@@ -164,7 +164,7 @@ except Exception as e:
 
 RTS_COMMAND = "rts"
 
-GLOBAL_TESTING_FLAG = False
+GLOBAL_TESTING_FLAG = True
 
 
 def roll_for_limited_users(name, text=""):
@@ -323,6 +323,7 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
         data["v8_timestamp"] = ""
         data["v10_timestamp"] = ""
 
+    data['na_beamsplit'] = True
     new_id = bridge_service_unique_id(bridge_service_url, data)
 
     data_to_send = dict()
@@ -354,6 +355,8 @@ def text_post_from_gpt2_service(mood=None, ts=None):
         )
 
     url = bridge_service_url + "/textpost"
+
+    data['na_beamsplit'] = True
     new_id = bridge_service_unique_id(url, data)
 
     data_to_send = dict()
@@ -686,14 +689,16 @@ def _compute_checkprob_from_ratelimits(
         print(f"switched tank client to {cl_to_use['name']}")
 
     private_checkprobs = [
-        p for cl, p in zip(private_clients, checkprobs) if cl["can_be_private"]
+        p
+        for cl, p in zip(all_clients, checkprobs)
+        if cl["name"].startswith("private_client")
     ]
 
     ix_to_use = np.argmax(private_checkprobs)
-    cl_to_use = private_clients[ix_to_use]
+    cl_to_use = all_clients[ix_to_use]
 
-    if private_client.request.consumer_key != cl_to_use["tumblr"].request.consumer_key:
-        switch_private_client_to(cl_to_use["tumblr"], cl_to_use["rate"])
+    if private_client.request.consumer_key != cl_to_use["client"].request.consumer_key:
+        switch_private_client_to(cl_to_use["client"])
         print(f"switched private client to {cl_to_use['name']}")
 
     # TODO: think about this... not sure the math makes sense
@@ -707,14 +712,14 @@ def _compute_checkprob_from_ratelimits(
 
 
 def _compute_checkprob_from_ratelimits_single_client(
-    ratelimit_client_to_check: RateLimitClient,
+    client_to_check: RateLimitClient,
     requests_needed_to_check=80,
     verbose=True,
 ):
     checkprob = None
     while checkprob is None:
         try:
-            ratelimit_data = ratelimit_client_to_check.get_ratelimit_data()
+            ratelimit_data = client_to_check.get_ratelimit_data()
             if verbose:
                 print(ratelimit_data)
             effective_max_rate = ratelimit_data["effective_max_rate"]
@@ -2383,7 +2388,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     n_posts_to_check_dash = loop_persistent_data.n_posts_to_check_dash
 
     def _mainloop_asks_block(loop_persistent_data, response_cache, save_after=True):
-        relevant_ratelimit_data = private_ratelimit_client.get_ratelimit_data()
+        relevant_ratelimit_data = private_client.get_ratelimit_data()
         if relevant_ratelimit_data["effective_remaining"] > 0:
             loop_persistent_data, response_cache, n_asks = do_ask_handling(
                 loop_persistent_data, response_cache
@@ -2416,7 +2421,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
 
     if n_posts_to_check > 0:
         # dash check
-        if dashboard_ratelimit_client.get_ratelimit_data()["effective_remaining"] > 0:
+        if dashboard_client.get_ratelimit_data()["effective_remaining"] > 0:
             print("checking dash...")
             _, mood_value = determine_mood(response_cache, return_mood_value=True)
             loop_persistent_data, response_cache = do_reblog_reply_handling(
@@ -2447,7 +2452,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             loop_persistent_data, response_cache, save_after=False
         )
 
-    relevant_ratelimit_data = private_ratelimit_client.get_ratelimit_data()
+    relevant_ratelimit_data = private_client.get_ratelimit_data()
     if relevant_ratelimit_data["effective_remaining"] > 0:
         response_cache.save()
         loop_persistent_data.side_judgment_cache.save()

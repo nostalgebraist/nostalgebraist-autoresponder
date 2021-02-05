@@ -1225,37 +1225,7 @@ def selector(
 
     return results
 
-
 batch_size_for_h = batch_size
-
-hparams_select = HParams(
-    n_vocab=hparams.n_vocab,
-    n_ctx=hparams.n_ctx,
-    n_embd=hparams.n_embd,
-    n_head=n_head_select,
-    n_layer=hparams.n_layer,
-    res_dropout=0,
-    attn_dropout=0,
-    acti_dropout=0,
-    dtype=tf.float32,
-    do_resid=do_resid,
-    orth_init=True,
-)
-
-hparams_select_sentiment = HParams(
-    n_vocab=hparams.n_vocab,
-    n_ctx=hparams.n_ctx,
-    n_embd=hparams.n_embd,
-    n_head=n_head_sentiment,
-    n_layer=hparams.n_layer,
-    res_dropout=0,
-    attn_dropout=0,
-    acti_dropout=0,
-    dtype=tf.float32,
-    do_resid=do_resid,
-    orth_init=True,
-)
-
 
 def load_variables_with_retries(
     path, var_list, session, multi_calib=False, retries=True
@@ -1290,7 +1260,37 @@ def load_variables_with_retries(
     return lr_calib_resp, lr_calib_orig
 
 
+def load_selector_metadata(path,
+                           retries=False  # ignored
+                           ):
+    with open(path, "r") as f:
+        selector_metadata = json.load(f)
+    return selector_metadata
+
+
 if SELECT_VIA_GENERATOR:
+    metadata_filename = ckpt_select.rpartition("/")[0] + "/metadata.json"
+    selector_metadata = load_from_gdrive_with_gs_fallback(
+        load_fn=load_selector_metadata,
+        relative_path=metadata_filename,
+        gs_command=gs_command_get_selector_metadata,
+    )
+    select_scope = selector_metadata["select_scope"]
+
+    hparams_select = HParams(
+        n_vocab=hparams.n_vocab,
+        n_ctx=hparams.n_ctx,
+        n_embd=hparams.n_embd,
+        n_head=selector_metadata["n_head"],
+        n_layer=hparams.n_layer,
+        res_dropout=0,
+        attn_dropout=0,
+        acti_dropout=0,
+        dtype=tf.float32,
+        do_resid=do_resid,
+        orth_init=True,
+    )
+
     with sess.as_default():
         context_for_h = tf.placeholder(tf.int32, [batch_size_for_h, None])
         prompt_end_ntoks = tf.placeholder(
@@ -1339,6 +1339,28 @@ if SELECT_VIA_GENERATOR:
 
 
 if SENTIMENT_VIA_GENERATOR:
+    sentiment_metadata_filename = ckpt_sentiment.rpartition("/")[0] + "/metadata.json"
+    sentiment_metadata = load_from_gdrive_with_gs_fallback(
+        load_fn=load_selector_metadata,
+        relative_path=sentiment_metadata_filename,
+        gs_command=gs_command_get_sentiment_metadata,
+    )
+    sentiment_select_scope = sentiment_metadata["select_scope"]
+
+    hparams_select_sentiment = HParams(
+        n_vocab=hparams.n_vocab,
+        n_ctx=hparams.n_ctx,
+        n_embd=hparams.n_embd,
+        n_head=sentiment_metadata["n_head"],
+        n_layer=hparams.n_layer,
+        res_dropout=0,
+        attn_dropout=0,
+        acti_dropout=0,
+        dtype=tf.float32,
+        do_resid=do_resid,
+        orth_init=True,
+    )
+
     with sess.as_default():
         selection_step_sentiment = selector(
             select_scope=sentiment_select_scope,

@@ -3,7 +3,7 @@ import os
 import json
 import subprocess
 
-from bot_specific_constants import BotSpecificConstants
+from bot_config import BotSpecificConstants
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
@@ -60,19 +60,26 @@ if V10:
     model_name = "autoresponder_v10"
 
     dataset = "data/ALL_data_v10_nost_tuning.npz"
-    ckpt_select = "selector/v6/.hdf5"
-    ckpt_sentiment = "sentiment/v1/.hdf5"
+    ckpt_select = "selector/v10/v6/.hdf5"
+    ckpt_sentiment = "sentiment/v10/v1/.hdf5"
 
     TRUNCATE_AT_RIGHT = False
     SELECTOR_EOT_PREPEND = True
 
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/model-135.hdf5 /models/autoresponder_v10/"
     gs_command_get_selector = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/* /selector/"
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/* /selector/v10/"
+    )
+    gs_command_get_selector_metadata = (
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/metadata.json /selector/v10/metadata.json"
     )
     gs_command_get_sentiment = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/"
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
     )
+    gs_command_get_sentiment_metadata = (
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/metadata.json /sentiment/v10/metadata.json"
+    )
+
 elif V9_1R4:
     model_name = "autoresponder_v9_v1_1558M_nost_tuning4"
 
@@ -157,10 +164,10 @@ else:
     SELECTOR_EOT_PREPEND = False
     TRUNCATE_AT_RIGHT = False
 
-with open(ckpt_select.rpartition("/")[0] + "/metadata.json", "r") as f:
-    select_metadata = json.load(f)
-
-select_scope = select_metadata["select_scope"]
+# with open(ckpt_select.rpartition("/")[0] + "/metadata.json", "r") as f:
+#     select_metadata = json.load(f)
+#
+# select_scope = select_metadata["select_scope"]
 
 if V9:
     layer_nums = [7, 23]
@@ -176,7 +183,6 @@ if V9:
     add_position_emb_later_layers = False
     add_prompt_cont_embs = False
     norm_final_output = False
-    n_head_select = select_metadata["n_head"]
     length_select = 825
     SELECT_VIA_GENERATOR_LONGLENGTH = True
     MULTI_LR_CALIB = True
@@ -194,7 +200,6 @@ elif V8:
     add_position_emb_later_layers = False
     add_prompt_cont_embs = False
     norm_final_output = False
-    n_head_select = select_metadata["n_head"]
     length_select = 825
     SELECT_VIA_GENERATOR_LONGLENGTH = True
     MULTI_LR_CALIB = True
@@ -220,10 +225,10 @@ else:
 SENTIMENT_VIA_GENERATOR = True
 SENTIMENT_VIA_GENERATOR_LONGLENGTH = True
 
-with open(ckpt_sentiment.rpartition("/")[0] + "/metadata.json", "r") as f:
-    sentiment_select_metadata = json.load(f)
-
-sentiment_select_scope = sentiment_select_metadata["select_scope"]
+# with open(ckpt_sentiment.rpartition("/")[0] + "/metadata.json", "r") as f:
+#     sentiment_select_metadata = json.load(f)
+#
+# sentiment_select_scope = sentiment_select_metadata["select_scope"]
 
 if V9_1:
     layer_nums_sentiment = [7, 23]
@@ -232,7 +237,6 @@ if V9_1:
     use_length_channel_v2_sentiment = False
     length_sentiment = 204
     norm_final_output_sentiment = False
-    n_head_sentiment = sentiment_select_metadata["n_head"]
 elif V9:
     layer_nums_sentiment = [7, 23]
     use_mlp_sentiment = True
@@ -240,7 +244,6 @@ elif V9:
     use_length_channel_v2_sentiment = False
     length_sentiment = 204
     norm_final_output_sentiment = False
-    n_head_sentiment = sentiment_select_metadata["n_head"]
 elif V8:
     layer_nums_sentiment = [8 - 1, 24 - 1]
     use_mlp_sentiment = True
@@ -248,7 +251,6 @@ elif V8:
     use_length_channel_v2_sentiment = False
     length_sentiment = 204
     norm_final_output_sentiment = False
-    n_head_sentiment = sentiment_select_metadata.get("n_head", 25)
 else:
     layer_nums_sentiment = [8 - 1, 24 - 1]
     use_mlp_sentiment = False
@@ -257,11 +259,6 @@ else:
     length_sentiment = 204
     norm_final_output_sentiment = True
     n_head_sentiment = 25
-
-# hack
-if n_head_sentiment is None:
-    n_head_sentiment = 25
-
 
 def _gpu_type():
     try:

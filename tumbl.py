@@ -655,7 +655,7 @@ def answer_ask(
             )
             data = {
                 "body": beamsplit_testing_body,
-                "tags": tags.split(","),
+                "tags": tags,
                 "state": state,
             }
         else:

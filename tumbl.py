@@ -1,7 +1,6 @@
 """
 Tumblr API layer and main loop of the bot during operation.
 """
-import sys
 import os
 from datetime import datetime
 from string import punctuation, whitespace
@@ -13,8 +12,6 @@ import time
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-
-sys.path.append("src/")
 
 from bot_config import BotSpecificConstants
 

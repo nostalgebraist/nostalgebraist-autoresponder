@@ -1,9 +1,6 @@
 """tumblr API <--> preprocessed text tools I need in more than one place"""
 import re
 import json
-import sys
-
-sys.path.append("src/")
 
 import reblogs_v5
 from bs4 import BeautifulSoup

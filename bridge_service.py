@@ -12,9 +12,6 @@ from bot_config import BotSpecificConstants
 from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
 from bridge_shared import bridge_service_unique_id
 
-import sys
-
-sys.path.append("src/")
 from autoresponder_static import DEFAULT_CSC
 from autoresponder_static_v8 import timestamp_to_v10_format
 

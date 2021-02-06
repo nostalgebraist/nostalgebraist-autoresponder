@@ -474,7 +474,7 @@ def autopublish_screener(
 
                 print(f"\t{sf}: |{repr(sf_formatted)}|")
 
-        return False
+                return False
     if asking_name == "nostalgebraist" and screen_robnost:
         print("screened because robnost")
         return False

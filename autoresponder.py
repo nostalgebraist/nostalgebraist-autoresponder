@@ -2043,7 +2043,7 @@ def poll(
 
             if len(PROMPT_STACK) > 0:
                 r = requests.post(
-                    f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/pollgenerator",
+                    f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
                     json={"results": RESULT_STACK if not dummy else {}},
                 )
                 time.sleep(1)
@@ -2142,7 +2142,7 @@ def poll_no_capture(
 
         if len(PROMPT_STACK) > 0:
             r = requests.post(
-                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/pollgenerator",
+                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
                 json={"results": RESULT_STACK if not dummy else {}},
             )
             time.sleep(1)

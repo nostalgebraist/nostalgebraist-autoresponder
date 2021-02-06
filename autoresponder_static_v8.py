@@ -9,7 +9,6 @@ TIME_SIDECHANNEL_CHAR = "\U0001f552"  # clock symbol 🕒
 
 # utilities for laptop side
 
-
 def get_ts_from_fn(fn):
     if fn is None:
         return None
@@ -56,6 +55,7 @@ def format_segment_v8_time(time_text, control_seg_config=DEFAULT_CSC):
     if len(time_text) == 0:
         return ""
     return control_seg_config["posted_at"].format(time_text=time_text)
+    # return f"Posted at {time_text}"
 
 
 """V8 format: interlocutor prefix"""
@@ -71,6 +71,16 @@ def get_ordered_interlocutors(doc, control_seg_config=DEFAULT_CSC):
         for ph in control_seg_config["numbered_phrases"]:
             if ph in c[0]:
                 names.append(c[0].partition(" " + ph)[0])
+    # chars = [
+    #     c[0]
+    #     for c in find_control_chars_forumlike(doc, incl_number=False, control_seg_config=control_seg_config)
+    #     if any([ph in c[0] for ph in control_seg_config["numbered_phrases"]])
+    #     ]
+    # names = []
+    # for c in chars:
+    #     for ph in control_seg_config["numbered_phrases"]:
+    #         if ph
+    # names = [c.partition(" wrote")[0] for c in chars]
     n_names = len(names)
 
     unique_names = []
@@ -88,11 +98,13 @@ def format_segment_v8_interlocutors(doc, control_seg_config=DEFAULT_CSC):
         return ""
     if len(names) == 1:
         name = names[0]
+        # return f"A series of blog posts by{name}"
         if n_names == 1:
             return ""
         else:
             return control_seg_config["series_of_posts"].format(name=name)
     comma_names = ",".join(names[:-1]) + " and" + names[-1]
+    # return f"A blog conversation between{comma_names} | {n_names} posts"
     return control_seg_config["conversation_between"].format(
         comma_names=comma_names, n_names=n_names
     )
@@ -112,8 +124,10 @@ def format_segment_v8_tags(
 ):
     if len(tag_string_raw) == 0:
         ftags = ""
+        # return f"{user_name} tagged this post as: "
     else:
         ftags = ", ".join(["#" + t.rstrip(" ") for t in tag_string_raw.split("#")[1:]])
+    # return f"{user_name} tagged this post as: {ftags}"
     return control_seg_config["user_tagged_post"].format(
         user_name=user_name, ftags=ftags
     )
@@ -273,10 +287,9 @@ def final_munge_before_neural_v10(doc, **kwargs):
 
 def final_munge_after_neural_v10(text):
     # strip orig post starters
-
-    # expect_tag_prefix = False
-    # if ORIG_FICTION_CHAR_FORUMLIKE_V10 in text or REVIEW_CHAR_FORUMLIKE_V10 in text:
-    #     expect_tag_prefix = False
+    expect_tag_prefix = False
+    if ORIG_FICTION_CHAR_FORUMLIKE_V10 in text or REVIEW_CHAR_FORUMLIKE_V10 in text:
+        expect_tag_prefix = False
     for cchar in [
         ORIG_POST_CHAR_FORUMLIKE_V10,
         REVIEW_CHAR_FORUMLIKE_V10,

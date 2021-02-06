@@ -34,6 +34,11 @@ ORIG_FICTION_CHAR_FORUMLIKE_V10 = (
     " Original fiction by Frank\n\n Frank's tags:\n Frank tagged this post as:"
 )
 
+# if FORUMLIKE:
+#     ORIG_POST_CHAR = ORIG_POST_CHAR_FORUMLIKE
+# else:
+#     ORIG_POST_CHAR = ORIG_POST_CHAR_CHINESE
+
 
 CONTROL_SEG_CONFIGS = {
     "V9": {
@@ -85,7 +90,7 @@ for k in CONTROL_SEG_CONFIGS.keys():
     }
 
 # DEFAULT_CSC = CONTROL_SEG_CONFIGS["V9"]
-DEFAULT_CSC = CONTROL_SEG_CONFIGS["V10"]  # !!!!!!!!!!
+DEFAULT_CSC = CONTROL_SEG_CONFIGS["V10"]
 
 
 def find_username_tags(text):
@@ -152,8 +157,10 @@ def find_control_chars_forumlike(
             if incl_number
             else fr"#[0-9]+( .*? {p}:[\n]{{1,2}})"
         )
-    for m in re.finditer(rx, text):
-        results.append((m.group(1), m.span(1)[0]))
+        # rx = r"(#[0-9]+ .*? wrote:[\n]{1,2})" if incl_number else r"#[0-9]+( .*? wrote:[\n]{1,2})"
+        # print(rx)
+        for m in re.finditer(rx, text):
+            results.append((m.group(1), m.span(1)[0]))
     results = sorted(results, key=lambda tup: tup[1])
     return results
 
@@ -235,7 +242,6 @@ def substitute_forumlike(
         if len(seg_) == 0:
             segments_subbed.append(seg_)
             continue
-        debug = False
         seg = "GPT2_EOT".join(accum + [seg_])
 
         control_ixs = {
@@ -246,6 +252,7 @@ def substitute_forumlike(
             first_char = sorted(control_ixs.keys(), key=lambda c: control_ixs[c])[0]
             accum = []
         except IndexError:
+            print(("indexerr seg", seg))
             if len(accum) == 0:
                 accum = [segments[ixseg - 1], seg_]
                 segments_subbed = segments_subbed[:-1]
@@ -258,6 +265,7 @@ def substitute_forumlike(
             print(f"first_char: {first_char}")
 
         if first_char == ORIG_POST_CHAR_CHINESE:
+            # sub = f" Blog post by {user_name}\n\n"
             sub = control_seg_config["ORIG_POST_CHAR_NAMED"].format(user_name=user_name)
             seg_subbed = (
                 seg[: control_ixs[first_char]]
@@ -272,13 +280,23 @@ def substitute_forumlike(
 
         seg_subbed = normalize_for_generator(seg_subbed)
 
+        # print(seg_subbed)
+        # trig=False
         if "友 nostalgebraist-autoresponder域" in seg_subbed:
+            # print(seg_subbed)
             seg_subbed = seg_subbed.replace(
                 "友 nostalgebraist-autoresponder域", "友 Frank会"
             )
             if mode == "train":
+                # seg_subbed = seg_subbed.replace("友 nostalgebraist-autoresponder", "友 Frank会")
+                # seg_subbed = seg_subbed.replace("域", "友 nostalgebraist-my-father会")
                 seg_subbed = seg_subbed.replace("域", "友 nostalgebraist会")
-            seg_subbed = seg_subbed.replace("域", f"友 {user_name}会")
+            # elif mode == "predict":
+            #     seg_subbed = seg_subbed.replace("友 nostalgebraist会", "友 nostalgebraist-my-father会")
+            #     seg_subbed = seg_subbed.replace("域", "友 Frank会")
+            # print(seg_subbed)
+            # trig=True
+        seg_subbed = seg_subbed.replace("域", f"友 {user_name}会")
 
         seg_subbed = re.sub(r"<h2>友[^会^\/]*/[^会]*会 <\/h2>", "", seg_subbed)
 
@@ -346,12 +364,16 @@ def substitute_forumlike(
             seg_subbed = next_
             postix += 1
 
+        # if trig:
+        #     print(seg_subbed+"\n---\n")
+
         if mode == "train":
             seg_subbed = seg_subbed.strip("\n")
         elif left_strip_newline:
             seg_subbed = seg_subbed.lstrip("\n")
         if debug:
             print(f"got segment:\n\n{seg_subbed}")
+            # debug=False
         segments_subbed.append(seg_subbed)
 
     if shuffle:

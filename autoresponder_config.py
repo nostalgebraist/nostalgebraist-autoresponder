@@ -18,6 +18,7 @@ V10 = True
 
 bot_specific_constants = BotSpecificConstants.load()
 BUCKET_NAME = bot_specific_constants.BUCKET_NAME
+BRIDGE_SERVICE_REMOTE_URL = bot_specific_constants.BRIDGE_SERVICE_REMOTE_URL
 
 startdir = os.getcwd()
 os.chdir("/")
@@ -77,9 +78,9 @@ if V10:
     gs_command_get_selector = (
         f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/* /selector/v10/"
     )
-    gs_command_get_selector_metadata = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/metadata.json /selector/v10/metadata.json"
+    gs_command_get_selector_metadata = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/v6/metadata.json /selector/v10/v6/metadata.json"
     gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
-    gs_command_get_sentiment_metadata = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/metadata.json /sentiment/v10/metadata.json"
+    gs_command_get_sentiment_metadata = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/v1/metadata.json /sentiment/v10/v1/metadata.json"
 
 elif V9_1R4:
     model_name = "autoresponder_v9_v1_1558M_nost_tuning4"

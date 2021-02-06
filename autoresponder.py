@@ -37,7 +37,7 @@ from autoresponder_config import *
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
-drivedir = "/content/drive/MyDrive/gpt-2/"
+drivedir = "/content/drive/MyDrive/nostalgebraist-autoresponder/"
 os.chdir("/")
 
 hparams = model.hparams_1558M()
@@ -94,6 +94,9 @@ def load_from_gdrive_with_gs_fallback(
 
 
 def load_encoder_only(path, retries=False):  # ignored
+    if path.endswith("vocab.bpe"):
+        enclosing_dir = path.rpartition("/")[0]
+        path = enclosing_dir
     enc = encoder.get_encoder_from_path(path, eot_workaround=EOT_WORKAROUND)
     return enc
 
@@ -106,7 +109,7 @@ def load_data_sampler(path, retries=False):  # ignored
 
 enc = load_from_gdrive_with_gs_fallback(
     load_fn=load_encoder_only,
-    relative_path=os.path.join("models", model_name),
+    relative_path=os.path.join("models", model_name, "vocab.bpe"),
     gs_command=gs_command_get_encoder,
 )
 
@@ -1971,7 +1974,7 @@ def poll(capture_ident=None, dummy=False):
             raise ValueError("don't use base gpt2 for AR, rob...")
 
         r = requests.post(
-            "{BRIDGE_SERVICE_REMOTE_URL}/pollgenerator",
+            f"{BRIDGE_SERVICE_REMOTE_URL}/pollgenerator",
             json={"results": RESULT_STACK if not dummy else {}},
         )
 
@@ -2028,7 +2031,7 @@ def poll(capture_ident=None, dummy=False):
 
         if len(PROMPT_STACK) > 0:
             r = requests.post(
-                "{BRIDGE_SERVICE_REMOTE_URL}/pollgenerator",
+                f"{BRIDGE_SERVICE_REMOTE_URL}/pollgenerator",
                 json={"results": RESULT_STACK if not dummy else {}},
             )
             time.sleep(1)
@@ -2057,7 +2060,7 @@ def poll_no_capture(capture_ident=None, dummy=False):
         raise ValueError("don't use base gpt2 for AR, rob...")
 
     r = requests.post(
-        "{BRIDGE_SERVICE_REMOTE_URL}/pollgenerator",
+        f"{BRIDGE_SERVICE_REMOTE_URL}/pollgenerator",
         json={"results": RESULT_STACK if not dummy else {}},
     )
 
@@ -2114,7 +2117,7 @@ def poll_no_capture(capture_ident=None, dummy=False):
 
     if len(PROMPT_STACK) > 0:
         r = requests.post(
-            "{BRIDGE_SERVICE_REMOTE_URL}/pollgenerator",
+            f"{BRIDGE_SERVICE_REMOTE_URL}/pollgenerator",
             json={"results": RESULT_STACK if not dummy else {}},
         )
         time.sleep(1)

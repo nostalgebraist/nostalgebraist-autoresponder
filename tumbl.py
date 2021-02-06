@@ -51,6 +51,7 @@ from autoresponder_static_v8 import timestamp_to_v8_format, timestamp_to_v10_for
 
 from traceability import on_post_creation_callback
 
+from util.error_handling import LogExceptionAndSkip
 EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
@@ -2071,7 +2072,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
         # if not roll_for_limited_users(x['asking_name'], text=x['question']):
         #     continue
         if x.get("summary", "") == FOLLOW_COMMAND:
-            try:
+            with LogExceptionAndSkip("follow"):
                 dashboard_client.follow(x["asking_name"])
                 loop_persistent_data = update_follower_names_v2(
                     loop_persistent_data, response_cache
@@ -2080,11 +2081,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 if not BEAMSPLIT_TESTING_FLAG:
                     private_client.delete_post(blogName, x["id"])
                 print(f"followed {x['asking_name']}")
-            except Exception as e:
-                print(f"encountered {e} trying to follow")
-                continue
         elif x.get("summary", "") == UNFOLLOW_COMMAND:
-            try:
+            with LogExceptionAndSkip("unfollow"):
                 dashboard_client.unfollow(x["asking_name"])
                 loop_persistent_data = update_follower_names_v2(
                     loop_persistent_data, response_cache
@@ -2093,9 +2091,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 if not BEAMSPLIT_TESTING_FLAG:
                     private_client.delete_post(blogName, x["id"])
                 print(f"unfollowed {x['asking_name']}")
-            except Exception as e:
-                print(f"encountered {e} trying to unfollow")
-                continue
         elif x.get("summary", "") == MOOD_GRAPH_COMMAND:
             path = create_mood_graph(
                 response_cache,
@@ -2120,7 +2115,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
             if not BEAMSPLIT_TESTING_FLAG:
                 private_client.delete_post(blogName, x["id"])
         elif x.get("summary", "").startswith(REVIEW_COMMAND):
-            try:
+            with LogExceptionAndSkip("write review"):
                 user_args, user_argstring, is_valid = parse_and_validate_review_command(
                     inverse_format_post_for_api(x["summary"])
                 )
@@ -2137,8 +2132,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         response_cache,
                     )
                     private_client.delete_post(blogName, x["id"])
-            except Exception as e:
-                print(f"encountered {e} trying to write review")
         else:
             for k in [
                 "id",

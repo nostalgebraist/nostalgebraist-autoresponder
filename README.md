@@ -22,6 +22,14 @@ As of this writing, I have not yet brought the latest *training* code from my pr
 
 *This isn't a platform for building tumblr bots or GPT-2 bots.*  This repo mostly exists for people familiar with my bot who are interested in how it works.  In principle, you could use this to run a similar bot of your own, but I don't expect that to be easy and haven't taken steps to specifically support that use case.
 
+### Documentation
+
+This README is the main documentation at this time.
+
+Some of the machine learning functionality provided by this repo is described in a separate file [`gpt-2/README.md`](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/gpt-2/README.md).
+
+I plan to provide additional documentation in the future.
+
 ### How this code implements the bot
 
 In what follows, struck-through text indicates that a file is not up to date and needs to be replaced with an up-to-date version from my private repo.

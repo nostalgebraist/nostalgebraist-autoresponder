@@ -2073,21 +2073,21 @@ def do_ask_handling(loop_persistent_data, response_cache):
         #     continue
         if x.get("summary", "") == FOLLOW_COMMAND:
             with LogExceptionAndSkip("follow"):
-                dashboard_client.follow(x["asking_name"])
                 loop_persistent_data = update_follower_names_v2(
                     loop_persistent_data, response_cache
                 )
                 loop_persistent_data.follower_names.add(x["asking_name"])
+                dashboard_client.follow(x["asking_name"])
                 if not BEAMSPLIT_TESTING_FLAG:
                     private_client.delete_post(blogName, x["id"])
                 print(f"followed {x['asking_name']}")
         elif x.get("summary", "") == UNFOLLOW_COMMAND:
             with LogExceptionAndSkip("unfollow"):
-                dashboard_client.unfollow(x["asking_name"])
                 loop_persistent_data = update_follower_names_v2(
                     loop_persistent_data, response_cache
                 )
                 loop_persistent_data.follower_names.remove(x["asking_name"])
+                dashboard_client.unfollow(x["asking_name"])
                 if not BEAMSPLIT_TESTING_FLAG:
                     private_client.delete_post(blogName, x["id"])
                 print(f"unfollowed {x['asking_name']}")

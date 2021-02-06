@@ -37,7 +37,8 @@ from autoresponder_config import *
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
-drivedir = "/content/drive/MyDrive/nostalgebraist-autoresponder/"
+# TODO: move this over later
+drivedir = "/content/drive/MyDrive/gpt-2/"
 os.chdir("/")
 
 hparams = model.hparams_1558M()
@@ -244,7 +245,7 @@ def load_ckpt_with_retries(path, session, retries=True):
 
 load_from_gdrive_with_gs_fallback(
     load_fn=load_ckpt_with_retries,
-    relative_path=os.path.join("models", model_path),
+    relative_path=os.path.join(model_path),
     gs_command=gs_command_get_model,
     session=sess,
 )

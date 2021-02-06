@@ -119,6 +119,7 @@ Training code for the sentiment model will appear in this repo when I move up-to
   - `mood_dynamic.py` (evolves mood over time as an ODE system, computes the forcing term)
   - `image_analysis.py` (wrappers for a image recognition API)
   - `text_segmentation.py` (generates images from text + unused research code)
+  - `traceability.py` (logs API responses and other metadata for each post the bot makes)
 - Model training scripts/code
   - ~~`reward_data.py`~~ (scrape note counts for selector model)
   - ~~`train_generator_to_select.ipynb`~~ (train selector model, "new approach")

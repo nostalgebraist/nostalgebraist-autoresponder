@@ -60,7 +60,7 @@ else:
 
 if V10:
     model_name = "autoresponder_v10"
-    model_path = os.path.join(model_name, "model-135.hdf5")
+    model_path = os.path.join("models", model_name, "model-135.hdf5")
 
     dataset = "data/v10/ALL_data_v10_nost_tuning.npz"
     ckpt_select = "selector/v10/v6/.hdf5"

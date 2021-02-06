@@ -5,3 +5,4 @@ tqdm==4.31.1
 toposort==1.5
 tensor2tensor>=1.14.1
 h5py
+pytumblr

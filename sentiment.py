@@ -14,34 +14,42 @@ def predict_sentiment(text: str, rtok=None, sleep_time=0.1):
         return None
 
     from transformers.tokenization_roberta import RobertaTokenizer
+
     if rtok is None:
         rtok = RobertaTokenizer.from_pretrained("roberta-large")
-    sanitized_text = rtok.convert_tokens_to_string(rtok.tokenize(sanitized_text)[:200])  # empirical
+    sanitized_text = rtok.convert_tokens_to_string(
+        rtok.tokenize(sanitized_text)[:200]
+    )  # empirical
 
     time.sleep(sleep_time)
 
-    url = 'https://demo.allennlp.org/api/roberta-sentiment-analysis/predict'
-    r=requests.post(url, json={"model":"RoBERTa","sentence":sanitized_text})
+    url = "https://demo.allennlp.org/api/roberta-sentiment-analysis/predict"
+    r = requests.post(url, json={"model": "RoBERTa", "sentence": sanitized_text})
 
     if r.status_code != 200:
         return None
 
     data = r.json()
-    return {"label": data["label"], "prob": max(data["probs"]), "logits": data["logits"]}
+    return {
+        "label": data["label"],
+        "prob": max(data["probs"]),
+        "logits": data["logits"],
+    }
 
 
 class SentimentCache:
-    def __init__(self, path: str="sentiment_cache.pkl.gz", cache: dict=None):
+    def __init__(self, path: str = "sentiment_cache.pkl.gz", cache: dict = None):
         self.path = path
         self.cache = cache
         self.rtok = None
         if self.cache is None:
             self.cache = {}
 
-    def query(self, text: str, sleep_time: float=0.2):
+    def query(self, text: str, sleep_time: float = 0.2):
         if text not in self.cache:
             if self.rtok is None:
                 from transformers.tokenization_roberta import RobertaTokenizer
+
                 self.rtok = RobertaTokenizer.from_pretrained("roberta-large")
             response = predict_sentiment(text, rtok=self.rtok, sleep_time=sleep_time)
             if response is not None:
@@ -55,13 +63,13 @@ class SentimentCache:
             pickle.dump(self.cache, f)
         if do_backup:
             # TODO: better path handling
-            with open(self.path[:-len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
+            with open(self.path[: -len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
                 pickle.dump(self.cache, f)
         if verbose:
             print(f"saved sentiment cache with length {len(self.cache)}")
 
     @staticmethod
-    def load(path: str="sentiment_cache.pkl.gz", verbose=True) -> 'SentimentCache':
+    def load(path: str = "sentiment_cache.pkl.gz", verbose=True) -> "SentimentCache":
         cache = None
         if os.path.exists(path):
             with open(path, "rb") as f:

@@ -98,6 +98,7 @@ tank_client = dashboard_clients[0]
 
 REBLOG_BOOTSTRAP_TEXT = "asdfghjkllkj"
 QUEUE_SAFETY = True
+SCREEN_ANON = False
 
 FOLLOW_COMMAND = "!follow"
 UNFOLLOW_COMMAND = "!unfollow"

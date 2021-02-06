@@ -60,15 +60,18 @@ class BotSpecificConstants:
         self.private_clients_api_keys = private_clients_api_keys
         self.dashboard_clients_api_keys = dashboard_clients_api_keys
 
-        # should be localhost if you run bridge service w/o modification
+        # host name of the bridge service used in clients we expect to be running on the same machine
+        # (i.e. should be localhost under normal circumstances)
         self.bridge_service_host = bridge_service_host
 
+        # port of the bridge service
         self.bridge_service_port = bridge_service_port
 
         # name of Google Cloud Storage bucket used to store models and data
         self.BUCKET_NAME = BUCKET_NAME
 
-        # todo: document
+        # host name of the bridge service used in ML code
+        # if the ML code is running remotely, this will differ from `bridge_service_host`
         self.BRIDGE_SERVICE_REMOTE_HOST = BRIDGE_SERVICE_REMOTE_HOST
 
         # don't interact or mention these users

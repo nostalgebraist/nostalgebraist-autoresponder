@@ -471,7 +471,7 @@ def autopublish_screener(
                 if end_ix < len(review_string_subtype):
                     sf_formatted = sf_formatted + "... "
 
-                    print(f"\t{sf}: |{repr(sf_formatted)}|")
+                print(f"\t{sf}: |{repr(sf_formatted)}|")
 
         return False
     if asking_name == "nostalgebraist" and screen_robnost:

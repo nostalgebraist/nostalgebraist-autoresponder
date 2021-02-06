@@ -2079,7 +2079,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 loop_persistent_data.follower_names.add(x["asking_name"])
             except Exception:
                 continue
-            private_client.delete_post(blogName, x["id"])
+            if not BEAMSPLIT_TESTING_FLAG:
+                private_client.delete_post(blogName, x["id"])
             print(f"followed {x['asking_name']}")
         elif x.get("summary", "") == UNFOLLOW_COMMAND:
             try:
@@ -2090,7 +2091,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 loop_persistent_data.follower_names.remove(x["asking_name"])
             except Exception:
                 continue
-            private_client.delete_post(blogName, x["id"])
+            if not BEAMSPLIT_TESTING_FLAG:
+                private_client.delete_post(blogName, x["id"])
             print(f"unfollowed {x['asking_name']}")
         elif x.get("summary", "") == MOOD_GRAPH_COMMAND:
             path = create_mood_graph(
@@ -2098,9 +2100,14 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 start_time=datetime.now() - pd.Timedelta(days=MOOD_GRAPH_N_DAYS),
                 end_time=datetime.now(),
             )
+            state = "published"
+            if x["asking_name"] == "nostalgebraist":
+                state = "draft"
+            if BEAMSPLIT_TESTING_FLAG:
+                state = "draft"
             private_client.create_photo(
                 blogName,
-                state="published" if x["asking_name"] != "nostalgebraist" else "draft",
+                state="state",
                 data=path,
                 caption=MOOD_GRAPH_EXPLAINER_STRING.format(
                     days_string=MOOD_GRAPH_DAYS_STRING,
@@ -2108,7 +2115,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     asking_url=x["asking_url"],
                 ),
             )
-            private_client.delete_post(blogName, x["id"])
+            if not BEAMSPLIT_TESTING_FLAG:
+                private_client.delete_post(blogName, x["id"])
         elif x.get("summary", "").startswith(REVIEW_COMMAND):
             try:
                 user_args, user_argstring, is_valid = parse_and_validate_review_command(

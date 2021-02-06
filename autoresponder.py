@@ -1985,7 +1985,7 @@ def poll(
 
         for port, route in zip(ports, routes):
             r = requests.post(
-                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/pollgenerator",
+                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
                 json={"results": RESULT_STACK if not dummy else {}},
             )
 
@@ -2084,15 +2084,16 @@ def poll_no_capture(
 
     for port, route in zip(ports, routes):
         r = requests.post(
-            f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/pollgenerator",
+            f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
             json={"results": RESULT_STACK if not dummy else {}},
         )
 
         PROMPT_STACK = r.json()
 
-        RESULT_STACK = {
-            k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK
-        }  # clean out already used results
+        if (port, route) == (ports[0], routes[0]):
+            RESULT_STACK = {
+                k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK
+            }  # clean out already used results
 
         # print(f"got prompt stack: {PROMPT_STACK}")
 
@@ -2161,7 +2162,7 @@ def loop_poll(
     global RESULT_STACK
     while True:
         try:
-            poll(capture_ident=capture_ident, dummy=dummy)
+            poll(capture_ident=capture_ident, dummy=dummy, ports=ports, routes=routes)
         except Exception as e:
             print(f"{type(e)}: {e}")
             time.sleep(period * 10)
@@ -2183,7 +2184,7 @@ def loop_poll_no_capture(
     global RESULT_STACK
     while True:
         try:
-            poll_no_capture(capture_ident=capture_ident, dummy=dummy)
+            poll_no_capture(capture_ident=capture_ident, dummy=dummy, ports=ports, routes=routes)
         except Exception as e:
             print(f"{type(e)}: {e}")
             time.sleep(period * 10)

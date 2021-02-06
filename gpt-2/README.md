@@ -3,7 +3,7 @@ The code in this directory is a lightly modified version of nsheppard's finetuni
 I didn't keep a real git history during much of my early hacking away at it, so it's just here as a bunch of files.  It branched off from nsheppard's fork sometime in 2019 (?), so the two have probably diverged quite a bit.  The changes I have made include:
 
 - **Sampling**
-  - option to use "middle-p" sampling or the (Mirostat)[https://arxiv.org/abs/2007.14966] sampling algorithm (the latter is currently used by the bot)
+  - option to use "middle-p" sampling or the [Mirostat](https://arxiv.org/abs/2007.14966) sampling algorithm (the latter is currently used by the bot)
   - optionally printing progress during generation
   - stop generation when all members of batch contain the `<|endoftext|>` separator (or when they contain 2 such tokens, if we are beginning our prompt with one)
 - **Modeling**
@@ -16,4 +16,4 @@ I didn't keep a real git history during much of my early hacking away at it, so 
     - Batches are sampled reproducibly
     - Optimizer state is checkpointed alongside model state
   - Gradient accumulation
-  - Measures the (gradient noise scale)[https://arxiv.org/abs/1812.06162] during training
+  - Measures the [gradient noise scale](https://arxiv.org/abs/1812.06162) during training

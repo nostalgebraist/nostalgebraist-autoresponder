@@ -21,7 +21,7 @@ class BotSpecificConstants:
         bridge_service_host: str,
         bridge_service_port: int,
         BUCKET_NAME: str,
-        BRIDGE_SERVICE_REMOTE_URL: str,
+        BRIDGE_SERVICE_REMOTE_HOST: str,
         NO_REBLOG_IDS: Set[int] = set(),
         DEF_REBLOG_IDS: Set[int] = set(),
         FORCE_TRAIL_HACK_IDS: Set[int] = set(),
@@ -69,7 +69,7 @@ class BotSpecificConstants:
         self.BUCKET_NAME = BUCKET_NAME
 
         # todo: document
-        self.BRIDGE_SERVICE_REMOTE_URL = BRIDGE_SERVICE_REMOTE_URL
+        self.BRIDGE_SERVICE_REMOTE_HOST = BRIDGE_SERVICE_REMOTE_HOST
 
         # don't interact or mention these users
         self.USER_AVOID_LIST = USER_AVOID_LIST

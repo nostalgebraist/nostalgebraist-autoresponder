@@ -11,8 +11,9 @@ class LogExceptionAndSkip:
         return None
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        print(f"Encountered the following while trying to {self.name}:")
-        traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stderr)
-        if self.cleanup_fn is not None:
-            self.cleanup_fn()
+        if exc_type is not None:
+            print(f"Encountered the following while trying to {self.name}:")
+            traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stderr)
+            if self.cleanup_fn is not None:
+                self.cleanup_fn()
         return True

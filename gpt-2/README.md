@@ -1,7 +1,13 @@
-The code in this directory is a lightly modified version of nsheppard's finetuning fork of OpenAI's gpt-2 repo.
+The code in this directory is essentially my own fork of nsheppard's finetuning fork of OpenAI's gpt-2 repo.  (Got that?)
 
-I didn't keep a real git history during much of my early hacking away at it, so it's just here as a bunch of files.  It branched off from nsheppard's fork sometime in 2019 (?), so the two have probably diverged quite a bit.  The changes I have made include:
+I didn't keep a real git history during much of my early hacking away at it, so it's just here as a bunch of files.
 
+It branched off from nsheppard's fork sometime in 2019 (?), and the two have diverged quite a bit.  (It has also diverged from OpenAI's gpt-2 repo, which was modified after nsheppard's fork split off.)
+
+The changes I have made include:
+
+- **Encoding**
+  - parse the string `"<|endoftext|>"` to GPT-2's `<|endoftext|>` separator token
 - **Sampling**
   - option to use "middle-p" sampling or the [Mirostat](https://arxiv.org/abs/2007.14966) sampling algorithm (the latter is currently used by the bot)
   - optionally printing progress during generation

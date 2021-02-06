@@ -2109,7 +2109,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 state = "draft"
             private_client.create_photo(
                 blogName,
-                state="state",
+                state=state,
                 data=path,
                 caption=MOOD_GRAPH_EXPLAINER_STRING.format(
                     days_string=MOOD_GRAPH_DAYS_STRING,

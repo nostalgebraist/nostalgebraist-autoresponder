@@ -165,8 +165,8 @@ except Exception as e:
 
 RTS_COMMAND = "rts"
 
-GLOBAL_TESTING_FLAG = True
-BEAMSPLIT_TESTING_FLAG = True
+GLOBAL_TESTING_FLAG = False
+BEAMSPLIT_TESTING_FLAG = False
 
 
 def roll_for_limited_users(name, text=""):

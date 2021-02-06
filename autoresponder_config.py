@@ -58,27 +58,28 @@ else:
 
 if V10:
     model_name = "autoresponder_v10"
+    model_path = os.path.join(model_name, "model-135.hdf5")
 
-    dataset = "data/ALL_data_v10_nost_tuning.npz"
+    dataset = "data/v10/ALL_data_v10_nost_tuning.npz"
     ckpt_select = "selector/v10/v6/.hdf5"
     ckpt_sentiment = "sentiment/v10/v1/.hdf5"
 
     TRUNCATE_AT_RIGHT = False
     SELECTOR_EOT_PREPEND = True
 
+    gs_command_get_dataset = f"gsutil -m cp gs://{BUCKET_NAME}/data/v10/ALL_data_v10_nost_tuning.npz /data/v10/"
+
+    gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/encoder.json /models/autoresponder_v10/"
+    gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/autoresponder_v10/"
+
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/model-135.hdf5 /models/autoresponder_v10/"
+
     gs_command_get_selector = (
         f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/* /selector/v10/"
     )
-    gs_command_get_selector_metadata = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/metadata.json /selector/v10/metadata.json"
-    )
-    gs_command_get_sentiment = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
-    )
-    gs_command_get_sentiment_metadata = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/metadata.json /sentiment/v10/metadata.json"
-    )
+    gs_command_get_selector_metadata = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/metadata.json /selector/v10/metadata.json"
+    gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
+    gs_command_get_sentiment_metadata = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/metadata.json /sentiment/v10/metadata.json"
 
 elif V9_1R4:
     model_name = "autoresponder_v9_v1_1558M_nost_tuning4"
@@ -259,6 +260,7 @@ else:
     length_sentiment = 204
     norm_final_output_sentiment = True
     n_head_sentiment = 25
+
 
 def _gpu_type():
     try:

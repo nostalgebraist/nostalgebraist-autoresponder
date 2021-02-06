@@ -40,17 +40,11 @@ from autoresponder_static_v8 import *
 drivedir = "/content/drive/MyDrive/gpt-2/"
 os.chdir("/")
 
-enc = encoder.get_encoder(model_name, eot_workaround=EOT_WORKAROUND)
-hparams = model.default_hparams()
-
-with open(os.path.join("models", model_name, "hparams.json")) as f:
-    hparams.override_from_dict(json.load(f))
+hparams = model.hparams_1558M()
 
 hparams.set_hparam("attn_dropout", 0)
 hparams.set_hparam("res_dropout", 0)
 
-chunks = load_dataset(enc, dataset, 50000)
-data_sampler = Sampler(chunks)
 start_token = None
 
 if V10:
@@ -62,6 +56,66 @@ if FORUMLIKE:
     ORIG_POST_CHAR = CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
 else:
     ORIG_POST_CHAR = ORIG_POST_CHAR_CHINESE
+
+
+def load_from_gdrive_with_gs_fallback(
+    load_fn, relative_path, gs_command,
+    retries=False, **kwargs
+):
+    local_gdrive_path = os.path.join(drivedir, relative_path)
+    local_gs_path = os.path.join("/", relative_path)
+    print(f"local_gdrive_path: {local_gdrive_path}")
+    print(f"local_gs_path: {local_gs_path}")
+
+    try:
+        print(f"trying to load from {local_gdrive_path}...")
+        return load_fn(path=local_gdrive_path, retries=False, **kwargs)
+    except (OSError, FileNotFoundError, KeyError):
+        print(f"falling back to {local_gs_path}...")
+
+        enclosing_dir = local_gs_path.rpartition("/")[0]
+        os.makedirs(enclosing_dir, exist_ok=True)
+
+        enclosing_dir_exists = os.path.exists(enclosing_dir)
+        target_exists = os.path.exists(local_gs_path)
+
+        print(f"enclosing dir {enclosing_dir} exists?: {enclosing_dir_exists}")
+        print(f"target {local_gs_path} exists?: {target_exists}")
+
+        if not target_exists:
+            print(f"downlading from gs...")
+            subprocess.check_output(gs_command, shell=True)
+        try:
+            return load_fn(path=local_gs_path, retries=retries, **kwargs)
+        except:
+            print(f"downlading from gs...")
+            subprocess.check_output(gs_command, shell=True)
+            return load_fn(path=local_gs_path, retries=retries, **kwargs)
+
+
+def load_encoder_only(path, retries=False):  # ignored
+    enc = encoder.get_encoder_from_path(path, eot_workaround=EOT_WORKAROUND)
+    return enc
+
+
+def load_data_sampler(path, retries=False):  # ignored
+    chunks = load_dataset(enc, path, 50000)
+    data_sampler = Sampler(chunks)
+    return data_sampler
+
+
+enc = load_from_gdrive_with_gs_fallback(
+    load_fn=load_encoder_only,
+    relative_path=os.path.join("models", model_name),
+    gs_command=gs_command_get_encoder,
+)
+
+
+data_sampler = load_from_gdrive_with_gs_fallback(
+    load_fn=load_data_sampler,
+    relative_path=dataset,
+    gs_command=gs_command_get_dataset,
+)
 
 
 def make_session(reset=True):
@@ -165,42 +219,9 @@ def make_session(reset=True):
 ) = make_session()
 
 
-def load_from_gdrive_with_gs_fallback(
-    load_fn, relative_path, gs_command, retries=False, **kwargs
-):
-    local_gdrive_path = os.path.join(drivedir, relative_path)
-    local_gs_path = os.path.join("/", relative_path)
-    print(f"local_gdrive_path: {local_gdrive_path}")
-    print(f"local_gs_path: {local_gs_path}")
-
-    try:
-        print(f"trying to load from {local_gdrive_path}...")
-        return load_fn(path=local_gdrive_path, retries=False, **kwargs)
-    except (OSError, FileNotFoundError, KeyError):
-        print(f"falling back to {local_gs_path}...")
-
-        enclosing_dir = local_gs_path.rpartition("/")[0]
-        os.makedirs(enclosing_dir, exist_ok=True)
-
-        enclosing_dir_exists = os.path.exists(enclosing_dir)
-        target_exists = os.path.exists(local_gs_path)
-
-        print(f"enclosing dir {enclosing_dir} exists?: {enclosing_dir_exists}")
-        print(f"target {local_gs_path} exists?: {target_exists}")
-
-        if not target_exists:
-            print(f"downlading from gs...")
-            subprocess.check_output(gs_command, shell=True)
-        try:
-            return load_fn(path=local_gs_path, retries=retries, **kwargs)
-        except:
-            print(f"downlading from gs...")
-            subprocess.check_output(gs_command, shell=True)
-            return load_fn(path=local_gs_path, retries=retries, **kwargs)
-
-
 def load_ckpt_with_retries(path, session, retries=True):
-    ckpt = tflex.latest_checkpoint(path)
+    enclosing_dir = path.rpartition("/")[0]
+    ckpt = tflex.latest_checkpoint(enclosing_dir)
     if ckpt is None:
         raise FileNotFoundError
     saver = tflex.Saver()
@@ -221,7 +242,7 @@ def load_ckpt_with_retries(path, session, retries=True):
 
 load_from_gdrive_with_gs_fallback(
     load_fn=load_ckpt_with_retries,
-    relative_path=os.path.join("models", model_name),
+    relative_path=os.path.join("models", model_path),
     gs_command=gs_command_get_model,
     session=sess,
 )
@@ -546,13 +567,11 @@ def parse_continuation(continuation: str, verbose=True, wrap=False):
 
 
 def get_prompt_from_dataset(dataset):
+    # TODO: deprecate this, it's no longer used for
+    # anything non-trivial
     overrides = {}
 
     global data_sampler
-    if data_sampler is None:
-        print("getting data sampler...")
-        chunks = load_dataset(enc, dataset, 50000)
-        data_sampler = Sampler(chunks)
 
     segment = "会"
     segments = []
@@ -1225,7 +1244,9 @@ def selector(
 
     return results
 
+
 batch_size_for_h = batch_size
+
 
 def load_variables_with_retries(
     path, var_list, session, multi_calib=False, retries=True
@@ -1260,9 +1281,7 @@ def load_variables_with_retries(
     return lr_calib_resp, lr_calib_orig
 
 
-def load_selector_metadata(path,
-                           retries=False  # ignored
-                           ):
+def load_selector_metadata(path, retries=False):  # ignored
     with open(path, "r") as f:
         selector_metadata = json.load(f)
     return selector_metadata

@@ -59,8 +59,7 @@ else:
 
 
 def load_from_gdrive_with_gs_fallback(
-    load_fn, relative_path, gs_command,
-    retries=False, **kwargs
+    load_fn, relative_path, gs_command, retries=False, **kwargs
 ):
     local_gdrive_path = os.path.join(drivedir, relative_path)
     local_gs_path = os.path.join("/", relative_path)
@@ -1966,15 +1965,125 @@ def serve_raw_select(data):
     return results
 
 
-def poll(capture_ident=None, dummy=False):
+# TODO: DRY
+def poll(
+    capture_ident=None,
+    dummy=False,
+    ports=[
+        bridge_service_port,
+    ],
+    routes=[
+        "pollgenerator",
+    ],
+):
     with capture_output(True, True, False) as cap:
         global RESULT_STACK
         global model_name
         if model_name == "1558M":
             raise ValueError("don't use base gpt2 for AR, rob...")
 
+        for port, route in zip(ports, routes):
+            r = requests.post(
+                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/pollgenerator",
+                json={"results": RESULT_STACK if not dummy else {}},
+            )
+
+            PROMPT_STACK = r.json()
+
+            if (port, route) == (ports[0], routes[0]):
+                RESULT_STACK = {
+                    k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK
+                }  # clean out already used results
+
+            # print(f"got prompt stack: {PROMPT_STACK}")
+
+            for prompt_id, data in PROMPT_STACK.items():
+                print("generating...")
+                if data["type"] == "answer":
+                    RESULT_STACK[prompt_id] = serve_answer(data)
+                elif data["type"] == "textpost":
+                    RESULT_STACK[prompt_id] = serve_textpost(data)
+                elif data["type"] == "raw_select":
+                    RESULT_STACK[prompt_id] = serve_raw_select(data)
+
+                sampling_info = {
+                    "MIRO": MIRO,
+                    "MIRO_LR": MIRO_LR,
+                    "MIRO_ONLY_ON_CONTINUE": MIRO_ONLY_ON_CONTINUE,
+                    "length": length,
+                    "T": temperature,
+                    "p": top_p,
+                    "chop_lowest": chop_lowest,
+                    "chop_highest": chop_highest,
+                    "pre_continue_length": pre_continue_length,
+                    "pre_continue_T": pre_continue_temperature,
+                    "pre_continue_p": pre_continue_top_p,
+                }
+
+                model_info = {
+                    "model_name": model_name,
+                    "ckpt_select": ckpt_select,
+                    "ckpt_sentiment": ckpt_sentiment,
+                    "hparams_select": {
+                        k: v
+                        for k, v in hparams_select.values().items()
+                        if k not in {"dtype", "adapt_layers"}
+                    },
+                    "hparams_select_sentiment": {
+                        k: v
+                        for k, v in hparams_select_sentiment.values().items()
+                        if k not in {"dtype", "adapt_layers"}
+                    },
+                    "sampling_info": sampling_info,
+                }
+                RESULT_STACK[prompt_id]["model_info"] = model_info
+
+            # print("done generating for this poll")
+
+            if len(PROMPT_STACK) > 0:
+                r = requests.post(
+                    f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/pollgenerator",
+                    json={"results": RESULT_STACK if not dummy else {}},
+                )
+                time.sleep(1)
+
+                if capture_ident is not None:
+                    capture_stdout_fn = f"AR_logs/{capture_ident}.txt"
+                    with open(
+                        os.path.join(drivedir, capture_stdout_fn), "a", encoding="utf-8"
+                    ) as f:
+                        f.write(cap.stdout)
+                    if len(cap.stderr) > 0:
+                        capture_stderr_fn = f"AR_logs/{capture_ident}_stderr.txt"
+                        with open(
+                            os.path.join(drivedir, capture_stderr_fn),
+                            "a",
+                            encoding="utf-8",
+                        ) as f:
+                            f.write(cap.stderr)
+    if capture_ident is not None:
+        print(cap.stdout, end="")
+        print(cap.stderr, end="")
+
+
+def poll_no_capture(
+    capture_ident=None,
+    dummy=False,
+    ports=[
+        bridge_service_port,
+    ],
+    routes=[
+        "pollgenerator",
+    ],
+):
+    global RESULT_STACK
+    global model_name
+    if model_name == "1558M":
+        raise ValueError("don't use base gpt2 for AR, rob...")
+
+    for port, route in zip(ports, routes):
         r = requests.post(
-            f"{BRIDGE_SERVICE_REMOTE_URL}/pollgenerator",
+            f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/pollgenerator",
             json={"results": RESULT_STACK if not dummy else {}},
         )
 
@@ -2031,99 +2140,23 @@ def poll(capture_ident=None, dummy=False):
 
         if len(PROMPT_STACK) > 0:
             r = requests.post(
-                f"{BRIDGE_SERVICE_REMOTE_URL}/pollgenerator",
+                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/pollgenerator",
                 json={"results": RESULT_STACK if not dummy else {}},
             )
             time.sleep(1)
 
-            if capture_ident is not None:
-                capture_stdout_fn = f"AR_logs/{capture_ident}.txt"
-                with open(
-                    os.path.join(drivedir, capture_stdout_fn), "a", encoding="utf-8"
-                ) as f:
-                    f.write(cap.stdout)
-                if len(cap.stderr) > 0:
-                    capture_stderr_fn = f"AR_logs/{capture_ident}_stderr.txt"
-                    with open(
-                        os.path.join(drivedir, capture_stderr_fn), "a", encoding="utf-8"
-                    ) as f:
-                        f.write(cap.stderr)
-    if capture_ident is not None:
-        print(cap.stdout, end="")
-        print(cap.stderr, end="")
 
-
-def poll_no_capture(capture_ident=None, dummy=False):
-    global RESULT_STACK
-    global model_name
-    if model_name == "1558M":
-        raise ValueError("don't use base gpt2 for AR, rob...")
-
-    r = requests.post(
-        f"{BRIDGE_SERVICE_REMOTE_URL}/pollgenerator",
-        json={"results": RESULT_STACK if not dummy else {}},
-    )
-
-    PROMPT_STACK = r.json()
-
-    RESULT_STACK = {
-        k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK
-    }  # clean out already used results
-
-    # print(f"got prompt stack: {PROMPT_STACK}")
-
-    for prompt_id, data in PROMPT_STACK.items():
-        print("generating...")
-        if data["type"] == "answer":
-            RESULT_STACK[prompt_id] = serve_answer(data)
-        elif data["type"] == "textpost":
-            RESULT_STACK[prompt_id] = serve_textpost(data)
-        elif data["type"] == "raw_select":
-            RESULT_STACK[prompt_id] = serve_raw_select(data)
-
-        sampling_info = {
-            "MIRO": MIRO,
-            "MIRO_LR": MIRO_LR,
-            "MIRO_ONLY_ON_CONTINUE": MIRO_ONLY_ON_CONTINUE,
-            "length": length,
-            "T": temperature,
-            "p": top_p,
-            "chop_lowest": chop_lowest,
-            "chop_highest": chop_highest,
-            "pre_continue_length": pre_continue_length,
-            "pre_continue_T": pre_continue_temperature,
-            "pre_continue_p": pre_continue_top_p,
-        }
-
-        model_info = {
-            "model_name": model_name,
-            "ckpt_select": ckpt_select,
-            "ckpt_sentiment": ckpt_sentiment,
-            "hparams_select": {
-                k: v
-                for k, v in hparams_select.values().items()
-                if k not in {"dtype", "adapt_layers"}
-            },
-            "hparams_select_sentiment": {
-                k: v
-                for k, v in hparams_select_sentiment.values().items()
-                if k not in {"dtype", "adapt_layers"}
-            },
-            "sampling_info": sampling_info,
-        }
-        RESULT_STACK[prompt_id]["model_info"] = model_info
-
-    # print("done generating for this poll")
-
-    if len(PROMPT_STACK) > 0:
-        r = requests.post(
-            f"{BRIDGE_SERVICE_REMOTE_URL}/pollgenerator",
-            json={"results": RESULT_STACK if not dummy else {}},
-        )
-        time.sleep(1)
-
-
-def loop_poll(period=60, capture_ident=None, dummy=False):
+def loop_poll(
+    period=60,
+    capture_ident=None,
+    dummy=False,
+    ports=[
+        bridge_service_port,
+    ],
+    routes=[
+        "pollgenerator",
+    ],
+):
     global RESULT_STACK
     while True:
         try:
@@ -2135,7 +2168,17 @@ def loop_poll(period=60, capture_ident=None, dummy=False):
             time.sleep(period)
 
 
-def loop_poll_no_capture(period=60, capture_ident=None, dummy=False):
+def loop_poll_no_capture(
+    period=60,
+    capture_ident=None,
+    dummy=False,
+    ports=[
+        bridge_service_port,
+    ],
+    routes=[
+        "pollgenerator",
+    ],
+):
     global RESULT_STACK
     while True:
         try:

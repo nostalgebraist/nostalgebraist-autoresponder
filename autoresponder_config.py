@@ -18,7 +18,8 @@ V10 = True
 
 bot_specific_constants = BotSpecificConstants.load()
 BUCKET_NAME = bot_specific_constants.BUCKET_NAME
-BRIDGE_SERVICE_REMOTE_URL = bot_specific_constants.BRIDGE_SERVICE_REMOTE_URL
+BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
+bridge_service_port = bot_specific_constants.bridge_service_port
 
 startdir = os.getcwd()
 os.chdir("/")

@@ -36,7 +36,7 @@ In what follows, struck-through text indicates that a file is not up to date and
 
 All files I need to *continuously run* the bot are currently up to date.  Files for model training, which is done "offline" separately from the bot's continuous operation, are generally not up to date.
 
-Code in struck-through files is not compatible with the rest of the repo, and trying to read it will confuse you.
+Code in struck-through files is not compatible with the rest of the repo, and trying to read it will confuse you.  Struck-through files are now in the `old/` directory separate from other source files.
 
 #### Running the bot (continuous)
 

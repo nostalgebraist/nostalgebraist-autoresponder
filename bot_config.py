@@ -22,7 +22,6 @@ class BotSpecificConstants:
         bridge_service_port: int,
         BRIDGE_SERVICE_REMOTE_HOST: str,
         BUCKET_NAME: str,
-        gcloud_project_id: str,
         NO_REBLOG_IDS: Set[int] = set(),
         DEF_REBLOG_IDS: Set[int] = set(),
         FORCE_TRAIL_HACK_IDS: Set[int] = set(),
@@ -71,9 +70,6 @@ class BotSpecificConstants:
 
         # name of Google Cloud Storage bucket used to store models and data
         self.BUCKET_NAME = BUCKET_NAME
-
-        # name of Google Cloud project, for authenticating to GCS
-        self.gcloud_project_id = gcloud_project_id
 
         # host name of the bridge service used in ML code
         # if the ML code is running remotely, this will differ from `bridge_service_host`

@@ -63,7 +63,7 @@ if V10:
     model_path = os.path.join("models", model_name, "model-135.hdf5")
 
     dataset = "data/v10/ALL_data_v10_nost_tuning.npz"
-    ckpt_select = "selector/v10/v6/.hdf5"
+    ckpt_select = "selector/v10/v7/.hdf5"
     ckpt_sentiment = "sentiment/v10/v1/.hdf5"
 
     TRUNCATE_AT_RIGHT = False
@@ -79,7 +79,7 @@ if V10:
     gs_command_get_selector = (
         f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/* /selector/v10/"
     )
-    gs_command_get_selector_metadata = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/v6/metadata.json /selector/v10/v6/metadata.json"
+    gs_command_get_selector_metadata = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/v7/metadata.json /selector/v10/v7/metadata.json"
     gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
     gs_command_get_sentiment_metadata = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/v1/metadata.json /sentiment/v10/v1/metadata.json"
 

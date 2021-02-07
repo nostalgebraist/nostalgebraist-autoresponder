@@ -45,7 +45,7 @@ When running and communicating with tumblr, the bot consists of the following pr
 1. tumblr API layer
     - script `tumbl.py`
 2.  machine learning layer
-    - ~~something like the notebook `generator.ipynb`~~
+    - `autoresponder_wrapper.ipynb` (a lightweight wrapper around `autoresponder.py`)
     - ...if supplied with a GPU, an appropriately fine-tuned GPT-2, a dataset to get textpost prompts from, etc.
 3. switchboard layer
     - script `bridge_service.py`
@@ -97,7 +97,7 @@ Training code for the sentiment model will appear in this repo when I move up-to
   - `tumbl.py`
   - `bridge_service.py`
   - `selector.py`
-  - ~~`generator.ipynb`~~
+  - `autoresponder_wrapper.ipynb`
 - Core helper code used by the scripts
   - `bot_config.py` (loader for string constants like API keys, "bad words" to screen for, etc)
   - `bridge_shared.py` (helpers for clients of the switchboard layer)
@@ -109,7 +109,7 @@ Training code for the sentiment model will appear in this repo when I move up-to
     - `munging_shared.py` (utility code wrapping `reblogs_v5.py` and providing other functionality needed at the interface with the tumblr API)
     - `autoresponder_static.py` and `autoresponder_static_v8.py` (conversion between the old structured text format produced by `reblogs_v5.py` and newer structured formats used by the generator)
   - ML code that operates on formatted text:
-    - `autoresponder.py` (machine learning layer; ML models run in a notebook which is a lightweight wrapper around this file)
+    - `autoresponder.py` (machine learning layer; ML models run in a notebook `autoresponder_wrapper.ipynb` which is a lightweight wrapper around this file)
     - `autoresponder_config.py` (config file for machine learning layer)
     - `side_judgments.py` (abstraction layer around the selector and sentiment layers, used to construct calls to these ML models and cache responses)
 - Helper code for specific, less central features
@@ -136,6 +136,6 @@ Note that all the Jupyter notebooks assume you are running them in Google Colab,
 1. A mounted Google Drive at `/content/drive/MyDrive/` with e.g. models in `/content/drive/MyDrive/models/`
 2. A Google Cloud Storage bucket specified as `BUCKET_NAME` in `config.json`
 
-If (1) fails, as it does frequently due to Google Drive limits and flakiness, the code falls back to (2).  We try (1) first under the assumption that GCS transfer is slower than Google Drive transfer. 
+If (1) fails, as it does frequently due to Google Drive limits and flakiness, the code falls back to (2).  We try (1) first under the assumption that GCS transfer is slower than Google Drive transfer.
 
 These notebooks can be run in other types of environments with some straightforward modifications.

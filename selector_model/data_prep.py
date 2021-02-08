@@ -206,7 +206,7 @@ def fill_in_selector_training_data(ids_to_loaded_data, include_reblogs=False):
 
         ids_to_selector_training_data_rows[id_] = new_row
 
-        return ids_to_selector_training_data_rows
+    return ids_to_selector_training_data_rows
 
 
 def selector_data_prep_pipeline(

@@ -1,3 +1,5 @@
+import os
+import json
 import sys
 
 sys.path.append("gpt-2/src/")
@@ -18,6 +20,7 @@ import scipy.special
 import scipy.stats
 
 from tensorflow.contrib.opt import AdamWOptimizer
+from tensorflow.contrib.training import HParams
 import tflex_sgdr
 from model import model as model_fn
 from accumulate import GradientAccumulator
@@ -96,7 +99,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         grad_clip=1000,
         base_hparams=hparams,
         enc=enc,
-        selection_tok=SELECTION_TOK,
+        selection_tok=SELECTION_TOK,  # TODO: specify SELECTION_TOK
         length=825,
         persist_variables=True,
         cleanup_on_exception=True,
@@ -104,7 +107,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         supervise_logits=False,
         supervise_only_logit_diff=False,
         calibrate=False,
-        calibration_val_size=0.15,
+        calibration_val_size=0.1,
         calibration_split_type="ttsp",
         calibrate_prefixes_separately=False,
         calibrate_logits_separately=False,
@@ -799,7 +802,11 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             extra_postfixes["ntok"] = batch_max_tokens
 
             step_iter.set_postfix(
-                loss=batch_loss, loss_avg=running_loss, lr=cur_lr, refresh=False, **extra_postfixes
+                loss=batch_loss,
+                loss_avg=running_loss,
+                lr=cur_lr,
+                refresh=False,
+                **extra_postfixes,
             )
             row_ix += self.batch_size
             self.global_step_.load(current_step + 1, session=self.session_)
@@ -1111,3 +1118,24 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             self.session_.close()
         else:
             print("cleanup: no-op (self.persist_variables is on)")
+
+    def _make_constructor_args(self):
+        # TODO: create mixin for this
+        sig = inspect.signature(self.__class__.__init__)
+        args = {k: getattr(self, k) for k in sig.parameters.keys() if hasattr(self, k)}
+        return args
+
+    def save(self, path: str):
+        no_save_args = {"enc", "base_hparams"}
+
+        metadata = {
+            "constructor_args": {
+                name: value
+                for name, value in self._make_constructor_args().items()
+                if name not in no_save_args
+            },
+            "uid_": self.uid_,
+        }
+
+        with open(os.path.join(path, "metadata.json"), "w") as f:
+            json.dump(metadata, f, indent=1)

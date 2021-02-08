@@ -19,6 +19,7 @@ from sklearn.metrics import (
 import scipy.special
 import scipy.stats
 
+import tensorflow as tf
 from tensorflow.contrib.opt import AdamWOptimizer
 from tensorflow.contrib.training import HParams
 import tflex
@@ -70,6 +71,34 @@ def make_textpost_scorer(metric, needs_proba=False):
         return metric(y_true, y_pred)
 
     return _textpost_scorer
+
+
+def initialize_uninitialized(sess, print_names=True):
+    global_vars = tf.global_variables()
+    is_not_initialized = sess.run(
+        [tf.is_variable_initialized(var) for var in global_vars]
+    )
+
+    not_initialized_vars = [
+        v for (v, f) in zip(global_vars, is_not_initialized) if not f
+    ]
+
+    if print_names:
+        for i in not_initialized_vars:
+            print(i)
+
+    if len(not_initialized_vars):
+        sess.run(tf.variables_initializer(not_initialized_vars))
+
+
+def re_initialize(sess, var_names):
+    sess.run(tf.variables_initializer(var_names))
+
+
+def re_initialize_verbose(sess, var_names):
+    for var_name in var_names:
+        print(var_name)
+        sess.run(tf.variables_initializer([var_name]))
 
 
 class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
@@ -1174,15 +1203,15 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             pickle.dump(self.lr_calib_orig_, f)
 
     @staticmethod
-    def load(path, session, base_hparams, enc) -> 'SelectorEstimatorFromCkpt':
+    def load(path, session, base_hparams, enc) -> "SelectorEstimatorFromCkpt":
         with open(os.path.join(path, "metadata.json"), "r") as f:
             metadata = json.load(f)
 
-        constructor_args = metadata['constructor_args']
-        constructor_args['base_hparams'] = base_hparams
-        constructor_args['enc'] = enc
-        constructor_args['session_override'] = session
-        constructor_args['uid_override'] = metadata['uid']
+        constructor_args = metadata["constructor_args"]
+        constructor_args["base_hparams"] = base_hparams
+        constructor_args["enc"] = enc
+        constructor_args["session_override"] = session
+        constructor_args["uid_override"] = metadata["uid"]
 
         est = SelectorEstimatorFromCkpt(**constructor_args)
         est._setup(training=False)

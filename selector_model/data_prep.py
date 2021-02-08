@@ -1,0 +1,263 @@
+import os
+import time
+import re
+import argparse
+import pickle
+from collections import Counter, defaultdict
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from tqdm.autonotebook import tqdm
+
+from bs4 import BeautifulSoup
+
+from image_analysis import ImageAnalysisCache
+from reblogs_v5 import *
+from autoresponder_static_v8 import *
+from munging_shared import *
+
+tqdm.pandas()
+
+
+# TODO: get rid of this once all images are analyzed
+def cached_image_analysis_fn(elem, image_formatter=V9_IMAGE_FORMATTER, image_analysis_cache=None, verbose=False):
+    url_attr = "href" if elem.name == "a" else "src"
+
+    if elem.attrs.get(url_attr) is None:
+        return None
+
+    if elem.attrs.get(url_attr) in image_analysis_cache.cache:
+        return IMAGE_ANALYSIS_FN(elem, image_formatter=image_formatter, image_analysis_cache=image_analysis_cache,
+                                verbose=verbose)
+    return ''
+
+
+def fix_p_in_h2_bug(raw_html):
+    return re.sub(
+        r"(<h2>.*)<p>(.*)</p>(.*</h2>)", lambda m: "".join(m.groups()), raw_html
+    )
+
+
+def get_all_posts(
+    posts_dir,
+    image_analysis_cache,
+    cached_images_only=False,
+    return_metadata_per_post=True,
+):
+    posts = []
+    post_fns = []
+    image_urls = set()
+    reply_urls_to_fns = defaultdict(set)
+    metadata_per_post = {}
+
+    all_fns = os.listdir(posts_dir)
+
+    for ix, fn in enumerate(
+        tqdm(
+            sorted(all_fns),
+            mininterval=1,
+            miniters=1,
+            smoothing=0,
+        )
+    ):
+        if not fn.endswith(".html"):
+            continue
+
+        with open(os.path.join(posts_dir, fn), "r") as f:
+            raw_html = f.read()
+            fixed_html = fix_p_in_h2_bug(raw_html)
+            soup = BeautifulSoup(fixed_html)
+
+        user_defined_image_analysis = cached_image_analysis_fn if cached_images_only else IMAGE_ANALYSIS_FN
+
+        processed, post_metadata = process_post(
+            soup,
+            uname_config="frank_v10_operate",
+            get_image_urls=True,
+            image_analysis_cache=image_analysis_cache,
+            user_defined_image_analysis=user_defined_image_analysis,
+            V10=True,
+            debug=False,
+        )
+
+        metadata_per_post[fn] = post_metadata
+        image_urls.update(post_metadata["image_urls"])
+
+        posts.append(processed)
+        post_fns.append(fn)
+
+        if post_metadata["reply_post_url"] is not None:
+            reply_urls_to_fns[post_metadata["reply_post_url"]].add(fn)
+
+    return (
+        posts,
+        post_fns,
+        image_urls,
+        reply_urls_to_fns,
+        metadata_per_post,
+    )
+
+
+def _autoresponse_to_prompt_and_continuation(processed):
+    prompt = processed[::-1][processed[::-1].index(A_CHAR) :][::-1]
+    continuation = processed[::-1][: processed[::-1].index(A_CHAR)][::-1]
+    return prompt, continuation
+
+
+def get_prompt_and_continuation_from_processed(processed: str):
+    if A_CHAR in processed:
+        prompt, continuation = _autoresponse_to_prompt_and_continuation(processed)
+    elif ORIG_POST_CHAR in processed:
+        prompt = ORIG_POST_CHAR
+        continuation = processed[processed.index(ORIG_POST_CHAR) + 1 :]
+    else:
+        raise ValueError(f"don't know how to deal with post")
+
+    if "<|endoftext|>" in continuation:
+        continuation = continuation[: continuation.index("<|endoftext|>") + 2]
+
+    if UNAME_CHAR in continuation:
+        raise ValueError("bad parse")
+
+    return prompt, continuation
+
+
+def load_scraped_bot_posts(posts_dir, image_analysis_cache, cached_images_only=False):
+    (
+        posts,
+        post_fns,
+        image_urls,
+        reply_urls_to_fns,
+        metadata_per_post,
+    ) = get_all_posts(
+        posts_dir=posts_dir,
+        image_analysis_cache=image_analysis_cache,
+        cached_images_only=cached_images_only,
+        return_metadata_per_post=True,
+    )
+
+    post_ids = [int(fn[: -len(".html")]) for fn in post_fns]
+
+    ids_to_posts = {pid: post for pid, post in zip(post_ids, posts)}
+
+    ids_to_timestamps = {
+        pid: get_ts_from_fn(os.path.join(posts_dir, fn))
+        for pid, fn in zip(post_ids, post_fns)
+    }
+
+    ids_to_metas = {
+        int(fn[: -len(".html")]): meta for fn, meta in metadata_per_post.items()
+    }
+
+    ids_to_note_counts = {
+        pid: 0 if meta.get("note_count") is None else meta["note_count"]
+        for pid, meta in ids_to_metas.items()
+    }
+
+    ids_to_loaded_data = {
+        pid: {
+            "post": ids_to_posts.get(pid),
+            "timestamp": ids_to_timestamps.get(pid),
+            "meta": ids_to_metas.get(pid),
+            "note_count": ids_to_note_counts.get(pid),
+        }
+        for pid in post_ids
+    }
+    return ids_to_loaded_data
+
+
+def fill_in_selector_training_data(ids_to_loaded_data, include_reblogs=False):
+    ids_to_selector_training_data_rows = {}
+
+    for id_ in tqdm(
+        list(ids_to_loaded_data.keys()),
+        mininterval=1,
+        miniters=1,
+        smoothing=0,
+    ):
+        meta = ids_to_loaded_data[id_]["meta"]
+        is_reply = meta["reply_post_url"] is not None
+
+        if (not include_reblogs) and (meta["is_reblog"] and not is_reply):
+            continue
+
+        post = ids_to_loaded_data[id_]["post"]
+        try:
+            prompt, continuation = get_prompt_and_continuation_from_processed(post)
+        except Exception as e:
+            print(f"skipping {id_}: {e}")
+
+        note_count = ids_to_loaded_data[id_]["note_count"]
+        timestamp = ids_to_loaded_data[id_]["timestamp"]
+
+        new_row = {}
+        new_row["prompt"] = prompt
+        new_row["continuation"] = continuation
+        new_row["note_count"] = note_count
+        new_row["timestamp"] = timestamp
+        new_row["v8_timestamp"] = timestamp_to_v8_format(timestamp)
+        new_row["v10_timestamp"] = timestamp_to_v10_format(timestamp)
+        new_row["is_ask"] = meta["is_ask"]
+        new_row["is_orig"] = meta["is_orig"]
+        new_row["is_reblog"] = meta["is_reblog"] and not is_reply
+        new_row["is_reply"] = is_reply
+
+        ids_to_selector_training_data_rows[id_] = new_row
+
+        return ids_to_selector_training_data_rows
+
+
+def selector_data_prep_pipeline(
+    posts_dir,
+    save_path,
+    image_analysis_cache,
+    cached_images_only=False,
+    include_reblogs=False,
+    save_image_analysis_cache=False
+):
+    ids_to_loaded_data = load_scraped_bot_posts(posts_dir, image_analysis_cache, cached_images_only=cached_images_only)
+    ids_to_selector_training_data_rows = fill_in_selector_training_data(
+        ids_to_loaded_data, include_reblogs=include_reblogs
+    )
+    with open(save_path, "wb") as f:
+        pickle.dump(ids_to_selector_training_data_rows, f)
+
+    if save_image_analysis_cache:
+        image_analysis_cache.save()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--posts-dir", type=str, default="data/scraped_blog/posts/", required=False
+    )
+    parser.add_argument(
+        "--save-path",
+        type=str,
+        default="data/selector_training_data.pkl.gz",
+        required=False,
+    )
+    parser.add_argument(
+        "--include-reblogs", default=False, action="store_true", required=False
+    )
+    parser.add_argument(
+        "--cached-images-only", default=False, action="store_true", required=False
+    )
+    parser.add_argument(
+        "--save-image-analysis-cache", default=False, action="store_true", required=False
+    )
+
+    args = parser.parse_args()
+
+    image_analysis_cache = ImageAnalysisCache.load()
+
+    selector_data_prep_pipeline(
+        posts_dir=args.posts_dir,
+        save_path=args.save_path,
+        image_analysis_cache=image_analysis_cache,
+        cached_images_only=args.cached_images_only,
+        include_reblogs=args.include_reblogs,
+        save_image_analysis_cache=args.save_image_analysis_cache,
+    )

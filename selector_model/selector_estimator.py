@@ -21,6 +21,7 @@ import scipy.stats
 
 from tensorflow.contrib.opt import AdamWOptimizer
 from tensorflow.contrib.training import HParams
+import tflex
 import tflex_sgdr
 from model import model as model_fn
 from accumulate import GradientAccumulator
@@ -104,6 +105,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         persist_variables=True,
         cleanup_on_exception=True,
         session_override=None,
+        uid_override=None,
         supervise_logits=False,
         supervise_only_logit_diff=False,
         calibrate=False,
@@ -161,6 +163,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.persist_variables = persist_variables
         self.cleanup_on_exception = cleanup_on_exception
         self.session_override = session_override
+        self.uid_override = uid_override
 
         self.supervise_logits = supervise_logits
         self.supervise_only_logit_diff = supervise_only_logit_diff
@@ -266,11 +269,14 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             except Exception as e:
                 print(f"encountered {e}, retrying...")
 
-    def _setup(self, X, y):
+    def _setup(self, X, y, training=True):
         print("entering setup")
-        print(f"fitting this estimator:\n{repr(self)}\n")
+        print(f"estimator:\n{repr(self)}\n")
 
-        self.uid_ = datetime.now().strftime("%y-%m-%d-%H-%M-%S")
+        if self.uid_override is not None:
+            self.uid_ = self.uid_override
+        else:
+            self.uid_ = datetime.now().strftime("%y-%m-%d-%H-%M-%S")
 
         self.n_head_ = self.base_hparams.n_head if self.n_head is None else self.n_head
 
@@ -317,7 +323,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             additional_full_blocks=self.additional_full_blocks,
         )
 
-        print("loading ckpt")
         if self.session_override is not None:
             self.session_ = self.session_override
             self.context_for_h_ = self.session_.graph.get_tensor_by_name("context:0")
@@ -325,6 +330,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 "select_target:0"
             )
         else:
+            print("loading ckpt")
             self._load_ckpt()
 
         with self.session_.as_default():
@@ -469,6 +475,11 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 and "prompt_cont" not in var.name
                 and "scalar_mix" not in var.name
             ]
+
+            if not training:
+                # done
+                return None
+
             parameter_count = sum(
                 [np.prod(v.shape.as_list()) for v in self.train_vars_]
             )
@@ -991,6 +1002,9 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 "intercept": self.lr_calib_.intercept_,
             }
 
+            self.lr_calib_resp_ = self.lr_calib_
+            self.lr_calib_orig_ = self.lr_calib_
+
         with tqdm(
             list(range(0, 1)), smoothing=0.0, miniters=1, mininterval=1
         ) as fake_iter:
@@ -1008,7 +1022,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             self.X_train_, self.y_train_, self.X_val_, self.y_val_ = self._val_split(
                 X, y
             )
-            self._setup(self.X_train_, self.y_train_)
+            self._setup(self.X_train_, self.y_train_, training=True)
             for epoch_ix in tqdm(list(range(self.epochs))):
                 self._epoch(self.X_train_, self.y_train_, avg_loss_beta=avg_loss_beta)
 
@@ -1126,7 +1140,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         return args
 
     def save(self, path: str):
-        no_save_args = {"enc", "base_hparams"}
+        no_save_args = {"enc", "base_hparams", "session_override", "uid_override"}
 
         metadata = {
             "constructor_args": {
@@ -1134,8 +1148,50 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 for name, value in self._make_constructor_args().items()
                 if name not in no_save_args
             },
-            "uid_": self.uid_,
+            "uid": self.uid_,
         }
 
         with open(os.path.join(path, "metadata.json"), "w") as f:
             json.dump(metadata, f, indent=1)
+
+        var_list = [
+            var for var in tf.trainable_variables() if self.select_scope_ in var.name
+        ]
+
+        saver_tflex = tflex.Saver(
+            var_list=var_list,
+            max_to_keep=20,
+            keep_checkpoint_every_n_hours=20,
+            reshape=False,
+        )
+        saver_tflex.save(self.session_, path)
+
+        with open(path + "lr_calib.pkl", "wb") as f:
+            pickle.dump(self.lr_calib_, f)
+        with open(path + "lr_calib_resp.pkl", "wb") as f:
+            pickle.dump(self.lr_calib_resp_, f)
+        with open(path + "lr_calib_orig.pkl", "wb") as f:
+            pickle.dump(self.lr_calib_orig_, f)
+
+    @staticmethod
+    def load(path, session, base_hparams, enc) -> 'SelectorEstimatorFromCkpt':
+        with open(os.path.join(path, "metadata.json"), "r") as f:
+            metadata = json.load(f)
+
+        constructor_args = metadata['constructor_args']
+        constructor_args['base_hparams'] = base_hparams
+        constructor_args['enc'] = enc
+        constructor_args['session_override'] = session
+        constructor_args['uid_override'] = metadata['uid']
+
+        est = SelectorEstimatorFromCkpt(**constructor_args)
+        est._setup(training=False)
+
+        with open(path + "lr_calib.pkl", "rb") as f:
+            est.lr_calib_ = pickle.load(f)
+        with open(path + "lr_calib_resp.pkl", "rb") as f:
+            est.lr_calib_resp_ = pickle.load(f)
+        with open(path + "lr_calib_orig.pkl", "rb") as f:
+            est.lr_calib_orig_ = pickle.load(f)
+
+        return est

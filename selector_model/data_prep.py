@@ -4,6 +4,7 @@ import re
 import argparse
 import pickle
 from collections import Counter, defaultdict
+from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -22,15 +23,32 @@ tqdm.pandas()
 
 
 # TODO: get rid of this once all images are analyzed
+CACHE_HITS = 0
+CACHE_MISSES = 0
+
+
 def cached_image_analysis_fn(
-    elem, image_formatter=V9_IMAGE_FORMATTER, image_analysis_cache=None, verbose=False
+    elem,
+    image_formatter=V9_IMAGE_FORMATTER,
+    image_analysis_cache=None,
+    cached_only=False,
+    verbose=False,
 ):
+    global CACHE_HITS
+    global CACHE_MISSES
     url_attr = "href" if elem.name == "a" else "src"
 
     if elem.attrs.get(url_attr) is None:
         return None
 
-    if elem.attrs.get(url_attr) in image_analysis_cache.cache:
+    is_hit = elem.attrs.get(url_attr) in image_analysis_cache.cache
+
+    if is_hit:
+        CACHE_HITS += 1
+    else:
+        CACHE_MISSES += 1
+
+    if is_hit or (not cached_only):
         return IMAGE_ANALYSIS_FN(
             elem,
             image_formatter=image_formatter,
@@ -52,6 +70,9 @@ def get_all_posts(
     cached_images_only=False,
     return_metadata_per_post=True,
 ):
+    global CACHE_HITS
+    global CACHE_MISSES
+
     posts = []
     post_fns = []
     image_urls = set()
@@ -60,14 +81,14 @@ def get_all_posts(
 
     all_fns = os.listdir(posts_dir)
 
-    for ix, fn in enumerate(
-        tqdm(
-            sorted(all_fns),
-            mininterval=1,
-            miniters=1,
-            smoothing=0,
-        )
-    ):
+    iter_ = tqdm(
+        sorted(all_fns),
+        mininterval=1,
+        miniters=1,
+        smoothing=0,
+    )
+
+    for ix, fn in enumerate(iter_):
         if not fn.endswith(".html"):
             continue
 
@@ -76,8 +97,8 @@ def get_all_posts(
             fixed_html = fix_p_in_h2_bug(raw_html)
             soup = BeautifulSoup(fixed_html)
 
-        user_defined_image_analysis = (
-            cached_image_analysis_fn if cached_images_only else IMAGE_ANALYSIS_FN
+        user_defined_image_analysis = partial(
+            cached_image_analysis_fn, cached_only=cached_images_only
         )
 
         processed, post_metadata = process_post(
@@ -98,6 +119,8 @@ def get_all_posts(
 
         if post_metadata["reply_post_url"] is not None:
             reply_urls_to_fns[post_metadata["reply_post_url"]].add(fn)
+
+        iter_.set_postfix(hits=CACHE_HITS, misses=CACHE_MISSES, refresh=False)
 
     return (
         posts,

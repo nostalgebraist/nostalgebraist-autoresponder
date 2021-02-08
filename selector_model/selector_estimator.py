@@ -702,6 +702,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                                 loss=batch_loss,
                                 loss_avg=running_loss,
                                 lr=cur_lr,
+                                refresh=False,
                                 **extra_postfixes,
                             )
                             continue
@@ -787,8 +788,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                     extra_postfixes["z_gn_fullb_mlp"] = cur_gn_fullb_mlp
                 if self.flooding:
                     extra_postfixes["z_flood%"] = cur_is_flooding
-                # for i, nga in enumerate(novograd_avgs):
-                #     extra_postfixes[f"aa_nvg_avg{i}"] = nga
                 for k, v in cur_activ_norms.items():
                     extra_postfixes[f"zz_{k}"] = v
                 for var, val in zip(self.softlayer_vars_, softlayer_vars[0]):
@@ -800,7 +799,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             extra_postfixes["ntok"] = batch_max_tokens
 
             step_iter.set_postfix(
-                loss=batch_loss, loss_avg=running_loss, lr=cur_lr, **extra_postfixes
+                loss=batch_loss, loss_avg=running_loss, lr=cur_lr, refresh=False, **extra_postfixes
             )
             row_ix += self.batch_size
             self.global_step_.load(current_step + 1, session=self.session_)
@@ -989,13 +988,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             list(range(0, 1)), smoothing=0.0, miniters=1, mininterval=1
         ) as fake_iter:
             fake_iter.set_postfix(**calib_coef_info)
-
-        # TODO: get rid of this entirely if that doesn't break anything
-        # i've never found it infomative b/c it's evaluating on (lr_calib_'s) training data
-        #
-        # calib_probs = self._compute_calib_probs(logits, pfcs=X_val["prompt_finalchar"])
-        # calib_preds = calib_probs[:, 1]>0.5
-        # self._display_eval_metrics(y_val, calib_preds, calib_probs,  pfcs=X_val['prompt_finalchar'])
 
     @property
     def train_val_sizes_(self):

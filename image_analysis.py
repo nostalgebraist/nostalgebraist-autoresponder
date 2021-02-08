@@ -448,7 +448,7 @@ def extract_text_from_url(
                     nbytes_ = nbytes_new
         except:
             if verbose:
-                print(f"couldn't downsize: {url}")
+                pass  # print(f"couldn't downsize: {url}")
 
     frame_bytes = url_to_frame_bytes(url_, http=http)
 

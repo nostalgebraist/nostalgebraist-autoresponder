@@ -12,6 +12,8 @@ import urllib3
 from PIL import Image
 from moviepy.editor import VideoFileClip
 
+from util.error_handling import LogExceptionAndSkip
+
 IMAGE_DIR = "data/analysis_images/"
 
 rek = boto3.client("rekognition")
@@ -483,9 +485,11 @@ def V9_IMAGE_FORMATTER(image_text):
 def extract_and_format_text_from_url(
     url: str,
     image_formatter=V9_IMAGE_FORMATTER,
+    return_raw=False,
+    xtra_raw=False,
     verbose=False,
 ):
-    image_text = extract_text_from_url(url)
+    image_text = extract_text_from_url(url, return_raw=return_raw, xtra_raw=xtra_raw)
     if verbose and len(image_text) > 0:
         print(f"for {url}, analysis text is\n{image_text}\n")
     if len(image_text) > 0:
@@ -501,6 +505,19 @@ class ImageAnalysisCache:
         if self.cache is None:
             self.cache = {}
 
+    @staticmethod
+    def _get_text_from_cache_entry(entry):
+        """deal with the various formats i've saved AWS responses in"""
+        result = entry
+
+        if isinstance(result, list):
+            result = result[0]
+
+        if isinstance(result, dict):
+            result = result['line']
+
+        return result
+
     def extract_and_format_text_from_url(
         self,
         url: str,
@@ -508,13 +525,19 @@ class ImageAnalysisCache:
         verbose=False,
     ):
         # TODO: integrate downsizing
-        if url in self.cache:
-            text = self.cache[url]
-        else:
-            text = extract_and_format_text_from_url(
-                url, image_formatter=image_formatter, verbose=verbose
+        if url not in self.cache:
+            entry = extract_and_format_text_from_url(
+                url,
+                image_formatter=image_formatter,
+                return_raw=True,
+                xtra_raw=True,
+                verbose=verbose
             )
-            self.cache[url] = text
+            self.cache[url] = entry
+
+        text = ""
+        with LogExceptionAndSkip(f"retrieving {repr(url)} from cache"):
+            text = self._get_text_from_cache_entry(self.cache[url])
         return text
 
     def save(self, verbose=True, do_backup=True):

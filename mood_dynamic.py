@@ -613,6 +613,9 @@ def counterfactual_mood_graph(
         pd.Timestamp("2020-12-05"): "v9_1_golive_approx",
         pd.Timestamp("2020-12-07"): "v9_1R2_golive_approx",
     }
+    golives.update({
+        ts: f"dc -> {dc:.2f}" for ts, dc in DETERMINER_CENTER_UPDATES.items()
+    })
     for golive, name in golives.items():
         if golive > start_time:
             plt.axvline(golive, c="k", ls="-.", label=name)

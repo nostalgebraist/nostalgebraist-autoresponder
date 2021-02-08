@@ -886,8 +886,6 @@ if SELECT_VIA_GENERATOR:
             use_mlp=use_mlp,
             resid_mlp=resid_mlp,
             mlp_ratio=mlp_ratio,
-            use_length_channel=use_length_channel,
-            use_length_channel_v2=use_length_channel_v2,
         )
 
         select_logits = selection_step["logits_select"]
@@ -943,8 +941,6 @@ if SENTIMENT_VIA_GENERATOR:
             layer_nums=layer_nums_sentiment,
             use_mlp=use_mlp_sentiment,
             resid_mlp=resid_mlp,
-            use_length_channel=use_length_channel_sentiment,
-            use_length_channel_v2=use_length_channel_v2_sentiment,
         )
 
         sentiment_logits = selection_step_sentiment["logits_select"]

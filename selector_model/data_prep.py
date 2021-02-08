@@ -196,7 +196,9 @@ def load_scraped_bot_posts(posts_dir, image_analysis_cache, cached_images_only=F
         }
         for pid in post_ids
     }
-    return ids_to_loaded_data
+
+    other_data = {"image_urls": image_urls}
+    return ids_to_loaded_data, other_data
 
 
 def fill_in_selector_training_data(ids_to_loaded_data, include_reblogs=False):
@@ -243,12 +245,14 @@ def fill_in_selector_training_data(ids_to_loaded_data, include_reblogs=False):
 def selector_data_prep_pipeline(
     posts_dir,
     save_path,
+    save_path_image_urls,
     image_analysis_cache,
     cached_images_only=False,
     include_reblogs=False,
     save_image_analysis_cache=False,
+    save_image_urls=False,
 ):
-    ids_to_loaded_data = load_scraped_bot_posts(
+    ids_to_loaded_data, other_data = load_scraped_bot_posts(
         posts_dir, image_analysis_cache, cached_images_only=cached_images_only
     )
     ids_to_selector_training_data_rows = fill_in_selector_training_data(
@@ -259,6 +263,10 @@ def selector_data_prep_pipeline(
 
     if save_image_analysis_cache:
         image_analysis_cache.save()
+
+    if save_image_urls:
+        with open(save_path_image_urls, "wb") as f:
+            pickle.dump(other_data["image_urls"], f)
 
 
 if __name__ == "__main__":
@@ -284,6 +292,18 @@ if __name__ == "__main__":
         action="store_true",
         required=False,
     )
+    parser.add_argument(
+        "--save-image-urls",
+        default=False,
+        action="store_true",
+        required=False,
+    )
+    parser.add_argument(
+        "--save-path-image-urls",
+        type=str,
+        default="data/selector_training_data_image_urls.pkl.gz",
+        required=False,
+    )
 
     args = parser.parse_args()
 
@@ -292,8 +312,10 @@ if __name__ == "__main__":
     selector_data_prep_pipeline(
         posts_dir=args.posts_dir,
         save_path=args.save_path,
+        save_path_image_urls=args.save_path_image_urls,
         image_analysis_cache=image_analysis_cache,
         cached_images_only=args.cached_images_only,
         include_reblogs=args.include_reblogs,
         save_image_analysis_cache=args.save_image_analysis_cache,
+        save_image_urls=args.save_image_urls,
     )

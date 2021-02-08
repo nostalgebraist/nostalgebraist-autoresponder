@@ -50,9 +50,7 @@ DETERMINER_CENTER_UPDATES = {
     pd.Timestamp("2020-12-18 15:35:00"): -2.2,
     pd.Timestamp("2020-12-21 15:25:00"): -2.3,
     WEIGHTED_AVG_START_TIME: 0.0,
-    pd.Timestamp("2020-01-20 18:20:00"): 0.2,
-    pd.Timestamp("2020-01-29 08:35:00"): 0.1,
-    pd.Timestamp("2020-01-30 14:25:00"): 0.0,
+    pd.Timestamp("2021-02-08 09:25:00"): -0.25,
 }
 DETERMINER_MULTIPLIER_UPDATES = {
     pd.Timestamp("2020-08-25 17:00:00"): 0.1 / RESPONSE_SCALE_BASE,
@@ -69,7 +67,7 @@ DETERMINER_MULTIPLIER_UPDATES = {
     pd.Timestamp("2021-01-14 08:00:00"): 0.2 / RESPONSE_SCALE_BASE,
     pd.Timestamp("2021-01-14 20:35:00"): 0.15 / RESPONSE_SCALE_BASE,
     pd.Timestamp("2021-01-20 07:40:00"): 0.1 / RESPONSE_SCALE_BASE,
-    pd.Timestamp("2020-01-29 08:35:00"): 0.125 / RESPONSE_SCALE_BASE,
+    pd.Timestamp("2021-02-08 09:25:00"): 0.125 / RESPONSE_SCALE_BASE,
 }
 
 MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP = {
@@ -531,6 +529,7 @@ def counterfactual_mood_graph(
     end_time: datetime = None,
     window_length_days: float = WINDOW_LENGTH_DAYS,
     in_logit_diff_space: bool = True,
+    pairs_only: bool = False,
 ) -> str:
     ytrans = pos_sent_to_logit_diff if in_logit_diff_space else lambda x: x
     if end_time is None:
@@ -547,9 +546,10 @@ def counterfactual_mood_graph(
                 k: v for k, v in DETERMINER_CENTER_UPDATES.items() if k < left_time
             }
             new_dc_updates[left_time] = dc
-            systems[f"dc={dc:.2f}"] = DynamicMoodSystem(
-                determiner_center_updates=new_dc_updates
-            )
+            if not pairs_only:
+                systems[f"dc={dc:.2f}"] = DynamicMoodSystem(
+                    determiner_center_updates=new_dc_updates
+                )
 
         if determiner_multipliers is not None:
             for dm in determiner_multipliers:
@@ -566,9 +566,10 @@ def counterfactual_mood_graph(
                         determiner_multiplier_updates=new_dm_updates,
                     )
                 if f"dm={dm_s}" not in systems:
-                    systems[f"dm={dm_s}"] = DynamicMoodSystem(
-                        determiner_multiplier_updates=new_dm_updates
-                    )
+                    if not pairs_only:
+                        systems[f"dm={dm_s}"] = DynamicMoodSystem(
+                            determiner_multiplier_updates=new_dm_updates
+                        )
 
     lti_serieses = {}
     for name, system in tqdm(systems.items()):
@@ -612,13 +613,22 @@ def counterfactual_mood_graph(
         pd.Timestamp("2020-11-22"): "v9_golive_approx",
         pd.Timestamp("2020-12-05"): "v9_1_golive_approx",
         pd.Timestamp("2020-12-07"): "v9_1R2_golive_approx",
+        pd.Timestamp("2021-01-15"): "v10_golive_approx",
     }
-    golives.update({
-        ts: f"dc -> {dc:.2f}" for ts, dc in DETERMINER_CENTER_UPDATES.items()
-    })
+    golives.update(
+        {ts: f"dc -> {dc:.2f}" for ts, dc in DETERMINER_CENTER_UPDATES.items()}
+    )
+    golives.update(
+        {
+            ts: f"dm -> {dm*RESPONSE_SCALE_BASE:.3f}x"
+            for ts, dm in DETERMINER_MULTIPLIER_UPDATES.items()
+        }
+    )
+
     for golive, name in golives.items():
         if golive > start_time:
-            plt.axvline(golive, c="k", ls="-.", label=name)
+            c = "r" if name.startswith("v") else ("y" if name.startswith("dc") else "k")
+            plt.axvline(golive, c=c, ls="-.", label=name)
 
     if in_logit_diff_space:
         default_top = (

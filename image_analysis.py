@@ -482,19 +482,20 @@ def V9_IMAGE_FORMATTER(image_text):
     return "\n" + "\n=======\n" + image_text + "\n=======\n"
 
 
-def extract_and_format_text_from_url(
-    url: str,
-    image_formatter=V9_IMAGE_FORMATTER,
-    return_raw=False,
-    xtra_raw=False,
-    verbose=False,
-):
-    image_text = extract_text_from_url(url, return_raw=return_raw, xtra_raw=xtra_raw)
+def format_extracted_text(image_text, image_formatter=V9_IMAGE_FORMATTER, verbose=False):
     if verbose and len(image_text) > 0:
         print(f"for {url}, analysis text is\n{image_text}\n")
     if len(image_text) > 0:
         return image_formatter(image_text)
     return ""
+
+
+def extract_and_format_text_from_url(
+    url: str,
+    image_formatter=V9_IMAGE_FORMATTER,
+):
+    image_text = extract_text_from_url(url, return_raw=False, xtra_raw=False)
+    return format_extracted_text(image_text)
 
 
 class ImageAnalysisCache:
@@ -506,12 +507,12 @@ class ImageAnalysisCache:
             self.cache = {}
 
     @staticmethod
-    def _get_text_from_cache_entry(entry):
+    def _get_text_from_cache_entry(entry, deduplicate=True):
         """deal with the various formats i've saved AWS responses in"""
         result = entry
 
         if isinstance(result, list):
-            result = result[0]
+            result = collect_text(result, deduplicate=deduplicate)
 
         if isinstance(result, dict):
             result = result['line']
@@ -526,19 +527,19 @@ class ImageAnalysisCache:
     ):
         # TODO: integrate downsizing
         if url not in self.cache:
-            entry = extract_and_format_text_from_url(
+            _, entry = extract_text_from_url(
                 url,
-                image_formatter=image_formatter,
                 return_raw=True,
-                xtra_raw=True,
                 verbose=verbose
             )
             self.cache[url] = entry
 
-        text = ""
+        cached_text = ""
         with LogExceptionAndSkip(f"retrieving {repr(url)} from cache"):
-            text = self._get_text_from_cache_entry(self.cache[url])
-        return text
+            cached_text = self._get_text_from_cache_entry(self.cache[url])
+
+        formatted_text = format_extracted_text(cached_text, image_formatter=image_formatter)
+        return formatted_text
 
     def save(self, verbose=True, do_backup=True):
         with open(self.path, "wb") as f:

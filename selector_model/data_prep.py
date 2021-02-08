@@ -22,16 +22,22 @@ tqdm.pandas()
 
 
 # TODO: get rid of this once all images are analyzed
-def cached_image_analysis_fn(elem, image_formatter=V9_IMAGE_FORMATTER, image_analysis_cache=None, verbose=False):
+def cached_image_analysis_fn(
+    elem, image_formatter=V9_IMAGE_FORMATTER, image_analysis_cache=None, verbose=False
+):
     url_attr = "href" if elem.name == "a" else "src"
 
     if elem.attrs.get(url_attr) is None:
         return None
 
     if elem.attrs.get(url_attr) in image_analysis_cache.cache:
-        return IMAGE_ANALYSIS_FN(elem, image_formatter=image_formatter, image_analysis_cache=image_analysis_cache,
-                                verbose=verbose)
-    return ''
+        return IMAGE_ANALYSIS_FN(
+            elem,
+            image_formatter=image_formatter,
+            image_analysis_cache=image_analysis_cache,
+            verbose=verbose,
+        )
+    return ""
 
 
 def fix_p_in_h2_bug(raw_html):
@@ -70,7 +76,9 @@ def get_all_posts(
             fixed_html = fix_p_in_h2_bug(raw_html)
             soup = BeautifulSoup(fixed_html)
 
-        user_defined_image_analysis = cached_image_analysis_fn if cached_images_only else IMAGE_ANALYSIS_FN
+        user_defined_image_analysis = (
+            cached_image_analysis_fn if cached_images_only else IMAGE_ANALYSIS_FN
+        )
 
         processed, post_metadata = process_post(
             soup,
@@ -215,9 +223,11 @@ def selector_data_prep_pipeline(
     image_analysis_cache,
     cached_images_only=False,
     include_reblogs=False,
-    save_image_analysis_cache=False
+    save_image_analysis_cache=False,
 ):
-    ids_to_loaded_data = load_scraped_bot_posts(posts_dir, image_analysis_cache, cached_images_only=cached_images_only)
+    ids_to_loaded_data = load_scraped_bot_posts(
+        posts_dir, image_analysis_cache, cached_images_only=cached_images_only
+    )
     ids_to_selector_training_data_rows = fill_in_selector_training_data(
         ids_to_loaded_data, include_reblogs=include_reblogs
     )
@@ -246,7 +256,10 @@ if __name__ == "__main__":
         "--cached-images-only", default=False, action="store_true", required=False
     )
     parser.add_argument(
-        "--save-image-analysis-cache", default=False, action="store_true", required=False
+        "--save-image-analysis-cache",
+        default=False,
+        action="store_true",
+        required=False,
     )
 
     args = parser.parse_args()

@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append("gpt-2/src/")
 
 import model

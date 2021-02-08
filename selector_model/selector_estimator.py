@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append("gpt-2/src/")
 import time
 from datetime import datetime
@@ -268,9 +269,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
 
         self.uid_ = datetime.now().strftime("%y-%m-%d-%H-%M-%S")
 
-        self.n_head_ = (
-            self.base_hparams.n_head if self.n_head is None else self.n_head
-        )
+        self.n_head_ = self.base_hparams.n_head if self.n_head is None else self.n_head
 
         self.select_scope_ = "select_" + self.uid_
         self.select_scope_train_ = self.select_scope_

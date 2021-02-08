@@ -1731,7 +1731,9 @@ def loop_poll_no_capture(
     global RESULT_STACK
     while True:
         try:
-            poll_no_capture(capture_ident=capture_ident, dummy=dummy, ports=ports, routes=routes)
+            poll_no_capture(
+                capture_ident=capture_ident, dummy=dummy, ports=ports, routes=routes
+            )
         except Exception as e:
             print(f"{type(e)}: {e}")
             time.sleep(period * 10)

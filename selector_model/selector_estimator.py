@@ -292,12 +292,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                         self.select_target_ = tf.placeholder(
                             tf.int32, [self.batch_size], name="select_target"
                         )
-                    if self.add_prompt_cont_embs:
-                        self.prompt_end_ntoks_ = tf.placeholder(
-                            tf.int32, [self.batch_size], name="select_prompt_end_ntoks"
-                        )
-                    else:
-                        self.prompt_end_ntoks_ = None
 
                     _ = model.model(
                         hparams=self.base_hparams,
@@ -687,8 +681,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
 
     def _feed_from_batch(self, data_batch, scope):
         feed_dict = {}
-        if self.add_prompt_cont_embs:
-            batch_prompt_end_ntoks = data_batch.prompt_end_ntoks.values
         batch_context = [
             self.enc.encode(text)[: (self.length - 1)] + [self.selection_tok]
             for text in data_batch.selector_input.values
@@ -700,13 +692,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         # batch_context_ = [toks[-self.length:] for toks in batch_context_]
         batch_context = batch_context_
         feed_dict[self.context_for_h_] = np.asarray(batch_context_)
-
-        if self.add_prompt_cont_embs:
-            shift = max(0, max_tokens - self.length)
-            batch_prompt_end_ntoks = batch_prompt_end_ntoks - shift
-            batch_prompt_end_ntoks[batch_prompt_end_ntoks < 0] = 0
-
-            feed_dict[self.prompt_end_ntoks_] = batch_prompt_end_ntoks
 
         return feed_dict, max_tokens
 

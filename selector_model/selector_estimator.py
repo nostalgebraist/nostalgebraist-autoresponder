@@ -141,7 +141,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         grad_clip=1000,
         base_hparams=hparams_1558M(),
         enc=None,
-        selection_tok=SELECTION_TOK,  # TODO: specify SELECTION_TOK
+        selection_tok=None,
         length=825,
         persist_variables=True,
         cleanup_on_exception=True,

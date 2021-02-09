@@ -28,7 +28,7 @@ def attn_only_block(x, scope, *, past, hparams, do_input_norm=True):
         return x, present
 
 
-def extract_selection_ix(tokens, extract_from, batch_size):
+def extract_selection_ix(tokens, extract_from, batch_size, SELECTION_TOK):
     mask = tf.equal(tf.dtypes.cast(tokens, tf.int32), SELECTION_TOK)
     extracted_ragged = tf.ragged.boolean_mask(extract_from, mask)
 
@@ -47,8 +47,8 @@ def extract_selection_ix(tokens, extract_from, batch_size):
     return {"extracted": extracted, "selection_ix": selection_ix}
 
 
-def extract_selection_ix_position(tokens, batch_size):
-    return extract_selection_ix(tokens, tf.sort(tf.argsort(tokens)), batch_size)
+def extract_selection_ix_position(tokens, batch_size, SELECTION_TOK):
+    return extract_selection_ix(tokens, tf.sort(tf.argsort(tokens)), batch_size, SELECTION_TOK)
 
 
 def selector(
@@ -57,6 +57,7 @@ def selector(
     hparams_select,
     layer_nums: list,
     batch_size,
+    SELECTION_TOK,
     scope="model",
     select_scope="select",
     reuse=tf.AUTO_REUSE,
@@ -91,11 +92,11 @@ def selector(
 
             h_select_in = tf.concat(hs_select, axis=-1)
 
-            h_select_in_at_selection_ix = extract_selection_ix(X, h_select_in, batch_size=batch_size)[
+            h_select_in_at_selection_ix = extract_selection_ix(X, h_select_in, batch_size=batch_size, SELECTION_TOK=SELECTION_TOK)[
                 "extracted"
             ]
             selection_ix_position = tf.cast(
-                tf.reshape(extract_selection_ix_position(X, batch_size=batch_size)["extracted"], [-1, 1]),
+                tf.reshape(extract_selection_ix_position(X, batch_size=batch_size, SELECTION_TOK=SELECTION_TOK)["extracted"], [-1, 1]),
                 tf.float32,
             )
 

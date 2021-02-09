@@ -820,6 +820,7 @@ selector_est = load_from_gdrive_with_gs_fallback(
     base_hparams=hparams,
     enc=enc,
 )
+selector_est.length = length_select
 
 lr_calib_resp = selector_est.lr_calib_resp_
 lr_calib_orig = selector_est.lr_calib_orig_
@@ -833,6 +834,7 @@ sentiment_est = load_from_gdrive_with_gs_fallback(
     base_hparams=hparams,
     enc=enc,
 )
+sentiment_est.length = length_sentiment
 
 lr_calib_sentiment = selector_est.lr_calib_
 

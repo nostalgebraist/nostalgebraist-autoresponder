@@ -138,18 +138,18 @@ def selector(
             else:
                 h_select_in_at_selection_ix = m
 
-        w_select = get_variable("w_select")
+        w_select = model.get_variable("w_select")
         if w_select is None:
-            initializer = get_initializer(hparams_select, scope)
-            w_select = tf.get_variable(
+            initializer = model.get_initializer(hparams_select, scope)
+            w_select = tf.model.get_variable(
                 "w_select",
                 [len(layer_nums) * hparams.n_embd, 2],
                 initializer=initializer(0.02, dtype=hparams.dtype),
             )
 
-        b_select = get_variable("b_select")
+        b_select = model.get_variable("b_select")
         if b_select is None:
-            b_select = tf.get_variable(
+            b_select = tf.model.get_variable(
                 "b_select",
                 [2],
                 initializer=tf.constant_initializer(0, dtype=hparams.dtype),

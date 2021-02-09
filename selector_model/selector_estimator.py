@@ -385,7 +385,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 use_logit_diff_basis=self.use_logit_diff_basis,
                 use_only_logit_diff=self.use_only_logit_diff,
                 batch_size=self.batch_size,
-                SELECTION_TOK=self.SELECTION_TOK,
+                selection_tok=self.selection_tok,
             )
 
             self.selection_step_eval_ = selector(
@@ -400,7 +400,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 use_logit_diff_basis=self.use_logit_diff_basis,
                 use_only_logit_diff=self.use_only_logit_diff,
                 batch_size=self.batch_size,
-                SELECTION_TOK=self.SELECTION_TOK,
+                selection_tok=self.selection_tok,
             )
             self.select_logits_train_ = self.selection_step_train_["logits_select"]
             self.select_logits_eval_ = self.selection_step_eval_["logits_select"]

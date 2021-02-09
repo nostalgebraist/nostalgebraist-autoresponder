@@ -1450,25 +1450,25 @@ if SELECT_VIA_GENERATOR:
                 left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
             )
 
-        if EOT_PREPEND:
-            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
-                text = text[len(EOT_FULL) :]
-            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
-                text = EOT_FULL + text
+            if EOT_PREPEND:
+                if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
+                    text = text[len(EOT_FULL) :]
+                if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
+                    text = EOT_FULL + text
 
-            if truncate_at_right:
-                batch_context.append(
-                    enc.encode(text)[-(length_ - 1) :] + [SELECTION_TOK]
-                )
-            else:
-                batch_context.append(
-                    enc.encode(text)[: (length_ - 1)] + [SELECTION_TOK]
-                )
+                if truncate_at_right:
+                    batch_context.append(
+                        enc.encode(text)[-(length_ - 1) :] + [SELECTION_TOK]
+                    )
+                else:
+                    batch_context.append(
+                        enc.encode(text)[: (length_ - 1)] + [SELECTION_TOK]
+                    )
 
-            if debug:
-                print(
-                    f"in single_batch_predict_select, predicting on:\n{enc.decode(batch_context[-1])}\n"
-                )
+                if debug:
+                    print(
+                        f"in single_batch_predict_select, predicting on:\n{enc.decode(batch_context[-1])}\n"
+                    )
         max_tokens = max([len(toks) for toks in batch_context])
         batch_context_ = [
             toks + [0 for _ in range(max_tokens - len(toks))] for toks in batch_context

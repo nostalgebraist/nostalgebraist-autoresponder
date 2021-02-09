@@ -293,7 +293,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                             tf.int32, [self.batch_size], name="select_target"
                         )
 
-                    _ = model.model(
+                    _ = model_fn(
                         hparams=self.base_hparams,
                         X=self.context_for_h_,
                         return_activations_at=self.layer_nums,

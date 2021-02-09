@@ -24,7 +24,6 @@ bridge_service_port = bot_specific_constants.bridge_service_port
 startdir = os.getcwd()
 os.chdir("/")
 
-SELECT_VIA_GENERATOR = True
 EOT_WORKAROUND = True
 EOT_PREPEND = True
 SELECTOR_CAN_SEE_PROMPTS = True
@@ -45,223 +44,36 @@ DO_ALT_TIMESTAMPS = False  # True is for analytics
 
 eot_end_segment = EOT_FULL if EOT_WORKAROUND else "<|"
 
-if V10:
-    final_munge_before_neural = final_munge_before_neural_v10
-    final_munge_after_neural = final_munge_after_neural_v10
-elif V8:
-    final_munge_before_neural = final_munge_before_neural_v8
-    final_munge_after_neural = final_munge_after_neural_v8
-else:
-    final_munge_before_neural = final_munge_before_neural_v7
+final_munge_before_neural = final_munge_before_neural_v10
+final_munge_after_neural = final_munge_after_neural_v10
 
-    def final_munge_after_neural(text, *args, **kwargs):
-        return text
+model_name = "autoresponder_v10"
+model_path = os.path.join("models", model_name, "model-135.hdf5")
 
+dataset = "data/v10/ALL_data_v10_nost_tuning.npz"
+ckpt_select = "selector/v10/v8/.hdf5"
+ckpt_sentiment = "sentiment/v10/v2/.hdf5"
 
-if V10:
-    model_name = "autoresponder_v10"
-    model_path = os.path.join("models", model_name, "model-135.hdf5")
+TRUNCATE_AT_RIGHT = False
+SELECTOR_EOT_PREPEND = True
 
-    dataset = "data/v10/ALL_data_v10_nost_tuning.npz"
-    ckpt_select = "selector/v10/v7/.hdf5"
-    ckpt_sentiment = "sentiment/v10/v1/.hdf5"
+gs_command_get_dataset = f"gsutil -m cp gs://{BUCKET_NAME}/data/v10/ALL_data_v10_nost_tuning.npz /data/v10/"
 
-    TRUNCATE_AT_RIGHT = False
-    SELECTOR_EOT_PREPEND = True
+gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/encoder.json /models/autoresponder_v10/"
+gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/autoresponder_v10/"
 
-    gs_command_get_dataset = f"gsutil -m cp gs://{BUCKET_NAME}/data/v10/ALL_data_v10_nost_tuning.npz /data/v10/"
+gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/model-135.hdf5 /models/autoresponder_v10/"
 
-    gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/encoder.json /models/autoresponder_v10/"
-    gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/autoresponder_v10/"
+gs_command_get_selector = (
+    f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/* /selector/v10/"
+)
+gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
 
-    gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/model-135.hdf5 /models/autoresponder_v10/"
+length_select = 825
 
-    gs_command_get_selector = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/* /selector/v10/"
-    )
-    gs_command_get_selector_metadata = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/v7/metadata.json /selector/v10/v7/metadata.json"
-    gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
-    gs_command_get_sentiment_metadata = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/v1/metadata.json /sentiment/v10/v1/metadata.json"
-
-elif V9_1R4:
-    model_name = "autoresponder_v9_v1_1558M_nost_tuning4"
-
-    dataset = "data/data_v9_nost_tuning_with_floornight_fix.npz"
-    ckpt_select = "autoresponder_v9_1_selector/v13/.hdf5"
-    ckpt_sentiment = "autoresponder_v9_1_sentiment/v5/.hdf5"
-
-    TRUNCATE_AT_RIGHT = False
-    SELECTOR_EOT_PREPEND = True
-elif V9_1R3:
-    model_name = "autoresponder_v9_v1_1558M_nost_tuning3"
-
-    dataset = "data/data_v9_nost_tuning.npz"
-    ckpt_select = "autoresponder_v9_1_selector/v10/.hdf5"
-    ckpt_sentiment = "autoresponder_v9_1_sentiment/v4/.hdf5"
-
-    TRUNCATE_AT_RIGHT = False
-    SELECTOR_EOT_PREPEND = True
-elif V9_1R2:
-    model_name = "autoresponder_v9_v1_1558M_nost_tuning2"
-
-    dataset = "data/data_v9_nost_tuning.npz"
-    ckpt_select = "autoresponder_v9_1_selector/v5/.hdf5"
-    ckpt_sentiment = "autoresponder_v9_1_sentiment/v3/.hdf5"
-
-    TRUNCATE_AT_RIGHT = False
-    SELECTOR_EOT_PREPEND = True
-elif V9_1:
-    model_name = "autoresponder_v9_v1_1558M_nost_tuning"
-
-    dataset = "data/data_v9_nost_tuning.npz"
-    ckpt_select = "autoresponder_v9_1_selector/v2/.hdf5"
-    ckpt_sentiment = "autoresponder_v9_1_sentiment/v2/.hdf5"
-
-    TRUNCATE_AT_RIGHT = False
-    SELECTOR_EOT_PREPEND = True
-elif V9:
-    model_name = "autoresponder_v9_experimental_nost_transfer_take3"
-
-    dataset = "data/data_v9_nost_tuning.npz"
-    ckpt_select = "autoresponder_v9_selector/v8/.hdf5"
-    ckpt_sentiment = "autoresponder_v9_sentiment/v3/.hdf5"
-
-    TRUNCATE_AT_RIGHT = False  # ! new in autoresponder_v9_selector/v8
-    SELECTOR_EOT_PREPEND = True
-elif V8:
-    model_name = "autoresponder_v8_opt"
-
-    if V8_2:
-        dataset = "data/data_v8_2_recat.npz"
-        ckpt_select = "autoresponder_v8_2_selector/v7/.hdf5"
-        ckpt_sentiment = "autoresponder_v8_2_sentiment/v1/.hdf5"
-    else:
-        dataset = "data/data_v8_1_extended.npz"
-        ckpt_select = "autoresponder_v8_selector/v9/.hdf5"
-        ckpt_sentiment = "autoresponder_v8_sentiment/v1/.hdf5"
-    TRUNCATE_AT_RIGHT = True
-    SELECTOR_EOT_PREPEND = True
-elif FORUMLIKE_V2:
-    model_name = "autoresponder_v7_2"
-    dataset = "data/data_with_fixes_retune.npz"
-
-    ckpt_select = "autoresponder_v7_2_selector/v23/.hdf5"
-    ckpt_sentiment = "autoresponder_v7_2_sentiment/v2/.hdf5"
-    TRUNCATE_AT_RIGHT = True
-    SELECTOR_EOT_PREPEND = False
-elif FORUMLIKE:
-    model_name = "autoresponder_v7"
-    dataset = "data/autoresponder_v7_1/data_with_reviews.npz"
-
-    ckpt_select = "autoresponder_v7_selector/v6/.hdf5"
-    ckpt_sentiment = "autoresponder_v7_sentiment/v4/.hdf5"
-    TRUNCATE_AT_RIGHT = True
-    SELECTOR_EOT_PREPEND = False
-    GLOBAL_DEBUG = False
-else:
-    model_name = "autoresponder_v6_normed_prime"
-    dataset = "data/autoresponder_v6_normed_prime/data.npz"
-
-    ckpt_select = "autoresponder_v6_normed_prime_selector/v2_7/.hdf5"
-    ckpt_sentiment = "autoresponder_v6_normed_prime_sentiment/v1/.hdf5"
-    SELECTOR_EOT_PREPEND = False
-    TRUNCATE_AT_RIGHT = False
-
-# with open(ckpt_select.rpartition("/")[0] + "/metadata.json", "r") as f:
-#     select_metadata = json.load(f)
-#
-# select_scope = select_metadata["select_scope"]
-
-if V9:
-    layer_nums = [7, 23]
-    do_resid = False
-    norm_layers_after = False
-    use_mlp = True
-    resid_mlp = True
-    direct_mlp = False
-    mlp_proj = True
-    mlp_ratio = 3  # V9 / selector / v9
-    use_length_channel = False
-    use_length_channel_v2 = False
-    add_position_emb_later_layers = False
-    add_prompt_cont_embs = False
-    norm_final_output = False
-    length_select = 825
-    SELECT_VIA_GENERATOR_LONGLENGTH = True
-    MULTI_LR_CALIB = True
-elif V8:
-    layer_nums = [7, 23]
-    do_resid = False
-    norm_layers_after = False
-    use_mlp = True
-    resid_mlp = True
-    direct_mlp = False
-    mlp_proj = True
-    mlp_ratio = 2
-    use_length_channel = False
-    use_length_channel_v2 = False
-    add_position_emb_later_layers = False
-    add_prompt_cont_embs = False
-    norm_final_output = False
-    length_select = 825
-    SELECT_VIA_GENERATOR_LONGLENGTH = True
-    MULTI_LR_CALIB = True
-else:
-    layer_nums = [7, 23]
-    do_resid = False
-    norm_layers_after = False
-    use_mlp = True
-    resid_mlp = True
-    direct_mlp = False
-    mlp_proj = True
-    mlp_ratio = 2
-    use_length_channel = False
-    use_length_channel_v2 = False
-    add_position_emb_later_layers = False
-    add_prompt_cont_embs = False
-    norm_final_output = False
-    n_head_select = 40
-    length_select = 825
-    SELECT_VIA_GENERATOR_LONGLENGTH = True
-    MULTI_LR_CALIB = True
-
-SENTIMENT_VIA_GENERATOR = True
 SENTIMENT_VIA_GENERATOR_LONGLENGTH = True
 
-# with open(ckpt_sentiment.rpartition("/")[0] + "/metadata.json", "r") as f:
-#     sentiment_select_metadata = json.load(f)
-#
-# sentiment_select_scope = sentiment_select_metadata["select_scope"]
-
-if V9_1:
-    layer_nums_sentiment = [7, 23]
-    use_mlp_sentiment = True
-    use_length_channel_sentiment = False
-    use_length_channel_v2_sentiment = False
-    length_sentiment = 204
-    norm_final_output_sentiment = False
-elif V9:
-    layer_nums_sentiment = [7, 23]
-    use_mlp_sentiment = True
-    use_length_channel_sentiment = False
-    use_length_channel_v2_sentiment = False
-    length_sentiment = 204
-    norm_final_output_sentiment = False
-elif V8:
-    layer_nums_sentiment = [8 - 1, 24 - 1]
-    use_mlp_sentiment = True
-    use_length_channel_sentiment = False
-    use_length_channel_v2_sentiment = False
-    length_sentiment = 204
-    norm_final_output_sentiment = False
-else:
-    layer_nums_sentiment = [8 - 1, 24 - 1]
-    use_mlp_sentiment = False
-    use_length_channel_sentiment = False
-    use_length_channel_v2_sentiment = False
-    length_sentiment = 204
-    norm_final_output_sentiment = True
-    n_head_sentiment = 25
+length_sentiment = 204
 
 
 def _gpu_type():

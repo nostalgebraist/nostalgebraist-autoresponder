@@ -852,10 +852,9 @@ def load_selector_metadata(path, retries=False):  # ignored
 
 
 def load_selector(path, session, base_hparams, enc, retries=False):
-    selector_estimator = SelectorEstimatorFromCkpt.load(path,
-                                                        session=session,
-                                                        base_hparams=base_hparams,
-                                                        enc=enc)
+    selector_estimator = SelectorEstimatorFromCkpt.load(
+        path, session=session, base_hparams=base_hparams, enc=enc
+    )
     return selector_estimator
 
 
@@ -889,20 +888,8 @@ if SENTIMENT_VIA_GENERATOR:
 if SELECT_VIA_GENERATOR:
     import scipy.special
 
-    def single_batch_predict_select(
-        data_batch,
-        lr_calib,
-        threshold=0.5,
-        debug=False,
-        truncate_at_right=TRUNCATE_AT_RIGHT,
-        length_=length_select,
-        override_disable_forumlike=False,
-    ):
-        if len(data_batch) != batch_size_for_h:
-            raise ValueError("badlength")
-        batch_context = []
-        if add_prompt_cont_embs:
-            batch_prompt_end_ntoks = data_batch.prompt_end_ntoks.values
+    def predict_select(data, debug=False, override_disable_forumlike=False):
+        selector_input = []
         for text in data_batch.selector_inputs:
             for end_segment in {
                 eot_end_segment,
@@ -919,105 +906,141 @@ if SELECT_VIA_GENERATOR:
                 left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
             )
 
-        if EOT_PREPEND:
-            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
-                text = text[len(EOT_FULL) :]
-            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
-                text = EOT_FULL + text
+            if EOT_PREPEND:
+                if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
+                    text = text[len(EOT_FULL) :]
+                if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
+                    text = EOT_FULL + text
 
-            if truncate_at_right:
-                batch_context.append(
-                    enc.encode(text)[-(length_ - 1) :] + [SELECTION_TOK]
-                )
-            else:
-                batch_context.append(
-                    enc.encode(text)[: (length_ - 1)] + [SELECTION_TOK]
-                )
+            selector_input.append(text)
 
-            if debug:
-                print(
-                    f"in single_batch_predict_select, predicting on:\n{enc.decode(batch_context[-1])}\n"
-                )
-        max_tokens = max([len(toks) for toks in batch_context])
-        batch_context_ = [
-            toks + [0 for _ in range(max_tokens - len(toks))] for toks in batch_context
-        ]
-        batch_context = batch_context_
+    return selector_estimator.predict_proba(selector_input)
 
-        feed_dict = {}
-        feed_dict[selector_estimator] = batch_context
-
-        if add_prompt_cont_embs:
-            shift = max(0, max_tokens - length)
-            batch_prompt_end_ntoks = batch_prompt_end_ntoks - shift
-            batch_prompt_end_ntoks[batch_prompt_end_ntoks < 0] = 0
-
-            feed_dict[prompt_end_ntoks] = batch_prompt_end_ntoks
-
-        with sess.as_default():
-            logits = sess.run(select_logits, feed_dict=feed_dict)
-
-        if SELECTOR_LR_CALIB_INPUT == "logits":
-            probs = lr_calib.predict_proba(logits)[:, 1]
-        elif SELECTOR_LR_CALIB_INPUT == "logit_diff":
-            probs = lr_calib.predict_proba(logits[:, 1:] - logits[:, :1])[:, 1]
-        results = {"logits": logits, "probs": probs, "preds": probs > threshold}
-        return results
-
-    def predict_select(
-        data,
-        lr_calib,
-        threshold=0.5,
-        debug=False,
-        length_=length_select,
-        override_disable_forumlike=False,
-    ):
-        batches = []
-
-        for i in range(0, len(data), batch_size_for_h):
-            data_batch = data.iloc[i : i + batch_size_for_h]
-
-            n_needed = len(data_batch)
-            if n_needed < batch_size_for_h:
-                data_batch = pd.concat(
-                    [data_batch]
-                    + (batch_size_for_h - n_needed) * [data_batch.iloc[-1:, :]],
-                    ignore_index=True,
-                )
-            # while len(batch) != batch_size_for_h:
-            #   batch = batch + [batch[-1] for _ in range(batch_size_for_h - len(batch))]
-            batches.append(data_batch)
-
-        batch_results = [
-            single_batch_predict_select(
-                data_batch,
-                lr_calib,
-                threshold=threshold,
-                debug=debug,
-                length_=length_,
-                override_disable_forumlike=override_disable_forumlike,
-            )
-            for data_batch in batches
-        ]
-
-        result_keys = batch_results[0].keys()
-        results = {
-            k: np.concatenate([br[k] for br in batch_results])[: len(data)]
-            for k in result_keys
-        }
-
-        return results
+    # def single_batch_predict_select(
+    #     data_batch,
+    #     lr_calib,
+    #     threshold=0.5,
+    #     debug=False,
+    #     truncate_at_right=TRUNCATE_AT_RIGHT,
+    #     length_=length_select,
+    #     override_disable_forumlike=False,
+    # ):
+    #     if len(data_batch) != batch_size_for_h:
+    #         raise ValueError("badlength")
+    #     batch_context = []
+    #     if add_prompt_cont_embs:
+    #         batch_prompt_end_ntoks = data_batch.prompt_end_ntoks.values
+    #     for text in data_batch.selector_inputs:
+    #         for end_segment in {
+    #             eot_end_segment,
+    #             "<|",
+    #         }:  # explicitly support old <| thing, for now
+    #             if text.endswith(end_segment):
+    #                 text = text[: -len(end_segment)]
+    #         if T_CHAR not in text and (not V8):
+    #             text = text + T_CHAR
+    #
+    #         text = final_munge_before_neural(
+    #             text,
+    #             override_disable_forumlike=override_disable_forumlike,
+    #             left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
+    #         )
+    #
+    #     if EOT_PREPEND:
+    #         if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
+    #             text = text[len(EOT_FULL) :]
+    #         if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
+    #             text = EOT_FULL + text
+    #
+    #         if truncate_at_right:
+    #             batch_context.append(
+    #                 enc.encode(text)[-(length_ - 1) :] + [SELECTION_TOK]
+    #             )
+    #         else:
+    #             batch_context.append(
+    #                 enc.encode(text)[: (length_ - 1)] + [SELECTION_TOK]
+    #             )
+    #
+    #         if debug:
+    #             print(
+    #                 f"in single_batch_predict_select, predicting on:\n{enc.decode(batch_context[-1])}\n"
+    #             )
+    #     max_tokens = max([len(toks) for toks in batch_context])
+    #     batch_context_ = [
+    #         toks + [0 for _ in range(max_tokens - len(toks))] for toks in batch_context
+    #     ]
+    #     batch_context = batch_context_
+    #
+    #     feed_dict = {}
+    #     feed_dict[selector_estimator] = batch_context
+    #
+    #     if add_prompt_cont_embs:
+    #         shift = max(0, max_tokens - length)
+    #         batch_prompt_end_ntoks = batch_prompt_end_ntoks - shift
+    #         batch_prompt_end_ntoks[batch_prompt_end_ntoks < 0] = 0
+    #
+    #         feed_dict[prompt_end_ntoks] = batch_prompt_end_ntoks
+    #
+    #     with sess.as_default():
+    #         logits = sess.run(select_logits, feed_dict=feed_dict)
+    #
+    #     if SELECTOR_LR_CALIB_INPUT == "logits":
+    #         probs = lr_calib.predict_proba(logits)[:, 1]
+    #     elif SELECTOR_LR_CALIB_INPUT == "logit_diff":
+    #         probs = lr_calib.predict_proba(logits[:, 1:] - logits[:, :1])[:, 1]
+    #     results = {"logits": logits, "probs": probs, "preds": probs > threshold}
+    #     return results
+    #
+    # def predict_select(
+    #     data,
+    #     lr_calib,
+    #     threshold=0.5,
+    #     debug=False,
+    #     length_=length_select,
+    #     override_disable_forumlike=False,
+    # ):
+    #     batches = []
+    #
+    #     for i in range(0, len(data), batch_size_for_h):
+    #         data_batch = data.iloc[i : i + batch_size_for_h]
+    #
+    #         n_needed = len(data_batch)
+    #         if n_needed < batch_size_for_h:
+    #             data_batch = pd.concat(
+    #                 [data_batch]
+    #                 + (batch_size_for_h - n_needed) * [data_batch.iloc[-1:, :]],
+    #                 ignore_index=True,
+    #             )
+    #         # while len(batch) != batch_size_for_h:
+    #         #   batch = batch + [batch[-1] for _ in range(batch_size_for_h - len(batch))]
+    #         batches.append(data_batch)
+    #
+    #     batch_results = [
+    #         single_batch_predict_select(
+    #             data_batch,
+    #             lr_calib,
+    #             threshold=threshold,
+    #             debug=debug,
+    #             length_=length_,
+    #             override_disable_forumlike=override_disable_forumlike,
+    #         )
+    #         for data_batch in batches
+    #     ]
+    #
+    #     result_keys = batch_results[0].keys()
+    #     results = {
+    #         k: np.concatenate([br[k] for br in batch_results])[: len(data)]
+    #         for k in result_keys
+    #     }
+    #
+    #     return results
 
 
 if SENTIMENT_VIA_GENERATOR:
 
-    def single_batch_predict_sentiment(
-        text_batch, length_=length_sentiment, debug=False
-    ):
-        if len(text_batch) != batch_size_for_h:
-            raise ValueError("badlength")
-        batch_context = []
-        for text in text_batch:
+    def predict_sentiment(data, debug=False):
+        selector_input = []
+        for text in data_batch.selector_inputs:
             for end_segment in {
                 eot_end_segment,
                 "<|",
@@ -1029,70 +1052,109 @@ if SENTIMENT_VIA_GENERATOR:
             text = text.partition(T_CHAR)[0]
             if NORMALIZE:
                 text = normalize_for_generator(text)
-            # if FORUMLIKE:
-            #   text = substitute_forumlike(text, shuffle=False, infer_first=False)
             text = re.sub(r"\<.*?\>", "", text)  # sentiment-specific
 
+            text = final_munge_before_neural(
+                text,
+                override_disable_forumlike=override_disable_forumlike,
+                left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
+            )
+
             if EOT_PREPEND:
-                # do this after the regex so it sticks
                 if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
                     text = text[len(EOT_FULL) :]
                 if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
                     text = EOT_FULL + text
 
-            batch_context.append(enc.encode(text)[:length_] + [SELECTION_TOK])
-            if debug:
-                print(
-                    f"in single_batch_predict_sentiment, predicting on:\n{enc.decode(batch_context[-1])}\n"
-                )
-        max_tokens = max([len(toks) for toks in batch_context])
-        batch_context_ = [
-            toks + [0 for _ in range(max_tokens - len(toks))] for toks in batch_context
-        ]
-        batch_context = batch_context_
+            selector_input.append(text)
 
-        with sess.as_default():
-            logits = sess.run(
-                sentiment_logits, feed_dict={context_for_h.name: batch_context}
-            )
+    logits = sentiment_estimator.predict(selector_input, key="logits")
+    logit_diffs = logits[:, 1:] - logits[:, :1]
 
-        # probs = scipy.special.softmax(logits, axis=1)[:, 1]
-        # results = {"logits": logits, "probs": probs, "logit_diffs": logits[:, 1] - logits[:, 0]}
-        logit_diffs_raw = logits[:, 1:] - logits[:, :1]
-        logit_diffs_calib = lr_calib_sentiment.predict(logit_diffs_raw)
+    return logit_diffs
 
-        print(f"logit_diffs_raw avg={logit_diffs_raw.mean():.2f}")
-        print(f"logit_diffs_calib avg={logit_diffs_calib.mean():.2f}")
-        print(f"diff avg={logit_diffs_calib.mean()-logit_diffs_raw.mean():.2f}")
-
-        results = {"logit_diffs": logit_diffs_calib, "logit_diffs_raw": logit_diffs_raw}
-        return results
-
-    def predict_sentiment(data, length_=length_sentiment, debug=False):
-        texts = data.selector_inputs.values.tolist()
-        batches = []
-
-        for i in range(0, len(texts), batch_size_for_h):
-            batch = texts[i : i + batch_size_for_h]
-
-            while len(batch) != batch_size_for_h:
-                batch = batch + [
-                    batch[-1] for _ in range(batch_size_for_h - len(batch))
-                ]
-            batches.append(batch)
-
-        batch_results = [
-            single_batch_predict_sentiment(batch, length_=length_, debug=debug)
-            for batch in batches
-        ]
-
-        result_keys = batch_results[0].keys()
-        results = {
-            k: np.concatenate([br[k] for br in batch_results])[: len(texts)]
-            for k in result_keys
-        }
-
-        return results
+    # def single_batch_predict_sentiment(
+    #     text_batch, length_=length_sentiment, debug=False
+    # ):
+    #     if len(text_batch) != batch_size_for_h:
+    #         raise ValueError("badlength")
+    #     batch_context = []
+    #     for text in text_batch:
+    #         for end_segment in {
+    #             eot_end_segment,
+    #             "<|",
+    #         }:  # explicitly support old <| thing, for now
+    #             if text.endswith(end_segment):
+    #                 text = text[: -len(end_segment)]
+    #         if T_CHAR not in text:
+    #             text = text + T_CHAR
+    #         text = text.partition(T_CHAR)[0]
+    #         if NORMALIZE:
+    #             text = normalize_for_generator(text)
+    #         # if FORUMLIKE:
+    #         #   text = substitute_forumlike(text, shuffle=False, infer_first=False)
+    #         text = re.sub(r"\<.*?\>", "", text)  # sentiment-specific
+    #
+    #         if EOT_PREPEND:
+    #             # do this after the regex so it sticks
+    #             if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
+    #                 text = text[len(EOT_FULL) :]
+    #             if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
+    #                 text = EOT_FULL + text
+    #
+    #         batch_context.append(enc.encode(text)[:length_] + [SELECTION_TOK])
+    #         if debug:
+    #             print(
+    #                 f"in single_batch_predict_sentiment, predicting on:\n{enc.decode(batch_context[-1])}\n"
+    #             )
+    #     max_tokens = max([len(toks) for toks in batch_context])
+    #     batch_context_ = [
+    #         toks + [0 for _ in range(max_tokens - len(toks))] for toks in batch_context
+    #     ]
+    #     batch_context = batch_context_
+    #
+    #     with sess.as_default():
+    #         logits = sess.run(
+    #             sentiment_logits, feed_dict={context_for_h.name: batch_context}
+    #         )
+    #
+    #     # probs = scipy.special.softmax(logits, axis=1)[:, 1]
+    #     # results = {"logits": logits, "probs": probs, "logit_diffs": logits[:, 1] - logits[:, 0]}
+    #     logit_diffs_raw = logits[:, 1:] - logits[:, :1]
+    #     logit_diffs_calib = lr_calib_sentiment.predict(logit_diffs_raw)
+    #
+    #     print(f"logit_diffs_raw avg={logit_diffs_raw.mean():.2f}")
+    #     print(f"logit_diffs_calib avg={logit_diffs_calib.mean():.2f}")
+    #     print(f"diff avg={logit_diffs_calib.mean()-logit_diffs_raw.mean():.2f}")
+    #
+    #     results = {"logit_diffs": logit_diffs_calib, "logit_diffs_raw": logit_diffs_raw}
+    #     return results
+    #
+    # def predict_sentiment(data, length_=length_sentiment, debug=False):
+    #     texts = data.selector_inputs.values.tolist()
+    #     batches = []
+    #
+    #     for i in range(0, len(texts), batch_size_for_h):
+    #         batch = texts[i : i + batch_size_for_h]
+    #
+    #         while len(batch) != batch_size_for_h:
+    #             batch = batch + [
+    #                 batch[-1] for _ in range(batch_size_for_h - len(batch))
+    #             ]
+    #         batches.append(batch)
+    #
+    #     batch_results = [
+    #         single_batch_predict_sentiment(batch, length_=length_, debug=debug)
+    #         for batch in batches
+    #     ]
+    #
+    #     result_keys = batch_results[0].keys()
+    #     results = {
+    #         k: np.concatenate([br[k] for br in batch_results])[: len(texts)]
+    #         for k in result_keys
+    #     }
+    #
+    #     return results
 
 
 RESULT_STACK = {}
@@ -1220,12 +1282,10 @@ def serve_answer(data):
                         }
                     )
                     entry_selection_results = predict_select(
-                        alt_selector_inputs, lr_calib_resp, debug=True
+                        alt_selector_inputs, debug=True
                     )
                     listkey = f"alt_selection_proba__{alt_ts.replace(' ', '_')}"
-                    parsed[listkey] = [
-                        float(p) for p in entry_selection_results["probs"]
-                    ]
+                    parsed[listkey] = [float(p) for p in entry_selection_results]
 
             selector_inputs = [
                 join_time_sidechannel(s, relevant_timestamp) for s in selector_inputs
@@ -1235,19 +1295,16 @@ def serve_answer(data):
                 print(f"passing to predict_select: {selector_inputs}")
             selection_results = predict_select(
                 selector_inputs,
-                lr_calib_resp,
                 debug=True,
                 override_disable_forumlike=override_disable_forumlike,
             )
-            parsed["selection_proba"] = [float(p) for p in selection_results["probs"]]
+            parsed["selection_proba"] = [float(p) for p in selection_results]
             if SENTIMENT_VIA_GENERATOR:
                 selector_inputs = pd.DataFrame(
                     {"selector_inputs": parsed["continuations"]}
                 )
                 sentiment_results = predict_sentiment(selector_inputs, debug=True)
-                parsed["sentiment_logit_diffs"] = [
-                    float(p) for p in sentiment_results["logit_diffs"]
-                ]
+                parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
                 show_note_probas(
                     continuations,
                     probas=parsed["selection_proba"],
@@ -1350,9 +1407,7 @@ def serve_textpost(data):
                     {"selector_inputs": parsed["continuations"]}
                 )
                 sentiment_results = predict_sentiment(selector_inputs, debug=True)
-                parsed["sentiment_logit_diffs"] = [
-                    float(p) for p in sentiment_results["logit_diffs"]
-                ]
+                parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
                 show_note_probas(
                     continuations,
                     probas=parsed["selection_proba"],
@@ -1412,16 +1467,14 @@ def serve_raw_select(data):
         selection_results = predict_select(
             selector_inputs, lr_calib_orig, debug=True, override_disable_forumlike=True
         )
-        results["selection_proba"] = [float(p) for p in selection_results["probs"]]
+        results["selection_proba"] = [float(p) for p in selection_results]
 
         if SENTIMENT_VIA_GENERATOR:
             selector_inputs = pd.DataFrame(
                 {"selector_inputs": [final_munge_after_neural(s) for s in texts]}
             )
             sentiment_results = predict_sentiment(selector_inputs, debug=True)
-            results["sentiment_logit_diffs"] = [
-                float(p) for p in sentiment_results["logit_diffs"]
-            ]
+            results["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
             show_note_probas(
                 texts,
                 probas=results["selection_proba"],

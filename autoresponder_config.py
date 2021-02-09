@@ -71,6 +71,7 @@ gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10
 
 length_select = 825
 
+SELECT_VIA_GENERATOR_LONGLENGTH = True
 SENTIMENT_VIA_GENERATOR_LONGLENGTH = True
 
 length_sentiment = 204

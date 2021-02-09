@@ -70,20 +70,22 @@ The selector is an attention-plus-MLP neural net whose inputs are the activation
 
 The iterative learning of the selector is "implemented" as a human (me) scraping data every so often and running a training script on the data.
 
-- The content of the posts should be scraped from tumblr using the same pipeline used to scrape train data for the generator (see below).
-  - This means scraping tumblr using an appropriate utility, and ~~running a section in `prep_generator_training_dataset.ipynb`.~~
-- Code to scrape notes, and associate them with the post content, ~~is in `reward_data.py`.  I do this "manually" in a python session by importing the function `scrape_new_and_save` and calling it.~~
+To train the selector:
 
-Training the model from the data ~~happens in `train_generator_to_select.ipynb`~~.
+- Scrape the bot's tumblr.  For historical reasons, I currently do this with a [third-party utility](https://github.com/bbolli/tumblr-utils) and this pipeline is coupled to the output data format of that utility.  (TODO: include the whole pipeline in the repo)
+- Run the script `selector_model/data_prep.py` to convert the scraped tumblr posts into training data
+- Train the model on a GPU using the notebook `train_side_judgments.ipynb`.
 
+# Test heading
+
+[anchor](#test-heading)
 #### Training the generator (one-time)
 
 The model for layer 2, the generator, should be fine-tuned on an appropriately scraped and pre-processed tumblr corpus.  This is a step which only needs to happen once, but is required for the bot to run at all.
 
-- To scrape HTML from tumblr, use [this tool](https://github.com/bbolli/tumblr-utils) or a similar one
-  - TODO: bring my entire pipeline (including this utility) into this repo
-- ~~The notebook `prep_generator_training_dataset.ipynb`~~ does the pre-processing, given scraped HTML from tumblr.
-- ~~To train on the pre-processed dataset, use `train_generator.ipynb`~~
+Training the generator requires:
+
+- Scraping tumblr(s) for training data (see "Updating the selector"
 
 #### Training the sentiment model (one-time)
 

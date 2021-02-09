@@ -70,11 +70,11 @@ def selector(
 
     activations = model.model(
         hparams=hparams,
-        hparams_select=hparams_select,
         X=X,
-        layer_nums=layer_nums,
         scope=scope,
         reuse=reuse,
+        return_activations_at=layer_nums,
+        return_activations_only=True,
     )["activations"]
 
     hs_select = []

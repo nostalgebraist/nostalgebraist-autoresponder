@@ -62,8 +62,8 @@ def selector(
     use_mlp: bool = True,
     resid_mlp: bool = True,
     mlp_ratio=1,
-    use_length_channel=False,
-    use_length_channel_v2=False,
+    use_only_logit_diff=False,
+    use_logit_diff_basis=False,
 ):
     results = {}
 
@@ -133,6 +133,21 @@ def selector(
 
         select_logits = tf.matmul(h_select_in_at_selection_ix, w_select) + b_select
 
-    results["logits_select"] = select_logits
+    if use_logit_diff_basis:
+        logit_sum = select_logits[:, 0]
+        logit_diff = select_logits[:, 1]
+
+        neg_logit = logit_sum / 2 - logit_diff / 2
+        pos_logit = logit_sum / 2 + logit_diff / 2
+        results["logit_sum"] = logit_sum
+        results["logit_diff"] = logit_diff
+        results["logits_select"] = tf.stack([neg_logit, pos_logit], axis=1)
+    elif use_only_logit_diff:
+        results["logits_select"] = tf.concat(
+            [tf.zeros_like(select_logits), select_logits], axis=1
+        )
+        results["logit_diff"] = select_logits
+    else:
+        results["logits_select"] = select_logits
 
     return results

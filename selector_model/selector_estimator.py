@@ -366,10 +366,10 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
 
         if self.session_override is not None:
             self.session_ = self.session_override
-            self.context_for_h_ = self.session_.graph.get_tensor_by_name("context:0")
-            self.select_target_ = self.session_.graph.get_tensor_by_name(
-                "select_target:0"
-            )
+            with self.session_.as_default():
+                self.context_for_h_ = tf.placeholder(
+                    tf.int32, [self.batch_size, None], name="context"
+                )
         else:
             print("loading ckpt")
             self._load_ckpt()

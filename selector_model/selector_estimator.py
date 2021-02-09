@@ -367,9 +367,18 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         if self.session_override is not None:
             self.session_ = self.session_override
             with self.session_.as_default():
+                # TODO: DRY
                 self.context_for_h_ = tf.placeholder(
                     tf.int32, [self.batch_size, None], name="context"
                 )
+                if self.supervise_logits:
+                    self.select_target_ = tf.placeholder(
+                        tf.float32, [self.batch_size, 2], name="select_target"
+                    )
+                else:
+                    self.select_target_ = tf.placeholder(
+                        tf.int32, [self.batch_size], name="select_target"
+                    )
         else:
             print("loading ckpt")
             self._load_ckpt()

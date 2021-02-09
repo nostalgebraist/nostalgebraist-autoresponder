@@ -88,12 +88,7 @@ def load_from_gdrive_with_gs_fallback(
         if not target_exists:
             print(f"downlading from gs...")
             subprocess.check_output(gs_command, shell=True)
-        try:
-            return load_fn(path=local_gs_path, retries=retries, **kwargs)
-        except:
-            print(f"downlading from gs...")
-            subprocess.check_output(gs_command, shell=True)
-            return load_fn(path=local_gs_path, retries=retries, **kwargs)
+        return load_fn(path=local_gs_path, retries=retries, **kwargs)
 
 
 def load_encoder_only(path, retries=False):  # ignored

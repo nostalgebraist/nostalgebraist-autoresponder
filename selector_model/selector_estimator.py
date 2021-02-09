@@ -1218,6 +1218,12 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         est = SelectorEstimatorFromCkpt(**constructor_args)
         est._setup(training=False)
 
+        var_list = [
+            var for var in tf.trainable_variables() if est.select_scope_ in var.name
+        ]
+
+        tflex.load_variables(path, session=session, var_list=var_list)
+
         with open(path + "lr_calib.pkl", "rb") as f:
             est.lr_calib_ = pickle.load(f)
         with open(path + "lr_calib_resp.pkl", "rb") as f:

@@ -297,6 +297,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                         hparams=self.base_hparams,
                         X=self.context_for_h_,
                         return_activations_at=self.layer_nums,
+                        return_activations_only=True,
                     )["activations"]
 
                     saver = tflex.Saver()

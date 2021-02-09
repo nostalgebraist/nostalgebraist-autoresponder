@@ -1,3 +1,5 @@
+import inspect
+import pickle
 import os
 import json
 import sys
@@ -308,7 +310,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             except Exception as e:
                 print(f"encountered {e}, retrying...")
 
-    def _setup(self, X, y, training=True):
+    def _setup(self, X=None, y=None, training=True):
         print("entering setup")
         print(f"estimator:\n{repr(self)}\n")
 

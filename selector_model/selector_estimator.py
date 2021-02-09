@@ -139,7 +139,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         epochs=3,
         batch_size=8,
         grad_clip=1000,
-        base_hparams=hparams,
+        base_hparams=model.hparams_1558M(),
         enc=enc,
         selection_tok=SELECTION_TOK,  # TODO: specify SELECTION_TOK
         length=825,

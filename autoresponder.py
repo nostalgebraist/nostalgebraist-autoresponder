@@ -37,7 +37,6 @@ from autoresponder_config import *
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
-# TODO: switch this to load/save of SelectorEstimatorFromCkpt
 from selector_model.selector_estimator import SelectorEstimatorFromCkpt
 
 # TODO: move this over later

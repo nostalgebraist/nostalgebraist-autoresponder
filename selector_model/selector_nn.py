@@ -125,13 +125,12 @@ def selector(
 
         if use_mlp:
             nx = h_select_in_at_selection_ix.shape[-1].value
-            n_final = 2
             m = mlp_acti_dropout(
                 h_select_in_at_selection_ix,
                 "select_mlp",
                 int(mlp_ratio * nx),
                 hparams=hparams_select,
-                n_final=n_final,
+                n_final=None,
                 dropout_final=True,
             )
             if resid_mlp:

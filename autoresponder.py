@@ -38,7 +38,7 @@ from autoresponder_static import *
 from autoresponder_static_v8 import *
 
 # TODO: switch this to load/save of SelectorEstimatorFromCkpt
-from selector_model.selector_nn import selector
+from selector_model import SelectorEstimatorFromCkpt
 
 # TODO: move this over later
 drivedir = "/content/drive/MyDrive/gpt-2/"
@@ -851,117 +851,39 @@ def load_selector_metadata(path, retries=False):  # ignored
     return selector_metadata
 
 
+def load_selector(path, session, base_hparams, enc, retries=False):
+    selector_estimator = SelectorEstimatorFromCkpt.load(path,
+                                                        session=session,
+                                                        base_hparams=base_hparams,
+                                                        enc=enc)
+    return selector_estimator
+
+
 if SELECT_VIA_GENERATOR:
-    metadata_filename = ckpt_select.rpartition("/")[0] + "/metadata.json"
-    selector_metadata = load_from_gdrive_with_gs_fallback(
-        load_fn=load_selector_metadata,
-        relative_path=metadata_filename,
-        gs_command=gs_command_get_selector_metadata,
-    )
-    select_scope = selector_metadata["select_scope"]
-
-    hparams_select = HParams(
-        n_vocab=hparams.n_vocab,
-        n_ctx=hparams.n_ctx,
-        n_embd=hparams.n_embd,
-        n_head=selector_metadata["n_head"],
-        n_layer=hparams.n_layer,
-        res_dropout=0,
-        attn_dropout=0,
-        acti_dropout=0,
-        dtype=tf.float32,
-        do_resid=do_resid,
-        orth_init=True,
-    )
-
-    with sess.as_default():
-        context_for_h = tf.placeholder(tf.int32, [batch_size_for_h, None])
-        prompt_end_ntoks = tf.placeholder(
-            tf.int32, [batch_size_for_h], name="select_prompt_end_ntoks"
-        )
-
-        selection_step = selector(
-            select_scope=select_scope,
-            hparams=hparams,
-            hparams_select=hparams_select,
-            X=context_for_h,
-            layer_nums=layer_nums,
-            use_mlp=use_mlp,
-            resid_mlp=resid_mlp,
-            mlp_ratio=mlp_ratio,
-        )
-
-        select_logits = selection_step["logits_select"]
-
-    old_names = {}
-    var_list = [
-        var
-        for var in tf.trainable_variables()
-        if select_scope in var.name and not any([on in var.name for on in old_names])
-    ]
-
-    lr_calib_resp, lr_calib_orig = load_from_gdrive_with_gs_fallback(
-        load_fn=partial(
-            load_variables_with_retries,
-            var_list=var_list,
-            multi_calib=MULTI_LR_CALIB,
-        ),
-        relative_path=ckpt_select,
+    selector_estimator = load_from_gdrive_with_gs_fallback(
+        load_fn=load_selector,
+        relative_path=ckpt_select.rpartition("/")[0],  # TODO: redefine ckpt_select
         gs_command=gs_command_get_selector,
         session=sess,
+        base_hparams=hparams,
+        enc=enc,
     )
+
+    lr_calib_resp = selector_estimator.lr_calib_resp_
+    lr_calib_orig = selector_estimator.lr_calib_orig_
 
 
 if SENTIMENT_VIA_GENERATOR:
-    sentiment_metadata_filename = ckpt_sentiment.rpartition("/")[0] + "/metadata.json"
-    sentiment_metadata = load_from_gdrive_with_gs_fallback(
-        load_fn=load_selector_metadata,
-        relative_path=sentiment_metadata_filename,
-        gs_command=gs_command_get_sentiment_metadata,
-    )
-    sentiment_select_scope = sentiment_metadata["select_scope"]
-
-    hparams_select_sentiment = HParams(
-        n_vocab=hparams.n_vocab,
-        n_ctx=hparams.n_ctx,
-        n_embd=hparams.n_embd,
-        n_head=sentiment_metadata["n_head"],
-        n_layer=hparams.n_layer,
-        res_dropout=0,
-        attn_dropout=0,
-        acti_dropout=0,
-        dtype=tf.float32,
-        do_resid=do_resid,
-        orth_init=True,
-    )
-
-    with sess.as_default():
-        selection_step_sentiment = selector(
-            select_scope=sentiment_select_scope,
-            hparams=hparams,
-            hparams_select=hparams_select_sentiment,
-            X=context_for_h,
-            layer_nums=layer_nums_sentiment,
-            use_mlp=use_mlp_sentiment,
-            resid_mlp=resid_mlp,
-        )
-
-        sentiment_logits = selection_step_sentiment["logits_select"]
-
-    var_list = [
-        var for var in tf.trainable_variables() if sentiment_select_scope in var.name
-    ]
-
-    lr_calib_sentiment, _ = load_from_gdrive_with_gs_fallback(
-        load_fn=partial(
-            load_variables_with_retries,
-            var_list=var_list,
-            multi_calib=False,
-        ),
-        relative_path=ckpt_sentiment,
+    sentiment_estimator = load_from_gdrive_with_gs_fallback(
+        load_fn=load_selector,
+        relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
         gs_command=gs_command_get_sentiment,
         session=sess,
+        base_hparams=hparams,
+        enc=enc,
     )
+
+    lr_calib_sentiment = selector_estimator.lr_calib_
 
 
 if SELECT_VIA_GENERATOR:
@@ -1023,7 +945,7 @@ if SELECT_VIA_GENERATOR:
         batch_context = batch_context_
 
         feed_dict = {}
-        feed_dict[context_for_h] = batch_context
+        feed_dict[selector_estimator] = batch_context
 
         if add_prompt_cont_embs:
             shift = max(0, max_tokens - length)

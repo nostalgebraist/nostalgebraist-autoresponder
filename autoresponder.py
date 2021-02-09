@@ -1125,7 +1125,7 @@ def serve_textpost(data):
         debug=True,
         override_disable_forumlike=True,
     )
-    parsed["selection_proba"] = [float(p) for p in selection_results["probs"]]
+    parsed["selection_proba"] = [float(p) for p in selection_results]
 
     selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
     sentiment_results = predict_sentiment(selector_inputs, debug=True)

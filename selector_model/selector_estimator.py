@@ -101,11 +101,11 @@ def re_initialize_verbose(sess, var_names):
         sess.run(tf.variables_initializer([var_name]))
 
 
-def reshuffle_batches(train_data_for_selection):
+def reshuffle_batches(train_data_for_selection, batch_size):
     train_data_for_selection = train_data_for_selection.sort_values(by="n_tokens")
     batches = [
-        train_data_for_selection.iloc[row_ix : row_ix + batch_size_for_h, :]
-        for row_ix in range(0, len(train_data_for_selection), batch_size_for_h)
+        train_data_for_selection.iloc[row_ix : row_ix + batch_size, :]
+        for row_ix in range(0, len(train_data_for_selection), batch_size)
     ]
 
     np.random.shuffle(batches)
@@ -680,7 +680,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             self.target_cols_ = y.columns if len(y.shape) > 1 else y.name
             data = pd.concat([X, y], axis=1)
         data = data.sort_values(by="n_tokens")
-        data = reshuffle_batches(data)
+        data = reshuffle_batches(data, batch_size=self.batch_size)
         return data
 
     def _feed_from_batch(self, data_batch, scope):

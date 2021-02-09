@@ -140,6 +140,7 @@ To train the sentiment model
   - ML code that operates on formatted text:
     - `autoresponder.py` (machine learning layer; ML models run in a notebook `autoresponder_wrapper.ipynb` which is a lightweight wrapper around this file)
     - `autoresponder_config.py` (config file for machine learning layer)
+    - `selector_model/selector_estimator.py` (implements the selector and sentiment models as sklearn estimator classes)
     - `side_judgments.py` (abstraction layer around the selector and sentiment layers, used to construct calls to these ML models and cache responses)
 - Helper code for specific, less central features
   - `reply_munging.py` (responding to replies in an Xkit-like manner)

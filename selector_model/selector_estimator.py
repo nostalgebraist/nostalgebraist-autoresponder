@@ -692,7 +692,9 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             self.target_cols_ = y.columns if len(y.shape) > 1 else y.name
             data = pd.concat([X, y], axis=1)
         if "n_tokens" not in data.columns:
-            data["n_tokens"] = data.selector_input.apply(lambda s: len(self.enc.encode(s)))
+            data["n_tokens"] = data.selector_input.apply(
+                lambda s: len(self.enc.encode(s))
+            )
         data = data.sort_values(by="n_tokens")
         data = reshuffle_batches(data, batch_size=self.batch_size)
         return data
@@ -1130,9 +1132,13 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         steps = len(data) // self.batch_size + 1
 
         row_ix = 0
-        step_iter = tqdm(
-            list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=1
+
+        step_iter = (
+            tqdm(list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=1)
+            if len(steps) > 1
+            else list(range(0, steps))
         )
+
         for step_ix in step_iter:
             data_batch = data.iloc[row_ix : row_ix + self.batch_size, :]
             n_needed = len(data_batch)

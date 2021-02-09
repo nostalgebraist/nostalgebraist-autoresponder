@@ -101,6 +101,18 @@ def re_initialize_verbose(sess, var_names):
         sess.run(tf.variables_initializer([var_name]))
 
 
+def reshuffle_batches(train_data_for_selection):
+    train_data_for_selection = train_data_for_selection.sort_values(by="n_tokens")
+    batches = [
+        train_data_for_selection.iloc[row_ix : row_ix + batch_size_for_h, :]
+        for row_ix in range(0, len(train_data_for_selection), batch_size_for_h)
+    ]
+
+    np.random.shuffle(batches)
+
+    return pd.concat(batches, ignore_index=True)
+
+
 class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
     def __init__(
         self,

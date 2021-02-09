@@ -32,7 +32,7 @@ import tflex_sgdr
 from model import hparams_1558M, model as model_fn
 from accumulate import GradientAccumulator
 
-from selector_nn import selector
+from selector_model.selector_nn import selector
 
 
 ORIG_POST_CHAR_CHINESE = "翰"

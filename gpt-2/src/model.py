@@ -412,6 +412,7 @@ def model(
     scope="model",
     reuse=tf.AUTO_REUSE,
     return_activations_at=[],
+    return_activations_only=False,
     midpoint=None,
     midpoint_vect=None,
     stop_grad_at_midpoint=False,
@@ -479,6 +480,9 @@ def model(
                 h_names.append(h_name)
                 activations.append(h)
 
+                if return_activations_only and layer == max(return_activations_at):
+                    break
+
             if midpoint is not None:
                 if layer == midpoint:
                     results[f"h{midpoint}"] = h
@@ -491,23 +495,25 @@ def model(
                 tf.add_to_collection("checkpoints", h)
             presents.append(present)
             presents_adapt.append(present_adapt)
-        results["present"] = tf.stack(presents, axis=1)
-        results["present_adapt"] = tf.stack(presents_adapt, axis=1)
-        h = norm(h, "ln_f", hparams=hparams)
-        results["h_out"] = h
-        if h_out_vect is not None:
-            return tf.reduce_mean(
-                tf.einsum("aij,aij->ai", results["h_out"], h_out_vect)
-            )
-        if stop_at_h_out:
-            return results
 
-        # Language model loss.  Do tokens <n predict token n?
-        # logits = tf.matmul(h, wte_full, transpose_b=True)
-        h_flat = tf.reshape(h, [batch * sequence, hparams.n_embd])
-        logits = tf.matmul(h_flat, wte_full, transpose_b=True)
-        logits = tf.reshape(logits, [batch, sequence, hparams.n_vocab])
-        results["logits"] = logits
+        if not return_activations_only:
+            results["present"] = tf.stack(presents, axis=1)
+            results["present_adapt"] = tf.stack(presents_adapt, axis=1)
+            h = norm(h, "ln_f", hparams=hparams)
+            results["h_out"] = h
+            if h_out_vect is not None:
+                return tf.reduce_mean(
+                    tf.einsum("aij,aij->ai", results["h_out"], h_out_vect)
+                )
+            if stop_at_h_out:
+                return results
+
+            # Language model loss.  Do tokens <n predict token n?
+            # logits = tf.matmul(h, wte_full, transpose_b=True)
+            h_flat = tf.reshape(h, [batch * sequence, hparams.n_embd])
+            logits = tf.matmul(h_flat, wte_full, transpose_b=True)
+            logits = tf.reshape(logits, [batch, sequence, hparams.n_vocab])
+            results["logits"] = logits
 
         results["activations"] = list(zip(h_names, activations))
         return results

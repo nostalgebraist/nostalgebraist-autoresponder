@@ -384,7 +384,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 use_logit_diff_basis=self.use_logit_diff_basis,
                 use_only_logit_diff=self.use_only_logit_diff,
                 batch_size=self.batch_size,
-                scalar_mix_n_out=self.scalar_mix_n_out,
             )
 
             self.selection_step_eval_ = selector(
@@ -820,8 +819,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 extra_postfixes["z_gn_attn"] = cur_gn_attn
                 extra_postfixes["z_gn_lreg"] = cur_gn_lreg
                 extra_postfixes["zz_gn_ztotal"] = cur_gn
-                if self.use_scalar_mix:
-                    extra_postfixes["z_gn_amix"] = cur_gn_mix
                 if self.use_mlp:
                     extra_postfixes["z_gn_mlp"] = cur_gn_mlp
                 if self.additional_full_blocks > 0:

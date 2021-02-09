@@ -37,6 +37,8 @@ from autoresponder_config import *
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
+from selector_model.selector_estimator import SelectorEstimatorFromCkpt
+
 # TODO: move this over later
 drivedir = "/content/drive/MyDrive/gpt-2/"
 os.chdir("/")
@@ -85,12 +87,7 @@ def load_from_gdrive_with_gs_fallback(
         if not target_exists:
             print(f"downlading from gs...")
             subprocess.check_output(gs_command, shell=True)
-        try:
-            return load_fn(path=local_gs_path, retries=retries, **kwargs)
-        except:
-            print(f"downlading from gs...")
-            subprocess.check_output(gs_command, shell=True)
-            return load_fn(path=local_gs_path, retries=retries, **kwargs)
+        return load_fn(path=local_gs_path, retries=retries, **kwargs)
 
 
 def load_encoder_only(path, retries=False):  # ignored
@@ -562,9 +559,7 @@ def parse_continuation(continuation: str, verbose=True, wrap=False):
     if len(tag_text) > 0:
         tags = [s.rstrip(" ") for s in tag_text.split("#")]
 
-    post = post.lstrip(
-        ORIG_POST_CHAR
-    )  # TODO: fix this in get_prompted_continuation_with_length_proportional_sampling
+    post = post.lstrip(ORIG_POST_CHAR)
     parsed = {"post": post, "tags": tags}
     return parsed
 
@@ -802,828 +797,100 @@ def show_note_probas(texts, probas, sentiment_logit_diffs=None, console_width=11
             print("\n~_~_~_~_~_\n")
 
 
-from model import *
-
-SELECTION_CHAR = "<|endoftext|>"
-SELECTION_TOK = enc.encode(SELECTION_CHAR)[-1]
-
-
-def extract_selection_ix(tokens, extract_from):
-    mask = tf.equal(tf.dtypes.cast(tokens, tf.int32), SELECTION_TOK)
-    extracted_ragged = tf.ragged.boolean_mask(extract_from, mask)
-
-    row_lengths = extracted_ragged.row_lengths()
-    row_ixs = row_lengths - 1
-    selection_ix = tf.stack(
-        [tf.range(0, batch_size_for_h, dtype=tf.int64), row_ixs],
-        axis=1,
+def load_selector(path, session, base_hparams, enc, retries=False):
+    selector_est = SelectorEstimatorFromCkpt.load(
+        path, session=session, base_hparams=base_hparams, enc=enc
     )
-
-    extracted = tf.gather_nd(
-        extracted_ragged.to_tensor(),
-        selection_ix,
-    )
-
-    return {"extracted": extracted, "selection_ix": selection_ix}
-
-
-def extract_selection_ix_position(tokens):
-    return extract_selection_ix(tokens, tf.sort(tf.argsort(tokens)))
-
-
-def model_activations(
-    hparams,
-    X,
-    hparams_select,
-    layer_nums: list,
-    norm_layers_after: bool = False,
-    add_position_emb_later_layers=False,
-    past=None,
-    past_select=None,
-    scope="model",
-    reuse=tf.AUTO_REUSE,
-):
-    activations = []
-    h_names = []
-
-    dtype = hparams.dtype if hparams else tf.float32
-    with tf.variable_scope(scope, reuse=reuse, dtype=dtype):
-        results = {}
-        batch, sequence = shape_list(X)
-
-        wpe = get_variable("wpe") or tf.get_variable(
-            "wpe",
-            [hparams.n_ctx, hparams.n_embd],
-            initializer=tf.random_normal_initializer(stddev=0.01, dtype=dtype),
-        )
-        wte = get_variable("wte") or tf.get_variable(
-            "wte",
-            [hparams.n_vocab, hparams.n_embd],
-            initializer=tf.random_normal_initializer(stddev=0.02, dtype=dtype),
-        )
-        past_length = 0 if past is None else tf.shape(past)[-2]
-        position_emb = tf.gather(wpe, positions_for(X, past_length))
-        h = tf.gather(wte, X) + position_emb
-
-        # Transformer
-        presents = []
-        pasts = (
-            tf.unstack(past, axis=1) if past is not None else [None] * hparams.n_layer
-        )
-        assert len(pasts) == hparams.n_layer
-        for layer, past in enumerate(pasts):
-            h, present, present_adapt = block(
-                h, "h%d" % layer, past=past, past_adapt=past, hparams=hparams
-            )
-            presents.append(present)
-            if layer in layer_nums:
-                h_name = f"h{layer}"
-                print(f"{h_name} found")
-                h_names.append(h_name)
-                if add_position_emb_later_layers:
-                    print(f"adding position emb at {h_name}")
-                h_to_use = h + position_emb if add_position_emb_later_layers else h
-                activations.append(h_to_use)
-
-        results["present"] = tf.stack(presents, axis=1)
-        h = norm(h, "ln_f", hparams=hparams)
-
-        # Language model loss.  Do tokens <n predict token n?
-        h_flat = tf.reshape(h, [batch * sequence, hparams.n_embd])
-        logits = tf.matmul(h_flat, wte, transpose_b=True)
-        logits = tf.reshape(logits, [batch, sequence, hparams.n_vocab])
-        results["logits"] = logits
-
-        # activations
-        if norm_layers_after:
-            activations = [
-                norm(act, f"ln_after_{act_name}", hparams=hparams_select)
-                for act_name, act in zip(h_names, activations)
-            ]
-
-        results["activations"] = list(zip(h_names, activations))
-
-        return results
-
-
-def get_initializer(hparams, scope):
-    initializer = tf.random_normal_initializer
-    if hparams.get("orth_init"):
-        print(f"orth init in scope {scope}")
-        initializer = tf.compat.v1.orthogonal_initializer
-    return initializer
-
-
-def norm_orig(x, scope, *, axis=-1, epsilon=1e-5, hparams=None):
-    """Normalize to mean = 0, std = 1, then do a diagonal affine transform."""
-    dtype = hparams.dtype if hparams else tf.float32
-    n_state = x.shape[-1].value
-    with tf.variable_scope(scope, dtype=dtype):
-        g = get_variable("g") or tf.get_variable(
-            "g", [n_state], initializer=tf.constant_initializer(1, dtype=dtype)
-        )
-        b = get_variable("b") or tf.get_variable(
-            "b", [n_state], initializer=tf.constant_initializer(0, dtype=dtype)
-        )
-        u = tf.reduce_mean(x, axis=axis, keepdims=True)
-        s = tf.reduce_mean(tf.square(x - u), axis=axis, keepdims=True)
-        x = (x - u) * tf.rsqrt(s + epsilon)
-        x = x * g + b
-        return x
-
-
-def norm(x, scope, *, axis=-1, epsilon=1e-5, hparams=None):
-    if hparams.get("scalenorm", False):
-        dtype = hparams.dtype if hparams else tf.float32
-        n_state = x.shape[-1].value
-        with tf.variable_scope(scope, dtype=dtype):
-            """https://arxiv.org/pdf/1910.05895.pdf"""
-            g = get_variable("g") or tf.get_variable(
-                "g", [1], initializer=tf.constant_initializer(1, dtype=dtype)
-            )
-            s = tf.reduce_mean(tf.square(x), axis=axis, keepdims=True)
-            x = g * (x / tf.rsqrt(s + epsilon))
-            # x = g*(x/tf.norm(x, ord=2, axis=axis, keepdims=True))
-            return x
-    else:
-        return norm_orig(x, scope, axis=axis, epsilon=epsilon, hparams=hparams)
-
-
-def conv1d(x, scope, nf, *, w_init_stdev=0.02, hparams=None):
-    dtype = hparams.dtype if hparams else tf.float32
-
-    initializer = get_initializer(hparams, scope)
-    with tf.variable_scope(scope, dtype=dtype):
-        *start, nx = shape_list(x)
-        w = get_variable("w") or tf.get_variable(
-            "w", [1, nx, nf], initializer=initializer(w_init_stdev, dtype=dtype)
-        )
-        b = get_variable("b") or tf.get_variable(
-            "b", [nf], initializer=tf.constant_initializer(0, dtype=dtype)
-        )
-        c = tf.reshape(
-            tf.matmul(tf.reshape(x, [-1, nx]), tf.reshape(w, [-1, nf])) + b,
-            start + [nf],
-        )
-        return c
-
-
-# this is a copy/paste -- we need to redefine "attn" so the "conv1d" defn'd above
-# is used
-
-
-def attn(x, scope, n_state, *, past, hparams):
-    assert x.shape.ndims == 3  # Should be [batch, sequence, features]
-    assert n_state % hparams.n_head == 0
-    if past is not None:
-        assert (
-            past.shape.ndims == 5
-        )  # Should be [batch, 2, heads, sequence, features], where 2 is [k, v]
-
-    def split_heads(x):
-        # From [batch, sequence, features] to [batch, heads, sequence, features]
-        return tf.transpose(split_states(x, hparams.n_head), [0, 2, 1, 3])
-
-    def merge_heads(x):
-        # Reverse of split_heads
-        return merge_states(tf.transpose(x, [0, 2, 1, 3]))
-
-    def mask_attn_weights(w):
-        # w has shape [batch, heads, dst_sequence, src_sequence], where information flows from src to dst.
-        _, _, nd, ns = shape_list(w)
-        b = attention_mask(nd, ns, dtype=w.dtype)
-        b = tf.reshape(b, [1, 1, nd, ns])
-        w = w * b - tf.cast(65500 if w.dtype != tf.float32 else 1e10, w.dtype) * (1 - b)
-        return w
-
-    def multihead_attn(q, k, v):
-        # q, k, v have shape [batch, heads, sequence, features]
-        w = tf.matmul(q, k, transpose_b=True)
-        w = w * tf.rsqrt(tf.cast(v.shape[-1].value, w.dtype))
-
-        w = mask_attn_weights(w)
-        w = softmax(w)
-        w = dropout(w, hparams.attn_dropout)
-        a = tf.matmul(w, v)
-        return a
-
-    dtype = hparams.dtype if hparams else tf.float32
-    with tf.variable_scope(scope, dtype=dtype):
-        c = conv1d(x, "c_attn", n_state * 3, hparams=hparams)
-        q, k, v = map(split_heads, tf.split(c, 3, axis=2))
-        present = tf.stack([k, v], axis=1)
-        if past is not None:
-            pk, pv = tf.unstack(past, axis=1)
-            k = tf.concat([pk, k], axis=-2)
-            v = tf.concat([pv, v], axis=-2)
-        a = multihead_attn(q, k, v)
-        a = merge_heads(a)
-        a = conv1d(a, "c_proj", n_state, hparams=hparams)
-        a = dropout(a, hparams.res_dropout)
-        return a, present
-
-
-def attn_only_block(x, scope, *, past, hparams, do_input_norm=True):
-    dtype = hparams.dtype if hparams else tf.float32
-    do_resid = hparams.do_resid if hparams else True
-    print(f"do_resid: {do_resid}")
-    print(f"do_input_norm: {do_input_norm}")
-    with tf.variable_scope(scope, dtype=dtype):
-        nx = x.shape[-1].value
-
-        if do_input_norm:
-            norm_in_fn = norm if hparams.get("scalenorm_in", False) else norm_orig
-            x_attn_in = norm_in_fn(x, "ln_1", hparams=hparams)
-        else:
-            x_attn_in = x
-
-        a, present = attn(x_attn_in, "attn", nx, past=past, hparams=hparams)
-        if do_resid:
-            x = x + a
-        else:
-            x = a
-
-        return x, present
-
-
-def mlp_no_proj(x, scope, n_state, *, hparams, is_expansion=False):
-    dtype = hparams.dtype if hparams else tf.float32
-    with tf.variable_scope(scope, dtype=dtype):
-        nx = x.shape[-1].value
-        h = gelu(conv1d(x, "c_fc", n_state, w_init_stdev=0.02, hparams=hparams))
-        h = dropout(h, hparams.res_dropout)
-        return h
-
-
-def mlp_acti_dropout(
-    x, scope, n_state, *, hparams, w_init_stdev=1, n_final=None, dropout_final=True
-):
-    dtype = hparams.dtype if hparams else tf.float32
-    with tf.variable_scope(scope, dtype=dtype):
-        nx = x.shape[-1].value
-        if n_final is None:
-            n_final = nx
-        h = gelu(conv1d(x, "c_fc", n_state, hparams=hparams, w_init_stdev=w_init_stdev))
-        h = dropout(h, hparams.acti_dropout)
-        h2 = conv1d(h, "c_proj", n_final, hparams=hparams, w_init_stdev=w_init_stdev)
-        if dropout_final:
-            h2 = dropout(h2, hparams.res_dropout)
-        return h2
-
-
-def selector(
-    hparams,
-    X,
-    hparams_select,
-    layer_nums: list,
-    scope="model",
-    select_scope="select",
-    reuse=tf.AUTO_REUSE,
-    norm_layers_after: bool = False,
-    use_mlp: bool = True,
-    resid_mlp: bool = True,
-    direct_mlp: bool = False,
-    mlp_proj=True,
-    mlp_ratio=1,
-    use_length_channel=False,
-    use_length_channel_v2=False,
-    add_position_emb_later_layers=False,
-    add_prompt_cont_embs=False,
-    prompt_end_ntoks=None,
-    norm_final_output=True,
-):
-    results = {}
-
-    activations_ = model_activations(
-        hparams=hparams,
-        hparams_select=hparams_select,
-        X=X,
-        layer_nums=layer_nums,
-        norm_layers_after=norm_layers_after,
-        add_position_emb_later_layers=add_position_emb_later_layers,
-        scope=scope,
-        reuse=reuse,
-    )["activations"]
-
-    if add_prompt_cont_embs:
-        with tf.variable_scope(select_scope, reuse=reuse):
-            initializer = get_initializer(hparams_select, select_scope)
-            prompt_cont_embs = tf.get_variable(
-                "select_prompt_cont_embs",
-                [2, hparams.n_embd],
-                initializer=initializer(0.01, dtype=hparams.dtype),
-            )
-
-            positions = positions_for(X, 0)
-            tiled_prompt_end_ntoks = tf.reshape(prompt_end_ntoks, (-1, 1))
-            is_cont = tf.where(
-                positions > tiled_prompt_end_ntoks,
-                tf.ones_like(positions),
-                tf.zeros_like(positions),
-            )
-
-            prompt_cont_embs_add = tf.gather(prompt_cont_embs, is_cont)
-
-            activations = []
-            for act_name, act in activations_:
-                activations.append((act_name, act + prompt_cont_embs_add))
-    else:
-        activations = activations_
-
-    hs_select = []
-    with tf.variable_scope(select_scope, reuse=reuse, dtype=hparams_select.dtype):
-        for act_name, act in activations:
-            h_select, _ = attn_only_block(
-                act,
-                f"h_select_{act_name}",
-                hparams=hparams_select,
-                past=None,
-                do_input_norm=(not norm_layers_after),
-            )
-            if norm_final_output:
-                h_select = norm(
-                    h_select,
-                    f"ln_2_select_{act_name}",
-                    hparams=hparams_select,
-                )
-            hs_select.append(h_select)
-
-            h_select_in = tf.concat(hs_select, axis=-1)
-
-            h_select_in_at_selection_ix = extract_selection_ix(X, h_select_in)[
-                "extracted"
-            ]
-            selection_ix_position = tf.cast(
-                tf.reshape(extract_selection_ix_position(X)["extracted"], [-1, 1]),
-                tf.float32,
-            )
-
-        if use_mlp:
-            nx = h_select_in_at_selection_ix.shape[-1].value
-            if mlp_proj:
-                n_final = 2 if direct_mlp else None
-                m = mlp_acti_dropout(
-                    h_select_in_at_selection_ix,
-                    "select_mlp",
-                    int(mlp_ratio * nx),
-                    hparams=hparams_select,
-                    n_final=n_final,
-                    dropout_final=(not direct_mlp),
-                )
-            else:
-                m = mlp_no_proj(
-                    h_select_in_at_selection_ix,
-                    "select_mlp",
-                    nx,
-                    hparams=hparams_select,
-                )
-            if direct_mlp:
-                pass
-            elif resid_mlp:
-                h_select_in_at_selection_ix = m + h_select_in_at_selection_ix
-            else:
-                h_select_in_at_selection_ix = m
-
-        w_select = get_variable("w_select")
-        if w_select is None:
-            initializer = get_initializer(hparams_select, scope)
-            w_select = tf.get_variable(
-                "w_select",
-                [len(layer_nums) * hparams.n_embd, 2],
-                initializer=initializer(0.02, dtype=hparams.dtype),
-            )
-
-        b_select = get_variable("b_select")
-        if b_select is None:
-            b_select = tf.get_variable(
-                "b_select",
-                [2],
-                initializer=tf.constant_initializer(0, dtype=hparams.dtype),
-            )
-
-        select_logits = tf.matmul(h_select_in_at_selection_ix, w_select) + b_select
-
-        if direct_mlp and use_mlp:
-            select_logits = select_logits + m
-
-        if use_length_channel:
-            if use_length_channel_v2:
-                w_select_length_linear = get_variable("w_select_length_linear")
-                if w_select_length_linear is None:
-                    w_select_length_linear = tf.get_variable(
-                        "w_select_length_linear",
-                        [1, 2],
-                        initializer=tf.constant_initializer(0.0, dtype=hparams.dtype),
-                    )
-
-                w_select_length_log = get_variable("w_select_length_log")
-                if w_select_length_log is None:
-                    w_select_length_log = tf.get_variable(
-                        "w_select_length_log",
-                        [1, 2],
-                        initializer=tf.constant_initializer(0.0, dtype=hparams.dtype),
-                    )
-
-                select_logits = select_logits + tf.matmul(
-                    selection_ix_position, w_select_length_linear
-                )
-                select_logits = select_logits + tf.matmul(
-                    tf.log(selection_ix_position), w_select_length_log
-                )
-
-            else:
-                w_select_length = get_variable("w_select_length")
-                if w_select_length is None:
-                    w_select_length = tf.get_variable(
-                        "w_select_length",
-                        [1, 2],
-                        initializer=tf.constant_initializer(0.0, dtype=hparams.dtype),
-                    )
-                select_logits = select_logits * (
-                    1 + tf.matmul(1 + tf.log(selection_ix_position), w_select_length)
-                )
-
-    results["logits_select"] = select_logits
-
-    return results
-
-
-batch_size_for_h = batch_size
-
-
-def load_variables_with_retries(
-    path, var_list, session, multi_calib=False, retries=True
-):
-    done = False
-    tries = 0
-    while not done:
-        try:
-            print(f"loading from {path}")
-            tflex.load_variables(path, session=sess, var_list=var_list)
-            done = True
-        except Exception as e:
-            if not retries:
-                raise e
-            if tries > 5:
-                break
-            print(f"encountered {e}, retrying...")
-            tries += 1
-
-    display(var_list)
-
-    if multi_calib:
-        with open(path.rpartition("/")[0] + "/lr_calib_resp.pkl", "rb") as f:
-            lr_calib_resp = pickle.load(f)
-        with open(path.rpartition("/")[0] + "/lr_calib_orig.pkl", "rb") as f:
-            lr_calib_orig = pickle.load(f)
-    else:
-        with open(path.rpartition("/")[0] + "/lr_calib.pkl", "rb") as f:
-            lr_calib = pickle.load(f)
-            lr_calib_resp = lr_calib
-            lr_calib_orig = lr_calib
-    return lr_calib_resp, lr_calib_orig
-
-
-def load_selector_metadata(path, retries=False):  # ignored
-    with open(path, "r") as f:
-        selector_metadata = json.load(f)
-    return selector_metadata
-
-
-if SELECT_VIA_GENERATOR:
-    metadata_filename = ckpt_select.rpartition("/")[0] + "/metadata.json"
-    selector_metadata = load_from_gdrive_with_gs_fallback(
-        load_fn=load_selector_metadata,
-        relative_path=metadata_filename,
-        gs_command=gs_command_get_selector_metadata,
-    )
-    select_scope = selector_metadata["select_scope"]
-
-    hparams_select = HParams(
-        n_vocab=hparams.n_vocab,
-        n_ctx=hparams.n_ctx,
-        n_embd=hparams.n_embd,
-        n_head=selector_metadata["n_head"],
-        n_layer=hparams.n_layer,
-        res_dropout=0,
-        attn_dropout=0,
-        acti_dropout=0,
-        dtype=tf.float32,
-        do_resid=do_resid,
-        orth_init=True,
-    )
-
-    with sess.as_default():
-        context_for_h = tf.placeholder(tf.int32, [batch_size_for_h, None])
-        prompt_end_ntoks = tf.placeholder(
-            tf.int32, [batch_size_for_h], name="select_prompt_end_ntoks"
+    return selector_est
+
+
+selector_est = load_from_gdrive_with_gs_fallback(
+    load_fn=load_selector,
+    relative_path=ckpt_select.rpartition("/")[0],  # TODO: redefine ckpt_select
+    gs_command=gs_command_get_selector,
+    session=sess,
+    base_hparams=hparams,
+    enc=enc,
+)
+selector_est.length = length_select
+
+lr_calib_resp = selector_est.lr_calib_resp_
+lr_calib_orig = selector_est.lr_calib_orig_
+
+
+sentiment_est = load_from_gdrive_with_gs_fallback(
+    load_fn=load_selector,
+    relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
+    gs_command=gs_command_get_sentiment,
+    session=sess,
+    base_hparams=hparams,
+    enc=enc,
+)
+sentiment_est.length = length_sentiment
+
+lr_calib_sentiment = selector_est.lr_calib_
+
+
+def predict_select(data, debug=False, override_disable_forumlike=False):
+    selector_input = []
+    for text in data.selector_input:
+        for end_segment in {
+            eot_end_segment,
+            "<|",
+        }:  # explicitly support old <| thing, for now
+            if text.endswith(end_segment):
+                text = text[: -len(end_segment)]
+        if T_CHAR not in text and (not V8):
+            text = text + T_CHAR
+
+        text = final_munge_before_neural(
+            text,
+            override_disable_forumlike=override_disable_forumlike,
+            left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
         )
 
-        selection_step = selector(
-            select_scope=select_scope,
-            hparams=hparams,
-            hparams_select=hparams_select,
-            X=context_for_h,
-            layer_nums=layer_nums,
-            norm_layers_after=norm_layers_after,
-            use_mlp=use_mlp,
-            resid_mlp=resid_mlp,
-            direct_mlp=direct_mlp,
-            mlp_proj=mlp_proj,
-            mlp_ratio=mlp_ratio,
-            use_length_channel=use_length_channel,
-            use_length_channel_v2=use_length_channel_v2,
-            add_position_emb_later_layers=add_position_emb_later_layers,
-            add_prompt_cont_embs=add_prompt_cont_embs,
-            prompt_end_ntoks=prompt_end_ntoks,
-            norm_final_output=norm_final_output,
-        )
+        if EOT_PREPEND:
+            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
+                text = text[len(EOT_FULL) :]
+            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
+                text = EOT_FULL + text
 
-        select_logits = selection_step["logits_select"]
+        selector_input.append(text)
+    data.loc[:, "selector_input"] = selector_input
 
-    old_names = {}
-    var_list = [
-        var
-        for var in tf.trainable_variables()
-        if select_scope in var.name and not any([on in var.name for on in old_names])
-    ]
-
-    lr_calib_resp, lr_calib_orig = load_from_gdrive_with_gs_fallback(
-        load_fn=partial(
-            load_variables_with_retries,
-            var_list=var_list,
-            multi_calib=MULTI_LR_CALIB,
-        ),
-        relative_path=ckpt_select,
-        gs_command=gs_command_get_selector,
-        session=sess,
-    )
+    probs = selector_est.predict_proba(data)[:, 1]
+    return probs
 
 
-if SENTIMENT_VIA_GENERATOR:
-    sentiment_metadata_filename = ckpt_sentiment.rpartition("/")[0] + "/metadata.json"
-    sentiment_metadata = load_from_gdrive_with_gs_fallback(
-        load_fn=load_selector_metadata,
-        relative_path=sentiment_metadata_filename,
-        gs_command=gs_command_get_sentiment_metadata,
-    )
-    sentiment_select_scope = sentiment_metadata["select_scope"]
+def predict_sentiment(data, debug=False):
+    selector_input = []
+    for text in data.selector_input:
+        for end_segment in {
+            eot_end_segment,
+            "<|",
+        }:  # explicitly support old <| thing, for now
+            if text.endswith(end_segment):
+                text = text[: -len(end_segment)]
+        if T_CHAR not in text:
+            text = text + T_CHAR
+        text = text.partition(T_CHAR)[0]
+        if NORMALIZE:
+            text = normalize_for_generator(text)
+        text = re.sub(r"\<.*?\>", "", text)  # sentiment-specific
 
-    hparams_select_sentiment = HParams(
-        n_vocab=hparams.n_vocab,
-        n_ctx=hparams.n_ctx,
-        n_embd=hparams.n_embd,
-        n_head=sentiment_metadata["n_head"],
-        n_layer=hparams.n_layer,
-        res_dropout=0,
-        attn_dropout=0,
-        acti_dropout=0,
-        dtype=tf.float32,
-        do_resid=do_resid,
-        orth_init=True,
-    )
+        if EOT_PREPEND:
+            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
+                text = text[len(EOT_FULL) :]
+            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
+                text = EOT_FULL + text
 
-    with sess.as_default():
-        selection_step_sentiment = selector(
-            select_scope=sentiment_select_scope,
-            hparams=hparams,
-            hparams_select=hparams_select_sentiment,
-            X=context_for_h,
-            layer_nums=layer_nums_sentiment,
-            norm_layers_after=norm_layers_after,
-            use_mlp=use_mlp_sentiment,
-            resid_mlp=resid_mlp,
-            mlp_proj=mlp_proj,
-            use_length_channel=use_length_channel_sentiment,
-            use_length_channel_v2=use_length_channel_v2_sentiment,
-            norm_final_output=norm_final_output_sentiment,
-        )
+        selector_input.append(text)
+    data.loc[:, "selector_input"] = selector_input
 
-        sentiment_logits = selection_step_sentiment["logits_select"]
+    logits = sentiment_est._predict(data, key="logits")
+    logit_diffs = logits[:, 1:] - logits[:, :1]
 
-    var_list = [
-        var for var in tf.trainable_variables() if sentiment_select_scope in var.name
-    ]
-
-    lr_calib_sentiment, _ = load_from_gdrive_with_gs_fallback(
-        load_fn=partial(
-            load_variables_with_retries,
-            var_list=var_list,
-            multi_calib=False,
-        ),
-        relative_path=ckpt_sentiment,
-        gs_command=gs_command_get_sentiment,
-        session=sess,
-    )
-
-
-if SELECT_VIA_GENERATOR:
-    import scipy.special
-
-    def single_batch_predict_select(
-        data_batch,
-        lr_calib,
-        threshold=0.5,
-        debug=False,
-        truncate_at_right=TRUNCATE_AT_RIGHT,
-        length_=length_select,
-        override_disable_forumlike=False,
-    ):
-        if len(data_batch) != batch_size_for_h:
-            raise ValueError("badlength")
-        batch_context = []
-        if add_prompt_cont_embs:
-            batch_prompt_end_ntoks = data_batch.prompt_end_ntoks.values
-        for text in data_batch.selector_inputs:
-            for end_segment in {
-                eot_end_segment,
-                "<|",
-            }:  # explicitly support old <| thing, for now
-                if text.endswith(end_segment):
-                    text = text[: -len(end_segment)]
-            if T_CHAR not in text and (not V8):
-                text = text + T_CHAR
-
-            text = final_munge_before_neural(
-                text,
-                override_disable_forumlike=override_disable_forumlike,
-                left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
-            )
-
-            if EOT_PREPEND:
-                if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
-                    text = text[len(EOT_FULL) :]
-                if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
-                    text = EOT_FULL + text
-
-                if truncate_at_right:
-                    batch_context.append(
-                        enc.encode(text)[-(length_ - 1) :] + [SELECTION_TOK]
-                    )
-                else:
-                    batch_context.append(
-                        enc.encode(text)[: (length_ - 1)] + [SELECTION_TOK]
-                    )
-
-                if debug:
-                    print(
-                        f"in single_batch_predict_select, predicting on:\n{enc.decode(batch_context[-1])}\n"
-                    )
-        max_tokens = max([len(toks) for toks in batch_context])
-        batch_context_ = [
-            toks + [0 for _ in range(max_tokens - len(toks))] for toks in batch_context
-        ]
-        batch_context = batch_context_
-
-        feed_dict = {}
-        feed_dict[context_for_h] = batch_context
-
-        if add_prompt_cont_embs:
-            shift = max(0, max_tokens - length)
-            batch_prompt_end_ntoks = batch_prompt_end_ntoks - shift
-            batch_prompt_end_ntoks[batch_prompt_end_ntoks < 0] = 0
-
-            feed_dict[prompt_end_ntoks] = batch_prompt_end_ntoks
-
-        with sess.as_default():
-            logits = sess.run(select_logits, feed_dict=feed_dict)
-
-        if SELECTOR_LR_CALIB_INPUT == "logits":
-            probs = lr_calib.predict_proba(logits)[:, 1]
-        elif SELECTOR_LR_CALIB_INPUT == "logit_diff":
-            probs = lr_calib.predict_proba(logits[:, 1:] - logits[:, :1])[:, 1]
-        results = {"logits": logits, "probs": probs, "preds": probs > threshold}
-        return results
-
-    def predict_select(
-        data,
-        lr_calib,
-        threshold=0.5,
-        debug=False,
-        length_=length_select,
-        override_disable_forumlike=False,
-    ):
-        batches = []
-
-        for i in range(0, len(data), batch_size_for_h):
-            data_batch = data.iloc[i : i + batch_size_for_h]
-
-            n_needed = len(data_batch)
-            if n_needed < batch_size_for_h:
-                data_batch = pd.concat(
-                    [data_batch]
-                    + (batch_size_for_h - n_needed) * [data_batch.iloc[-1:, :]],
-                    ignore_index=True,
-                )
-            # while len(batch) != batch_size_for_h:
-            #   batch = batch + [batch[-1] for _ in range(batch_size_for_h - len(batch))]
-            batches.append(data_batch)
-
-        batch_results = [
-            single_batch_predict_select(
-                data_batch,
-                lr_calib,
-                threshold=threshold,
-                debug=debug,
-                length_=length_,
-                override_disable_forumlike=override_disable_forumlike,
-            )
-            for data_batch in batches
-        ]
-
-        result_keys = batch_results[0].keys()
-        results = {
-            k: np.concatenate([br[k] for br in batch_results])[: len(data)]
-            for k in result_keys
-        }
-
-        return results
-
-
-if SENTIMENT_VIA_GENERATOR:
-
-    def single_batch_predict_sentiment(
-        text_batch, length_=length_sentiment, debug=False
-    ):
-        if len(text_batch) != batch_size_for_h:
-            raise ValueError("badlength")
-        batch_context = []
-        for text in text_batch:
-            for end_segment in {
-                eot_end_segment,
-                "<|",
-            }:  # explicitly support old <| thing, for now
-                if text.endswith(end_segment):
-                    text = text[: -len(end_segment)]
-            if T_CHAR not in text:
-                text = text + T_CHAR
-            text = text.partition(T_CHAR)[0]
-            if NORMALIZE:
-                text = normalize_for_generator(text)
-            # if FORUMLIKE:
-            #   text = substitute_forumlike(text, shuffle=False, infer_first=False)
-            text = re.sub(r"\<.*?\>", "", text)  # sentiment-specific
-
-            if EOT_PREPEND:
-                # do this after the regex so it sticks
-                if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
-                    text = text[len(EOT_FULL) :]
-                if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
-                    text = EOT_FULL + text
-
-            batch_context.append(enc.encode(text)[:length_] + [SELECTION_TOK])
-            if debug:
-                print(
-                    f"in single_batch_predict_sentiment, predicting on:\n{enc.decode(batch_context[-1])}\n"
-                )
-        max_tokens = max([len(toks) for toks in batch_context])
-        batch_context_ = [
-            toks + [0 for _ in range(max_tokens - len(toks))] for toks in batch_context
-        ]
-        batch_context = batch_context_
-
-        with sess.as_default():
-            logits = sess.run(
-                sentiment_logits, feed_dict={context_for_h.name: batch_context}
-            )
-
-        # probs = scipy.special.softmax(logits, axis=1)[:, 1]
-        # results = {"logits": logits, "probs": probs, "logit_diffs": logits[:, 1] - logits[:, 0]}
-        logit_diffs_raw = logits[:, 1:] - logits[:, :1]
-        logit_diffs_calib = lr_calib_sentiment.predict(logit_diffs_raw)
-
-        print(f"logit_diffs_raw avg={logit_diffs_raw.mean():.2f}")
-        print(f"logit_diffs_calib avg={logit_diffs_calib.mean():.2f}")
-        print(f"diff avg={logit_diffs_calib.mean()-logit_diffs_raw.mean():.2f}")
-
-        results = {"logit_diffs": logit_diffs_calib, "logit_diffs_raw": logit_diffs_raw}
-        return results
-
-    def predict_sentiment(data, length_=length_sentiment, debug=False):
-        texts = data.selector_inputs.values.tolist()
-        batches = []
-
-        for i in range(0, len(texts), batch_size_for_h):
-            batch = texts[i : i + batch_size_for_h]
-
-            while len(batch) != batch_size_for_h:
-                batch = batch + [
-                    batch[-1] for _ in range(batch_size_for_h - len(batch))
-                ]
-            batches.append(batch)
-
-        batch_results = [
-            single_batch_predict_sentiment(batch, length_=length_, debug=debug)
-            for batch in batches
-        ]
-
-        result_keys = batch_results[0].keys()
-        results = {
-            k: np.concatenate([br[k] for br in batch_results])[: len(texts)]
-            for k in result_keys
-        }
-
-        return results
+    return logit_diffs
 
 
 RESULT_STACK = {}
@@ -1690,110 +957,92 @@ def serve_answer(data):
     if prompt.startswith(CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"]):
         override_disable_forumlike = True
 
-    if kwargs.get("V5"):
-        continuations, continuation_side_data = basic_n_continuations(
-            prompt,
-            N=kwargs["best_of"],
-            avoid_if_under=avoid_if_under,
-            avoid_half_if_under=avoid_half_if_under,
-            avoid_if_cut_off=avoid_if_cut_off,
-            prompt_from_dataset=kwargs.get("prompt_from_dataset"),
-            split_on_control_char=split_on_control_char,
-            avoid_initial_blockquote=avoid_initial_blockquote,
-            continue_if_cut_off=continue_if_cut_off,
-            avoid_if_profane=avoid_if_profane,
-            v8_timestamp=v8_timestamp,
-            v10_timestamp=v10_timestamp,
-            forced_tags_string=forced_tags_string,
-            write_fic_override=write_fic_override,
-            override_disable_forumlike=override_disable_forumlike,
-        )
-        parsed = data.copy()
-        parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
-        parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
+    continuations, continuation_side_data = basic_n_continuations(
+        prompt,
+        N=kwargs["best_of"],
+        avoid_if_under=avoid_if_under,
+        avoid_half_if_under=avoid_half_if_under,
+        avoid_if_cut_off=avoid_if_cut_off,
+        prompt_from_dataset=kwargs.get("prompt_from_dataset"),
+        split_on_control_char=split_on_control_char,
+        avoid_initial_blockquote=avoid_initial_blockquote,
+        continue_if_cut_off=continue_if_cut_off,
+        avoid_if_profane=avoid_if_profane,
+        v8_timestamp=v8_timestamp,
+        v10_timestamp=v10_timestamp,
+        forced_tags_string=forced_tags_string,
+        write_fic_override=write_fic_override,
+        override_disable_forumlike=override_disable_forumlike,
+    )
+    parsed = data.copy()
+    parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
+    parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
 
-        if SELECT_VIA_GENERATOR:
-            if SELECTOR_CAN_SEE_PROMPTS:
-                if selector_cut_to_final_exchange and not override_disable_forumlike:
-                    prompt_cut = cut_to_final_exchange_chinese(prompt)
-                    selector_inputs = [
-                        prompt_cut + final_munge_after_neural(c) for c in continuations
-                    ]
-                else:
-                    selector_inputs = [prompt + c for c in continuations]
-            else:
-                if FORUMLIKE:
-                    prompt_forumlike = substitute_forumlike(
-                        normalize_for_generator(prompt),
-                        shuffle=False,
-                        infer_first=False,
-                        left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
-                    )
-                    prompt_finalchar = prompt_forumlike[
-                        last_control_char(
-                            prompt_forumlike,
-                            incl_number=False,
-                            control_seg_config=CONTROL_SEG_CONFIG,
-                        )[1] :
-                    ]
-                    selector_inputs = [prompt_finalchar + c for c in continuations]
-                else:
-                    selector_inputs = [A_CHAR + c for c in continuations]
-
-            if DO_ALT_TIMESTAMPS:
-                for alt_ts in _make_alt_timestamps(v10_timestamp):
-                    alt_selector_inputs = pd.DataFrame(
-                        {
-                            "selector_inputs": [
-                                join_time_sidechannel(s, alt_ts)
-                                for s in selector_inputs
-                            ]
-                        }
-                    )
-                    entry_selection_results = predict_select(
-                        alt_selector_inputs, lr_calib_resp, debug=True
-                    )
-                    listkey = f"alt_selection_proba__{alt_ts.replace(' ', '_')}"
-                    parsed[listkey] = [
-                        float(p) for p in entry_selection_results["probs"]
-                    ]
-
+    if SELECTOR_CAN_SEE_PROMPTS:
+        if selector_cut_to_final_exchange and not override_disable_forumlike:
+            prompt_cut = cut_to_final_exchange_chinese(prompt)
             selector_inputs = [
-                join_time_sidechannel(s, relevant_timestamp) for s in selector_inputs
+                prompt_cut + final_munge_after_neural(c) for c in continuations
             ]
-            selector_inputs = pd.DataFrame({"selector_inputs": selector_inputs})
-            if GLOBAL_DEBUG:
-                print(f"passing to predict_select: {selector_inputs}")
-            selection_results = predict_select(
-                selector_inputs,
-                lr_calib_resp,
-                debug=True,
-                override_disable_forumlike=override_disable_forumlike,
-            )
-            parsed["selection_proba"] = [float(p) for p in selection_results["probs"]]
-            if SENTIMENT_VIA_GENERATOR:
-                selector_inputs = pd.DataFrame(
-                    {"selector_inputs": parsed["continuations"]}
-                )
-                sentiment_results = predict_sentiment(selector_inputs, debug=True)
-                parsed["sentiment_logit_diffs"] = [
-                    float(p) for p in sentiment_results["logit_diffs"]
-                ]
-                show_note_probas(
-                    continuations,
-                    probas=parsed["selection_proba"],
-                    sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
-                )
-            else:
-                show_note_probas(continuations, probas=parsed["selection_proba"])
+        else:
+            selector_inputs = [prompt + c for c in continuations]
     else:
-        kwargs = {k: v for k, v in kwargs.items() if k != "V5"}
-        continuations = get_prompted_continuation_with_length_proportional_sampling(
-            prompt, **kwargs
-        )
-        continuation = continuations[0]
+        if FORUMLIKE:
+            prompt_forumlike = substitute_forumlike(
+                normalize_for_generator(prompt),
+                shuffle=False,
+                infer_first=False,
+                left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
+            )
+            prompt_finalchar = prompt_forumlike[
+                last_control_char(
+                    prompt_forumlike,
+                    incl_number=False,
+                    control_seg_config=CONTROL_SEG_CONFIG,
+                )[1] :
+            ]
+            selector_inputs = [prompt_finalchar + c for c in continuations]
+        else:
+            selector_inputs = [A_CHAR + c for c in continuations]
 
-        parsed = parse_continuation(continuation)
+    if DO_ALT_TIMESTAMPS:
+        for alt_ts in _make_alt_timestamps(v10_timestamp):
+            alt_selector_inputs = pd.DataFrame(
+                {
+                    "selector_input": [
+                        join_time_sidechannel(s, alt_ts) for s in selector_inputs
+                    ]
+                }
+            )
+            entry_selection_results = predict_select(alt_selector_inputs, debug=True)
+            listkey = f"alt_selection_proba__{alt_ts.replace(' ', '_')}"
+            parsed[listkey] = [float(p) for p in entry_selection_results]
+
+    selector_inputs = [
+        join_time_sidechannel(s, relevant_timestamp) for s in selector_inputs
+    ]
+    selector_inputs = pd.DataFrame(
+        {
+            "selector_input": selector_inputs,
+            "prompt_finalchar": [f"{A_CHAR}a" for _ in range(len(selector_inputs))],
+        }
+    )
+    if GLOBAL_DEBUG:
+        print(f"passing to predict_select: {selector_inputs}")
+    selection_results = predict_select(
+        selector_inputs,
+        debug=True,
+        override_disable_forumlike=override_disable_forumlike,
+    )
+    parsed["selection_proba"] = [float(p) for p in selection_results]
+    selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
+    sentiment_results = predict_sentiment(selector_inputs, debug=True)
+    parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
+    show_note_probas(
+        continuations,
+        probas=parsed["selection_proba"],
+        sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
+    )
 
     if GLOBAL_DEBUG:
         print(f"sending back: {parsed}")
@@ -1814,91 +1063,78 @@ def serve_textpost(data):
     if continue_if_cut_off:
         avoid_if_cut_off = False
 
-    if kwargs.get("V5"):
-        try:
-            continuations, continuation_side_data = basic_n_continuations(
-                prompt,
-                N=kwargs["best_of"],
-                avoid_if_under=avoid_if_under,
-                avoid_half_if_under=avoid_half_if_under,
-                avoid_if_cut_off=avoid_if_cut_off,
-                split_on_control_char=split_on_control_char,
-                prompt_from_dataset=kwargs.get("prompt_from_dataset"),
-                avoid_initial_blockquote=avoid_initial_blockquote,
-                v8_timestamp=data.get("v8_timestamp"),
-                v10_timestamp=data.get("v10_timestamp", ""),
-                continue_if_cut_off=continue_if_cut_off,
-            )
-        except Exception as e:
-            if EVEN_BETTER_LENGTH:
-                raise (e)
-            print(f"got {e}, trying without continue_if_cut_off")
-            continuations, continuation_side_data = basic_n_continuations(
-                prompt,
-                N=kwargs["best_of"],
-                avoid_if_under=avoid_if_under,
-                avoid_half_if_under=avoid_half_if_under,
-                avoid_if_cut_off=avoid_if_cut_off,
-                split_on_control_char=split_on_control_char,
-                prompt_from_dataset=kwargs.get("prompt_from_dataset"),
-                avoid_initial_blockquote=avoid_initial_blockquote,
-                v8_timestamp=data.get("v8_timestamp"),
-                v10_timestamp=data.get("v10_timestamp", ""),
-                continue_if_cut_off=False,
-            )
-        parsed = data.copy()
-        parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
-        parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
-
-        if SELECT_VIA_GENERATOR:
-            if FORUMLIKE:
-                selector_inputs = [c for c in continuations]
-                for alt_char in [
-                    CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"],
-                    CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"],
-                ]:
-                    selector_inputs = [
-                        s.replace(
-                            alt_char, CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
-                        )
-                        for s in selector_inputs
-                    ]
-            else:
-                selector_inputs = [A_CHAR + c for c in continuations]
-            selector_inputs = pd.DataFrame({"selector_inputs": selector_inputs})
-            if GLOBAL_DEBUG:
-                print(f"passing to predict_select: {selector_inputs}")
-            selection_results = predict_select(
-                selector_inputs,
-                lr_calib_orig,
-                debug=True,
-                override_disable_forumlike=True,
-            )
-            parsed["selection_proba"] = [float(p) for p in selection_results["probs"]]
-
-            if SENTIMENT_VIA_GENERATOR:
-                selector_inputs = pd.DataFrame(
-                    {"selector_inputs": parsed["continuations"]}
-                )
-                sentiment_results = predict_sentiment(selector_inputs, debug=True)
-                parsed["sentiment_logit_diffs"] = [
-                    float(p) for p in sentiment_results["logit_diffs"]
-                ]
-                show_note_probas(
-                    continuations,
-                    probas=parsed["selection_proba"],
-                    sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
-                )
-            else:
-                show_note_probas(continuations, probas=parsed["selection_proba"])
-    else:
-        kwargs = {k: v for k, v in kwargs.items() if k != "V5"}
-        continuations = get_prompted_continuation_with_retries_for_length(
-            prompt, **kwargs
+    try:
+        continuations, continuation_side_data = basic_n_continuations(
+            prompt,
+            N=kwargs["best_of"],
+            avoid_if_under=avoid_if_under,
+            avoid_half_if_under=avoid_half_if_under,
+            avoid_if_cut_off=avoid_if_cut_off,
+            split_on_control_char=split_on_control_char,
+            prompt_from_dataset=kwargs.get("prompt_from_dataset"),
+            avoid_initial_blockquote=avoid_initial_blockquote,
+            v8_timestamp=data.get("v8_timestamp"),
+            v10_timestamp=data.get("v10_timestamp", ""),
+            continue_if_cut_off=continue_if_cut_off,
         )
-        continuation = continuations[0]
+    except Exception as e:
+        if EVEN_BETTER_LENGTH:
+            raise (e)
+        print(f"got {e}, trying without continue_if_cut_off")
+        continuations, continuation_side_data = basic_n_continuations(
+            prompt,
+            N=kwargs["best_of"],
+            avoid_if_under=avoid_if_under,
+            avoid_half_if_under=avoid_half_if_under,
+            avoid_if_cut_off=avoid_if_cut_off,
+            split_on_control_char=split_on_control_char,
+            prompt_from_dataset=kwargs.get("prompt_from_dataset"),
+            avoid_initial_blockquote=avoid_initial_blockquote,
+            v8_timestamp=data.get("v8_timestamp"),
+            v10_timestamp=data.get("v10_timestamp", ""),
+            continue_if_cut_off=False,
+        )
+    parsed = data.copy()
+    parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
+    parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
 
-        parsed = parse_continuation(continuation)
+    if FORUMLIKE:
+        selector_inputs = [c for c in continuations]
+        for alt_char in [
+            CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"],
+            CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"],
+        ]:
+            selector_inputs = [
+                s.replace(alt_char, CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"])
+                for s in selector_inputs
+            ]
+    else:
+        selector_inputs = [A_CHAR + c for c in continuations]
+    selector_inputs = pd.DataFrame(
+        {
+            "selector_input": selector_inputs,
+            "prompt_finalchar": [
+                ORIG_POST_CHAR_CHINESE for _ in range(len(selector_inputs))
+            ],
+        }
+    )
+    if GLOBAL_DEBUG:
+        print(f"passing to predict_select: {selector_inputs}")
+    selection_results = predict_select(
+        selector_inputs,
+        debug=True,
+        override_disable_forumlike=True,
+    )
+    parsed["selection_proba"] = [float(p) for p in selection_results]
+
+    selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
+    sentiment_results = predict_sentiment(selector_inputs, debug=True)
+    parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
+    show_note_probas(
+        continuations,
+        probas=parsed["selection_proba"],
+        sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
+    )
 
     if GLOBAL_DEBUG:
         print(f"sending back: {parsed}")
@@ -1935,33 +1171,34 @@ def serve_raw_select(data):
         texts = [s if ORIG_POST_CHAR in s else ORIG_POST_CHAR + s for s in texts]
     results = {}
 
-    if SELECT_VIA_GENERATOR:
-        selector_inputs = texts
-        if GLOBAL_DEBUG:
-            print(f"passing to predict_select: {selector_inputs}")
-        selector_inputs = pd.DataFrame({"selector_inputs": selector_inputs})
-        selection_results = predict_select(
-            selector_inputs, lr_calib_orig, debug=True, override_disable_forumlike=True
-        )
-        results["selection_proba"] = [float(p) for p in selection_results["probs"]]
+    selector_inputs = texts
+    if GLOBAL_DEBUG:
+        print(f"passing to predict_select: {selector_inputs}")
+    selector_inputs = pd.DataFrame(
+        {
+            "selector_input": selector_inputs,
+            "prompt_finalchar": [
+                ORIG_POST_CHAR_CHINESE for _ in range(len(selector_inputs))
+            ],
+        }
+    )
+    selection_results = predict_select(
+        selector_inputs, debug=True, override_disable_forumlike=True
+    )
+    results["selection_proba"] = [float(p) for p in selection_results]
 
-        if SENTIMENT_VIA_GENERATOR:
-            selector_inputs = pd.DataFrame(
-                {"selector_inputs": [final_munge_after_neural(s) for s in texts]}
-            )
-            sentiment_results = predict_sentiment(selector_inputs, debug=True)
-            results["sentiment_logit_diffs"] = [
-                float(p) for p in sentiment_results["logit_diffs"]
-            ]
-            show_note_probas(
-                texts,
-                probas=results["selection_proba"],
-                sentiment_logit_diffs=results["sentiment_logit_diffs"],
-            )
-        else:
-            show_note_probas(texts, probas=results["selection_proba"])
+    selector_inputs = pd.DataFrame(
+        {"selector_input": [final_munge_after_neural(s) for s in texts]}
+    )
+    sentiment_results = predict_sentiment(selector_inputs, debug=True)
+    results["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
+    show_note_probas(
+        texts,
+        probas=results["selection_proba"],
+        sentiment_logit_diffs=results["sentiment_logit_diffs"],
+    )
 
-        print(f"texts: {texts}\nresults: {results}\n")
+    print(f"texts: {texts}\nresults: {results}\n")
 
     return results
 
@@ -1996,10 +1233,8 @@ def poll(
                     k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK
                 }  # clean out already used results
 
-            # print(f"got prompt stack: {PROMPT_STACK}")
-
             for prompt_id, data in PROMPT_STACK.items():
-                print("generating...")
+                print(f"handling prompt_id={prompt_id}...")
                 if data["type"] == "answer":
                     RESULT_STACK[prompt_id] = serve_answer(data)
                 elif data["type"] == "textpost":
@@ -2126,12 +1361,12 @@ def poll_no_capture(
                 "ckpt_sentiment": ckpt_sentiment,
                 "hparams_select": {
                     k: v
-                    for k, v in hparams_select.values().items()
+                    for k, v in selector_est.hparams_select_train_.values().items()
                     if k not in {"dtype", "adapt_layers"}
                 },
                 "hparams_select_sentiment": {
                     k: v
-                    for k, v in hparams_select_sentiment.values().items()
+                    for k, v in sentiment_est.hparams_select_train_.values().items()
                     if k not in {"dtype", "adapt_layers"}
                 },
                 "sampling_info": sampling_info,
@@ -2184,7 +1419,9 @@ def loop_poll_no_capture(
     global RESULT_STACK
     while True:
         try:
-            poll_no_capture(capture_ident=capture_ident, dummy=dummy, ports=ports, routes=routes)
+            poll_no_capture(
+                capture_ident=capture_ident, dummy=dummy, ports=ports, routes=routes
+            )
         except Exception as e:
             print(f"{type(e)}: {e}")
             time.sleep(period * 10)

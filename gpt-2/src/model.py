@@ -411,6 +411,8 @@ def model(
     past_adapt=None,
     scope="model",
     reuse=tf.AUTO_REUSE,
+    return_activations_at=[],
+    return_activations_only=False,
     midpoint=None,
     midpoint_vect=None,
     stop_grad_at_midpoint=False,
@@ -418,6 +420,9 @@ def model(
     h_out_vect=None,
     silent=False,
 ):
+    activations = []
+    h_names = []
+
     if not silent:
         print(f"using hparams: {hparams}")
     X = tf.cast(X, tf.int32)
@@ -438,7 +443,8 @@ def model(
         )
         wte_expansion, wte_full = None, wte
         past_length = 0 if past is None else tf.shape(past)[-2]
-        h = tf.gather(wte_full, X) + tf.gather(wpe, positions_for(X, past_length))
+        position_emb = tf.gather(wpe, positions_for(X, past_length))
+        h = tf.gather(wte, X) + position_emb
 
         # Transformer
         presents = []
@@ -467,6 +473,16 @@ def model(
                 adapt=adapt_here,
             )
 
+            if layer in return_activations_at:
+                h_name = f"h{layer}"
+                if not silent:
+                    print(f"{h_name} found")
+                h_names.append(h_name)
+                activations.append(h)
+
+                if return_activations_only and layer == max(return_activations_at):
+                    break
+
             if midpoint is not None:
                 if layer == midpoint:
                     results[f"h{midpoint}"] = h
@@ -479,21 +495,25 @@ def model(
                 tf.add_to_collection("checkpoints", h)
             presents.append(present)
             presents_adapt.append(present_adapt)
-        results["present"] = tf.stack(presents, axis=1)
-        results["present_adapt"] = tf.stack(presents_adapt, axis=1)
-        h = norm(h, "ln_f", hparams=hparams)
-        results["h_out"] = h
-        if h_out_vect is not None:
-            return tf.reduce_mean(
-                tf.einsum("aij,aij->ai", results["h_out"], h_out_vect)
-            )
-        if stop_at_h_out:
-            return results
 
-        # Language model loss.  Do tokens <n predict token n?
-        # logits = tf.matmul(h, wte_full, transpose_b=True)
-        h_flat = tf.reshape(h, [batch * sequence, hparams.n_embd])
-        logits = tf.matmul(h_flat, wte_full, transpose_b=True)
-        logits = tf.reshape(logits, [batch, sequence, hparams.n_vocab])
-        results["logits"] = logits
+        if not return_activations_only:
+            results["present"] = tf.stack(presents, axis=1)
+            results["present_adapt"] = tf.stack(presents_adapt, axis=1)
+            h = norm(h, "ln_f", hparams=hparams)
+            results["h_out"] = h
+            if h_out_vect is not None:
+                return tf.reduce_mean(
+                    tf.einsum("aij,aij->ai", results["h_out"], h_out_vect)
+                )
+            if stop_at_h_out:
+                return results
+
+            # Language model loss.  Do tokens <n predict token n?
+            # logits = tf.matmul(h, wte_full, transpose_b=True)
+            h_flat = tf.reshape(h, [batch * sequence, hparams.n_embd])
+            logits = tf.matmul(h_flat, wte_full, transpose_b=True)
+            logits = tf.reshape(logits, [batch, sequence, hparams.n_vocab])
+            results["logits"] = logits
+
+        results["activations"] = list(zip(h_names, activations))
         return results

@@ -1,8 +1,17 @@
+# TODO:
+# - better name for "prompt_finalchar"
+import inspect
+import pickle
+import os
+import json
 import sys
 
-sys.path.append("src/")
+sys.path.append("gpt-2/src/")
 import time
 from datetime import datetime
+import numpy as np
+import pandas as pd
+from tqdm.autonotebook import tqdm
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.model_selection import train_test_split, GroupKFold
 from sklearn.linear_model import LogisticRegression
@@ -17,12 +26,16 @@ from sklearn.metrics import (
 import scipy.special
 import scipy.stats
 
+import tensorflow as tf
 from tensorflow.contrib.opt import AdamWOptimizer
-from novograd import NovoGrad
-from yellowfin import YFOptimizer
+from tensorflow.contrib.training import HParams
+import tflex
 import tflex_sgdr
-from model import model as model_fn
+from model import hparams_1558M, model as model_fn
 from accumulate import GradientAccumulator
+
+from selector_model.selector_nn import selector
+
 
 ORIG_POST_CHAR_CHINESE = "翰"
 
@@ -67,6 +80,46 @@ def make_textpost_scorer(metric, needs_proba=False):
     return _textpost_scorer
 
 
+def initialize_uninitialized(sess, print_names=True):
+    global_vars = tf.global_variables()
+    is_not_initialized = sess.run(
+        [tf.is_variable_initialized(var) for var in global_vars]
+    )
+
+    not_initialized_vars = [
+        v for (v, f) in zip(global_vars, is_not_initialized) if not f
+    ]
+
+    if print_names:
+        for i in not_initialized_vars:
+            print(i)
+
+    if len(not_initialized_vars):
+        sess.run(tf.variables_initializer(not_initialized_vars))
+
+
+def re_initialize(sess, var_names):
+    sess.run(tf.variables_initializer(var_names))
+
+
+def re_initialize_verbose(sess, var_names):
+    for var_name in var_names:
+        print(var_name)
+        sess.run(tf.variables_initializer([var_name]))
+
+
+def reshuffle_batches(train_data_for_selection, batch_size):
+    train_data_for_selection = train_data_for_selection.sort_values(by="n_tokens")
+    batches = [
+        train_data_for_selection.iloc[row_ix : row_ix + batch_size, :]
+        for row_ix in range(0, len(train_data_for_selection), batch_size)
+    ]
+
+    np.random.shuffle(batches)
+
+    return pd.concat(batches, ignore_index=True)
+
+
 class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
     def __init__(
         self,
@@ -82,61 +135,39 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         init_lreg_gain=0.02,
         use_mlp=True,
         resid_mlp=True,
-        direct_mlp=False,
-        mlp_proj: bool = False,
-        mlp_ratio: int = 1,
-        use_length_channel=False,
-        use_length_channel_v2=False,
+        mlp_ratio=3,
         use_logit_diff_basis=False,
         use_only_logit_diff=False,
-        attend_multilayer=False,
         weight_decay=0.025,
-        base_lr=0.00001,
-        min_lr_frac=0.05,
+        base_lr=2.5e-5,
+        min_lr_frac=0.25,
         m_mul=0.5,
         warmup_ratio=0.0,
         epochs=3,
         batch_size=8,
-        grad_clip=1.0,
-        base_hparams=hparams,
-        enc=enc,
-        selection_tok=SELECTION_TOK,
+        grad_clip=1000,
+        base_hparams=hparams_1558M(),
+        enc=None,
+        selection_tok=None,
         length=825,
-        max_room=100,
-        target_name="select_target:0",
-        context_name="context:0",
         persist_variables=True,
         cleanup_on_exception=True,
         session_override=None,
+        uid_override=None,
         supervise_logits=False,
         supervise_only_logit_diff=False,
         calibrate=False,
-        calibration_val_size=0.15,
+        calibration_val_size=0.1,
         calibration_split_type="ttsp",
         calibrate_prefixes_separately=False,
         calibrate_logits_separately=False,
-        n_head=None,
-        downproject_before_attn=False,
-        downproject_dim=512,
-        head_reduction_ratio=2,
-        add_position_emb_later_layers=False,
-        position_emb_gain=1.0,
-        add_prompt_cont_embs=False,
-        use_scalar_mix=False,
-        scalar_mix_n_out=2,
-        scalenorm=False,
-        scalenorm_in=False,
-        sqrtd=False,
+        n_head=40,
         additional_full_blocks=0,
         show_batch_stats=False,
         stop_early=False,
-        evaluate_during_training=True,
         stopping_metric="ap",
-        norm_final_output=True,
-        freeze_lns=True,
-        warm_resets=True,
-        use_adapters=False,
-        adapter_hparams={},
+        evaluate_during_training=True,
+        warm_resets=False,
         adam_beta1=0.9,
         adam_beta2=0.999,
         adam_epsilon=1e-8,
@@ -145,9 +176,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         huber_delta=1.0,
         flooding=False,
         flood_level=0.0,
-        single_query_attn=False,
-        qk_ratio=1,
-        single_query_gain=40,
         accumulate_gradients=1,
     ):
         self.ckpt = ckpt
@@ -162,14 +190,9 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.init_lreg_gain = init_lreg_gain
         self.use_mlp = use_mlp
         self.resid_mlp = resid_mlp
-        self.direct_mlp = direct_mlp
-        self.mlp_proj = mlp_proj
         self.mlp_ratio = mlp_ratio
-        self.use_length_channel = use_length_channel
-        self.use_length_channel_v2 = use_length_channel_v2
         self.use_logit_diff_basis = use_logit_diff_basis
         self.use_only_logit_diff = use_only_logit_diff
-        self.attend_multilayer = attend_multilayer
 
         self.weight_decay = weight_decay
         self.base_lr = base_lr
@@ -184,13 +207,11 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.enc = enc
         self.selection_tok = selection_tok
         self.length = length
-        self.max_room = max_room
-        self.target_name = target_name
-        self.context_name = context_name
 
         self.persist_variables = persist_variables
         self.cleanup_on_exception = cleanup_on_exception
         self.session_override = session_override
+        self.uid_override = uid_override
 
         self.supervise_logits = supervise_logits
         self.supervise_only_logit_diff = supervise_only_logit_diff
@@ -208,32 +229,14 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.calibrate_logits_separately = calibrate_logits_separately
 
         self.n_head = n_head
-        self.downproject_before_attn = downproject_before_attn
-        self.downproject_dim = downproject_dim
-        self.head_reduction_ratio = head_reduction_ratio
 
-        self.add_position_emb_later_layers = add_position_emb_later_layers
-        self.position_emb_gain = position_emb_gain
-        self.add_prompt_cont_embs = add_prompt_cont_embs
-
-        self.use_scalar_mix = use_scalar_mix
-        self.scalar_mix_n_out = scalar_mix_n_out
-
-        self.scalenorm = scalenorm
-        self.scalenorm_in = scalenorm_in
-        self.sqrtd = sqrtd
         self.additional_full_blocks = additional_full_blocks
         self.show_batch_stats = show_batch_stats
         self.stop_early = stop_early
         self.evaluate_during_training = evaluate_during_training
         self.stopping_metric = stopping_metric
 
-        self.norm_final_output = norm_final_output
-        self.freeze_lns = freeze_lns
         self.warm_resets = warm_resets
-
-        self.use_adapters = use_adapters
-        self.adapter_hparams = adapter_hparams
 
         self.adam_beta1 = adam_beta1
         self.adam_beta2 = adam_beta2
@@ -243,9 +246,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.huber_delta = huber_delta
         self.flooding = flooding
         self.flood_level = flood_level
-        self.single_query_attn = single_query_attn
-        self.qk_ratio = qk_ratio
-        self.single_query_gain = single_query_gain
         self.accumulate_gradients = accumulate_gradients
 
         self.uid_ = None
@@ -297,22 +297,12 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                         self.select_target_ = tf.placeholder(
                             tf.int32, [self.batch_size], name="select_target"
                         )
-                    if self.add_prompt_cont_embs:
-                        self.prompt_end_ntoks_ = tf.placeholder(
-                            tf.int32, [self.batch_size], name="select_prompt_end_ntoks"
-                        )
-                    else:
-                        self.prompt_end_ntoks_ = None
 
-                    # raw_model = model_fn(hparams=self.base_hparams, X=self.context_for_h_)
-                    _ = model_activations(
+                    _ = model_fn(
                         hparams=self.base_hparams,
-                        hparams_select=self.base_hparams,
                         X=self.context_for_h_,
-                        layer_nums=self.layer_nums,
-                        norm_layers_after=False,
-                        add_position_emb_later_layers=self.add_position_emb_later_layers,
-                        position_emb_gain=self.position_emb_gain,
+                        return_activations_at=self.layer_nums,
+                        return_activations_only=True,
                     )["activations"]
 
                     saver = tflex.Saver()
@@ -322,28 +312,16 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             except Exception as e:
                 print(f"encountered {e}, retrying...")
 
-    def _setup(self, X, y):
+    def _setup(self, X=None, y=None, training=True):
         print("entering setup")
-        print(f"fitting this estimator:\n{repr(self)}\n")
+        print(f"estimator:\n{repr(self)}\n")
 
-        self.uid_ = datetime.now().strftime("%y-%m-%d-%H-%M-%S")
-
-        if self.downproject_before_attn:
-            if self.head_reduction_ratio is not None:
-                dim_reduction = self.downproject_dim / self.base_hparams.n_embd
-                head_reduction = dim_reduction * self.head_reduction_ratio
-                self.n_head_ = int(head_reduction * self.base_hparams.n_head)
-                print(
-                    f"using {self.n_head_} heads (({self.downproject_dim}/{self.base_hparams.n_embd}) * {self.head_reduction_ratio} * {self.base_hparams.n_head})"
-                )
-            elif self.n_head is not None:
-                self.n_head_ = self.n_head
-            else:
-                raise ValueError
+        if self.uid_override is not None:
+            self.uid_ = self.uid_override
         else:
-            self.n_head_ = (
-                self.base_hparams.n_head if self.n_head is None else self.n_head
-            )
+            self.uid_ = datetime.now().strftime("%y-%m-%d-%H-%M-%S")
+
+        self.n_head_ = self.base_hparams.n_head if self.n_head is None else self.n_head
 
         self.select_scope_ = "select_" + self.uid_
         self.select_scope_train_ = self.select_scope_
@@ -355,36 +333,20 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             n_embd=self.base_hparams.n_embd,
             n_head=self.n_head_,
             n_layer=self.base_hparams.n_layer,
-            res_dropout=self.res_dropout if not self.use_adapters else 0.0,
-            attn_dropout=self.attn_dropout if not self.use_adapters else 0.0,
+            res_dropout=self.res_dropout,
+            attn_dropout=self.attn_dropout,
             attn_dropout_before_softmax=self.attn_dropout_before_softmax,
-            acti_dropout=self.acti_dropout if not self.use_adapters else 0.0,
+            acti_dropout=self.acti_dropout,
             dtype=tf.float32,
             do_resid=False,
             orth_init=self.orth_init,
             he_init=self.he_init,
             init_default_gain=self.init_default_gain,
             init_lreg_gain=self.init_lreg_gain,
-            downproject_before_attn=self.downproject_before_attn,
-            downproject_dim=self.downproject_dim,
-            scalenorm=self.scalenorm,
-            scalenorm_in=self.scalenorm_in,
-            sqrtd=self.sqrtd,
             additional_full_blocks=self.additional_full_blocks,
-            norm_final_output=self.norm_final_output,
-            freeze_lns=self.freeze_lns,
-            single_query_attn=self.single_query_attn,
-            qk_ratio=self.qk_ratio,
-            single_query_gain=self.single_query_gain,
-            use_adapters=self.use_adapters,
-            adapter_scope=self.select_scope_,
-            adapt_layers=self.layer_nums,
-            res_dropout_adapt=self.res_dropout,
-            attn_dropout_adapt=self.attn_dropout,
-            acti_dropout_adapt=self.acti_dropout,
-            **self.adapter_hparams,
         )
 
+        # TODO: DRY
         self.hparams_select_eval_ = HParams(
             n_vocab=self.base_hparams.n_vocab,
             n_ctx=self.base_hparams.n_ctx,
@@ -401,41 +363,26 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             he_init=self.he_init,
             init_default_gain=self.init_default_gain,
             init_lreg_gain=self.init_lreg_gain,
-            downproject_before_attn=self.downproject_before_attn,
-            downproject_dim=self.downproject_dim,
-            scalenorm=self.scalenorm,
-            scalenorm_in=self.scalenorm_in,
-            sqrtd=self.sqrtd,
             additional_full_blocks=self.additional_full_blocks,
-            norm_final_output=self.norm_final_output,
-            freeze_lns=self.freeze_lns,
-            single_query_attn=self.single_query_attn,
-            qk_ratio=self.qk_ratio,
-            single_query_gain=self.single_query_gain,
-            use_adapters=self.use_adapters,
-            adapter_scope=self.select_scope_,
-            adapt_layers=self.layer_nums,
-            res_dropout_adapt=0.0,
-            attn_dropout_adapt=0.0,
-            acti_dropout_adapt=0.0,
-            **self.adapter_hparams,
         )
 
-        if self.downproject_before_attn:
-            dd, nh = self.downproject_dim, self.n_head_
-            if dd % nh != 0:
-                raise ValueError(
-                    f"downproject_dim {dd} must be evenly divisible by number of heads {nh}"
-                )
-
-        print("loading ckpt")
         if self.session_override is not None:
             self.session_ = self.session_override
-            self.context_for_h_ = self.session_.graph.get_tensor_by_name("context:0")
-            self.select_target_ = self.session_.graph.get_tensor_by_name(
-                "select_target:0"
-            )
+            with self.session_.as_default():
+                # TODO: DRY
+                self.context_for_h_ = tf.placeholder(
+                    tf.int32, [self.batch_size, None], name="context"
+                )
+                if self.supervise_logits:
+                    self.select_target_ = tf.placeholder(
+                        tf.float32, [self.batch_size, 2], name="select_target"
+                    )
+                else:
+                    self.select_target_ = tf.placeholder(
+                        tf.int32, [self.batch_size], name="select_target"
+                    )
         else:
+            print("loading ckpt")
             self._load_ckpt()
 
         with self.session_.as_default():
@@ -446,24 +393,13 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 select_scope=self.select_scope_,
                 hparams_select=self.hparams_select_train_,
                 layer_nums=self.layer_nums,
-                norm_layers_after=False,
                 use_mlp=self.use_mlp,
                 resid_mlp=self.resid_mlp,
-                direct_mlp=self.direct_mlp,
-                mlp_proj=self.mlp_proj,
                 mlp_ratio=self.mlp_ratio,
-                use_length_channel=self.use_length_channel,
-                use_length_channel_v2=self.use_length_channel_v2,
                 use_logit_diff_basis=self.use_logit_diff_basis,
                 use_only_logit_diff=self.use_only_logit_diff,
                 batch_size=self.batch_size,
-                attend_multilayer=self.attend_multilayer,
-                add_position_emb_later_layers=self.add_position_emb_later_layers,
-                position_emb_gain=self.position_emb_gain,
-                add_prompt_cont_embs=self.add_prompt_cont_embs,
-                prompt_end_ntoks=self.prompt_end_ntoks_,
-                use_scalar_mix=self.use_scalar_mix,
-                scalar_mix_n_out=self.scalar_mix_n_out,
+                selection_tok=self.selection_tok,
             )
 
             self.selection_step_eval_ = selector(
@@ -472,24 +408,13 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 select_scope=self.select_scope_,
                 hparams_select=self.hparams_select_eval_,
                 layer_nums=self.layer_nums,
-                norm_layers_after=False,
                 use_mlp=self.use_mlp,
                 resid_mlp=self.resid_mlp,
-                direct_mlp=self.direct_mlp,
-                mlp_proj=self.mlp_proj,
                 mlp_ratio=self.mlp_ratio,
-                use_length_channel=self.use_length_channel,
-                use_length_channel_v2=self.use_length_channel_v2,
                 use_logit_diff_basis=self.use_logit_diff_basis,
                 use_only_logit_diff=self.use_only_logit_diff,
                 batch_size=self.batch_size,
-                attend_multilayer=self.attend_multilayer,
-                add_position_emb_later_layers=self.add_position_emb_later_layers,
-                position_emb_gain=self.position_emb_gain,
-                add_prompt_cont_embs=self.add_prompt_cont_embs,
-                prompt_end_ntoks=self.prompt_end_ntoks_,
-                use_scalar_mix=self.use_scalar_mix,
-                scalar_mix_n_out=self.scalar_mix_n_out,
+                selection_tok=self.selection_tok,
             )
             self.select_logits_train_ = self.selection_step_train_["logits_select"]
             self.select_logits_eval_ = self.selection_step_eval_["logits_select"]
@@ -603,6 +528,11 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 and "prompt_cont" not in var.name
                 and "scalar_mix" not in var.name
             ]
+
+            if not training:
+                # done
+                return None
+
             parameter_count = sum(
                 [np.prod(v.shape.as_list()) for v in self.train_vars_]
             )
@@ -663,15 +593,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                         beta2=self.adam_beta2,
                         epsilon=self.adam_epsilon,
                     )
-                elif self.optimizer == "novograd":
-                    self.opt_ = NovoGrad(
-                        learning_rate=self.lr_,
-                        beta1=self.adam_beta1,
-                        beta2=self.adam_beta2,
-                        epsilon=self.adam_epsilon,
-                    )
-                elif self.optimizer == "yellowfin":
-                    self.opt_ = YFOptimizer(learning_rate=self.base_lr)
                 opt_gradients, opt_variables = zip(
                     *self.opt_.compute_gradients(self.select_loss_, self.train_vars_)
                 )
@@ -770,14 +691,16 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         else:
             self.target_cols_ = y.columns if len(y.shape) > 1 else y.name
             data = pd.concat([X, y], axis=1)
+        if "n_tokens" not in data.columns:
+            data["n_tokens"] = data.selector_input.apply(
+                lambda s: len(self.enc.encode(s))
+            )
         data = data.sort_values(by="n_tokens")
-        data = reshuffle_batches(data)
+        data = reshuffle_batches(data, batch_size=self.batch_size)
         return data
 
     def _feed_from_batch(self, data_batch, scope):
         feed_dict = {}
-        if self.add_prompt_cont_embs:
-            batch_prompt_end_ntoks = data_batch.prompt_end_ntoks.values
         batch_context = [
             self.enc.encode(text)[: (self.length - 1)] + [self.selection_tok]
             for text in data_batch.selector_input.values
@@ -789,13 +712,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         # batch_context_ = [toks[-self.length:] for toks in batch_context_]
         batch_context = batch_context_
         feed_dict[self.context_for_h_] = np.asarray(batch_context_)
-
-        if self.add_prompt_cont_embs:
-            shift = max(0, max_tokens - self.length)
-            batch_prompt_end_ntoks = batch_prompt_end_ntoks - shift
-            batch_prompt_end_ntoks[batch_prompt_end_ntoks < 0] = 0
-
-            feed_dict[self.prompt_end_ntoks_] = batch_prompt_end_ntoks
 
         return feed_dict, max_tokens
 
@@ -848,6 +764,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                                 loss=batch_loss,
                                 loss_avg=running_loss,
                                 lr=cur_lr,
+                                refresh=False,
                                 **extra_postfixes,
                             )
                             continue
@@ -923,9 +840,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 extra_postfixes["z_gn_attn"] = cur_gn_attn
                 extra_postfixes["z_gn_lreg"] = cur_gn_lreg
                 extra_postfixes["zz_gn_ztotal"] = cur_gn
-                if self.use_scalar_mix:
-                    extra_postfixes["z_gn_amix"] = cur_gn_mix
-                if self.use_mlp or self.use_adapters:
+                if self.use_mlp:
                     extra_postfixes["z_gn_mlp"] = cur_gn_mlp
                 if self.additional_full_blocks > 0:
                     extra_postfixes["z_gn_fullb_ln"] = cur_gn_fullb_ln
@@ -933,8 +848,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                     extra_postfixes["z_gn_fullb_mlp"] = cur_gn_fullb_mlp
                 if self.flooding:
                     extra_postfixes["z_flood%"] = cur_is_flooding
-                # for i, nga in enumerate(novograd_avgs):
-                #     extra_postfixes[f"aa_nvg_avg{i}"] = nga
                 for k, v in cur_activ_norms.items():
                     extra_postfixes[f"zz_{k}"] = v
                 for var, val in zip(self.softlayer_vars_, softlayer_vars[0]):
@@ -946,7 +859,11 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             extra_postfixes["ntok"] = batch_max_tokens
 
             step_iter.set_postfix(
-                loss=batch_loss, loss_avg=running_loss, lr=cur_lr, **extra_postfixes
+                loss=batch_loss,
+                loss_avg=running_loss,
+                lr=cur_lr,
+                refresh=False,
+                **extra_postfixes,
             )
             row_ix += self.batch_size
             self.global_step_.load(current_step + 1, session=self.session_)
@@ -1131,17 +1048,13 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 "intercept": self.lr_calib_.intercept_,
             }
 
+            self.lr_calib_resp_ = self.lr_calib_
+            self.lr_calib_orig_ = self.lr_calib_
+
         with tqdm(
             list(range(0, 1)), smoothing=0.0, miniters=1, mininterval=1
         ) as fake_iter:
             fake_iter.set_postfix(**calib_coef_info)
-
-        # TODO: get rid of this entirely if that doesn't break anything
-        # i've never found it infomative b/c it's evaluating on (lr_calib_'s) training data
-        #
-        # calib_probs = self._compute_calib_probs(logits, pfcs=X_val["prompt_finalchar"])
-        # calib_preds = calib_probs[:, 1]>0.5
-        # self._display_eval_metrics(y_val, calib_preds, calib_probs,  pfcs=X_val['prompt_finalchar'])
 
     @property
     def train_val_sizes_(self):
@@ -1155,7 +1068,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             self.X_train_, self.y_train_, self.X_val_, self.y_val_ = self._val_split(
                 X, y
             )
-            self._setup(self.X_train_, self.y_train_)
+            self._setup(self.X_train_, self.y_train_, training=True)
             for epoch_ix in tqdm(list(range(self.epochs))):
                 self._epoch(self.X_train_, self.y_train_, avg_loss_beta=avg_loss_beta)
 
@@ -1219,9 +1132,13 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         steps = len(data) // self.batch_size + 1
 
         row_ix = 0
-        step_iter = tqdm(
-            list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=1
+
+        step_iter = (
+            tqdm(list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=1)
+            if len(steps) > 1
+            else list(range(0, steps))
         )
+
         for step_ix in step_iter:
             data_batch = data.iloc[row_ix : row_ix + self.batch_size, :]
             n_needed = len(data_batch)
@@ -1265,3 +1182,74 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             self.session_.close()
         else:
             print("cleanup: no-op (self.persist_variables is on)")
+
+    def _make_constructor_args(self):
+        # TODO: create mixin for this
+        sig = inspect.signature(self.__class__.__init__)
+        args = {k: getattr(self, k) for k in sig.parameters.keys() if hasattr(self, k)}
+        return args
+
+    def save(self, path: str):
+        no_save_args = {"enc", "base_hparams", "session_override", "uid_override"}
+
+        metadata = {
+            "constructor_args": {
+                name: value
+                for name, value in self._make_constructor_args().items()
+                if name not in no_save_args
+            },
+            "uid": self.uid_,
+        }
+
+        with open(os.path.join(path, "metadata.json"), "w") as f:
+            json.dump(metadata, f, indent=1)
+
+        var_list = [
+            var for var in tf.trainable_variables() if self.select_scope_ in var.name
+        ]
+
+        saver_tflex = tflex.Saver(
+            var_list=var_list,
+            max_to_keep=20,
+            keep_checkpoint_every_n_hours=20,
+            reshape=False,
+        )
+        saver_tflex.save(self.session_, path)
+
+        with open(path + "lr_calib.pkl", "wb") as f:
+            pickle.dump(self.lr_calib_, f)
+        with open(path + "lr_calib_resp.pkl", "wb") as f:
+            pickle.dump(self.lr_calib_resp_, f)
+        with open(path + "lr_calib_orig.pkl", "wb") as f:
+            pickle.dump(self.lr_calib_orig_, f)
+
+    @staticmethod
+    def load(path, session, base_hparams, enc) -> "SelectorEstimatorFromCkpt":
+        with open(os.path.join(path, "metadata.json"), "r") as f:
+            metadata = json.load(f)
+
+        constructor_args = metadata["constructor_args"]
+        constructor_args["base_hparams"] = base_hparams
+        constructor_args["enc"] = enc
+        constructor_args["session_override"] = session
+        constructor_args["uid_override"] = metadata["uid"]
+
+        est = SelectorEstimatorFromCkpt(**constructor_args)
+        est._setup(training=False)
+
+        var_list = [
+            var for var in tf.trainable_variables() if est.select_scope_ in var.name
+        ]
+
+        tflex.load_variables(
+            os.path.join(path, ".hdf5"), session=session, var_list=var_list
+        )
+
+        with open(os.path.join(path, "lr_calib.pkl"), "rb") as f:
+            est.lr_calib_ = pickle.load(f)
+        with open(os.path.join(path, "lr_calib_resp.pkl"), "rb") as f:
+            est.lr_calib_resp_ = pickle.load(f)
+        with open(os.path.join(path, "lr_calib_orig.pkl"), "rb") as f:
+            est.lr_calib_orig_ = pickle.load(f)
+
+        return est

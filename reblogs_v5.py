@@ -583,6 +583,8 @@ def process_post(
     initial_title_units = []
     in_title = False
     for unit in text_units:
+        if not isinstance(unit, str):
+            print(f"bad unit: {repr(unit)}")
         if unit.startswith("</h2>"):
             in_title = False
             initial_title_units.append(unit)

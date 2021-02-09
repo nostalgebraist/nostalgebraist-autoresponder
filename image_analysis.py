@@ -12,6 +12,8 @@ import urllib3
 from PIL import Image
 from moviepy.editor import VideoFileClip
 
+from util.error_handling import LogExceptionAndSkip
+
 IMAGE_DIR = "data/analysis_images/"
 
 rek = boto3.client("rekognition")
@@ -448,7 +450,7 @@ def extract_text_from_url(
                     nbytes_ = nbytes_new
         except:
             if verbose:
-                print(f"couldn't downsize: {url}")
+                pass  # print(f"couldn't downsize: {url}")
 
     frame_bytes = url_to_frame_bytes(url_, http=http)
 
@@ -480,17 +482,21 @@ def V9_IMAGE_FORMATTER(image_text):
     return "\n" + "\n=======\n" + image_text + "\n=======\n"
 
 
-def extract_and_format_text_from_url(
-    url: str,
-    image_formatter=V9_IMAGE_FORMATTER,
-    verbose=False,
-):
-    image_text = extract_text_from_url(url)
+def format_extracted_text(image_text, image_formatter=V9_IMAGE_FORMATTER, verbose=False):
     if verbose and len(image_text) > 0:
         print(f"for {url}, analysis text is\n{image_text}\n")
     if len(image_text) > 0:
         return image_formatter(image_text)
     return ""
+
+
+def extract_and_format_text_from_url(
+    url: str,
+    image_formatter=V9_IMAGE_FORMATTER,
+    verbose=False,
+):
+    image_text = extract_text_from_url(url, return_raw=False, xtra_raw=False)
+    return format_extracted_text(image_text, verbose=verbose)
 
 
 class ImageAnalysisCache:
@@ -501,6 +507,19 @@ class ImageAnalysisCache:
         if self.cache is None:
             self.cache = {}
 
+    @staticmethod
+    def _get_text_from_cache_entry(entry, deduplicate=True):
+        """deal with the various formats i've saved AWS responses in"""
+        result = entry
+
+        if isinstance(result, list):
+            result = collect_text(result, deduplicate=deduplicate)
+
+        if isinstance(result, dict):
+            result = result['line']
+
+        return result
+
     def extract_and_format_text_from_url(
         self,
         url: str,
@@ -508,14 +527,22 @@ class ImageAnalysisCache:
         verbose=False,
     ):
         # TODO: integrate downsizing
-        if url in self.cache:
-            text = self.cache[url]
-        else:
-            text = extract_and_format_text_from_url(
-                url, image_formatter=image_formatter, verbose=verbose
+        if url not in self.cache:
+            _, entry = extract_text_from_url(
+                url,
+                return_raw=True,
+                verbose=verbose
             )
-            self.cache[url] = text
-        return text
+            self.cache[url] = entry
+
+        cached_text = ""
+        with LogExceptionAndSkip(f"retrieving {repr(url)} from cache"):
+            cached_text = self._get_text_from_cache_entry(self.cache[url])
+
+        # print(f"formatting: {repr(cached_text)}")
+        formatted_text = format_extracted_text(cached_text, image_formatter=image_formatter, verbose=verbose)
+        # print(f"formatted: {repr(formatted_text)}")
+        return formatted_text
 
     def save(self, verbose=True, do_backup=True):
         with open(self.path, "wb") as f:

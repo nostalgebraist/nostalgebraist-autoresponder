@@ -805,356 +805,101 @@ def show_note_probas(texts, probas, sentiment_logit_diffs=None, console_width=11
             print("\n~_~_~_~_~_\n")
 
 
-SELECTION_CHAR = "<|endoftext|>"
-SELECTION_TOK = enc.encode(SELECTION_CHAR)[-1]
-
-
-batch_size_for_h = batch_size
-
-
-def load_variables_with_retries(
-    path, var_list, session, multi_calib=False, retries=True
-):
-    done = False
-    tries = 0
-    while not done:
-        try:
-            print(f"loading from {path}")
-            tflex.load_variables(path, session=sess, var_list=var_list)
-            done = True
-        except Exception as e:
-            if not retries:
-                raise e
-            if tries > 5:
-                break
-            print(f"encountered {e}, retrying...")
-            tries += 1
-
-    display(var_list)
-
-    if multi_calib:
-        with open(path.rpartition("/")[0] + "/lr_calib_resp.pkl", "rb") as f:
-            lr_calib_resp = pickle.load(f)
-        with open(path.rpartition("/")[0] + "/lr_calib_orig.pkl", "rb") as f:
-            lr_calib_orig = pickle.load(f)
-    else:
-        with open(path.rpartition("/")[0] + "/lr_calib.pkl", "rb") as f:
-            lr_calib = pickle.load(f)
-            lr_calib_resp = lr_calib
-            lr_calib_orig = lr_calib
-    return lr_calib_resp, lr_calib_orig
-
-
-def load_selector_metadata(path, retries=False):  # ignored
-    with open(path, "r") as f:
-        selector_metadata = json.load(f)
-    return selector_metadata
-
-
 def load_selector(path, session, base_hparams, enc, retries=False):
-    selector_estimator = SelectorEstimatorFromCkpt.load(
+    selector_est = SelectorEstimatorFromCkpt.load(
         path, session=session, base_hparams=base_hparams, enc=enc
     )
-    return selector_estimator
+    return selector_est
 
 
-if SELECT_VIA_GENERATOR:
-    selector_estimator = load_from_gdrive_with_gs_fallback(
-        load_fn=load_selector,
-        relative_path=ckpt_select.rpartition("/")[0],  # TODO: redefine ckpt_select
-        gs_command=gs_command_get_selector,
-        session=sess,
-        base_hparams=hparams,
-        enc=enc,
-    )
+selector_est = load_from_gdrive_with_gs_fallback(
+    load_fn=load_selector,
+    relative_path=ckpt_select.rpartition("/")[0],  # TODO: redefine ckpt_select
+    gs_command=gs_command_get_selector,
+    session=sess,
+    base_hparams=hparams,
+    enc=enc,
+)
 
-    lr_calib_resp = selector_estimator.lr_calib_resp_
-    lr_calib_orig = selector_estimator.lr_calib_orig_
-
-
-if SENTIMENT_VIA_GENERATOR:
-    sentiment_estimator = load_from_gdrive_with_gs_fallback(
-        load_fn=load_selector,
-        relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
-        gs_command=gs_command_get_sentiment,
-        session=sess,
-        base_hparams=hparams,
-        enc=enc,
-    )
-
-    lr_calib_sentiment = selector_estimator.lr_calib_
+lr_calib_resp = selector_est.lr_calib_resp_
+lr_calib_orig = selector_est.lr_calib_orig_
 
 
-if SELECT_VIA_GENERATOR:
-    import scipy.special
+sentiment_est = load_from_gdrive_with_gs_fallback(
+    load_fn=load_selector,
+    relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
+    gs_command=gs_command_get_sentiment,
+    session=sess,
+    base_hparams=hparams,
+    enc=enc,
+)
 
-    def predict_select(data, debug=False, override_disable_forumlike=False):
-        selector_input = []
-        for text in data_batch.selector_inputs:
-            for end_segment in {
-                eot_end_segment,
-                "<|",
-            }:  # explicitly support old <| thing, for now
-                if text.endswith(end_segment):
-                    text = text[: -len(end_segment)]
-            if T_CHAR not in text and (not V8):
-                text = text + T_CHAR
-
-            text = final_munge_before_neural(
-                text,
-                override_disable_forumlike=override_disable_forumlike,
-                left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
-            )
-
-            if EOT_PREPEND:
-                if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
-                    text = text[len(EOT_FULL) :]
-                if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
-                    text = EOT_FULL + text
-
-            selector_input.append(text)
-
-    return selector_estimator.predict_proba(selector_input)
-
-    # def single_batch_predict_select(
-    #     data_batch,
-    #     lr_calib,
-    #     threshold=0.5,
-    #     debug=False,
-    #     truncate_at_right=TRUNCATE_AT_RIGHT,
-    #     length_=length_select,
-    #     override_disable_forumlike=False,
-    # ):
-    #     if len(data_batch) != batch_size_for_h:
-    #         raise ValueError("badlength")
-    #     batch_context = []
-    #     if add_prompt_cont_embs:
-    #         batch_prompt_end_ntoks = data_batch.prompt_end_ntoks.values
-    #     for text in data_batch.selector_inputs:
-    #         for end_segment in {
-    #             eot_end_segment,
-    #             "<|",
-    #         }:  # explicitly support old <| thing, for now
-    #             if text.endswith(end_segment):
-    #                 text = text[: -len(end_segment)]
-    #         if T_CHAR not in text and (not V8):
-    #             text = text + T_CHAR
-    #
-    #         text = final_munge_before_neural(
-    #             text,
-    #             override_disable_forumlike=override_disable_forumlike,
-    #             left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
-    #         )
-    #
-    #     if EOT_PREPEND:
-    #         if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
-    #             text = text[len(EOT_FULL) :]
-    #         if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
-    #             text = EOT_FULL + text
-    #
-    #         if truncate_at_right:
-    #             batch_context.append(
-    #                 enc.encode(text)[-(length_ - 1) :] + [SELECTION_TOK]
-    #             )
-    #         else:
-    #             batch_context.append(
-    #                 enc.encode(text)[: (length_ - 1)] + [SELECTION_TOK]
-    #             )
-    #
-    #         if debug:
-    #             print(
-    #                 f"in single_batch_predict_select, predicting on:\n{enc.decode(batch_context[-1])}\n"
-    #             )
-    #     max_tokens = max([len(toks) for toks in batch_context])
-    #     batch_context_ = [
-    #         toks + [0 for _ in range(max_tokens - len(toks))] for toks in batch_context
-    #     ]
-    #     batch_context = batch_context_
-    #
-    #     feed_dict = {}
-    #     feed_dict[selector_estimator] = batch_context
-    #
-    #     if add_prompt_cont_embs:
-    #         shift = max(0, max_tokens - length)
-    #         batch_prompt_end_ntoks = batch_prompt_end_ntoks - shift
-    #         batch_prompt_end_ntoks[batch_prompt_end_ntoks < 0] = 0
-    #
-    #         feed_dict[prompt_end_ntoks] = batch_prompt_end_ntoks
-    #
-    #     with sess.as_default():
-    #         logits = sess.run(select_logits, feed_dict=feed_dict)
-    #
-    #     if SELECTOR_LR_CALIB_INPUT == "logits":
-    #         probs = lr_calib.predict_proba(logits)[:, 1]
-    #     elif SELECTOR_LR_CALIB_INPUT == "logit_diff":
-    #         probs = lr_calib.predict_proba(logits[:, 1:] - logits[:, :1])[:, 1]
-    #     results = {"logits": logits, "probs": probs, "preds": probs > threshold}
-    #     return results
-    #
-    # def predict_select(
-    #     data,
-    #     lr_calib,
-    #     threshold=0.5,
-    #     debug=False,
-    #     length_=length_select,
-    #     override_disable_forumlike=False,
-    # ):
-    #     batches = []
-    #
-    #     for i in range(0, len(data), batch_size_for_h):
-    #         data_batch = data.iloc[i : i + batch_size_for_h]
-    #
-    #         n_needed = len(data_batch)
-    #         if n_needed < batch_size_for_h:
-    #             data_batch = pd.concat(
-    #                 [data_batch]
-    #                 + (batch_size_for_h - n_needed) * [data_batch.iloc[-1:, :]],
-    #                 ignore_index=True,
-    #             )
-    #         # while len(batch) != batch_size_for_h:
-    #         #   batch = batch + [batch[-1] for _ in range(batch_size_for_h - len(batch))]
-    #         batches.append(data_batch)
-    #
-    #     batch_results = [
-    #         single_batch_predict_select(
-    #             data_batch,
-    #             lr_calib,
-    #             threshold=threshold,
-    #             debug=debug,
-    #             length_=length_,
-    #             override_disable_forumlike=override_disable_forumlike,
-    #         )
-    #         for data_batch in batches
-    #     ]
-    #
-    #     result_keys = batch_results[0].keys()
-    #     results = {
-    #         k: np.concatenate([br[k] for br in batch_results])[: len(data)]
-    #         for k in result_keys
-    #     }
-    #
-    #     return results
+lr_calib_sentiment = selector_est.lr_calib_
 
 
-if SENTIMENT_VIA_GENERATOR:
+def predict_select(data, debug=False, override_disable_forumlike=False):
+    selector_input = []
+    for text in data_batch.selector_inputs:
+        for end_segment in {
+            eot_end_segment,
+            "<|",
+        }:  # explicitly support old <| thing, for now
+            if text.endswith(end_segment):
+                text = text[: -len(end_segment)]
+        if T_CHAR not in text and (not V8):
+            text = text + T_CHAR
 
-    def predict_sentiment(data, debug=False):
-        selector_input = []
-        for text in data_batch.selector_inputs:
-            for end_segment in {
-                eot_end_segment,
-                "<|",
-            }:  # explicitly support old <| thing, for now
-                if text.endswith(end_segment):
-                    text = text[: -len(end_segment)]
-            if T_CHAR not in text:
-                text = text + T_CHAR
-            text = text.partition(T_CHAR)[0]
-            if NORMALIZE:
-                text = normalize_for_generator(text)
-            text = re.sub(r"\<.*?\>", "", text)  # sentiment-specific
+        text = final_munge_before_neural(
+            text,
+            override_disable_forumlike=override_disable_forumlike,
+            left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
+        )
 
-            text = final_munge_before_neural(
-                text,
-                override_disable_forumlike=override_disable_forumlike,
-                left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
-            )
+        if EOT_PREPEND:
+            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
+                text = text[len(EOT_FULL) :]
+            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
+                text = EOT_FULL + text
 
-            if EOT_PREPEND:
-                if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
-                    text = text[len(EOT_FULL) :]
-                if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
-                    text = EOT_FULL + text
+        selector_input.append(text)
 
-            selector_input.append(text)
+    return selector_est.predict_proba(selector_input)
 
-    logits = sentiment_estimator.predict(selector_input, key="logits")
+
+def predict_sentiment(data, debug=False):
+    selector_input = []
+    for text in data_batch.selector_inputs:
+        for end_segment in {
+            eot_end_segment,
+            "<|",
+        }:  # explicitly support old <| thing, for now
+            if text.endswith(end_segment):
+                text = text[: -len(end_segment)]
+        if T_CHAR not in text:
+            text = text + T_CHAR
+        text = text.partition(T_CHAR)[0]
+        if NORMALIZE:
+            text = normalize_for_generator(text)
+        text = re.sub(r"\<.*?\>", "", text)  # sentiment-specific
+
+        text = final_munge_before_neural(
+            text,
+            override_disable_forumlike=override_disable_forumlike,
+            left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
+        )
+
+        if EOT_PREPEND:
+            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
+                text = text[len(EOT_FULL) :]
+            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
+                text = EOT_FULL + text
+
+        selector_input.append(text)
+
+    logits = sentiment_est.predict(selector_input, key="logits")
     logit_diffs = logits[:, 1:] - logits[:, :1]
 
     return logit_diffs
-
-    # def single_batch_predict_sentiment(
-    #     text_batch, length_=length_sentiment, debug=False
-    # ):
-    #     if len(text_batch) != batch_size_for_h:
-    #         raise ValueError("badlength")
-    #     batch_context = []
-    #     for text in text_batch:
-    #         for end_segment in {
-    #             eot_end_segment,
-    #             "<|",
-    #         }:  # explicitly support old <| thing, for now
-    #             if text.endswith(end_segment):
-    #                 text = text[: -len(end_segment)]
-    #         if T_CHAR not in text:
-    #             text = text + T_CHAR
-    #         text = text.partition(T_CHAR)[0]
-    #         if NORMALIZE:
-    #             text = normalize_for_generator(text)
-    #         # if FORUMLIKE:
-    #         #   text = substitute_forumlike(text, shuffle=False, infer_first=False)
-    #         text = re.sub(r"\<.*?\>", "", text)  # sentiment-specific
-    #
-    #         if EOT_PREPEND:
-    #             # do this after the regex so it sticks
-    #             if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
-    #                 text = text[len(EOT_FULL) :]
-    #             if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
-    #                 text = EOT_FULL + text
-    #
-    #         batch_context.append(enc.encode(text)[:length_] + [SELECTION_TOK])
-    #         if debug:
-    #             print(
-    #                 f"in single_batch_predict_sentiment, predicting on:\n{enc.decode(batch_context[-1])}\n"
-    #             )
-    #     max_tokens = max([len(toks) for toks in batch_context])
-    #     batch_context_ = [
-    #         toks + [0 for _ in range(max_tokens - len(toks))] for toks in batch_context
-    #     ]
-    #     batch_context = batch_context_
-    #
-    #     with sess.as_default():
-    #         logits = sess.run(
-    #             sentiment_logits, feed_dict={context_for_h.name: batch_context}
-    #         )
-    #
-    #     # probs = scipy.special.softmax(logits, axis=1)[:, 1]
-    #     # results = {"logits": logits, "probs": probs, "logit_diffs": logits[:, 1] - logits[:, 0]}
-    #     logit_diffs_raw = logits[:, 1:] - logits[:, :1]
-    #     logit_diffs_calib = lr_calib_sentiment.predict(logit_diffs_raw)
-    #
-    #     print(f"logit_diffs_raw avg={logit_diffs_raw.mean():.2f}")
-    #     print(f"logit_diffs_calib avg={logit_diffs_calib.mean():.2f}")
-    #     print(f"diff avg={logit_diffs_calib.mean()-logit_diffs_raw.mean():.2f}")
-    #
-    #     results = {"logit_diffs": logit_diffs_calib, "logit_diffs_raw": logit_diffs_raw}
-    #     return results
-    #
-    # def predict_sentiment(data, length_=length_sentiment, debug=False):
-    #     texts = data.selector_inputs.values.tolist()
-    #     batches = []
-    #
-    #     for i in range(0, len(texts), batch_size_for_h):
-    #         batch = texts[i : i + batch_size_for_h]
-    #
-    #         while len(batch) != batch_size_for_h:
-    #             batch = batch + [
-    #                 batch[-1] for _ in range(batch_size_for_h - len(batch))
-    #             ]
-    #         batches.append(batch)
-    #
-    #     batch_results = [
-    #         single_batch_predict_sentiment(batch, length_=length_, debug=debug)
-    #         for batch in batches
-    #     ]
-    #
-    #     result_keys = batch_results[0].keys()
-    #     results = {
-    #         k: np.concatenate([br[k] for br in batch_results])[: len(texts)]
-    #         for k in result_keys
-    #     }
-    #
-    #     return results
 
 
 RESULT_STACK = {}

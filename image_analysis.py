@@ -493,9 +493,10 @@ def format_extracted_text(image_text, image_formatter=V9_IMAGE_FORMATTER, verbos
 def extract_and_format_text_from_url(
     url: str,
     image_formatter=V9_IMAGE_FORMATTER,
+    verbose=False,
 ):
     image_text = extract_text_from_url(url, return_raw=False, xtra_raw=False)
-    return format_extracted_text(image_text)
+    return format_extracted_text(image_text, verbose=verbose)
 
 
 class ImageAnalysisCache:
@@ -538,7 +539,9 @@ class ImageAnalysisCache:
         with LogExceptionAndSkip(f"retrieving {repr(url)} from cache"):
             cached_text = self._get_text_from_cache_entry(self.cache[url])
 
-        formatted_text = format_extracted_text(cached_text, image_formatter=image_formatter)
+        # print(f"formatting: {repr(cached_text)}")
+        formatted_text = format_extracted_text(cached_text, image_formatter=image_formatter, verbose=verbose)
+        # print(f"formatted: {repr(formatted_text)}")
         return formatted_text
 
     def save(self, verbose=True, do_backup=True):

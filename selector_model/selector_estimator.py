@@ -1222,7 +1222,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             var for var in tf.trainable_variables() if est.select_scope_ in var.name
         ]
 
-        tflex.load_variables(path, session=session, var_list=var_list)
+        tflex.load_variables(os.path.join(path, ".hdf5"), session=session, var_list=var_list)
 
         with open(path + "lr_calib.pkl", "rb") as f:
             est.lr_calib_ = pickle.load(f)

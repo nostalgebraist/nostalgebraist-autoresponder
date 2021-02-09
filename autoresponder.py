@@ -858,7 +858,8 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
 
-    return selector_est.predict_proba(data)
+    probs = selector_est.predict_proba(data)[:, 1]
+    return probs
 
 
 def predict_sentiment(data, debug=False):
@@ -877,12 +878,6 @@ def predict_sentiment(data, debug=False):
             text = normalize_for_generator(text)
         text = re.sub(r"\<.*?\>", "", text)  # sentiment-specific
 
-        text = final_munge_before_neural(
-            text,
-            override_disable_forumlike=override_disable_forumlike,
-            left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
-        )
-
         if EOT_PREPEND:
             if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
                 text = text[len(EOT_FULL) :]
@@ -892,7 +887,7 @@ def predict_sentiment(data, debug=False):
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
 
-    logits = sentiment_est.predict(data, key="logits")
+    logits = sentiment_est._predict(data, key="logits")
     logit_diffs = logits[:, 1:] - logits[:, :1]
 
     return logit_diffs
@@ -1238,10 +1233,8 @@ def poll(
                     k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK
                 }  # clean out already used results
 
-            # print(f"got prompt stack: {PROMPT_STACK}")
-
             for prompt_id, data in PROMPT_STACK.items():
-                print("generating...")
+                print(f"handling prompt_id={prompt_id}...")
                 if data["type"] == "answer":
                     RESULT_STACK[prompt_id] = serve_answer(data)
                 elif data["type"] == "textpost":
@@ -1368,12 +1361,12 @@ def poll_no_capture(
                 "ckpt_sentiment": ckpt_sentiment,
                 "hparams_select": {
                     k: v
-                    for k, v in hparams_select.values().items()
+                    for k, v in selector_est.hparams_select_train_.values().items()
                     if k not in {"dtype", "adapt_layers"}
                 },
                 "hparams_select_sentiment": {
                     k: v
-                    for k, v in hparams_select_sentiment.values().items()
+                    for k, v in sentiment_est.hparams_select_train_.values().items()
                     if k not in {"dtype", "adapt_layers"}
                 },
                 "sampling_info": sampling_info,

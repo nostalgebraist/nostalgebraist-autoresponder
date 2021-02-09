@@ -1,4 +1,5 @@
 import sys
+import tensorflow as tf
 
 sys.path.append("gpt-2/src/")
 

@@ -559,9 +559,7 @@ def parse_continuation(continuation: str, verbose=True, wrap=False):
     if len(tag_text) > 0:
         tags = [s.rstrip(" ") for s in tag_text.split("#")]
 
-    post = post.lstrip(
-        ORIG_POST_CHAR
-    )
+    post = post.lstrip(ORIG_POST_CHAR)
     parsed = {"post": post, "tags": tags}
     return parsed
 
@@ -1017,21 +1015,23 @@ def serve_answer(data):
             alt_selector_inputs = pd.DataFrame(
                 {
                     "selector_input": [
-                        join_time_sidechannel(s, alt_ts)
-                        for s in selector_inputs
+                        join_time_sidechannel(s, alt_ts) for s in selector_inputs
                     ]
                 }
             )
-            entry_selection_results = predict_select(
-                alt_selector_inputs, debug=True
-            )
+            entry_selection_results = predict_select(alt_selector_inputs, debug=True)
             listkey = f"alt_selection_proba__{alt_ts.replace(' ', '_')}"
             parsed[listkey] = [float(p) for p in entry_selection_results]
 
     selector_inputs = [
         join_time_sidechannel(s, relevant_timestamp) for s in selector_inputs
     ]
-    selector_inputs = pd.DataFrame({"selector_input": selector_inputs})
+    selector_inputs = pd.DataFrame(
+        {
+            "selector_input": selector_inputs,
+            "prompt_finalchar": [f"{A_CHAR}a" for _ in range(len(selector_inputs))],
+        }
+    )
     if GLOBAL_DEBUG:
         print(f"passing to predict_select: {selector_inputs}")
     selection_results = predict_select(
@@ -1040,9 +1040,7 @@ def serve_answer(data):
         override_disable_forumlike=override_disable_forumlike,
     )
     parsed["selection_proba"] = [float(p) for p in selection_results]
-    selector_inputs = pd.DataFrame(
-        {"selector_input": parsed["continuations"]}
-    )
+    selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
     sentiment_results = predict_sentiment(selector_inputs, debug=True)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
     show_note_probas(
@@ -1112,14 +1110,19 @@ def serve_textpost(data):
             CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"],
         ]:
             selector_inputs = [
-                s.replace(
-                    alt_char, CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
-                )
+                s.replace(alt_char, CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"])
                 for s in selector_inputs
             ]
     else:
         selector_inputs = [A_CHAR + c for c in continuations]
-    selector_inputs = pd.DataFrame({"selector_input": selector_inputs})
+    selector_inputs = pd.DataFrame(
+        {
+            "selector_input": selector_inputs,
+            "prompt_finalchar": [
+                ORIG_POST_CHAR_CHINESE for _ in range(len(selector_inputs))
+            ],
+        }
+    )
     if GLOBAL_DEBUG:
         print(f"passing to predict_select: {selector_inputs}")
     selection_results = predict_select(
@@ -1129,9 +1132,7 @@ def serve_textpost(data):
     )
     parsed["selection_proba"] = [float(p) for p in selection_results["probs"]]
 
-    selector_inputs = pd.DataFrame(
-        {"selector_input": parsed["continuations"]}
-    )
+    selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
     sentiment_results = predict_sentiment(selector_inputs, debug=True)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
     show_note_probas(
@@ -1178,7 +1179,14 @@ def serve_raw_select(data):
     selector_inputs = texts
     if GLOBAL_DEBUG:
         print(f"passing to predict_select: {selector_inputs}")
-    selector_inputs = pd.DataFrame({"selector_input": selector_inputs})
+    selector_inputs = pd.DataFrame(
+        {
+            "selector_input": selector_inputs,
+            "prompt_finalchar": [
+                ORIG_POST_CHAR_CHINESE for _ in range(len(selector_inputs))
+            ],
+        }
+    )
     selection_results = predict_select(
         selector_inputs, debug=True, override_disable_forumlike=True
     )

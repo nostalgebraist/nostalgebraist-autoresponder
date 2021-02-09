@@ -1,3 +1,5 @@
+# TODO:
+# - better name for "prompt_finalchar"
 import inspect
 import pickle
 import os

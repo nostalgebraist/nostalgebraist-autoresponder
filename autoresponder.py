@@ -987,75 +987,71 @@ def serve_answer(data):
     parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
     parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
 
-    if SELECT_VIA_GENERATOR:
-        if SELECTOR_CAN_SEE_PROMPTS:
-            if selector_cut_to_final_exchange and not override_disable_forumlike:
-                prompt_cut = cut_to_final_exchange_chinese(prompt)
-                selector_inputs = [
-                    prompt_cut + final_munge_after_neural(c) for c in continuations
-                ]
-            else:
-                selector_inputs = [prompt + c for c in continuations]
+    if SELECTOR_CAN_SEE_PROMPTS:
+        if selector_cut_to_final_exchange and not override_disable_forumlike:
+            prompt_cut = cut_to_final_exchange_chinese(prompt)
+            selector_inputs = [
+                prompt_cut + final_munge_after_neural(c) for c in continuations
+            ]
         else:
-            if FORUMLIKE:
-                prompt_forumlike = substitute_forumlike(
-                    normalize_for_generator(prompt),
-                    shuffle=False,
-                    infer_first=False,
-                    left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
-                )
-                prompt_finalchar = prompt_forumlike[
-                    last_control_char(
-                        prompt_forumlike,
-                        incl_number=False,
-                        control_seg_config=CONTROL_SEG_CONFIG,
-                    )[1] :
-                ]
-                selector_inputs = [prompt_finalchar + c for c in continuations]
-            else:
-                selector_inputs = [A_CHAR + c for c in continuations]
-
-        if DO_ALT_TIMESTAMPS:
-            for alt_ts in _make_alt_timestamps(v10_timestamp):
-                alt_selector_inputs = pd.DataFrame(
-                    {
-                        "selector_inputs": [
-                            join_time_sidechannel(s, alt_ts)
-                            for s in selector_inputs
-                        ]
-                    }
-                )
-                entry_selection_results = predict_select(
-                    alt_selector_inputs, debug=True
-                )
-                listkey = f"alt_selection_proba__{alt_ts.replace(' ', '_')}"
-                parsed[listkey] = [float(p) for p in entry_selection_results]
-
-        selector_inputs = [
-            join_time_sidechannel(s, relevant_timestamp) for s in selector_inputs
-        ]
-        selector_inputs = pd.DataFrame({"selector_inputs": selector_inputs})
-        if GLOBAL_DEBUG:
-            print(f"passing to predict_select: {selector_inputs}")
-        selection_results = predict_select(
-            selector_inputs,
-            debug=True,
-            override_disable_forumlike=override_disable_forumlike,
-        )
-        parsed["selection_proba"] = [float(p) for p in selection_results]
-        if SENTIMENT_VIA_GENERATOR:
-            selector_inputs = pd.DataFrame(
-                {"selector_inputs": parsed["continuations"]}
+            selector_inputs = [prompt + c for c in continuations]
+    else:
+        if FORUMLIKE:
+            prompt_forumlike = substitute_forumlike(
+                normalize_for_generator(prompt),
+                shuffle=False,
+                infer_first=False,
+                left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
             )
-            sentiment_results = predict_sentiment(selector_inputs, debug=True)
-            parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
-            show_note_probas(
-                continuations,
-                probas=parsed["selection_proba"],
-                sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
-            )
+            prompt_finalchar = prompt_forumlike[
+                last_control_char(
+                    prompt_forumlike,
+                    incl_number=False,
+                    control_seg_config=CONTROL_SEG_CONFIG,
+                )[1] :
+            ]
+            selector_inputs = [prompt_finalchar + c for c in continuations]
         else:
-            show_note_probas(continuations, probas=parsed["selection_proba"])
+            selector_inputs = [A_CHAR + c for c in continuations]
+
+    if DO_ALT_TIMESTAMPS:
+        for alt_ts in _make_alt_timestamps(v10_timestamp):
+            alt_selector_inputs = pd.DataFrame(
+                {
+                    "selector_inputs": [
+                        join_time_sidechannel(s, alt_ts)
+                        for s in selector_inputs
+                    ]
+                }
+            )
+            entry_selection_results = predict_select(
+                alt_selector_inputs, debug=True
+            )
+            listkey = f"alt_selection_proba__{alt_ts.replace(' ', '_')}"
+            parsed[listkey] = [float(p) for p in entry_selection_results]
+
+    selector_inputs = [
+        join_time_sidechannel(s, relevant_timestamp) for s in selector_inputs
+    ]
+    selector_inputs = pd.DataFrame({"selector_inputs": selector_inputs})
+    if GLOBAL_DEBUG:
+        print(f"passing to predict_select: {selector_inputs}")
+    selection_results = predict_select(
+        selector_inputs,
+        debug=True,
+        override_disable_forumlike=override_disable_forumlike,
+    )
+    parsed["selection_proba"] = [float(p) for p in selection_results]
+    selector_inputs = pd.DataFrame(
+        {"selector_inputs": parsed["continuations"]}
+    )
+    sentiment_results = predict_sentiment(selector_inputs, debug=True)
+    parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
+    show_note_probas(
+        continuations,
+        probas=parsed["selection_proba"],
+        sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
+    )
 
     if GLOBAL_DEBUG:
         print(f"sending back: {parsed}")
@@ -1111,45 +1107,41 @@ def serve_textpost(data):
     parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
     parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
 
-    if SELECT_VIA_GENERATOR:
-        if FORUMLIKE:
-            selector_inputs = [c for c in continuations]
-            for alt_char in [
-                CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"],
-                CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"],
-            ]:
-                selector_inputs = [
-                    s.replace(
-                        alt_char, CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
-                    )
-                    for s in selector_inputs
-                ]
-        else:
-            selector_inputs = [A_CHAR + c for c in continuations]
-        selector_inputs = pd.DataFrame({"selector_inputs": selector_inputs})
-        if GLOBAL_DEBUG:
-            print(f"passing to predict_select: {selector_inputs}")
-        selection_results = predict_select(
-            selector_inputs,
-            lr_calib_orig,
-            debug=True,
-            override_disable_forumlike=True,
-        )
-        parsed["selection_proba"] = [float(p) for p in selection_results["probs"]]
+    if FORUMLIKE:
+        selector_inputs = [c for c in continuations]
+        for alt_char in [
+            CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"],
+            CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"],
+        ]:
+            selector_inputs = [
+                s.replace(
+                    alt_char, CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
+                )
+                for s in selector_inputs
+            ]
+    else:
+        selector_inputs = [A_CHAR + c for c in continuations]
+    selector_inputs = pd.DataFrame({"selector_inputs": selector_inputs})
+    if GLOBAL_DEBUG:
+        print(f"passing to predict_select: {selector_inputs}")
+    selection_results = predict_select(
+        selector_inputs,
+        lr_calib_orig,
+        debug=True,
+        override_disable_forumlike=True,
+    )
+    parsed["selection_proba"] = [float(p) for p in selection_results["probs"]]
 
-        if SENTIMENT_VIA_GENERATOR:
-            selector_inputs = pd.DataFrame(
-                {"selector_inputs": parsed["continuations"]}
-            )
-            sentiment_results = predict_sentiment(selector_inputs, debug=True)
-            parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
-            show_note_probas(
-                continuations,
-                probas=parsed["selection_proba"],
-                sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
-            )
-        else:
-            show_note_probas(continuations, probas=parsed["selection_proba"])
+    selector_inputs = pd.DataFrame(
+        {"selector_inputs": parsed["continuations"]}
+    )
+    sentiment_results = predict_sentiment(selector_inputs, debug=True)
+    parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
+    show_note_probas(
+        continuations,
+        probas=parsed["selection_proba"],
+        sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
+    )
 
     if GLOBAL_DEBUG:
         print(f"sending back: {parsed}")
@@ -1186,31 +1178,27 @@ def serve_raw_select(data):
         texts = [s if ORIG_POST_CHAR in s else ORIG_POST_CHAR + s for s in texts]
     results = {}
 
-    if SELECT_VIA_GENERATOR:
-        selector_inputs = texts
-        if GLOBAL_DEBUG:
-            print(f"passing to predict_select: {selector_inputs}")
-        selector_inputs = pd.DataFrame({"selector_inputs": selector_inputs})
-        selection_results = predict_select(
-            selector_inputs, lr_calib_orig, debug=True, override_disable_forumlike=True
-        )
-        results["selection_proba"] = [float(p) for p in selection_results]
+    selector_inputs = texts
+    if GLOBAL_DEBUG:
+        print(f"passing to predict_select: {selector_inputs}")
+    selector_inputs = pd.DataFrame({"selector_inputs": selector_inputs})
+    selection_results = predict_select(
+        selector_inputs, lr_calib_orig, debug=True, override_disable_forumlike=True
+    )
+    results["selection_proba"] = [float(p) for p in selection_results]
 
-        if SENTIMENT_VIA_GENERATOR:
-            selector_inputs = pd.DataFrame(
-                {"selector_inputs": [final_munge_after_neural(s) for s in texts]}
-            )
-            sentiment_results = predict_sentiment(selector_inputs, debug=True)
-            results["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
-            show_note_probas(
-                texts,
-                probas=results["selection_proba"],
-                sentiment_logit_diffs=results["sentiment_logit_diffs"],
-            )
-        else:
-            show_note_probas(texts, probas=results["selection_proba"])
+    selector_inputs = pd.DataFrame(
+        {"selector_inputs": [final_munge_after_neural(s) for s in texts]}
+    )
+    sentiment_results = predict_sentiment(selector_inputs, debug=True)
+    results["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
+    show_note_probas(
+        texts,
+        probas=results["selection_proba"],
+        sentiment_logit_diffs=results["sentiment_logit_diffs"],
+    )
 
-        print(f"texts: {texts}\nresults: {results}\n")
+    print(f"texts: {texts}\nresults: {results}\n")
 
     return results
 

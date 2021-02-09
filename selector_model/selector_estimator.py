@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 import numpy as np
 import pandas as pd
+from tqdm.autonotebook import tqdm
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.model_selection import train_test_split, GroupKFold
 from sklearn.linear_model import LogisticRegression

@@ -138,6 +138,8 @@ def selector(
             else:
                 h_select_in_at_selection_ix = m
 
+        logit_size = (1 if use_only_logit_diff else 2)
+        
         w_select = model.get_variable("w_select")
         if w_select is None:
             initializer = model.get_initializer(

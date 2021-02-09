@@ -140,7 +140,7 @@ def selector(
 
         w_select = model.get_variable("w_select")
         if w_select is None:
-            initializer = get_initializer(
+            initializer = model.get_initializer(
                 hparams_select,
                 select_scope,
                 fan_in=nx,
@@ -154,16 +154,9 @@ def selector(
                 initializer=initializer(dtype=hparams.dtype),
             )
 
-            initializer = model.get_initializer(hparams_select, scope)
-            w_select = model.get_variable(
-                "w_select",
-                [len(layer_nums) * hparams.n_embd, 2],
-                initializer=initializer(0.02, dtype=hparams.dtype),
-            )
-
         b_select = model.get_variable("b_select")
         if b_select is None:
-            b_select = model.get_variable(
+            b_select = tf.get_variable(
                 "b_select",
                 [2],
                 initializer=tf.constant_initializer(0, dtype=hparams.dtype),

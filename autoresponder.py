@@ -835,7 +835,7 @@ lr_calib_sentiment = selector_est.lr_calib_
 
 def predict_select(data, debug=False, override_disable_forumlike=False):
     selector_input = []
-    for text in data_batch.selector_inputs:
+    for text in data.selector_input:
         for end_segment in {
             eot_end_segment,
             "<|",
@@ -858,13 +858,14 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
                 text = EOT_FULL + text
 
         selector_input.append(text)
+    data.loc[:, "selector_input"] = selector_input
 
-    return selector_est.predict_proba(selector_input)
+    return selector_est.predict_proba(data)
 
 
 def predict_sentiment(data, debug=False):
     selector_input = []
-    for text in data_batch.selector_inputs:
+    for text in data.selector_input:
         for end_segment in {
             eot_end_segment,
             "<|",
@@ -891,8 +892,9 @@ def predict_sentiment(data, debug=False):
                 text = EOT_FULL + text
 
         selector_input.append(text)
+    data.loc[:, "selector_input"] = selector_input
 
-    logits = sentiment_est.predict(selector_input, key="logits")
+    logits = sentiment_est.predict(data, key="logits")
     logit_diffs = logits[:, 1:] - logits[:, :1]
 
     return logit_diffs
@@ -1014,7 +1016,7 @@ def serve_answer(data):
         for alt_ts in _make_alt_timestamps(v10_timestamp):
             alt_selector_inputs = pd.DataFrame(
                 {
-                    "selector_inputs": [
+                    "selector_input": [
                         join_time_sidechannel(s, alt_ts)
                         for s in selector_inputs
                     ]
@@ -1029,7 +1031,7 @@ def serve_answer(data):
     selector_inputs = [
         join_time_sidechannel(s, relevant_timestamp) for s in selector_inputs
     ]
-    selector_inputs = pd.DataFrame({"selector_inputs": selector_inputs})
+    selector_inputs = pd.DataFrame({"selector_input": selector_inputs})
     if GLOBAL_DEBUG:
         print(f"passing to predict_select: {selector_inputs}")
     selection_results = predict_select(
@@ -1039,7 +1041,7 @@ def serve_answer(data):
     )
     parsed["selection_proba"] = [float(p) for p in selection_results]
     selector_inputs = pd.DataFrame(
-        {"selector_inputs": parsed["continuations"]}
+        {"selector_input": parsed["continuations"]}
     )
     sentiment_results = predict_sentiment(selector_inputs, debug=True)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
@@ -1117,19 +1119,18 @@ def serve_textpost(data):
             ]
     else:
         selector_inputs = [A_CHAR + c for c in continuations]
-    selector_inputs = pd.DataFrame({"selector_inputs": selector_inputs})
+    selector_inputs = pd.DataFrame({"selector_input": selector_inputs})
     if GLOBAL_DEBUG:
         print(f"passing to predict_select: {selector_inputs}")
     selection_results = predict_select(
         selector_inputs,
-        lr_calib_orig,
         debug=True,
         override_disable_forumlike=True,
     )
     parsed["selection_proba"] = [float(p) for p in selection_results["probs"]]
 
     selector_inputs = pd.DataFrame(
-        {"selector_inputs": parsed["continuations"]}
+        {"selector_input": parsed["continuations"]}
     )
     sentiment_results = predict_sentiment(selector_inputs, debug=True)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
@@ -1177,14 +1178,14 @@ def serve_raw_select(data):
     selector_inputs = texts
     if GLOBAL_DEBUG:
         print(f"passing to predict_select: {selector_inputs}")
-    selector_inputs = pd.DataFrame({"selector_inputs": selector_inputs})
+    selector_inputs = pd.DataFrame({"selector_input": selector_inputs})
     selection_results = predict_select(
-        selector_inputs, lr_calib_orig, debug=True, override_disable_forumlike=True
+        selector_inputs, debug=True, override_disable_forumlike=True
     )
     results["selection_proba"] = [float(p) for p in selection_results]
 
     selector_inputs = pd.DataFrame(
-        {"selector_inputs": [final_munge_after_neural(s) for s in texts]}
+        {"selector_input": [final_munge_after_neural(s) for s in texts]}
     )
     sentiment_results = predict_sentiment(selector_inputs, debug=True)
     results["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]

@@ -689,6 +689,8 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         else:
             self.target_cols_ = y.columns if len(y.shape) > 1 else y.name
             data = pd.concat([X, y], axis=1)
+        if "n_tokens" not in data.columns:
+            data["n_tokens"] = data.selector_input.apply(lambda s: len(self.enc.encode(s)))
         data = data.sort_values(by="n_tokens")
         data = reshuffle_batches(data, batch_size=self.batch_size)
         return data

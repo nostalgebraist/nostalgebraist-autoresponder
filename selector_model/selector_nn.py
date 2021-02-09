@@ -28,6 +28,22 @@ def attn_only_block(x, scope, *, past, hparams, do_input_norm=True):
         return x, present
 
 
+def mlp_acti_dropout(
+    x, scope, n_state, *, hparams, w_init_stdev=1, n_final=None, dropout_final=True
+):
+    dtype = hparams.dtype if hparams else tf.float32
+    with tf.variable_scope(scope, dtype=dtype):
+        nx = x.shape[-1].value
+        if n_final is None:
+            n_final = nx
+        h = model.gelu(model.conv1d(x, "c_fc", n_state, hparams=hparams, w_init_stdev=w_init_stdev))
+        h = model.dropout(h, hparams.acti_dropout)
+        h2 = model.conv1d(h, "c_proj", n_final, hparams=hparams, w_init_stdev=w_init_stdev)
+        if dropout_final:
+            h2 = model.dropout(h2, hparams.res_dropout)
+        return h2
+
+
 def extract_selection_ix(tokens, extract_from, batch_size, selection_tok):
     mask = tf.equal(tf.dtypes.cast(tokens, tf.int32), selection_tok)
     extracted_ragged = tf.ragged.boolean_mask(extract_from, mask)
@@ -48,7 +64,9 @@ def extract_selection_ix(tokens, extract_from, batch_size, selection_tok):
 
 
 def extract_selection_ix_position(tokens, batch_size, selection_tok):
-    return extract_selection_ix(tokens, tf.sort(tf.argsort(tokens)), batch_size, selection_tok)
+    return extract_selection_ix(
+        tokens, tf.sort(tf.argsort(tokens)), batch_size, selection_tok
+    )
 
 
 def selector(
@@ -92,11 +110,16 @@ def selector(
 
             h_select_in = tf.concat(hs_select, axis=-1)
 
-            h_select_in_at_selection_ix = extract_selection_ix(X, h_select_in, batch_size=batch_size, selection_tok=selection_tok)[
-                "extracted"
-            ]
+            h_select_in_at_selection_ix = extract_selection_ix(
+                X, h_select_in, batch_size=batch_size, selection_tok=selection_tok
+            )["extracted"]
             selection_ix_position = tf.cast(
-                tf.reshape(extract_selection_ix_position(X, batch_size=batch_size, selection_tok=selection_tok)["extracted"], [-1, 1]),
+                tf.reshape(
+                    extract_selection_ix_position(
+                        X, batch_size=batch_size, selection_tok=selection_tok
+                    )["extracted"],
+                    [-1, 1],
+                ),
                 tf.float32,
             )
 

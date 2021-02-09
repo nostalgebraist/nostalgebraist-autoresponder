@@ -24,7 +24,7 @@ from tensorflow.contrib.opt import AdamWOptimizer
 from tensorflow.contrib.training import HParams
 import tflex
 import tflex_sgdr
-from model import model as model_fn
+from model import hparams_1558M, model as model_fn
 from accumulate import GradientAccumulator
 
 from selector_nn import selector
@@ -139,7 +139,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         epochs=3,
         batch_size=8,
         grad_clip=1000,
-        base_hparams=model.hparams_1558M(),
+        base_hparams=hparams_1558M(),
         enc=enc,
         selection_tok=SELECTION_TOK,  # TODO: specify SELECTION_TOK
         length=825,

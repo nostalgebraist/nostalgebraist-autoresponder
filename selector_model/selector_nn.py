@@ -29,16 +29,16 @@ def attn_only_block(x, scope, *, past, hparams, do_input_norm=True):
 
 
 def mlp_acti_dropout(
-    x, scope, n_state, *, hparams, w_init_stdev=1, n_final=None, dropout_final=True
+    x, scope, n_state, *, hparams, gain=None, n_final=None, dropout_final=True
 ):
     dtype = hparams.dtype if hparams else tf.float32
     with tf.variable_scope(scope, dtype=dtype):
         nx = x.shape[-1].value
         if n_final is None:
             n_final = nx
-        h = model.gelu(model.conv1d(x, "c_fc", n_state, hparams=hparams, w_init_stdev=w_init_stdev))
+        h = model.gelu(model.conv1d(x, "c_fc", n_state, hparams=hparams, gain=gain))
         h = model.dropout(h, hparams.acti_dropout)
-        h2 = model.conv1d(h, "c_proj", n_final, hparams=hparams, w_init_stdev=w_init_stdev)
+        h2 = model.conv1d(h, "c_proj", n_final, hparams=hparams, gain=gain)
         if dropout_final:
             h2 = model.dropout(h2, hparams.res_dropout)
         return h2

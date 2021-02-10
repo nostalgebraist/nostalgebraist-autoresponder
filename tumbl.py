@@ -433,7 +433,7 @@ def autopublish_screener(
     for short_word in bad_strings_shortwords:
         for w, p in product(whitespace, punctuation):
             bad_strings.add(w + short_word + p)
-        for w1, w2 in product(punctuation, punctuation):
+        for w1, w2 in product(whitespace, whitespace):
             bad_strings.add(w1 + short_word + w2)
 
     bad_strings = bad_strings.union(USER_AVOID_LIST)

@@ -1135,7 +1135,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
 
         step_iter = (
             tqdm(list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=1)
-            if len(steps) > 1
+            if steps > 1
             else list(range(0, steps))
         )
 

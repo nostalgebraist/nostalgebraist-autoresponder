@@ -117,7 +117,7 @@ REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
 
-DASH_REBLOG_SELECTION_CUTOFF = 0.5
+DASH_REBLOG_SELECTION_CUTOFF = 0.4
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
@@ -1184,6 +1184,11 @@ def side_judgements_for_text(text, loop_persistent_data):
     return prob, sentiment
 
 
+def am_i_tagged_in_reblog(post_payload):
+    comment_ = post_payload.get("reblog", {}).get("comment", "")
+    return f"@{blogName}" in comment_
+
+
 def is_statically_reblog_worthy_on_dash(
     post_payload, response_cache, loop_persistent_data, verbose=True
 ):
@@ -1244,7 +1249,7 @@ def is_statically_reblog_worthy_on_dash(
                 print(f"\trejecting {post_identifier}: reblog id avoid list")
             return False
 
-    if f"@{blogName}" in comment_:
+    if am_i_tagged_in_reblog(post_payload):
         if verbose:
             print(
                 f"reblogging {post_identifier} from dash:\n\ti'm tagged in commment {comment_}"
@@ -1342,8 +1347,7 @@ def is_dynamically_reblog_worthy_on_dash(
     reblog_worthy_prob = buffed_prob > DASH_REBLOG_SELECTION_CUTOFF
 
     # override prob if i'm tagged
-    comment_ = post_payload.get("reblog", {}).get("comment", "")
-    reblog_worthy_taggedme = f"@{blogName}" in comment_
+    reblog_worthy_taggedme = am_i_tagged_in_reblog(post_payload)
 
     reblog_worthy = (
         reblog_worthy_prob or reblog_worthy_taggedme

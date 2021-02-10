@@ -181,7 +181,8 @@ def answer():
         kwargs["avoid_if_profane"] = True
     if True:
         fork = "B" if np.random.rand() > 1 else "A"
-    strategy = "proportional_winnowed"
+    # strategy = "proportional_winnowed"
+    strategy = "eps_greedy"
     eps = 0.1
     kwargs["strategy"] = strategy
     kwargs["eps"] = eps
@@ -237,8 +238,8 @@ def textpost():
     kwargs["avoid_initial_blockquote"] = True
     if True:
         fork = "B" if np.random.rand() > 1 else "A"
-        strategy = "proportional_winnowed"
-        # strategy = "eps_greedy"
+        # strategy = "proportional_winnowed"
+        strategy = "eps_greedy"
         eps = 0.25
         kwargs["strategy"] = strategy
         kwargs["eps"] = eps

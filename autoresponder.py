@@ -396,9 +396,9 @@ def show_note_probas(texts, probas, sentiment_logit_diffs=None, console_width=11
             print("\n~_~_~_~_~_\n")
 
 
-def load_selector(path, session, base_hparams, enc, retries=False):
+def load_selector(path, session, base_hparams, enc, retries=False, **kwargs):
     selector_est = SelectorEstimatorFromCkpt.load(
-        path, session=session, base_hparams=base_hparams, enc=enc
+        path, session=session, base_hparams=base_hparams, enc=enc, **kwargs
     )
     return selector_est
 
@@ -410,6 +410,7 @@ selector_est = load_from_gdrive_with_gs_fallback(
     session=generator_model.session,
     base_hparams=hparams,
     enc=enc,
+    batch_size=batch_size,
 )
 selector_est.length = length_select
 
@@ -424,6 +425,7 @@ sentiment_est = load_from_gdrive_with_gs_fallback(
     session=generator_model.session,
     base_hparams=hparams,
     enc=enc,
+    batch_size=batch_size,
 )
 sentiment_est.length = length_sentiment
 

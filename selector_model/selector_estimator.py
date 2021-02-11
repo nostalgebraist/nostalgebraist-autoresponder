@@ -1224,7 +1224,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             pickle.dump(self.lr_calib_orig_, f)
 
     @staticmethod
-    def load(path, session, base_hparams, enc) -> "SelectorEstimatorFromCkpt":
+    def load(path, session, base_hparams, enc, **kwargs) -> "SelectorEstimatorFromCkpt":
         with open(os.path.join(path, "metadata.json"), "r") as f:
             metadata = json.load(f)
 
@@ -1233,6 +1233,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         constructor_args["enc"] = enc
         constructor_args["session_override"] = session
         constructor_args["uid_override"] = metadata["uid"]
+        constructor_args.update(**kwargs)
 
         est = SelectorEstimatorFromCkpt(**constructor_args)
         est._setup(training=False)

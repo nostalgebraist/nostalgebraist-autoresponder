@@ -110,7 +110,9 @@ class GeneratorModel:
                 mirostat=MIRO,
                 **sampling_args,
             )
-            self.presents_op = model.model(hparams=self.hparams, X=self.context)["present"]
+            self.presents_op = model.model(hparams=self.hparams, X=self.context)[
+                "present"
+            ]
 
     def done_writing(self, prompt: str):
         if prompt in self.startup_presents_for_prompt:
@@ -175,7 +177,9 @@ class GeneratorModel:
                     print("recomputing presents")
                     presents = self.session.run(
                         self.presents_op,
-                        feed_dict={self.context: [bct[:-1] for bct in batch_context_tokens]},
+                        feed_dict={
+                            self.context: [bct[:-1] for bct in batch_context_tokens]
+                        },
                     )
                     if this_batch_continue_steps >= first_step_with_miro:
                         if miromu is None:
@@ -326,7 +330,13 @@ class GeneratorModel:
                     if this_batch_continue_steps == first_step_with_miro:
                         print(
                             [
-                                (j, self.enc.decode([tok]), mk, f"{ms:.3f}", f"{mmu:.3f}")
+                                (
+                                    j,
+                                    self.enc.decode([tok]),
+                                    mk,
+                                    f"{ms:.3f}",
+                                    f"{mmu:.3f}",
+                                )
                                 for j, (tok, mk, ms, mmu) in enumerate(
                                     zip(
                                         out[i],
@@ -401,7 +411,6 @@ class GeneratorModel:
         if self.session is not None:
             self.session.close()
         self.startup_presents_for_prompt = {}
-
 
     @staticmethod
     def load(

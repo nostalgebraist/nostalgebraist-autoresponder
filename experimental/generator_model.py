@@ -253,7 +253,7 @@ class GeneratorModel:
                 miromu = sample_output_dict["mirostat_mus"][:, -1]
                 print(f"miromu after setting: {miromu}")
 
-            miroks = np.clip(miroks, a_min=None, a_max=hparams.n_vocab)
+            miroks = np.clip(miroks, a_min=None, a_max=self.hparams.n_vocab)
 
             miro_avg_surprises = np.mean(mirosurprises, axis=1)
             miro_median_ks = np.median(miroks, axis=1)

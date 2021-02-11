@@ -6,7 +6,6 @@ import sample
 import encoder
 
 from autoresponder_config import *  # TODO: turn these into class constructor args/kwargs
-from autoresponder_static import contains_control_chars
 
 
 def is_repeating_criterion(unique_token_frac):

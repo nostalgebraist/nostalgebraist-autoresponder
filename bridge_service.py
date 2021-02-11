@@ -222,7 +222,7 @@ def textpost():
 
     kwargs = {
         "best_of": 10,
-        "prompt_from_dataset": True,
+        "prompt_from_dataset": True,  # TODO: remove
         "verbose": True,
         "V5": True,
         "mood": get_mood_by_name(mood),

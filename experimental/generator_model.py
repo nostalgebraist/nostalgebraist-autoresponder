@@ -107,7 +107,7 @@ class GeneratorModel:
                 mirostat=MIRO,
                 **sampling_args,
             )
-            self.presents_op = model.model(hparams=hparams, X=context)["present"]
+            self.presents_op = model.model(hparams=self.hparams, X=self.context)["present"]
 
     def done_writing(self, prompt: str):
         if prompt in self.startup_presents_for_prompt:
@@ -384,7 +384,7 @@ class GeneratorModel:
             try:
                 with self.session.as_default():
                     print(f"restoring checkpoint: {ckpt}")
-                    saver.restore(model.session, ckpt)
+                    saver.restore(self.session, ckpt)
                     load_done = True
             except Exception as e:
                 if retries:

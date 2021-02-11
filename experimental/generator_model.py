@@ -174,7 +174,7 @@ class GeneratorModel:
                     print("recomputing presents")
                     presents = self.session.run(
                         self.presents_op,
-                        feed_dict={context: [bct[:-1] for bct in batch_context_tokens]},
+                        feed_dict={self.context: [bct[:-1] for bct in batch_context_tokens]},
                     )
                     if this_batch_continue_steps >= first_step_with_miro:
                         if miromu is None:

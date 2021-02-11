@@ -250,6 +250,10 @@ def final_munge_before_neural_v8(
             remainder = formatted[lcc[1] + len(lcc[0]) :]
             formatted_ = formatted_ + remainder
             print(f"added remainder {remainder}")
+        else:
+            forced_tag = " #original fiction"
+            formatted_ = formatted_ + forced_tag
+            print(f"added forced_tag {repr(forced_tag)}")
 
         formatted = formatted_
         print(f"using: {formatted}")

@@ -2182,7 +2182,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
                 if fic_triger_criterion:
                     print("fic_triger_criterion passed")
-                    # forced_tags_string += " #original fiction"
                     write_fic_override = 1
 
             user_input_identifier = UserInputIdentifier(

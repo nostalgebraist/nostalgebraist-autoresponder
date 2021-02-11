@@ -173,7 +173,7 @@ class GeneratorModel:
                 if recompute_presents:
                     print("recomputing presents")
                     presents = self.session.run(
-                        manual_presents_op,
+                        self.presents_op,
                         feed_dict={context: [bct[:-1] for bct in batch_context_tokens]},
                     )
                     if this_batch_continue_steps >= first_step_with_miro:

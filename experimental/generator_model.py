@@ -165,7 +165,7 @@ class GeneratorModel:
         miromu = None
         mirosurprises, miroks = None, None
         mu_init_scale = 1.0 if MIRO_V2 else 2.0
-        
+
         while not done:
             recompute_presents = (token_start_ix >= max_context_size) or (
                 presents is None
@@ -397,6 +397,12 @@ class GeneratorModel:
                 else:
                     raise e
 
+    def cleanup(self):
+        if self.session is not None:
+            self.session.close()
+        self.startup_presents_for_prompt = {}
+
+
     @staticmethod
     def load(
         path,
@@ -413,7 +419,11 @@ class GeneratorModel:
             sample_done_criterion=sample_done_criterion,
             hparams=hparams,
         )
-        model._setup()
+        try:
+            model._setup()
 
-        model.restore_checkpoint(path, retries=retries)
+            model.restore_checkpoint(path, retries=retries)
+        except (Exception, KeyboardInterrupt) as e:
+            model.cleanup()
+            raise e
         return model

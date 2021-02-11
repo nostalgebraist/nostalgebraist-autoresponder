@@ -115,7 +115,7 @@ class GeneratorModel:
         else:
             print(f"done_writing: prompt not in cache: {repr(prompt)}")
 
-    def write(self, prompt: str, verbose=False):
+    def write(self, prompt: str, mirotarg: float, verbose=False):
         context_tokens = self.enc.encode(prompt)
 
         startup_presents = self.startup_presents_for_prompt.get(prompt, None)

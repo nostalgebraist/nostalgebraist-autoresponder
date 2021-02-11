@@ -177,9 +177,8 @@ def get_prompted_continuation(
 ):
     if mirotarg is None:
         mirotarg = np.random.choice(MIRO_TARGET_ALL)
-    mu_init_scale = 1.0 if MIRO_V2 else 2.0
 
-    return generator_model.write(prompt, verbose=verbose)
+    return generator_model.write(prompt, mirotarg=mirotarg, verbose=verbose)
 
 
 def parse_continuation(continuation: str, verbose=True, wrap=False):

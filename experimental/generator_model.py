@@ -183,7 +183,7 @@ class GeneratorModel:
                             feed_dict={
                                 self.context: batch_context_tokens,
                                 self.mirostat_target: mirotarg,
-                                self.mirostat_lr: MIROLR,
+                                self.mirostat_lr: MIRO_LR,
                                 self.mirostat_mu_from_past: miromu,
                                 self.sample_pasts: presents,
                             },
@@ -194,7 +194,7 @@ class GeneratorModel:
                             feed_dict={
                                 self.context: batch_context_tokens,
                                 self.mirostat_target: mirotarg,
-                                self.mirostat_lr: MIROLR,
+                                self.mirostat_lr: MIRO_LR,
                                 self.sample_pasts: presents,
                             },
                         )
@@ -202,6 +202,7 @@ class GeneratorModel:
                     print("using saved presents")
                     if this_batch_continue_steps >= first_step_with_miro:
                         if miromu is None:
+                            mu_init_scale = 1.0 if MIRO_V2 else 2.0
                             miromu = (
                                 mu_init_scale * mirotarg * np.ones((self.batch_size,))
                             )
@@ -212,7 +213,7 @@ class GeneratorModel:
                                 self.context: batch_context_tokens,
                                 self.sample_pasts: presents,
                                 self.mirostat_target: mirotarg,
-                                self.mirostat_lr: MIROLR,
+                                self.mirostat_lr: MIRO_LR,
                                 self.mirostat_mu_from_past: miromu,
                             },
                         )
@@ -223,7 +224,7 @@ class GeneratorModel:
                                 self.context: batch_context_tokens,
                                 self.sample_pasts: presents,
                                 self.mirostat_target: mirotarg,
-                                self.mirostat_lr: MIROLR,
+                                self.mirostat_lr: MIRO_LR,
                             },
                         )
             sample_output_dict["tokens"] = sample_output_dict["tokens"][
@@ -292,7 +293,7 @@ class GeneratorModel:
             is_not_finished = [
                 not self.sample_done_criterion(c, unique_token_frac)
                 for c, unique_token_frac in zip(
-                    next_prompts_contonly, unique_token_frac
+                    next_prompts_contonly, unique_token_fracs
                 )
             ]
             not_finished = [

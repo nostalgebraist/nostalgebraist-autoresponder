@@ -98,23 +98,10 @@ def load_encoder_only(path, retries=False):  # ignored
     return enc
 
 
-def load_data_sampler(path, retries=False):  # ignored
-    chunks = load_dataset(enc, path, 50000)
-    data_sampler = Sampler(chunks)
-    return data_sampler
-
-
 enc = load_from_gdrive_with_gs_fallback(
     load_fn=load_encoder_only,
     relative_path=os.path.join("models", model_name, "vocab.bpe"),
     gs_command=gs_command_get_encoder,
-)
-
-
-data_sampler = load_from_gdrive_with_gs_fallback(
-    load_fn=load_data_sampler,
-    relative_path=dataset,
-    gs_command=gs_command_get_dataset,
 )
 
 
@@ -564,58 +551,22 @@ def parse_continuation(continuation: str, verbose=True, wrap=False):
     return parsed
 
 
-def get_prompt_from_dataset(dataset):
-    # TODO: deprecate this, it's no longer used for
-    # anything non-trivial
+def get_textpost_prompt():
     overrides = {}
 
-    global data_sampler
-
-    segment = "会"
-    segments = []
-    # while segment[0]=="会": # V3
-    if FORUMLIKE:
-        roll = np.random.rand()
-        if roll < FORUMLIKE_REVIEW_PROB:
-            look_for = CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"]
-            overrides["v8_timestamp"] = ""
-            overrides["v10_timestamp"] = ""
-        elif roll < FORUMLIKE_REVIEW_PROB + FORUMLIKE_FIC_PROB:
-            look_for = CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"]
-            overrides["v8_timestamp"] = ""
-            overrides["v10_timestamp"] = ""
-            overrides["tag_string_raw"] = "#original fiction"
-        else:
-            look_for = CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
-        print(f"using look_for={repr(look_for)}")
+    roll = np.random.rand()
+    if roll < FORUMLIKE_REVIEW_PROB:
+        prompt = CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"]
+        overrides["v8_timestamp"] = ""
+        overrides["v10_timestamp"] = ""
+    elif roll < FORUMLIKE_REVIEW_PROB + FORUMLIKE_FIC_PROB:
+        prompt = CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"]
+        overrides["v8_timestamp"] = ""
+        overrides["v10_timestamp"] = ""
+        overrides["tag_string_raw"] = "#original fiction"
     else:
-        look_for = "翰"
-
-    if V10:
-        prompt = look_for
-        return prompt, overrides
-
-    while segment[: len(look_for)] != look_for:  # V4
-        while len(segments) == 0:
-            segments = enc.decode(data_sampler.sample(1024)).split("<|endoftext|>")[1:]
-        segment = segments.pop()
-
-    n_extra_tokens = 1
-    if V8:
-        n_extra_tokens = 0
-    if EOT_WORKAROUND:
-        if EOT_PREPEND:
-            segment = "<|endoftext|>" + segment
-            n_extra_tokens += 1
-        context_tokens = enc.encode(segment)[
-            : len(enc.encode(look_for)) + n_extra_tokens
-        ]
-        print(f"using context_tokens {context_tokens} = {enc.decode(context_tokens)}")
-    else:
-        context_tokens = enc.encode("endoftext|>" + segment)[
-            : len(enc.encode("endoftext|>")) + 3
-        ]
-    prompt = enc.decode(context_tokens)
+        prompt = CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
+    print(f"using prompt={repr(prompt)}")
 
     return prompt, overrides
 
@@ -642,7 +593,7 @@ def basic_n_continuations(
     avoid_half_if_under=40,
     avoid_if_cut_off=True,
     split_on_control_char=False,
-    prompt_from_dataset=False,
+    use_textpost_prompt=False,
     avoid_initial_blockquote=False,
     continue_if_cut_off=False,
     avoid_if_profane=False,
@@ -662,8 +613,8 @@ def basic_n_continuations(
 
     relevant_timestamp = v10_timestamp if V10 else v8_timestamp
 
-    if prompt_from_dataset:
-        prompt, textpost_overrides = get_prompt_from_dataset(dataset)
+    if use_textpost_prompt:
+        prompt, textpost_overrides = get_textpost_prompt()
         v8_timestamp = textpost_overrides.get("v8_timestamp", v8_timestamp)
         v10_timestamp = textpost_overrides.get("v10_timestamp", v10_timestamp)
         relevant_timestamp = v10_timestamp if V10 else v8_timestamp
@@ -701,7 +652,7 @@ def basic_n_continuations(
             continue_if_cut_off=continue_if_cut_off,
             max_continue_steps=max_continue_steps,
             verbose=verbose,
-            override_disable_forumlike=prompt_from_dataset
+            override_disable_forumlike=use_textpost_prompt
             or override_disable_forumlike,
             mirotarg=mirotarg,
             forced_tags_string=forced_tags_string,
@@ -762,7 +713,7 @@ def basic_n_continuations(
 
     continuations_ = []
     for continuation in continuations:
-        if prompt_from_dataset:
+        if use_textpost_prompt:
             continuation = prompt + continuation
             if EOT_PREPEND and continuation.startswith("<|endoftext|>"):
                 continuation = continuation[len("<|endoftext|>") :]
@@ -963,7 +914,7 @@ def serve_answer(data):
         avoid_if_under=avoid_if_under,
         avoid_half_if_under=avoid_half_if_under,
         avoid_if_cut_off=avoid_if_cut_off,
-        prompt_from_dataset=kwargs.get("prompt_from_dataset"),
+        use_textpost_prompt=False,
         split_on_control_char=split_on_control_char,
         avoid_initial_blockquote=avoid_initial_blockquote,
         continue_if_cut_off=continue_if_cut_off,
@@ -1071,7 +1022,7 @@ def serve_textpost(data):
             avoid_half_if_under=avoid_half_if_under,
             avoid_if_cut_off=avoid_if_cut_off,
             split_on_control_char=split_on_control_char,
-            prompt_from_dataset=kwargs.get("prompt_from_dataset"),
+            use_textpost_prompt=True,
             avoid_initial_blockquote=avoid_initial_blockquote,
             v8_timestamp=data.get("v8_timestamp"),
             v10_timestamp=data.get("v10_timestamp", ""),
@@ -1088,7 +1039,7 @@ def serve_textpost(data):
             avoid_half_if_under=avoid_half_if_under,
             avoid_if_cut_off=avoid_if_cut_off,
             split_on_control_char=split_on_control_char,
-            prompt_from_dataset=kwargs.get("prompt_from_dataset"),
+            use_textpost_prompt=True,
             avoid_initial_blockquote=avoid_initial_blockquote,
             v8_timestamp=data.get("v8_timestamp"),
             v10_timestamp=data.get("v10_timestamp", ""),

@@ -138,7 +138,7 @@ class GeneratorModel:
         token_start_ix = len(context_tokens)
 
         batch_context_tokens = [context_tokens for _ in range(self.batch_size)]
-        continuations = [[raw_text] for _ in batch_context_tokens]
+        continuations = [[prompt] for _ in batch_context_tokens]
         continuations_tokens = [[context_tokens] for _ in range(self.batch_size)]
         is_repeating = [False for _ in batch_context_tokens]
         is_not_finished = [True for _ in batch_context_tokens]

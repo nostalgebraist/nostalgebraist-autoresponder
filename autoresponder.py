@@ -24,12 +24,9 @@ import pandas as pd
 from IPython.utils.capture import capture_output
 
 import tensorflow as tf
-import tflex
 
 import model
-import sample
 import encoder
-from load_dataset import load_dataset, Sampler
 
 from flask import Flask, escape, request, jsonify
 
@@ -37,6 +34,7 @@ from autoresponder_config import *
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
+from experimental.generator_model import GeneratorModel
 from selector_model.selector_estimator import SelectorEstimatorFromCkpt
 
 # TODO: move this over later
@@ -105,430 +103,83 @@ enc = load_from_gdrive_with_gs_fallback(
 )
 
 
-def make_session(reset=True):
-    if reset:
-        tf.reset_default_graph()
-    sess = tflex.Session()
-
-    with sess.as_default():
-        context = tf.placeholder(tf.int32, [batch_size, None])
-        sample_pasts = tf.placeholder(
-            tf.float32, model.past_shape(hparams=hparams, batch_size=batch_size)
-        )
-
-        mirostat_target = tf.placeholder(shape=[], dtype=tf.float32)
-        mirostat_lr = tf.placeholder(shape=[], dtype=tf.float32)
-        mirostat_mu_from_past = tf.placeholder(
-            tf.float32,
-            [
-                batch_size,
-            ],
-        )
-
-        # TODO: DRY
-        output_with_presents = sample.sample_sequence(
-            stop_at_EOT=True,
-            better_length=better_length,
-            eot_workaround=EOT_WORKAROUND,
-            enc=enc,
-            hparams=hparams,
-            length=pre_continue_length,
-            start_token=start_token,
-            context=context,
-            batch_size=batch_size,
-            temperature=pre_continue_temperature,
-            top_k=pre_continue_top_k,
-            top_p=pre_continue_top_p,
-            middle_p=pre_continue_middle_p,
-            chop_lowest=pre_continue_chop_lowest,
-            chop_highest=pre_continue_chop_highest,
-            return_presents=True,
-            pasts=sample_pasts,
-            mirostat=pre_continue_mirostat,
-            mirostat_surprise_target=mirostat_target,
-            mirostat_lr=mirostat_lr,
-            mirostat_trunc=MIRO_TRUNC,
-            mirostat_v2=MIRO_V2,
-            disable_prints=True,
-        )
-        # TODO: DRY
-        continue_output = sample.sample_sequence(
-            stop_at_EOT=True,
-            better_length=better_length,
-            eot_workaround=EOT_WORKAROUND,
-            enc=enc,
-            hparams=hparams,
-            length=length,
-            start_token=start_token,
-            context=context,
-            batch_size=batch_size,
-            temperature=temperature,
-            top_k=top_k,
-            top_p=top_p,
-            middle_p=middle_p,
-            chop_lowest=chop_lowest,
-            chop_highest=chop_highest,
-            return_presents=True,
-            pasts=sample_pasts,
-            mirostat=MIRO,
-            mirostat_surprise_target=mirostat_target,
-            mirostat_mu_init=mirostat_mu_from_past,
-            mirostat_lr=mirostat_lr,
-            mirostat_trunc=MIRO_TRUNC,
-            mirostat_v2=MIRO_V2,
-            disable_prints=True,
-        )
-        manual_presents_op = model.model(hparams=hparams, X=context)["present"]
-
-    return (
-        sess,
-        context,
-        sample_pasts,
-        output_with_presents,
-        continue_output,
-        manual_presents_op,
-        mirostat_target,
-        mirostat_lr,
-        mirostat_mu_from_past,
+def load_generator_model(
+    path, enc, batch_size, sample_done_criterion, hparams, retries=False
+):
+    return GeneratorModel.load(
+        path, enc, batch_size, sample_done_criterion, hparams, retries=retries
     )
 
 
-(
-    sess,
-    context,
-    sample_pasts,
-    output_with_presents,
-    continue_output,
-    manual_presents_op,
-    mirostat_target,
-    mirostat_lr,
-    mirostat_mu_from_past,
-) = make_session()
+def is_repeating_criterion(unique_token_frac):
+    return unique_token_frac < 0.2
 
 
-def load_ckpt_with_retries(path, session, retries=True):
-    enclosing_dir = path.rpartition("/")[0]
-    ckpt = tflex.latest_checkpoint(enclosing_dir)
-    if ckpt is None:
-        raise FileNotFoundError
-    saver = tflex.Saver()
+def make_sample_done_criterion(control_seg_config):
+    def sample_done_criterion(text, unique_token_frac):
+        has_EOT = eot_end_segment in text
 
-    load_done = False
-    while not load_done:
-        try:
-            with session.as_default():
-                print(f"restoring checkpoint: {ckpt}")
-                saver.restore(session, ckpt)
-                load_done = True
-        except Exception as e:
-            if retries:
-                print(f"encountered {e}, retrying...")
-            else:
-                raise e
+        has_control_chars = contains_control_chars(
+            text, control_seg_config=control_seg_config
+        )
+
+        has_multiple_tag_chars = len([char for char in text if char == T_CHAR]) >= 2
+
+        is_repeating = is_repeating_criterion(unique_token_frac)
+
+        return has_EOT or has_control_chars or has_multiple_tag_chars or is_repeating
+
+    return sample_done_criterion
 
 
-load_from_gdrive_with_gs_fallback(
-    load_fn=load_ckpt_with_retries,
+sample_done_criterion = make_sample_done_criterion(
+    control_seg_config=CONTROL_SEG_CONFIG
+)
+
+generator_model = load_from_gdrive_with_gs_fallback(
+    load_fn=load_generator_model,
     relative_path=os.path.join(model_path),
     gs_command=gs_command_get_model,
-    session=sess,
+    enc=enc,
+    batch_size=batch_size,
+    sample_done_criterion=sample_done_criterion,
+    hparams=hparams,
 )
 
 
-def get_prompted_continuation(
-    prompt: str,
-    continue_if_cut_off=False,
-    max_continue_steps=MAX_CONTINUE_STEPS,
-    max_continue_tokens=MAX_CONTINUE_TOKENS,
-    verbose=False,
+def finalize_prompt_for_neural(
+    prompt,
     override_disable_forumlike=False,
-    mirotarg=None,  # TODO: allow vary across batch, add noise inside this fn
-    mirolr=MIRO_LR,
     forced_tags_string=None,
     write_fic_override=False,
-    startup_presents=None,
 ):
-    if mirotarg is None:
-        mirotarg = np.random.choice(MIRO_TARGET_ALL)
-    mu_init_scale = 1.0 if MIRO_V2 else 2.0
-
     if GLOBAL_DEBUG:
-        print(f"in get_prompted_continuation, got prompt: {repr(prompt)}")
-    raw_text = final_munge_before_neural(
+        print(f"in finalize_prompt_for_neural, got prompt: {repr(prompt)}")
+    prompt = final_munge_before_neural(
         prompt,
         override_disable_forumlike=override_disable_forumlike,
         left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
         forced_tags_string=forced_tags_string,
         write_fic_override=write_fic_override,
     )
-    raw_text = raw_text.replace(EOT_FULL, "")
+    prompt = prompt.replace(EOT_FULL, "")
     if EOT_PREPEND:
-        raw_text = EOT_FULL + raw_text
+        prompt = EOT_FULL + prompt
     if GLOBAL_DEBUG:
-        print(f"get_prompted_continuation, using prompt (munged): {repr(raw_text)}")
-    context_tokens = enc.encode(raw_text)
+        print(f"finalize_prompt_for_neural, using prompt (munged): {repr(prompt)}")
+    return prompt
 
-    if better_length:
-        max_context_size = length - required_continuation_room
-    else:
-        max_context_size = max_ctx_fits_on_gpu - length
-    if len(context_tokens) > max_context_size:
-        orig_len = len(context_tokens)
-        context_tokens = context_tokens[-(max_context_size):]
-        print(
-            f"truncated {orig_len} to {len(context_tokens)}, max_context_size={max_context_size}"
-        )
-    else:
-        print(
-            f"{len(context_tokens)} tokens can fit in max_context_size {max_context_size}"
-        )
 
-    token_start_ix = len(context_tokens)
+def get_prompted_continuation(
+    prompt: str,
+    verbose=False,
+    mirotarg=None,  # TODO: allow vary across batch, add noise inside this fn
+):
+    if mirotarg is None:
+        mirotarg = np.random.choice(MIRO_TARGET_ALL)
+    mu_init_scale = 1.0 if MIRO_V2 else 2.0
 
-    batch_context_tokens = [context_tokens for _ in range(batch_size)]
-    continuations = [[raw_text] for _ in batch_context_tokens]
-    continuations_tokens = [[context_tokens] for _ in range(batch_size)]
-    is_repeating = [False for _ in batch_context_tokens]
-    is_not_finished = [True for _ in batch_context_tokens]
-    generated = 0
-    tokens_generated = 0
-    this_batch_continue_steps = 0
-
-    first_step_with_miro = 1 if MIRO_ONLY_ON_CONTINUE else 0
-
-    done = False
-    recompute_presents = False
-    if startup_presents is None:
-        print("computing startup presents")
-        startup_presents = sess.run(
-            manual_presents_op,
-            feed_dict={context: [bct[:-1] for bct in batch_context_tokens]},
-        )
-    presents = startup_presents
-
-    miromu = None
-    mirosurprises, miroks = None, None
-    while not done:
-        recompute_presents = (token_start_ix >= max_context_size) or (presents is None)
-        with sess.as_default():
-            if recompute_presents:
-                print("recomputing presents")
-                presents = sess.run(
-                    manual_presents_op,
-                    feed_dict={context: [bct[:-1] for bct in batch_context_tokens]},
-                )
-                if this_batch_continue_steps >= first_step_with_miro:
-                    if miromu is None:
-                        miromu = mu_init_scale * mirotarg * np.ones((batch_size,))
-                    print(f"miromu on entry: {miromu}")
-                    sample_output_dict = sess.run(
-                        continue_output,  # continue_output_no_presents,
-                        feed_dict={
-                            context: batch_context_tokens,
-                            mirostat_target: mirotarg,
-                            mirostat_lr: mirolr,
-                            mirostat_mu_from_past: miromu,
-                            sample_pasts: presents,  # !
-                        },
-                    )
-                else:
-                    sample_output_dict = sess.run(
-                        output_with_presents,  # output,
-                        feed_dict={
-                            context: batch_context_tokens,
-                            mirostat_target: mirotarg,
-                            mirostat_lr: mirolr,
-                            sample_pasts: presents,  # !
-                        },
-                    )
-            else:
-                print("using saved presents")
-                if this_batch_continue_steps >= first_step_with_miro:
-                    if miromu is None:
-                        miromu = mu_init_scale * mirotarg * np.ones((batch_size,))
-                    print(f"miromu on entry: {miromu}")
-                    sample_output_dict = sess.run(
-                        continue_output,
-                        feed_dict={
-                            context: batch_context_tokens,
-                            sample_pasts: presents,
-                            mirostat_target: mirotarg,
-                            mirostat_lr: mirolr,
-                            mirostat_mu_from_past: miromu,
-                        },
-                    )
-                else:
-                    sample_output_dict = sess.run(
-                        output_with_presents,
-                        feed_dict={
-                            context: batch_context_tokens,
-                            sample_pasts: presents,
-                            mirostat_target: mirotarg,
-                            mirostat_lr: mirolr,
-                        },
-                    )
-        sample_output_dict["tokens"] = sample_output_dict["tokens"][:, token_start_ix:]
-        sample_output_dict["presents"] = sample_output_dict["presents"][
-            ..., -(max_context_size - 1) :, :
-        ]
-        out, presents = sample_output_dict["tokens"], sample_output_dict["presents"]
-
-        if mirosurprises is None or (this_batch_continue_steps == first_step_with_miro):
-            mirosurprises = sample_output_dict["mirostat_surprises"]
-            miroks = sample_output_dict["mirostat_ks"]
-        else:
-            mirosurprises = np.concatenate(
-                [mirosurprises, sample_output_dict["mirostat_surprises"]], axis=1
-            )
-            miroks = np.concatenate([miroks, sample_output_dict["mirostat_ks"]], axis=1)
-
-        print(f"miromu before setting: {miromu}")
-        if this_batch_continue_steps >= first_step_with_miro:
-            miromu = sample_output_dict["mirostat_mus"][:, -1]
-            print(f"miromu after setting: {miromu}")
-
-        miroks = np.clip(miroks, a_min=None, a_max=hparams.n_vocab)
-
-        miro_avg_surprises = np.mean(mirosurprises, axis=1)
-        miro_median_ks = np.median(miroks, axis=1)
-        miro_mean_ks = np.mean(miroks, axis=1)
-
-        tokens_generated += len(out[0])
-        for i in range(batch_size):
-            generated += 1
-            text = enc.decode(out[i])
-
-            continuations[i].append(text)
-            continuations_tokens[i].append(out[i])
-
-            if (len(set(out[i])) >= 0.2 * len(out[i])) and not is_repeating[i]:
-                is_repeating[i] = False
-            else:
-                print(f"{i} is repeating")
-                is_repeating[i] = True
-
-        if continue_if_cut_off:
-            next_prompts = ["".join(subtexts) for subtexts in continuations]
-            batch_context_tokens = [
-                np.concatenate(ct)[-(max_context_size):] for ct in continuations_tokens
-            ]
-
-            bct_lens = [len(bct) for bct in batch_context_tokens]
-            token_start_ix = min(bct_lens)
-            while not all([bctl == token_start_ix for bctl in bct_lens]):
-                print(
-                    f"weirdness: not all elements of batch_context_tokens have same length"
-                )
-                for subtexts, nep, bct in zip(
-                    continuations, next_prompts, batch_context_tokens
-                ):
-                    st_lens = [len(enc.encode(st)) for st in subtexts]
-                    full_len = len(enc.encode("".join(subtexts)))
-                    nep_len = len(enc.encode(nep))
-                    bct_len = len(bct)
-                    print(
-                        f"st_lens={st_lens} | full_len={full_len} | nep_len={nep_len} | bct_len={bct_len}"
-                    )
-                batch_context_tokens = [
-                    bct[:token_start_ix] for bct in batch_context_tokens
-                ]
-                bct_lens = [len(bct) for bct in batch_context_tokens]
-                token_start_ix = min(bct_lens)
-
-            next_prompts_contonly = [
-                "".join(subtexts[1:]) for subtexts in continuations
-            ]
-            is_not_finished = [
-                (
-                    (eot_end_segment not in c)
-                    and (
-                        not contains_control_chars(
-                            c, control_seg_config=CONTROL_SEG_CONFIG
-                        )
-                    )
-                    and (len([char for char in c if char == T_CHAR]) < 2)
-                    and not rep
-                )
-                for c, rep in zip(next_prompts_contonly, is_repeating)
-            ]
-            not_finished = [
-                c for c, is_nf in zip(next_prompts_contonly, is_not_finished) if is_nf
-            ]
-            n_not_finished = len(not_finished)
-            more_needed = n_not_finished > 0
-            more_permitted = (this_batch_continue_steps < max_continue_steps) and (
-                tokens_generated < max_continue_tokens
-            )
-
-            show_miro_logs = MIRO and (
-                (not MIRO_ONLY_ON_CONTINUE)
-                or this_batch_continue_steps >= first_step_with_miro
-            )
-
-            if show_miro_logs:
-                for i in range(batch_size):
-                    if i == 0:
-                        print("\n")
-                    finished_mark = "[ ]" if is_not_finished[i] else "[x]"
-                    print(
-                        f"{finished_mark} {i}: targeting surprise {mirotarg:.3f}, avg surprise {miro_avg_surprises[i]:.3f}, median k {miro_median_ks[i]:.1f}, mean k {miro_mean_ks[i]:.1f}"
-                    )
-
-                    if this_batch_continue_steps == first_step_with_miro:
-                        print(
-                            [
-                                (j, enc.decode([tok]), mk, f"{ms:.3f}", f"{mmu:.3f}")
-                                for j, (tok, mk, ms, mmu) in enumerate(
-                                    zip(
-                                        out[i],
-                                        miroks[i, 1:],
-                                        mirosurprises[i].tolist()[1:],
-                                        sample_output_dict["mirostat_mus"][i].tolist()[
-                                            1:
-                                        ],
-                                    )
-                                )
-                            ]
-                        )
-                    if i == batch_size - 1:
-                        print()
-
-            done = (not more_needed) or (not more_permitted)
-            if not done:
-                print("continuing within batch:")
-                print(f"\t{n_not_finished}/{len(next_prompts)} unfinished")
-                print(
-                    f"\t{this_batch_continue_steps}/{max_continue_steps} continue steps used"
-                )
-                print(
-                    f"\t{tokens_generated}/{max_continue_tokens} continue tokens generated"
-                )
-                print(
-                    f"\tcontext tokens sizes: {[len(ct) for ct in batch_context_tokens]}"
-                )
-
-                if verbose:
-                    print("Using prompts:")
-                    for nep in not_finished:
-                        print("\t" + "\n\t".join(wrap(nep, width=90)) + "\n")
-
-                this_batch_continue_steps += 1
-        else:
-            done = True
-
-    # cleanup
-    continuations_ = []
-    for subtexts, rep in zip(continuations, is_repeating):
-        text = "".join(subtexts[1:])  # don't return prompt as part of these
-        if rep:
-            if GLOBAL_DEBUG:
-                print(f"skipping because repeating:\n\n{repr(text)}\n\n")
-            continue
-        if not text.endswith(eot_end_segment) and eot_end_segment in text:
-            text = text.split(eot_end_segment)[0] + eot_end_segment
-        continuations_.append(text)
-
-    return continuations_, startup_presents
+    return generator_model.write(prompt, verbose=verbose)
 
 
 def parse_continuation(continuation: str, verbose=True, wrap=False):
@@ -640,24 +291,24 @@ def basic_n_continuations(
     elif V8:
         prompt = join_time_sidechannel(prompt, relevant_timestamp)
 
+    prompt = finalize_prompt_for_neural(prompt,
+                                        override_disable_forumlike=use_textpost_prompt
+                                        or override_disable_forumlike,
+                                        forced_tags_string=forced_tags_string,
+                                        write_fic_override=write_fic_override,
+                                        )
+
     if GLOBAL_DEBUG:
         print(f"in basic_n_continuations, using prompt: {repr(prompt)}")
     continuations = []
-    startup_presents = None
+
     while len(continuations) < N:
         print(f"\ncontinuing, have {len(continuations)} of {N}\n")
 
-        this_batch_continuations, startup_presents = get_prompted_continuation(
+        this_batch_continuations = get_prompted_continuation(
             prompt,
-            continue_if_cut_off=continue_if_cut_off,
-            max_continue_steps=max_continue_steps,
             verbose=verbose,
-            override_disable_forumlike=use_textpost_prompt
-            or override_disable_forumlike,
             mirotarg=mirotarg,
-            forced_tags_string=forced_tags_string,
-            write_fic_override=write_fic_override,
-            startup_presents=startup_presents,
         )
 
         for c in this_batch_continuations:
@@ -711,6 +362,8 @@ def basic_n_continuations(
                 continuations.append(c)
                 continuation_side_data.append({"mirotarg": mirotarg})
 
+    generator_model.done_writing(prompt)
+
     continuations_ = []
     for continuation in continuations:
         if use_textpost_prompt:
@@ -759,7 +412,7 @@ selector_est = load_from_gdrive_with_gs_fallback(
     load_fn=load_selector,
     relative_path=ckpt_select.rpartition("/")[0],  # TODO: redefine ckpt_select
     gs_command=gs_command_get_selector,
-    session=sess,
+    session=generator_model.session,
     base_hparams=hparams,
     enc=enc,
 )
@@ -773,7 +426,7 @@ sentiment_est = load_from_gdrive_with_gs_fallback(
     load_fn=load_selector,
     relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
     gs_command=gs_command_get_sentiment,
-    session=sess,
+    session=generator_model.session,
     base_hparams=hparams,
     enc=enc,
 )

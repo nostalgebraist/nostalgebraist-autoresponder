@@ -370,7 +370,7 @@ class GeneratorModel:
                 text = text.split(eot_end_segment)[0] + eot_end_segment
             continuations_.append(text)
 
-        return continuations_, startup_presents
+        return continuations_
 
     def restore_checkpoint(self, path, retries=False):
         enclosing_dir = path.rpartition("/")[0]

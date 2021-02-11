@@ -67,25 +67,24 @@ def load_from_gdrive_with_gs_fallback(
     print(f"local_gdrive_path: {local_gdrive_path}")
     print(f"local_gs_path: {local_gs_path}")
 
-    try:
-        print(f"trying to load from {local_gdrive_path}...")
-        return load_fn(path=local_gdrive_path, retries=False, **kwargs)
-    except (OSError, FileNotFoundError, KeyError):
-        print(f"falling back to {local_gs_path}...")
+    enclosing_dir = local_gs_path.rpartition("/")[0]
+    os.makedirs(enclosing_dir, exist_ok=True)
 
-        enclosing_dir = local_gs_path.rpartition("/")[0]
-        os.makedirs(enclosing_dir, exist_ok=True)
+    enclosing_dir_exists = os.path.exists(enclosing_dir)
+    target_exists = os.path.exists(local_gs_path)
 
-        enclosing_dir_exists = os.path.exists(enclosing_dir)
-        target_exists = os.path.exists(local_gs_path)
+    print(f"local_gs: enclosing dir {enclosing_dir} exists?: {enclosing_dir_exists}")
+    print(f"local_gs: target {local_gs_path} exists?: {target_exists}")
 
-        print(f"enclosing dir {enclosing_dir} exists?: {enclosing_dir_exists}")
-        print(f"target {local_gs_path} exists?: {target_exists}")
-
-        if not target_exists:
+    if not target_exists:
+        try:
+            print(f"local_gdrive: trying to load from {local_gdrive_path}...")
+            return load_fn(path=local_gdrive_path, retries=False, **kwargs)
+        except (OSError, FileNotFoundError, KeyError):
+            print(f"local_gdrive failure, falling back to local_gs")
             print(f"downlading from gs...")
             subprocess.check_output(gs_command, shell=True)
-        return load_fn(path=local_gs_path, retries=retries, **kwargs)
+    return load_fn(path=local_gs_path, retries=retries, **kwargs)
 
 
 def load_encoder_only(path, retries=False):  # ignored
@@ -286,12 +285,12 @@ def basic_n_continuations(
     elif V8:
         prompt = join_time_sidechannel(prompt, relevant_timestamp)
 
-    prompt = finalize_prompt_for_neural(prompt,
-                                        override_disable_forumlike=use_textpost_prompt
-                                        or override_disable_forumlike,
-                                        forced_tags_string=forced_tags_string,
-                                        write_fic_override=write_fic_override,
-                                        )
+    prompt = finalize_prompt_for_neural(
+        prompt,
+        override_disable_forumlike=use_textpost_prompt or override_disable_forumlike,
+        forced_tags_string=forced_tags_string,
+        write_fic_override=write_fic_override,
+    )
 
     if GLOBAL_DEBUG:
         print(f"in basic_n_continuations, using prompt: {repr(prompt)}")

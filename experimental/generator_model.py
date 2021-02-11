@@ -263,7 +263,7 @@ class GeneratorModel:
             unique_token_fracs = []
             for i in range(self.batch_size):
                 generated += 1
-                text = enc.decode(out[i])
+                text = self.enc.decode(out[i])
 
                 continuations[i].append(text)
                 continuations_tokens[i].append(out[i])
@@ -322,7 +322,7 @@ class GeneratorModel:
                     if this_batch_continue_steps == first_step_with_miro:
                         print(
                             [
-                                (j, enc.decode([tok]), mk, f"{ms:.3f}", f"{mmu:.3f}")
+                                (j, self.enc.decode([tok]), mk, f"{ms:.3f}", f"{mmu:.3f}")
                                 for j, (tok, mk, ms, mmu) in enumerate(
                                     zip(
                                         out[i],

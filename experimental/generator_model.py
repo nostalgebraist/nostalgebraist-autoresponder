@@ -9,6 +9,10 @@ from autoresponder_config import *  # TODO: turn these into class constructor ar
 from autoresponder_static import contains_control_chars
 
 
+def is_repeating_criterion(unique_token_frac):
+    return unique_token_frac < 0.2
+
+
 class GeneratorModel:
     def __init__(
         self,

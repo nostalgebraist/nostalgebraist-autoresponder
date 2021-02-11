@@ -34,7 +34,7 @@ from autoresponder_config import *
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
-from experimental.generator_model import GeneratorModel
+from experimental.generator_model import GeneratorModel, is_repeating_criterion
 from selector_model.selector_estimator import SelectorEstimatorFromCkpt
 
 # TODO: move this over later
@@ -109,10 +109,6 @@ def load_generator_model(
     return GeneratorModel.load(
         path, enc, batch_size, sample_done_criterion, hparams, retries=retries
     )
-
-
-def is_repeating_criterion(unique_token_frac):
-    return unique_token_frac < 0.2
 
 
 def make_sample_done_criterion(control_seg_config):

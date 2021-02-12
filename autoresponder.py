@@ -837,6 +837,7 @@ def poll_no_capture(
             # delete saved presents for finished jobs
             for k in RESULT_STACK.keys():
                 if k not in PROMPT_STACK and "prompt_for_neural" in RESULT_STACK[k]:
+                    print(f"done writing {k}")
                     generator_model.done_writing(k["prompt_for_neural"])
 
             # clean out already used results

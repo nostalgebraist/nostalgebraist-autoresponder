@@ -38,10 +38,9 @@ class MLModelInterface:
         data_to_send.update(data)
         data_to_send["id"] = new_id
 
-        requests.post(bridge_service_url, data=data_to_send)
-        result = wait_for_result(new_id)
+        requests.post(bridge_service_url + "/requestml", data=data_to_send)
 
-        return result
+        return new_id
 
 
 class GeneratorModelInterface(MLModelInterface):
@@ -58,8 +57,12 @@ class GeneratorModelInterface(MLModelInterface):
 class SideJudgmentModelInterface(MLModelInterface):
     def __init__(self, name):
         self.name = name
+
     def predict_proba(self, *args, **kwargs):
         return self.do("predict_proba", *args, **kwargs)
+
+    def _predict(self,  *args, **kwargs):
+        return self.do("_predict", *args, **kwargs)
 
 
 generator_model = GeneratorModelInterface()
@@ -67,7 +70,7 @@ selector_est = SideJudgmentModelInterface("selector")
 sentiment_est = SideJudgmentModelInterface("sentiment")
 
 
-def get_prompted_continuation(
+def request_prompted_continuation(
     prompt: str,
     verbose=False,
     mirotarg=None,  # TODO: allow vary across batch, add noise inside this fn
@@ -197,14 +200,17 @@ def basic_n_continuations(
         print(f"in basic_n_continuations, using prompt: {repr(prompt)}")
     continuations = []
 
-    while len(continuations) < N:
-        print(f"\ncontinuing, have {len(continuations)} of {N}\n")
+    bridge_id = request_prompted_continuation(
+        prompt,
+        verbose=verbose,
+        mirotarg=mirotarg,
+    )
 
-        this_batch_continuations = get_prompted_continuation(
-            prompt,
-            verbose=verbose,
-            mirotarg=mirotarg,
-        )
+    while len(continuations) < N:
+        time.sleep(1)
+        response = requests.post(bridge_service_url + "/getresult", data={"id": bridge_id}).json()
+
+        this_batch_continuations = response["result"][len(continuations):]
 
         for c in this_batch_continuations:
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
@@ -257,7 +263,10 @@ def basic_n_continuations(
                 continuations.append(c)
                 continuation_side_data.append({"mirotarg": mirotarg})
 
-    generator_model.done_writing(prompt)
+    requests.post(bridge_service_url + "/done", data={"id": bridge_id})
+
+    bridge_id = generator_model.done_writing(prompt)
+    requests.post(bridge_service_url + "/done", data={"id": bridge_id})
 
     continuations_ = []
     for continuation in continuations:
@@ -322,7 +331,15 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
 
-    probs = selector_est.predict_proba(data)[:, 1]
+    bridge_id = selector_est.predict_proba(data)
+
+    response = None
+    while response is None:
+        time.sleep(1)
+        response = requests.post(bridge_service_url + "/getresult", data={"id": bridge_id}).json()
+
+    result = response["result"]
+    probs = result[:, 1]
     return probs
 
 
@@ -351,7 +368,15 @@ def predict_sentiment(data, debug=False):
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
 
-    logits = sentiment_est._predict(data, key="logits")
+    bridge_id = sentiment_est._predict(data, key="logits")
+
+    response = None
+    while response is None:
+        time.sleep(1)
+        response = requests.post(bridge_service_url + "/getresult", data={"id": bridge_id}).json()
+
+    logits = response["result"]
+
     logit_diffs = logits[:, 1:] - logits[:, :1]
 
     return logit_diffs
@@ -399,14 +424,8 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
 
     if BEAMSPLIT_TESTING_FLAG:
         data["na_beamsplit"] = True
-    new_id = bridge_service_unique_id(bridge_service_url, data)
 
-    data_to_send = dict()
-    data_to_send.update(data)
-    data_to_send["id"] = new_id
-
-    result = old_bridge_call__answer(data=data_to_send)
-    result = wait_for_result(new_id)
+    result = old_bridge_call__answer(data=data)
 
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
@@ -415,6 +434,35 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
             result[k] = v
 
     return result
+
+
+def text_post_from_gpt2_service(mood=None, ts=None):
+    data = {"mood": mood}
+
+    if ts is None:
+        ts = datetime.now()
+    data["v8_timestamp"] = timestamp_to_v8_format(ts)
+    data["v10_timestamp"] = timestamp_to_v10_format(ts)
+    if DO_FAKE_V10_YEAR_MONTH:
+        data["v10_timestamp"] = (
+            " ".join(data["v10_timestamp"].split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
+        )
+
+    url = bridge_service_url + "/textpost"
+
+    if BEAMSPLIT_TESTING_FLAG:
+        data["na_beamsplit"] = True
+
+    result = old_bridge_call__textpost(data=data)
+
+    # for logging, add any input fields that didn't make the round trip
+    for k, v in data.items():
+        if k not in result:
+            print(f"adding key {k}")
+            result[k] = v
+
+    return result
+
 
 def old_bridge_call__answer(data):
     global PROMPT_STACK
@@ -520,6 +568,109 @@ def old_bridge_call__answer(data):
         f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
     )
     return serve_answer(PROMPT_STACK[generation_id])
+
+
+def old_bridge_call__textpost(data):
+    global PROMPT_STACK
+    global RETENTION_STACK
+    global N_RETENTION
+    global RETENTION_PROBA_ID
+
+    new_id = data["id"]
+    mood = data.get("mood")
+    v8_timestamp = data.get("v8_timestamp", "")
+    v10_timestamp = data.get("v10_timestamp", "")
+    return_all_conts = bool(int(data.get("return_all_conts", False)))
+
+    kwargs = {
+        "best_of": 10,
+        "prompt_from_dataset": True,  # TODO: remove
+        "verbose": True,
+        "V5": True,
+        "mood": get_mood_by_name(mood),
+        "return_all_conts": return_all_conts,
+    }
+
+    if any([d.get("base_id") == new_id for d in PROMPT_STACK.values()]):
+        return jsonify({"collision": True})
+    kwargs["strategy"] = "proportional"
+    kwargs["avoid_if_under"] = 20
+    kwargs["avoid_half_if_under"] = 40
+    kwargs["avoid_if_cut_off"] = False
+    kwargs["avoid_initial_blockquote"] = True
+    if True:
+        fork = "B" if np.random.rand() > 1 else "A"
+        # strategy = "proportional_winnowed"
+        strategy = "eps_greedy"
+        eps = 0.25
+        kwargs["strategy"] = strategy
+        kwargs["eps"] = eps
+        kwargs["AB_fork"] = fork
+
+    n_candidates_target = TEXTPOST_N_CANDIDATES_TARGET
+
+    # TODO: DRY
+    expected_rejection_frac = estimate_expected_rejections(
+        min_logit_diff=kwargs["mood"]["min_allowed_score"],
+        max_logit_diff=kwargs["mood"]["max_allowed_score"],
+        logit_diff_sample_series=logit_diff_sample_series,
+    )
+
+    raw_extra_best_of = (
+        int(np.round(n_candidates_target / (1 - expected_rejection_frac)))
+        - n_candidates_target
+    )
+    discounted_extra_best_of = int(
+        np.round(raw_extra_best_of * EXPECTED_REJECTION_MULT)
+    )
+
+    print(
+        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over n_candidates_target={n_candidates_target}"
+    )
+    n_candidates_target += discounted_extra_best_of
+    print(
+        f"discounting to {discounted_extra_best_of} --> n_candidates_target={n_candidates_target}"
+    )
+
+    if N_RETENTION is not None:
+        n_candidates_target = max(0, n_candidates_target - N_RETENTION)
+        print(f"with {N_RETENTION} on stack, only need {n_candidates_target}")
+
+        if RETENTION_STACK is not None and RETENTION_PROBA_VIA_GENERATOR:
+            url = bridge_service_url + "/raw_select"
+            data = {"texts": RETENTION_STACK}
+            new_retention_proba_id = bridge_service_unique_id(url, data)
+
+            if new_retention_proba_id != RETENTION_PROBA_ID:
+                ts = datetime.now()
+                v10_timestamps = [timestamp_to_v10_format(ts) for _ in data["texts"]]
+                make_raw_select(
+                    data["texts"], new_retention_proba_id, v10_timestamps=v10_timestamps
+                )
+                if RETENTION_PROBA_ID in RESULT_STACK:
+                    RESULT_STACK.pop(RETENTION_PROBA_ID)
+                RETENTION_PROBA_ID = new_retention_proba_id
+
+    kwargs["best_of"] = n_candidates_target
+
+    print(f"AB test: fork {fork}, N_RETENTION {N_RETENTION}, kwargs {kwargs}")
+
+    generation_id = str(uuid.uuid4())
+    PROMPT_STACK[generation_id] = {
+        "type": "textpost",
+        "kwargs": kwargs,
+        "base_id": new_id,
+        "v8_timestamp": v8_timestamp,
+        "v10_timestamp": v10_timestamp,
+    }
+    PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"][
+        "best_of"
+    ]
+    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = GENERATIONS_PER_REQUEST
+    print(
+        f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
+    )
+    return serve_textpost(PROMPT_STACK[generation_id])
 
 
 def serve_answer(data):

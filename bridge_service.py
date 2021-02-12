@@ -64,6 +64,31 @@ GENERATIONS_PER_REQUEST = 1
 app = Flask(__name__)
 
 
+@app.route("/pollml", methods=["POST"])
+def pollml():
+    global PROMPT_STACK
+    global RESULT_STACK
+
+    data = request.json()
+    for id_ in data.keys():
+        if id_ not in RESULT_STACK:
+            RESULT_STACK[id_] = data
+
+    for list_key in [
+        "continuations",
+        "selection_proba",
+        "sentiment_logit_diffs",
+        "mirotarg",
+    ]:
+
+@app.route("/requestml", methods=["POST"])
+def requestml():
+    global PROMPT_STACK
+
+    data = request.json()
+    PROMPT_STACK[data["id"]] = data
+
+
 def make_raw_select(texts, new_id, v8_timestamps=None, v10_timestamps=None):
     global PROMPT_STACK
     global SELECTION_PROMPT_STACK

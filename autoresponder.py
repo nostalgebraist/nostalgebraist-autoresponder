@@ -356,8 +356,6 @@ def basic_n_continuations(
                 continuations.append(c)
                 continuation_side_data.append({"mirotarg": mirotarg})
 
-    generator_model.done_writing(prompt)
-
     continuations_ = []
     for continuation in continuations:
         if use_textpost_prompt:
@@ -371,7 +369,7 @@ def basic_n_continuations(
         continuations_.append(continuation)
     continuations = continuations_
 
-    return continuations, continuation_side_data
+    return continuations, continuation_side_data, prompt_for_neural
 
 
 def logit_diff_to_pos_sent(x):
@@ -557,7 +555,7 @@ def serve_answer(data):
     if prompt.startswith(CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"]):
         override_disable_forumlike = True
 
-    continuations, continuation_side_data = basic_n_continuations(
+    continuations, continuation_side_data, prompt_for_neural = basic_n_continuations(
         prompt,
         N=kwargs["best_of"],
         avoid_if_under=avoid_if_under,
@@ -577,6 +575,7 @@ def serve_answer(data):
     parsed = data.copy()
     parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
     parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
+    parsed["prompt_for_neural"] = prompt_for_neural
 
     if SELECTOR_CAN_SEE_PROMPTS:
         if selector_cut_to_final_exchange and not override_disable_forumlike:
@@ -664,7 +663,11 @@ def serve_textpost(data):
         avoid_if_cut_off = False
 
     try:
-        continuations, continuation_side_data = basic_n_continuations(
+        (
+            continuations,
+            continuation_side_data,
+            prompt_for_neural,
+        ) = basic_n_continuations(
             prompt,
             N=kwargs["best_of"],
             avoid_if_under=avoid_if_under,
@@ -681,7 +684,11 @@ def serve_textpost(data):
         if EVEN_BETTER_LENGTH:
             raise (e)
         print(f"got {e}, trying without continue_if_cut_off")
-        continuations, continuation_side_data = basic_n_continuations(
+        (
+            continuations,
+            continuation_side_data,
+            prompt_for_neural,
+        ) = basic_n_continuations(
             prompt,
             N=kwargs["best_of"],
             avoid_if_under=avoid_if_under,
@@ -697,6 +704,7 @@ def serve_textpost(data):
     parsed = data.copy()
     parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
     parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
+    parsed["prompt_for_neural"] = prompt_for_neural
 
     if FORUMLIKE:
         selector_inputs = [c for c in continuations]
@@ -745,7 +753,6 @@ def serve_textpost(data):
 def serve_raw_select(data):
     texts = data["texts"]
 
-    # texts = [s.lstrip("翰") for s in texts]
     if V8:
         vX_timestamp = (
             data.get("v10_timestamp", "") if V10 else data.get("v8_timestamp", "")
@@ -803,105 +810,6 @@ def serve_raw_select(data):
     return results
 
 
-# TODO: DRY
-def poll(
-    capture_ident=None,
-    dummy=False,
-    ports=[
-        bridge_service_port,
-    ],
-    routes=[
-        "pollgenerator",
-    ],
-):
-    with capture_output(True, True, False) as cap:
-        global RESULT_STACK
-        global model_name
-        if model_name == "1558M":
-            raise ValueError("don't use base gpt2 for AR, rob...")
-
-        for port, route in zip(ports, routes):
-            r = requests.post(
-                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
-                json={"results": RESULT_STACK if not dummy else {}},
-            )
-
-            PROMPT_STACK = r.json()
-
-            if (port, route) == (ports[0], routes[0]):
-                RESULT_STACK = {
-                    k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK
-                }  # clean out already used results
-
-            for prompt_id, data in PROMPT_STACK.items():
-                print(f"handling prompt_id={prompt_id}...")
-                if data["type"] == "answer":
-                    RESULT_STACK[prompt_id] = serve_answer(data)
-                elif data["type"] == "textpost":
-                    RESULT_STACK[prompt_id] = serve_textpost(data)
-                elif data["type"] == "raw_select":
-                    RESULT_STACK[prompt_id] = serve_raw_select(data)
-
-                sampling_info = {
-                    "MIRO": MIRO,
-                    "MIRO_LR": MIRO_LR,
-                    "MIRO_ONLY_ON_CONTINUE": MIRO_ONLY_ON_CONTINUE,
-                    "length": length,
-                    "T": temperature,
-                    "p": top_p,
-                    "chop_lowest": chop_lowest,
-                    "chop_highest": chop_highest,
-                    "pre_continue_length": pre_continue_length,
-                    "pre_continue_T": pre_continue_temperature,
-                    "pre_continue_p": pre_continue_top_p,
-                }
-
-                model_info = {
-                    "model_name": model_name,
-                    "ckpt_select": ckpt_select,
-                    "ckpt_sentiment": ckpt_sentiment,
-                    "hparams_select": {
-                        k: v
-                        for k, v in hparams_select.values().items()
-                        if k not in {"dtype", "adapt_layers"}
-                    },
-                    "hparams_select_sentiment": {
-                        k: v
-                        for k, v in hparams_select_sentiment.values().items()
-                        if k not in {"dtype", "adapt_layers"}
-                    },
-                    "sampling_info": sampling_info,
-                }
-                RESULT_STACK[prompt_id]["model_info"] = model_info
-
-            # print("done generating for this poll")
-
-            if len(PROMPT_STACK) > 0:
-                r = requests.post(
-                    f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
-                    json={"results": RESULT_STACK if not dummy else {}},
-                )
-                time.sleep(1)
-
-                if capture_ident is not None:
-                    capture_stdout_fn = f"AR_logs/{capture_ident}.txt"
-                    with open(
-                        os.path.join(drivedir, capture_stdout_fn), "a", encoding="utf-8"
-                    ) as f:
-                        f.write(cap.stdout)
-                    if len(cap.stderr) > 0:
-                        capture_stderr_fn = f"AR_logs/{capture_ident}_stderr.txt"
-                        with open(
-                            os.path.join(drivedir, capture_stderr_fn),
-                            "a",
-                            encoding="utf-8",
-                        ) as f:
-                            f.write(cap.stderr)
-    if capture_ident is not None:
-        print(cap.stdout, end="")
-        print(cap.stderr, end="")
-
-
 def poll_no_capture(
     capture_ident=None,
     dummy=False,
@@ -926,9 +834,13 @@ def poll_no_capture(
         PROMPT_STACK = r.json()
 
         if (port, route) == (ports[0], routes[0]):
-            RESULT_STACK = {
-                k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK
-            }  # clean out already used results
+            # delete saved presents for finished jobs
+            for k in RESULT_STACK.keys():
+                if k not in PROMPT_STACK and "prompt_for_neural" in RESULT_STACK[k]:
+                    generator_model.done_writing(k["prompt_for_neural"])
+
+            # clean out already used results
+            RESULT_STACK = {k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK}
 
         # print(f"got prompt stack: {PROMPT_STACK}")
 
@@ -973,36 +885,12 @@ def poll_no_capture(
             }
             RESULT_STACK[prompt_id]["model_info"] = model_info
 
-        # print("done generating for this poll")
-
         if len(PROMPT_STACK) > 0:
             r = requests.post(
                 f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
                 json={"results": RESULT_STACK if not dummy else {}},
             )
             time.sleep(1)
-
-
-def loop_poll(
-    period=60,
-    capture_ident=None,
-    dummy=False,
-    ports=[
-        bridge_service_port,
-    ],
-    routes=[
-        "pollgenerator",
-    ],
-):
-    global RESULT_STACK
-    while True:
-        try:
-            poll(capture_ident=capture_ident, dummy=dummy, ports=ports, routes=routes)
-        except Exception as e:
-            print(f"{type(e)}: {e}")
-            time.sleep(period * 10)
-        if len(RESULT_STACK) == 0 or dummy:
-            time.sleep(period)
 
 
 def loop_poll_no_capture(

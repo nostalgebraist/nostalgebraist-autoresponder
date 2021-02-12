@@ -838,7 +838,7 @@ def poll_no_capture(
             for k in RESULT_STACK.keys():
                 if k not in PROMPT_STACK and "prompt_for_neural" in RESULT_STACK[k]:
                     print(f"done writing {k}")
-                    generator_model.done_writing(k["prompt_for_neural"])
+                    generator_model.done_writing(RESULT_STACK[k]["prompt_for_neural"])
 
             # clean out already used results
             RESULT_STACK = {k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK}

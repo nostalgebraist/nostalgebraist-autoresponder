@@ -176,7 +176,7 @@ To train the sentiment model
   - ML code that operates on formatted text:
     - `autoresponder.py` (machine learning layer; ML models run in a notebook `autoresponder_wrapper.ipynb` which is a lightweight wrapper around this file)
     - `autoresponder_config.py` (config file for machine learning layer)
-    - `experimental.generator_model.py` (class providing an interface for GPT-2 model loading and sampling)
+    - `experimental/generator_model.py` (class providing an interface for GPT-2 model loading and sampling)
     - `selector_model/selector_nn.py` and `selector_model/selector_estimator.py` (code implementing the selector and sentiment models)
     - `side_judgments.py` (abstraction layer around the selector and sentiment layers, used to construct calls to these ML models and cache responses)
 - Helper code for specific, less central features

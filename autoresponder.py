@@ -369,7 +369,7 @@ def basic_n_continuations(
         continuations_.append(continuation)
     continuations = continuations_
 
-    return continuations, continuation_side_data, prompt_for_neural
+    return continuations, continuation_side_data, prompt
 
 
 def logit_diff_to_pos_sent(x):

@@ -44,7 +44,7 @@ from mood_dynamic import (
 from munging_shared import *
 from bridge_shared import bridge_service_unique_id, wait_for_result
 
-from image_analysis import ImageAnalysisCache
+from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 
 from autoresponder_static import DEFAULT_CSC
 from autoresponder_static_v8 import timestamp_to_v8_format, timestamp_to_v10_format
@@ -417,7 +417,7 @@ def autopublish_screener(
         profanity_strictness = True
         print("profanity_strictness: ON")
 
-    if ((not IMAGE_CREATION) or IMAGE_CREATION_TESTING) and ("=======" in answer):
+    if ((not IMAGE_CREATION) or IMAGE_CREATION_TESTING) and (IMAGE_DELIMITER in answer):
         print("screened because image delimiter in answer")
         return False
 
@@ -523,7 +523,7 @@ def make_text_post(
             state = "draft"
             print(f"IMAGE_CREATION: for\n{repr(presub_post)}\n, subbed\n{repr(post)}\n")
 
-    if "=======" in post:
+    if IMAGE_DELIMITER in post:
         print("image delimiter still in post")
         state = "draft"
 
@@ -621,7 +621,7 @@ def answer_ask(
                 f"IMAGE_CREATION: for\n{repr(presub_answer)}\n, subbed\n{repr(answer)}\n"
             )
 
-    if "=======" in answer:
+    if IMAGE_DELIMITER in answer:
         print("image delimiter still in post")
         state = "draft"
 

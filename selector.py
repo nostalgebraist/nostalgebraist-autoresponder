@@ -18,6 +18,7 @@ from tqdm import tqdm
 
 from bot_config import BotSpecificConstants
 from side_judgments import SideJudgmentCache, SELECT_VIA_GENERATOR
+from image_analysis import IMAGE_DELIMITER_WHITESPACED
 
 Q_CHAR = "会"
 A_CHAR = "域"
@@ -544,7 +545,7 @@ do_review_coldstart = partial(
     do_coldstart, substring="Author: <b>", delta=REVIEW_COLDSTART_DELTA
 )
 do_image_coldstart = partial(
-    do_coldstart, substring="\n=======\n", delta=IMAGE_COLDSTART_DELTA
+    do_coldstart, substring=IMAGE_DELIMITER_WHITESPACED, delta=IMAGE_COLDSTART_DELTA
 )
 
 

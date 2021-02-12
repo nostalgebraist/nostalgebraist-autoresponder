@@ -52,6 +52,8 @@ FIC_COLDSTART_DELTA = 0.2  # 0.1
 REVIEW_COLDSTART_DELTA = 0.1
 IMAGE_COLDSTART_DELTA = 0.1
 
+WARN_ABOUT_LOST_KEYS = true
+
 
 def load_retention():
     global RETENTION_STACK
@@ -489,7 +491,17 @@ def serve_selection(data):
     if "model_info" in data:
         parsed["model_info"] = data["model_info"]
 
+    if "prompt_for_neural" in data:
+        parsed["prompt_for_neural"] = data["prompt_for_neural"]
+
     print(f"sending back: {parsed}")
+
+    lost_keys = [k for k in data.keys() if k not in parsed]
+    if WARN_ABOUT_LOST_KEYS and len(lost_keys) > 0:
+        print(f"traceability warning: the following fields are not being saved")
+        for k in lost_keys:
+            print(f"\t{k}")
+        print("consider modifying selector.py to include them")
 
     with open("data/retention_stack.pkl.gz", "wb") as f:
         pickle.dump(RETENTION_STACK, f)

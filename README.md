@@ -31,6 +31,8 @@ This README is the main documentation at this time.
 
 Some of the machine learning functionality provided by this repo is described in a separate file [`gpt-2/README.md`](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/gpt-2/README.md).
 
+There are [some visualizations](https://github.com/nostalgebraist/nostalgebraist-autoresponder/tree/visualizations/visualizations) on a branch called `visualizations`, in a subdirectory called (you guessed it) `visualizations`.  Check these out if you want to learn more about how the selector works.
+
 I plan to provide additional documentation in the future.
 
 ### How this code implements the bot

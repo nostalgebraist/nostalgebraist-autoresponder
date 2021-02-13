@@ -42,7 +42,7 @@ def sanitize_user_input_outer_shell(text):
     # zero-width joiners etc
     sanitized_text = "".join([c for c in sanitized_text if wcwidth(c) != 0])
 
-    for delimiter in CHINESE_CHAR_DELIMITERS + [IMAGE_DELIMITER]:
+    for delimiter in CHINESE_CHAR_DELIMITERS + [IMAGE_DELIMITER, TIME_SIDECHANNEL_CHAR]:
         sanitized_text = sanitized_text.replace(delimiter, "")
 
     return sanitized_text

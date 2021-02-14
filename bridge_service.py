@@ -42,9 +42,6 @@ T_CHAR = "职"
 UNAME_CHAR = "友"
 ORIG_POST_CHAR = "翰"
 
-RAW_SELECT_VIA_GENERATOR = True
-RETENTION_PROBA_VIA_GENERATOR = True
-
 AB_TEST_SELECTOR = True
 AB_TEST_A_SEQUENCE = "\uFFF9"
 AB_TEST_B_SEQUENCE = "\uFFF9\uFFFA\uFFFB"
@@ -52,7 +49,6 @@ AB_TEST_B_SEQUENCE = "\uFFF9\uFFFA\uFFFB"
 PROMPT_STACK = {}
 RESULT_STACK = {}
 
-SELECTION_PROMPT_STACK = {}
 GENERATION_RESULT_STACK = {}
 
 GENERATIONS_PER_REQUEST = 1
@@ -63,27 +59,20 @@ app = Flask(__name__)
 
 def make_raw_select(texts, new_id, v8_timestamps=None, v10_timestamps=None):
     global PROMPT_STACK
-    global SELECTION_PROMPT_STACK
 
-    if RAW_SELECT_VIA_GENERATOR:
-        PROMPT_STACK[new_id] = {"texts": texts, "type": "raw_select"}
-        if v8_timestamps is not None:
-            PROMPT_STACK[new_id]["v8_timestamp"] = v8_timestamps[
-                0
-            ]  # TODO: make not weird
-        if v10_timestamps is not None:
-            PROMPT_STACK[new_id]["v10_timestamp"] = v10_timestamps[
-                0
-            ]  # TODO: make not weird
-        print(f"made raw_select: {PROMPT_STACK[new_id]}")
-    else:
-        SELECTION_PROMPT_STACK[new_id] = {"texts": texts, "raw_selection_request": True}
+    PROMPT_STACK[new_id] = {"texts": texts, "type": "raw_select"}
+    if v8_timestamps is not None:
+        PROMPT_STACK[new_id]["v8_timestamp"] = v8_timestamps[0]  # TODO: make not weird
+    if v10_timestamps is not None:
+        PROMPT_STACK[new_id]["v10_timestamp"] = v10_timestamps[
+            0
+        ]  # TODO: make not weird
+    print(f"made raw_select: {PROMPT_STACK[new_id]}")
 
 
 @app.route("/raw_select", methods=["POST"])
 def raw_select():
     global PROMPT_STACK
-    global SELECTION_PROMPT_STACK
 
     texts = request.json["texts"]
     new_id = request.json["id"]
@@ -308,7 +297,7 @@ def pollgenerator():
                 RESULT_STACK[result_id] = result
                 handled_selection_ids.add(result_id)
                 continue
-            elif PROMPT_STACK[result_id].get("type") != "raw_continuations":
+            else:
                 if result_id not in GENERATION_RESULT_STACK:
                     GENERATION_RESULT_STACK[result_id] = result
                 else:
@@ -336,9 +325,6 @@ def pollgenerator():
                                 result.get(list_key, [])
                             )
                 GENERATION_RESULT_STACK[result_id]["done"] = False
-            else:
-                # TODO: move this over to be like the above block, if we ever plan to use "raw_continuations" again
-                RESULT_STACK[result_id] = result
 
             n_desired = PROMPT_STACK[result_id]["n_desired"]
             n_acquired = len(GENERATION_RESULT_STACK[result_id]["continuations"])

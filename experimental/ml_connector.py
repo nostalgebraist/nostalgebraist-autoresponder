@@ -1,6 +1,7 @@
 import time
 import uuid
 import re
+import pickle
 from textwrap import wrap, fill
 from datetime import datetime
 from string import whitespace
@@ -21,7 +22,7 @@ from selector import serve_selection
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_url = bot_specific_constants.bridge_service_url
 
-TRADE_QUALITY_FOR_SPEED = True
+TRADE_QUALITY_FOR_SPEED = False
 
 logit_diff_sample_series = load_logit_diff_sample()
 EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
@@ -285,8 +286,7 @@ def basic_n_continuations(
         this_batch_continuations = result[len(continuations) :]
 
         if len(this_batch_continuations) > 0:
-            print(f"have {len(continuations)} of {N}")
-            print(f"this_batch_continuations: {repr(this_batch_continuations)}")
+            print(f"have {len(continuations)} of {N}... ", end="")
 
         for c in this_batch_continuations:
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
@@ -533,6 +533,14 @@ def answer_from_gpt2_service(data: dict, loop_persistent_data, ts=None, no_times
             result[k] = v
 
     return result
+
+
+def save_retention(retention_stack):
+    with open("data/retention_stack.pkl.gz", "wb") as f:
+        pickle.dump(retention_stack, f)
+
+    with open("data/retention_stack_backup.pkl.gz", "wb") as f:
+        pickle.dump(retention_stack, f)
 
 
 def text_post_from_gpt2_service(loop_persistent_data, mood=None, ts=None, BEAMSPLIT_TESTING_FLAG=False):
@@ -1074,11 +1082,11 @@ def serve_raw_select(data):
     )
     sentiment_results = predict_sentiment(selector_inputs, debug=True)
     results["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
-    show_note_probas(
-        texts,
-        probas=results["selection_proba"],
-        sentiment_logit_diffs=results["sentiment_logit_diffs"],
-    )
+    # show_note_probas(
+    #     texts,
+    #     probas=results["selection_proba"],
+    #     sentiment_logit_diffs=results["sentiment_logit_diffs"],
+    # )
 
     print(f"texts: {texts}\nresults: {results}\n")
 

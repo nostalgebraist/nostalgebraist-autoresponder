@@ -121,7 +121,7 @@ REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
 
-DASH_REBLOG_SELECTION_CUTOFF = 0.5
+DASH_REBLOG_SELECTION_CUTOFF = 0.667
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
@@ -2333,6 +2333,8 @@ def do_rts(response_cache):
 
 def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseCache):
     # DEBUG
+    loop_persistent_data, response_cache = do_queue_handling(loop_persistent_data, response_cache)
+
     response_cache = do_rts(response_cache)
 
     ### decide whether we'll do the reblog/reply check
@@ -2474,14 +2476,6 @@ def load_retention(side_judgment_cache):
     )
 
     return retention_stack, retention_stack_proba
-
-
-def save_retention(retention_stack):
-    with open("data/retention_stack.pkl.gz", "wb") as f:
-        pickle.dump(retention_stack, f)
-
-    with open("data/retention_stack_backup.pkl.gz", "wb") as f:
-        pickle.dump(retention_stack, f)
 
 
 if __name__ == "__main__":

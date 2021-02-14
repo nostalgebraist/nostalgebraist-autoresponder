@@ -221,7 +221,7 @@ def poll(
                 raise ValueError(f"requested_model: {requested_model}")
 
             requested_method = data["method"]
-            if not hasattr(requested_model, requested_model):
+            if not hasattr(requested_model, requested_method):
                 raise ValueError(
                     f"requested_model {requested_model} has no method {requested_method}"
                 )

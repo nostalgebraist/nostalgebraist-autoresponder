@@ -340,7 +340,8 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
     requests.post(bridge_service_url, data=data_to_send)
     result_generator = wait_for_result(new_id)
 
-    result, _, _ = serve_selection(result_generator)
+    result, _, _ = serve_selection(data=result_generator,
+                                   side_judgment_cache=side_judgment_cache)
 
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
@@ -351,7 +352,7 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
     return result
 
 
-def text_post_from_gpt2_service(mood=None, ts=None):
+def text_post_from_gpt2_service(loop_persistent_data, mood=None, ts=None):
     data = {"mood": mood}
 
     if ts is None:
@@ -377,7 +378,17 @@ def text_post_from_gpt2_service(mood=None, ts=None):
     requests.post(url, data=data_to_send)
     result_generator = wait_for_result(new_id)
 
-    result, retention_stack, retention_stack_proba = serve_selection(result_generator)
+    result, retention_stack, retention_stack_proba = serve_selection(
+        data=result_generator,
+        side_judgment_cache=loop_persistent_data.side_judgment_cache,
+        retention_stack=loop_persistent_data.retention_stack,
+        retention_stack_proba=loop_persistent_data.retention_stack_proba,
+    )
+
+    save_retention(retention_stack)
+
+    loop_persistent_data.retention_stack = retention_stack
+    loop_persistent_data.retention_stack_proba = retention_stack_proba
 
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
@@ -385,7 +396,7 @@ def text_post_from_gpt2_service(mood=None, ts=None):
             print(f"adding key {k}")
             result[k] = v
 
-    return result, retention_stack, retention_stack_proba
+    return result, loop_persistent_data
 
 
 def strip_spurious_blognames_from_tags(client, tags, auto_accept_list=set()):
@@ -2288,10 +2299,10 @@ def do_queue_handling(response_cache: ResponseCache):
 
             print(f"writing new text post... ({textpost_ix}/{N_TO_WRITE})")
             loop_persistent_data.side_judgment_cache.save()
-            gpt2_output = text_post_from_gpt2_service(
+            gpt2_output, loop_persistent_data = text_post_from_gpt2_service(
+                loop_persistent_data=loop_persistent_data,
                 mood=mood_for_queue_writing, ts=dt
             )
-            loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
 
             log_data = gpt2_output
             log_data["post_type"] = "textpost"
@@ -2514,13 +2525,34 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     return loop_persistent_data, response_cache
 
 
+def load_retention(side_judgment_cache):
+    with open("data/retention_stack.pkl.gz", "rb") as f:
+        retention_stack = pickle.load(f)
+
+    ts = datetime.now()
+    v10_timestamps = [timestamp_to_v10_format(ts) for _ in retention_stack]
+
+    retention_stack_proba = side_judgment_cache.query_multi(
+        retention_stack, v10_timestamps=v10_timestamps
+    )['selection_proba']
+
+    return retention_stack, retention_stack_proba
+
+
+def save_retention(retention_stack):
+    with open("data/retention_stack.pkl.gz", "wb") as f:
+        pickle.dump(retention_stack, f)
+
+    with open("data/retention_stack_backup.pkl.gz", "wb") as f:
+        pickle.dump(retention_stack, f)
+
+
 if __name__ == "__main__":
     response_cache = ResponseCache.load(tank_client)
     side_judgment_cache = SideJudgmentCache.load()
     image_analysis_cache = ImageAnalysisCache.load()
 
-    with open("data/retention_stack.pkl.gz", "rb") as f:
-        retention_stack = pickle.load(f)
+    retention_stack, retention_stack_proba = load_retention(side_judgment_cache)
 
     loop_persistent_data = LoopPersistentData(
         side_judgment_cache=side_judgment_cache,

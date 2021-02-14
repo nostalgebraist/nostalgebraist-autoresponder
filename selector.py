@@ -315,9 +315,7 @@ def record_side_judgements(
         )
 
 
-def serve_selection(data):
-    global RETENTION_STACK
-    global RETENTION_STACK_PROBA
+def serve_selection(data, side_judgment_cache, retention_stack=None, retention_stack_proba=None):
     global wrapped
 
     continuations = data["continuations"]
@@ -341,7 +339,6 @@ def serve_selection(data):
     else:
         print("selection_proba is None")
 
-    side_judgment_cache = SideJudgmentCache.load()
     if selection_proba is not None and sentiment_logit_diffs is not None:
         record_side_judgements(
             side_judgment_cache, continuations, selection_proba, sentiment_logit_diffs
@@ -359,14 +356,14 @@ def serve_selection(data):
         eps = kwargs["eps"]
 
     if (data["type"] == "textpost") and (strategy != "uniform"):
-        continuations += sorted(RETENTION_STACK)
+        continuations += sorted(retention_stack)
         if selection_proba is not None:
-            if RETENTION_STACK_PROBA is not None:
-                selection_proba += RETENTION_STACK_PROBA
+            if retention_stack_proba is not None:
+                selection_proba += retention_stack_proba
             else:
-                selection_proba += [None for _ in RETENTION_STACK]
+                selection_proba += [None for _ in retention_stack]
             # TODO: store retention_stack mirotarg
-            mirotarg += [None for _ in RETENTION_STACK]
+            mirotarg += [None for _ in retention_stack]
 
     base_id = data["base_id"]
 
@@ -408,7 +405,6 @@ def serve_selection(data):
         )
 
     if strategy == "argmax":
-        # choice_ix = preds.argmax()
         choice_ix = proba.argmax()
     elif strategy == "eps_greedy":
         print(f"choosing between preds {proba}\n")
@@ -420,9 +416,6 @@ def serve_selection(data):
             print(f"choosing greedily: roll {roll} >= eps {eps}")
             choice_ix = proba.argmax()
     elif strategy == "proportional" or strategy == "proportional_winnowed":
-        # note_preds = np.exp(preds)-1
-        # probs = note_preds / sum(note_preds)
-
         if strategy == "proportional_winnowed":
             proba_winnowed = winndow_probabilities(proba)
         else:
@@ -447,11 +440,11 @@ def serve_selection(data):
 
     if data["type"] == "textpost":
         for i, p in enumerate(selection_proba):
-            if p > RETENTION_CUTOFF and continuations[i] not in RETENTION_STACK:
-                RETENTION_STACK.add(continuations[i])
+            if p > RETENTION_CUTOFF and continuations[i] not in retention_stack:
+                retention_stack.add(continuations[i])
 
-        if continuation in RETENTION_STACK:
-            RETENTION_STACK.remove(continuation)
+        if continuation in retention_stack:
+            retention_stack.remove(continuation)
 
     parsed = parse_continuation(continuation)
     parsed["proba"] = float(chosen_proba)
@@ -504,9 +497,7 @@ def serve_selection(data):
             print(f"\t{k}")
         print("consider modifying selector.py to include them")
 
-    side_judgment_cache.save()
-
-    return parsed, RETENTION_STACK, RETENTION_STACK_PROBA
+    return parsed, retention_stack, retention_stack_proba
 
 
 def select_one(data):

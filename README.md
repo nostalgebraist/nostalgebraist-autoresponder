@@ -53,11 +53,8 @@ When running and communicating with tumblr, the bot consists of the following pr
         - see `autoresponder_config.py` for the expected paths of these files within your Google Drive
 3. switchboard layer
     - script `bridge_service.py`
-4. selection layer
-    - script `selector.py`
-    - NOTE: the selector itself runs in the machine learning layer.  `selector.py` runs as a separate process only for historical reasons, and I intend to move its functionality into the switchboard layer in the future.
 
-1, 2 and 4 communicate by sending requests to 3.
+Processes 1 and 2 communicate by sending requests to 3.
 
 Layer 1 requires two sets of tumblr API keys:
   - One for the "base client" which will control the bot, make posts, etc
@@ -163,11 +160,11 @@ To train the sentiment model
 - Scripts that should run simultaneously while the bot is in operation (details above)
   - `tumbl.py`
   - `bridge_service.py`
-  - `selector.py`
   - `autoresponder_wrapper.ipynb`
 - Core helper code used by the scripts
   - `bot_config.py` (loader for string constants like API keys, "bad words" to screen for, etc)
   - `bridge_shared.py` (helpers for clients of the switchboard layer)
+  - `selector.py` (implements logic for selecting one post from a list of candidates, based on scores provided by the ML layer)
   - Code managing our communication with the tumblr API:  
     - `pytumblr_wrapper.py` (tumblr API helper)
     - `response_cache.py` (originally tumblr API helper, has now scope creeped into being a general-purpose cache)

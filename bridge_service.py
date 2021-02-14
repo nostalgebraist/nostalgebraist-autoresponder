@@ -373,6 +373,8 @@ def pollgenerator():
             if n_remaining <= 0:
                 print(f"done with {result_id}: have {n_acquired} of {n_desired}")
                 GENERATION_RESULT_STACK[result_id]["done"] = True
+
+                RESULT_STACK[result["base_id"]] = result
             else:
                 print(f"continuing {result_id}: have {n_acquired} of {n_desired}")
 

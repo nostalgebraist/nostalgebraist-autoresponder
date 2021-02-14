@@ -489,6 +489,49 @@ def text_post_from_gpt2_service(loop_persistent_data, mood=None, ts=None):
     return result, loop_persistent_data
 
 
+def side_judgments_from_gpt2_service(
+    texts,
+    v8_timestamps=None,
+    v10_timestamps=None,
+    wait_first_time=3,
+    wait_recheck_time=1.5,
+    verbose=False,
+):
+    if verbose:
+        print(f"side_judgements_from_gpt2_service: v10_timestamps={v10_timestamps}")
+    data = {"texts": texts}
+    if v8_timestamps is not None:
+        data["v8_timestamps"] = v8_timestamps
+    if v10_timestamps is not None:
+        data["v10_timestamps"] = v10_timestamps
+
+    if verbose:
+        print(f"side_judgments_from_gpt2_service: data={data}")
+
+    result = old_bridge_call__raw_select(data=data)
+    # requests.post(url, json=data_to_send)
+    # result = wait_for_result(new_id, wait_first_time=wait_first_time, wait_recheck_time=wait_recheck_time)
+    return result
+
+
+def old_bridge_call__raw_select(data):
+    global PROMPT_STACK
+
+    texts = data["texts"]
+    new_id = data["id"]
+    v8_timestamps = data.get("v8_timestamps", None)
+    v10_timestamps = data.get("v10_timestamps", None)
+
+    PROMPT_STACK[new_id] = {"texts": texts, "type": "raw_select"}
+    if v8_timestamps is not None:
+        PROMPT_STACK[new_id]["v8_timestamp"] = v8_timestamps[0]  # TODO: make not weird
+    if v10_timestamps is not None:
+        PROMPT_STACK[new_id]["v10_timestamp"] = v10_timestamps[
+            0
+        ]  # TODO: make not weird
+    return serve_raw_select(PROMPT_STACK[new_id])
+
+
 def old_bridge_call__answer(data):
     global PROMPT_STACK
 

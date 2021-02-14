@@ -34,33 +34,3 @@ def wait_for_result(new_id, wait_first_time=40, wait_recheck_time=5):
     dt = done_waiting_ts - started_waiting_ts
     print(f"Turnaround time: {dt//60:.0f} min {dt%60:.0f}s")
     return result["result"]
-
-
-def side_judgments_from_gpt2_service(
-    texts,
-    v8_timestamps=None,
-    v10_timestamps=None,
-    wait_first_time=3,
-    wait_recheck_time=1.5,
-    verbose=False,
-):
-    if verbose:
-        print(f"side_judgements_from_gpt2_service: v10_timestamps={v10_timestamps}")
-    data = {"texts": texts}
-    if v8_timestamps is not None:
-        data["v8_timestamps"] = v8_timestamps
-    if v10_timestamps is not None:
-        data["v10_timestamps"] = v10_timestamps
-
-    if verbose:
-        print(f"side_judgments_from_gpt2_service: data={data}")
-    url = bridge_service_url + "/raw_select"
-    new_id = bridge_service_unique_id(url, data)
-
-    data_to_send = dict()
-    data_to_send.update(data)
-    data_to_send["id"] = new_id
-
-    requests.post(url, json=data_to_send)
-    result = wait_for_result(new_id, wait_first_time=wait_first_time, wait_recheck_time=wait_recheck_time)
-    return result

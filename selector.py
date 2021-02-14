@@ -388,7 +388,6 @@ def serve_selection(
 
     if SELECT_VIA_GENERATOR:
         proba = np.asarray(selection_proba_screened)
-        show_note_probas(continuations_screened, proba, continuation_sentiments)
     else:
         proba = wrapped.predict_proba([s.lstrip("翰") for s in continuations_screened])[
             :, 1
@@ -483,8 +482,6 @@ def serve_selection(
 
     if "prompt_for_neural" in data:
         parsed["prompt_for_neural"] = data["prompt_for_neural"]
-
-    print(f"sending back: {parsed}")
 
     lost_keys = [k for k in data.keys() if k not in parsed]
     if WARN_ABOUT_LOST_KEYS and len(lost_keys) > 0:

@@ -213,7 +213,7 @@ def textpost():
     v8_timestamp = request.form.get("v8_timestamp", "")
     v10_timestamp = request.form.get("v10_timestamp", "")
     return_all_conts = bool(int(request.form.get("return_all_conts", False)))
-    n_retention = request.form.get("n_retention")
+    n_retention = int(request.form.get("n_retention"))
 
     kwargs = {
         "best_of": 10,

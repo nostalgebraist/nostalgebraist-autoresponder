@@ -169,9 +169,9 @@ class GeneratorModel:
         mu_init_scale = 1.0 if MIRO_V2 else 2.0
 
         while not done:
-            recompute_presents = (token_start_ix >= max_context_size) or (
-                presents is None
-            )
+            recompute_presents = (
+                (this_batch_continue_steps > 0) and (token_start_ix >= max_context_size)
+            ) or (presents is None)
             with self.session.as_default():
                 if recompute_presents:
                     print("recomputing presents")

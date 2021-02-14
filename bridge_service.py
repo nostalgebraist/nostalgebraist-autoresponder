@@ -224,7 +224,7 @@ def textpost():
         fork = "B" if np.random.rand() > 1 else "A"
         # strategy = "proportional_winnowed"
         strategy = "eps_greedy"
-        eps = 0.25
+        eps = 0.2
         kwargs["strategy"] = strategy
         kwargs["eps"] = eps
         kwargs["AB_fork"] = fork

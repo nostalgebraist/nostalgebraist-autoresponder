@@ -31,6 +31,8 @@ This README is the main documentation at this time.
 
 Some of the machine learning functionality provided by this repo is described in a separate file [`gpt-2/README.md`](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/gpt-2/README.md).
 
+There are [some visualizations](https://github.com/nostalgebraist/nostalgebraist-autoresponder/tree/visualizations/visualizations) on a branch called `visualizations`, in a subdirectory called (you guessed it) `visualizations`.  Check these out if you want to learn more about how the selector works.
+
 I plan to provide additional documentation in the future.
 
 ### How this code implements the bot
@@ -45,18 +47,14 @@ When running and communicating with tumblr, the bot consists of the following pr
     - `autoresponder_wrapper.ipynb` (a lightweight wrapper around `autoresponder.py`)
     - Running this layer requires:
       - a GPU with ~16GB memory
-      - a GCS bucket containing the following data files:
-        - trained generator, selector and sentiment models
-        - a data corpus (TODO: remove this requirement, as it's no longer used for anything nontrivial)
-      - a particular GCS directory structure in the bucket (see `autoresponder_config.py`)
+      - a GCS bucket containing trained generator, selector and sentiment models
+        - see `autoresponder_config.py` for the expected paths of these files within the bucket
       - optionally, a copy of same files in Google Drive (loads faster but less reliably)
+        - see `autoresponder_config.py` for the expected paths of these files within your Google Drive
 3. switchboard layer
     - script `bridge_service.py`
-4. selection layer
-    - script `selector.py`
-    - NOTE: the selector itself runs in the machine learning layer.  `selector.py` runs as a separate process only for historical reasons, and I intend to move its functionality into the switchboard layer in the future.
 
-1, 2 and 4 communicate by sending requests to 3.
+Processes 1 and 2 communicate by sending requests to 3.
 
 Layer 1 requires two sets of tumblr API keys:
   - One for the "base client" which will control the bot, make posts, etc
@@ -102,10 +100,47 @@ To train the generator:
 An example invocation of `gpt-2/train.py` on an appropriately configured GCE VM:
  
 ```bash
-python3.7 -u gpt-2/train.py --model_name 1558M --run_name YOUR_RUN_NAME --noise_scale --dataset PATH_TO_TRAIN_DATA --val_dataset PATH_TO_VAL_DATA --val_every 200 --val_batch_size 24 --batch_size 24 --accumulate_gradients 5 --eot_workaround --rob_sampler --save_every 100 --sample_every 10000000 --save_time 300000  --max_to_keep 1 --acti_dropout 0 --attn_dropout 0 --res_dropout 0 --adam_beta1 0.9 --adam_beta2 0.999 --adam_epsilon 1e-8 --learning_rate 4.76e-5 --learning_rate_cos --learning_rate_warmup 100 --learning_rate_period 5425 --learning_rate_min 1.5e-6 --learning_rate_m_mul 0.1 --avg_loss_beta 0.99 --only_train_transformer_layers --seed 5 --save_optimizer --init_tpu --learning_rate_initial_step 1 | tee -a runlog.txt
+python3.7 -u gpt-2/train.py \
+--model_name 1558M \
+--run_name YOUR_RUN_NAME \
+--noise_scale \
+--dataset PATH_TO_TRAIN_DATA \
+--val_dataset PATH_TO_VAL_DATA \
+--val_every 200 \
+--val_batch_size 24 \
+--batch_size 24 \
+--accumulate_gradients 5 \
+--eot_workaround \
+--rob_sampler \
+--save_every 100 \
+--sample_every 10000000 \
+--save_time 300000 \
+--max_to_keep 1 \
+--acti_dropout 0 \
+--attn_dropout 0 \
+--res_dropout 0 \
+--adam_beta1 0.9 \
+--adam_beta2 0.999 \
+--adam_epsilon 1e-8 \
+--learning_rate 4.76e-5 \
+--learning_rate_cos \
+--learning_rate_warmup 100 \
+--learning_rate_period 5425 \
+--learning_rate_min 1.5e-6 \
+--learning_rate_m_mul 0.1 \
+--avg_loss_beta 0.99 \
+--only_train_transformer_layers \
+--seed 5 \
+--save_optimizer \
+--init_tpu \
+--learning_rate_initial_step 1 | tee -a runlog.txt
 ```
 
-I recommend setting `learning_rate_period` to 5 times the number of batches per epoch, where batches per epoch is `batch_size * accumulate_gradients * (token count of train dataset)`.  You may want to tune `learning_rate_period`, `learning_rate`, `learning_rate_warmup`, etc. based on validation performance.
+I recommend setting `learning_rate_period` to 5 times the number of batches per epoch, where
+
+```batches per epoch = batch_size * accumulate_gradients * (token count of train dataset)```
+
+You may want to tune `learning_rate_period`, `learning_rate`, `learning_rate_warmup`, etc. based on validation performance.
 
 The pipe to `tee -a runlog.txt` produces a log `runlog.txt`, which can be used to review losses, gradient noise scale, and other stats across training.  Utilities for this are in `util/loss_plots.py`.
 
@@ -125,11 +160,11 @@ To train the sentiment model
 - Scripts that should run simultaneously while the bot is in operation (details above)
   - `tumbl.py`
   - `bridge_service.py`
-  - `selector.py`
   - `autoresponder_wrapper.ipynb`
 - Core helper code used by the scripts
   - `bot_config.py` (loader for string constants like API keys, "bad words" to screen for, etc)
   - `bridge_shared.py` (helpers for clients of the switchboard layer)
+  - `selector.py` (implements logic for selecting one post from a list of candidates, based on scores provided by the ML layer)
   - Code managing our communication with the tumblr API:  
     - `pytumblr_wrapper.py` (tumblr API helper)
     - `response_cache.py` (originally tumblr API helper, has now scope creeped into being a general-purpose cache)
@@ -140,6 +175,7 @@ To train the sentiment model
   - ML code that operates on formatted text:
     - `autoresponder.py` (machine learning layer; ML models run in a notebook `autoresponder_wrapper.ipynb` which is a lightweight wrapper around this file)
     - `autoresponder_config.py` (config file for machine learning layer)
+    - `experimental/generator_model.py` (class providing an interface for GPT-2 model loading and sampling)
     - `selector_model/selector_nn.py` and `selector_model/selector_estimator.py` (code implementing the selector and sentiment models)
     - `side_judgments.py` (abstraction layer around the selector and sentiment layers, used to construct calls to these ML models and cache responses)
 - Helper code for specific, less central features

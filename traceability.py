@@ -42,9 +42,10 @@ def on_post_creation_callback(api_response: dict, bridge_response: dict):
 
 
 def traceability_logs_to_df(logs, boring_fields=None, make_input_blogname=True):
+    df = pd.DataFrame(logs["data"])
     if boring_fields is None:
         boring_fields = ["api__id_string", "base_id", "AB_fork"]
-    df = pd.DataFrame(logs["data"])
+        boring_fields += [c for c in df.columns if c.startswith("all_alt_")]
     df = df.drop(boring_fields, axis=1)
     if make_input_blogname:
         df["input_blogname"] = df.input_ident.apply(

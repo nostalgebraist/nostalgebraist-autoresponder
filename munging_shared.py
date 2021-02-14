@@ -6,12 +6,15 @@ import reblogs_v5
 from bs4 import BeautifulSoup
 from wcwidth import wcwidth
 
-from autoresponder_static import find_all_control_chars_chinese
+from autoresponder_static import find_all_control_chars_chinese, CHINESE_CHAR_DELIMITERS
+from autoresponder_static_v8 import TIME_SIDECHANNEL_CHAR
 
 from image_analysis import (
     extract_and_format_text_from_url,
     V9_IMAGE_FORMATTER,
     IMAGE_DIR,
+    IMAGE_DELIMITER,
+    IMAGE_DELIMITER_WHITESPACED
 )
 
 from text_segmentation import make_image_simple
@@ -39,9 +42,8 @@ def sanitize_user_input_outer_shell(text):
     # zero-width joiners etc
     sanitized_text = "".join([c for c in sanitized_text if wcwidth(c) != 0])
 
-    # image delimiter
-    # TODO: define this value only once
-    sanitized_text = sanitized_text.replace("=======", "")
+    for delimiter in CHINESE_CHAR_DELIMITERS + [IMAGE_DELIMITER, TIME_SIDECHANNEL_CHAR]:
+        sanitized_text = sanitized_text.replace(delimiter, "")
 
     return sanitized_text
 
@@ -339,13 +341,16 @@ def find_text_images_and_sub_real_images(
 
     text = text.strip(" \n")
 
-    if text.startswith("======="):
+    if text.startswith(IMAGE_DELIMITER):
         text = "\n\n" + text
 
-    if text.endswith("======="):
+    if text.endswith(IMAGE_DELIMITER):
         text = text + "\n"
 
-    imtext_regex = r"(\n=======\n)(.+?)(=======\n)"
+    # imtext_regex = r"(\n=======\n)(.+?)(=======\n)"
+    escaped_delim = IMAGE_DELIMITER.encode('unicode_escape').decode()
+    escaped_delim_ws = IMAGE_DELIMITER_WHITESPACED.encode('unicode_escape').decode()
+    imtext_regex = rf"({escaped_delim_ws})(.+?)({escaped_delim}\n)"
     figure_format = """<figure data-orig-height="{h}" data-orig-width="{w}"><img src="{url}" data-orig-height="{h}" data-orig-width="{w}"/></figure>"""
     imtexts = set()
     ims_checksum = 0

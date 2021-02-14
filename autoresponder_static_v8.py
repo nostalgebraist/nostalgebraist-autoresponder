@@ -9,6 +9,7 @@ TIME_SIDECHANNEL_CHAR = "\U0001f552"  # clock symbol 🕒
 
 # utilities for laptop side
 
+
 def get_ts_from_fn(fn):
     if fn is None:
         return None

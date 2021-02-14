@@ -22,6 +22,9 @@ ACCEPTABLE_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif"}
 
 AR_DETECT_TEXT_CONFIDENCE_THRESHOLD = 95
 
+IMAGE_DELIMITER = "======="
+IMAGE_DELIMITER_WHITESPACED = "\n=======\n"
+
 
 def xtn_from_headers(
     response: urllib3.response.HTTPResponse,  # requests.models.Response
@@ -479,7 +482,7 @@ def PRE_V9_IMAGE_FORMATTER(image_text):
 
 
 def V9_IMAGE_FORMATTER(image_text):
-    return "\n" + "\n=======\n" + image_text + "\n=======\n"
+    return "\n" + IMAGE_DELIMITER_WHITESPACED + image_text + IMAGE_DELIMITER_WHITESPACED
 
 
 def format_extracted_text(image_text, image_formatter=V9_IMAGE_FORMATTER, verbose=False):

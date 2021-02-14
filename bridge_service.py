@@ -374,7 +374,7 @@ def pollgenerator():
                 print(f"done with {result_id}: have {n_acquired} of {n_desired}")
                 GENERATION_RESULT_STACK[result_id]["done"] = True
 
-                RESULT_STACK[result["base_id"]] = result
+                RESULT_STACK[result["base_id"]] = GENERATION_RESULT_STACK[result_id]
             else:
                 print(f"continuing {result_id}: have {n_acquired} of {n_desired}")
 

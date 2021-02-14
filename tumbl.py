@@ -2543,6 +2543,7 @@ def load_retention(side_judgment_cache):
     retention_stack_side_judgments = side_judgment_cache.query_multi(
         [ORIG_POST_CHAR + t for t in retention_stack],
         v10_timestamps=v10_timestamps,
+        verbose=False,
     )
     retention_stack_proba = [judg["selection_proba"] for judg in retention_stack_side_judgments]
 

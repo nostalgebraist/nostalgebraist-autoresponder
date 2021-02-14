@@ -45,6 +45,7 @@ from mood_dynamic import (
 from munging_shared import *
 from bridge_shared import bridge_service_unique_id, wait_for_result
 from selector import serve_selection, apply_retention_cutoff
+from experimental.ml_connector import answer_from_gpt2_service, text_post_from_gpt2_service
 
 from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 
@@ -315,93 +316,6 @@ def determine_mood(
     if return_mood_value:
         return mood, mood_value
     return mood
-
-
-def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
-    if ts is None:
-        ts = datetime.now()
-    data["v8_timestamp"] = timestamp_to_v8_format(ts)
-    data["v10_timestamp"] = timestamp_to_v10_format(ts)
-    if DO_FAKE_V10_YEAR_MONTH:
-        data["v10_timestamp"] = (
-            " ".join(data["v10_timestamp"].split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
-        )
-    if no_timestamp:
-        data["v8_timestamp"] = ""
-        data["v10_timestamp"] = ""
-
-    if BEAMSPLIT_TESTING_FLAG:
-        data["na_beamsplit"] = True
-    new_id = bridge_service_unique_id(bridge_service_url, data)
-
-    data_to_send = dict()
-    data_to_send.update(data)
-    data_to_send["id"] = new_id
-
-    requests.post(bridge_service_url, data=data_to_send)
-    result_generator = wait_for_result(new_id)
-
-    result, _, _ = serve_selection(
-        data=result_generator, side_judgment_cache=side_judgment_cache
-    )
-
-    # for logging, add any input fields that didn't make the round trip
-    for k, v in data.items():
-        if k not in result:
-            print(f"adding key {k}")
-            result[k] = v
-
-    return result
-
-
-def text_post_from_gpt2_service(loop_persistent_data, mood=None, ts=None):
-    data = {"mood": mood}
-
-    if ts is None:
-        ts = datetime.now()
-    data["v8_timestamp"] = timestamp_to_v8_format(ts)
-    data["v10_timestamp"] = timestamp_to_v10_format(ts)
-    if DO_FAKE_V10_YEAR_MONTH:
-        data["v10_timestamp"] = (
-            " ".join(data["v10_timestamp"].split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
-        )
-
-    url = bridge_service_url + "/textpost"
-
-    if BEAMSPLIT_TESTING_FLAG:
-        data["na_beamsplit"] = True
-
-    data['n_retention'] = len(loop_persistent_data.retention_stack)
-
-    new_id = bridge_service_unique_id(url, data)
-
-    data_to_send = dict()
-    data_to_send.update(data)
-    data_to_send["id"] = new_id
-
-    data["id"] = new_id
-    requests.post(url, data=data_to_send)
-    result_generator = wait_for_result(new_id)
-
-    result, retention_stack, retention_stack_proba = serve_selection(
-        data=result_generator,
-        side_judgment_cache=loop_persistent_data.side_judgment_cache,
-        retention_stack=loop_persistent_data.retention_stack,
-        retention_stack_proba=loop_persistent_data.retention_stack_proba,
-    )
-
-    save_retention(retention_stack)
-
-    loop_persistent_data.retention_stack = retention_stack
-    loop_persistent_data.retention_stack_proba = retention_stack_proba
-
-    # for logging, add any input fields that didn't make the round trip
-    for k, v in data.items():
-        if k not in result:
-            print(f"adding key {k}")
-            result[k] = v
-
-    return result, loop_persistent_data
 
 
 def strip_spurious_blognames_from_tags(client, tags, auto_accept_list=set()):

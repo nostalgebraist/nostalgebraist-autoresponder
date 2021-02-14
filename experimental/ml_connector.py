@@ -434,7 +434,11 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
     if BEAMSPLIT_TESTING_FLAG:
         data["na_beamsplit"] = True
 
-    result = old_bridge_call__answer(data=data)
+    result_generator = old_bridge_call__answer(data=data)
+
+    result, _, _ = serve_selection(
+        data=result_generator, side_judgment_cache=side_judgment_cache
+    )
 
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
@@ -445,7 +449,7 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
     return result
 
 
-def text_post_from_gpt2_service(mood=None, ts=None):
+def text_post_from_gpt2_service(loop_persistent_data, mood=None, ts=None):
     data = {"mood": mood}
 
     if ts is None:
@@ -457,12 +461,24 @@ def text_post_from_gpt2_service(mood=None, ts=None):
             " ".join(data["v10_timestamp"].split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
         )
 
-    url = bridge_service_url + "/textpost"
-
     if BEAMSPLIT_TESTING_FLAG:
         data["na_beamsplit"] = True
 
-    result = old_bridge_call__textpost(data=data)
+    data["n_retention"] = len(loop_persistent_data.retention_stack)
+
+    result_generator = old_bridge_call__textpost(data=data)
+
+    result, retention_stack, retention_stack_proba = serve_selection(
+        data=result_generator,
+        side_judgment_cache=loop_persistent_data.side_judgment_cache,
+        retention_stack=loop_persistent_data.retention_stack,
+        retention_stack_proba=loop_persistent_data.retention_stack_proba,
+    )
+
+    save_retention(retention_stack)
+
+    loop_persistent_data.retention_stack = retention_stack
+    loop_persistent_data.retention_stack_proba = retention_stack_proba
 
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
@@ -470,7 +486,7 @@ def text_post_from_gpt2_service(mood=None, ts=None):
             print(f"adding key {k}")
             result[k] = v
 
-    return result
+    return result, loop_persistent_data
 
 
 def old_bridge_call__answer(data):

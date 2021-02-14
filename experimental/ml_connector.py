@@ -116,6 +116,9 @@ class GeneratorModelInterface(MLModelInterface):
     def write(self, *args, **kwargs):
         return self.do("write", *args, **kwargs)
 
+    def write_random_prompt(self, *args, **kwargs):
+        return self.do("write", *args, **kwargs)
+
     def done_writing(self, *args, **kwargs):
         return self.do("done_writing", *args, **kwargs)
 
@@ -147,6 +150,20 @@ def request_prompted_continuation(
     return generator_model.write(prompt, mirotarg=mirotarg, verbose=verbose)
 
 
+def request_prompted_continuation_random_prompt(
+    prompts: list,
+    probs: list,
+    verbose=False,
+    mirotarg=None,  # TODO: allow vary across batch, add noise inside this fn
+):
+    if mirotarg is None:
+        mirotarg = np.random.choice(MIRO_TARGET_ALL)
+
+    return generator_model.write_random_prompt(prompts=prompts,
+                                               probs=probs,
+                                               mirotarg=mirotarg, verbose=verbose)
+
+
 def parse_continuation(continuation: str, verbose=True, wrap=False):
     if verbose:
         print(
@@ -167,24 +184,27 @@ def parse_continuation(continuation: str, verbose=True, wrap=False):
     return parsed
 
 
-def get_textpost_prompt():
-    overrides = {}
+def get_textpost_prompts():
+    prompts = []
+    overrides = []
+    probs = []
 
-    roll = np.random.rand()
-    if roll < FORUMLIKE_REVIEW_PROB:
-        prompt = CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"]
-        overrides["v8_timestamp"] = ""
-        overrides["v10_timestamp"] = ""
-    elif roll < FORUMLIKE_REVIEW_PROB + FORUMLIKE_FIC_PROB:
-        prompt = CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"]
-        overrides["v8_timestamp"] = ""
-        overrides["v10_timestamp"] = ""
-        overrides["tag_string_raw"] = "#original fiction"
-    else:
-        prompt = CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
-    print(f"using prompt={repr(prompt)}")
+    prompts.append(CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"])
+    overrides.append({"v8_timestamp": "",
+                      "v10_timestamp": ""})
+    probs.append(FORUMLIKE_REVIEW_PROB)
 
-    return prompt, overrides
+    prompts.append(CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"])
+    overrides.append({"v8_timestamp": "",
+                      "v10_timestamp": "",
+                      "tag_string_raw": "#original fiction"})
+    probs.append(FORUMLIKE_FIC_PROB)
+
+    prompts.append(CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"])
+    overrides.append({})
+    probs.append(1 - FORUMLIKE_FIC_PROB - FORUMLIKE_REVIEW_PROB)
+
+    return prompts, overrides, probs
 
 
 profane_substrings = {
@@ -230,59 +250,80 @@ def basic_n_continuations(
     relevant_timestamp = v10_timestamp if V10 else v8_timestamp
 
     if use_textpost_prompt:
-        prompt, textpost_overrides = get_textpost_prompt()
-        v8_timestamp = textpost_overrides.get("v8_timestamp", v8_timestamp)
-        v10_timestamp = textpost_overrides.get("v10_timestamp", v10_timestamp)
-        relevant_timestamp = v10_timestamp if V10 else v8_timestamp
+        raw_prompts, overrides, probs = get_textpost_prompts()
+        prompts = []
+        for p, o in zip(prompts, overrides):
+            v8_timestamp = o.get("v8_timestamp", v8_timestamp)
+            v10_timestamp = o.get("v10_timestamp", v10_timestamp)
+            relevant_timestamp = v10_timestamp if V10 else v8_timestamp
 
-        if V8:
             ts_string = format_segment_v8_time(
                 relevant_timestamp, control_seg_config=CONTROL_SEG_CONFIG
             )
             if CONTROL_SEG_CONFIG["flags"]["add_control_prefix_to_forced_tag_strings"]:
                 tag_string = format_segment_v8_tags(
-                    textpost_overrides.get("tag_string_raw", ""),
+                    o.get("tag_string_raw", ""),
                     control_seg_config=CONTROL_SEG_CONFIG,
                 )
             else:
-                tag_string = textpost_overrides.get("tag_string_raw", "")
+                tag_string = o.get("tag_string_raw", "")
             prompt = globally_format_v8(
-                doc_tagless=prompt,
+                doc_tagless=p,
                 ts_string=ts_string,
                 interlocutor_string=format_segment_v8_interlocutors(""),
                 tag_string=tag_string,
                 control_seg_config=CONTROL_SEG_CONFIG,
             )
+            prompt = finalize_prompt_for_neural(
+                prompt,
+                override_disable_forumlike=use_textpost_prompt or override_disable_forumlike,
+                forced_tags_string=forced_tags_string,
+                write_fic_override=write_fic_override,
+            )
+            prompts.append(prompt)
+
+        bridge_id = request_prompted_continuation_random_prompt(
+            prompts,
+            probs,
+            verbose=verbose,
+            mirotarg=mirotarg,
+        )
     elif V8:
         prompt = join_time_sidechannel(prompt, relevant_timestamp)
 
-    prompt = finalize_prompt_for_neural(
-        prompt,
-        override_disable_forumlike=use_textpost_prompt or override_disable_forumlike,
-        forced_tags_string=forced_tags_string,
-        write_fic_override=write_fic_override,
-    )
+        prompt = finalize_prompt_for_neural(
+            prompt,
+            override_disable_forumlike=use_textpost_prompt or override_disable_forumlike,
+            forced_tags_string=forced_tags_string,
+            write_fic_override=write_fic_override,
+        )
 
-    if GLOBAL_DEBUG:
-        print(f"in basic_n_continuations, using prompt: {repr(prompt)}")
+        if GLOBAL_DEBUG:
+            print(f"in basic_n_continuations, using prompt: {repr(prompt)}")
+
+        bridge_id = request_prompted_continuation(
+            prompt,
+            verbose=verbose,
+            mirotarg=mirotarg,
+        )
+
     continuations = []
-
-    bridge_id = request_prompted_continuation(
-        prompt,
-        verbose=verbose,
-        mirotarg=mirotarg,
-    )
 
     while len(continuations) < N:
         time.sleep(1)
         response = requests.post(
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
-        # print(f"raw response: {repr(response)}")
         if not response["done"]:
             continue
 
+        if use_textpost_prompt:
+            print(f"raw response: {repr(response)}")
+
         result = [entry[0] for entry in response["result"]["result"]]
+        if use_textpost_prompt:
+            prompt = result["prompt"]
+            result = result["continuations"]
         this_batch_continuations = result[len(continuations) :]
 
         if len(this_batch_continuations) > 0:

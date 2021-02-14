@@ -58,6 +58,8 @@ if FORUMLIKE:
 else:
     ORIG_POST_CHAR = ORIG_POST_CHAR_CHINESE
 
+RESULT_STACK = {}
+
 
 def load_from_gdrive_with_gs_fallback(
     load_fn, relative_path, gs_command, retries=False, **kwargs

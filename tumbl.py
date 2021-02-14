@@ -2538,9 +2538,6 @@ def load_retention(side_judgment_cache):
 
     retention_stack = list(retention_stack)
 
-    print(f"loaded retention_stack:")
-    for t in retention_stack:
-        print("\t" + repr(t))
     ts = datetime.now()
     v10_timestamps = [timestamp_to_v10_format(ts) for _ in retention_stack]
 

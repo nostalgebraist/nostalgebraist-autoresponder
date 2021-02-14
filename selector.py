@@ -504,15 +504,9 @@ def serve_selection(data):
             print(f"\t{k}")
         print("consider modifying selector.py to include them")
 
-    with open("data/retention_stack.pkl.gz", "wb") as f:
-        pickle.dump(RETENTION_STACK, f)
-
-    with open("data/retention_stack_backup.pkl.gz", "wb") as f:
-        pickle.dump(RETENTION_STACK, f)
-
     side_judgment_cache.save()
 
-    return parsed
+    return parsed, RETENTION_STACK, RETENTION_STACK_PROBA
 
 
 def select_one(data):

@@ -2,6 +2,7 @@
 Tumblr API layer and main loop of the bot during operation.
 """
 import os
+import pickle
 from datetime import datetime
 from string import punctuation, whitespace
 from itertools import product
@@ -43,6 +44,7 @@ from mood_dynamic import (
 
 from munging_shared import *
 from bridge_shared import bridge_service_unique_id, wait_for_result
+from selector import serve_selection
 
 from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 
@@ -336,7 +338,9 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
     data_to_send["id"] = new_id
 
     requests.post(bridge_service_url, data=data_to_send)
-    result = wait_for_result(new_id)
+    result_generator = wait_for_result(new_id)
+
+    result, _, _ = serve_selection(result_generator)
 
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
@@ -371,7 +375,9 @@ def text_post_from_gpt2_service(mood=None, ts=None):
 
     data["id"] = new_id
     requests.post(url, data=data_to_send)
-    result = wait_for_result(new_id)
+    result_generator = wait_for_result(new_id)
+
+    result, retention_stack, retention_stack_proba = serve_selection(result_generator)
 
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
@@ -379,7 +385,7 @@ def text_post_from_gpt2_service(mood=None, ts=None):
             print(f"adding key {k}")
             result[k] = v
 
-    return result
+    return result, retention_stack, retention_stack_proba
 
 
 def strip_spurious_blognames_from_tags(client, tags, auto_accept_list=set()):
@@ -801,6 +807,8 @@ class LoopPersistentData:
         side_judgment_cache: SideJudgmentCache = SideJudgmentCache(),
         follower_names=None,
         image_analysis_cache: ImageAnalysisCache = ImageAnalysisCache(),
+        retention_stack: set = set(),
+        retention_stack_proba: list = [],
     ):
         self.reblogs_from_me = reblogs_from_me
         self.reblog_worthy_dash_posts = reblog_worthy_dash_posts
@@ -816,6 +824,8 @@ class LoopPersistentData:
         self.side_judgment_cache = side_judgment_cache
         self.follower_names = follower_names
         self.image_analysis_cache = image_analysis_cache
+        self.retention_stack = retention_stack
+        self.retention_stack_proba = retention_stack_proba
 
         if len(self.requests_per_check_history) == 0:
             self.requests_per_check_history.extend(
@@ -2508,9 +2518,14 @@ if __name__ == "__main__":
     response_cache = ResponseCache.load(tank_client)
     side_judgment_cache = SideJudgmentCache.load()
     image_analysis_cache = ImageAnalysisCache.load()
+
+    with open("data/retention_stack.pkl.gz", "rb") as f:
+        retention_stack = pickle.load(f)
+
     loop_persistent_data = LoopPersistentData(
         side_judgment_cache=side_judgment_cache,
         image_analysis_cache=image_analysis_cache,
+        retention_stack=retention_stack,
     )
 
     while True:

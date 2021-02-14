@@ -65,14 +65,12 @@ def pollml():
     data = request.json()
     for id_ in data.keys():
         if id_ not in RESULT_STACK:
-            RESULT_STACK[id_] = data
+            RESULT_STACK[id_] = {}
+        for k in data[id_].keys():
+            if k not in RESULT_STACK[id_]:
+                RESULT_STACK[id_][k] = []
+            RESULT_STACK[id_][k].append(data[id_][k])
 
-    for list_key in [
-        "continuations",
-        "selection_proba",
-        "sentiment_logit_diffs",
-        "mirotarg",
-    ]:
 
 @app.route("/requestml", methods=["POST"])
 def requestml():

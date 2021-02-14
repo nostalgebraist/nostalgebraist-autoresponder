@@ -281,11 +281,12 @@ def basic_n_continuations(
         if not response["done"]:
             continue
 
-        print(f"have {len(continuations)} of {N}")
         result = [entry[0] for entry in response["result"]["result"]]
         this_batch_continuations = result[len(continuations) :]
-        print(f"result: {repr(result)}")
-        print(f"this_batch_continuations: {repr(this_batch_continuations)}")
+
+        if len(this_batch_continuations) > 0:
+            print(f"have {len(continuations)} of {N}")
+            print(f"this_batch_continuations: {repr(this_batch_continuations)}")
 
         for c in this_batch_continuations:
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):

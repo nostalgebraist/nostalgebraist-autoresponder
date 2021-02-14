@@ -273,12 +273,12 @@ def poll(
 
         # print("done generating for this poll")
 
-        if len(PROMPT_STACK) > 0:
-            r = requests.post(
-                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
-                json=RESULT_STACK if not dummy else {},
-            )
-            time.sleep(1)
+        # if len(PROMPT_STACK) > 0:
+        #     r = requests.post(
+        #         f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
+        #         json=RESULT_STACK if not dummy else {},
+        #     )
+        #     time.sleep(1)
 
 
 def loop_poll(

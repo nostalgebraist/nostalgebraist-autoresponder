@@ -300,8 +300,6 @@ def serve_selection(
             # TODO: store retention_stack mirotarg
             mirotarg += [None for _ in retention_stack]
 
-    base_id = data["base_id"]
-
     do_mood_screen = False
     if mood is not None:
         do_mood_screen = mood.get("name") != "unrestricted"
@@ -390,8 +388,6 @@ def serve_selection(
         all_tags = [p["tags"] for p in all_parsed]
         parsed["all_posts"] = all_posts
         parsed["all_tags"] = all_tags
-
-    parsed["base_id"] = base_id
 
     if "AB_fork" in kwargs:
         fork = kwargs["AB_fork"]

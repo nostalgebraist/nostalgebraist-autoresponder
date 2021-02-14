@@ -54,6 +54,7 @@ from autoresponder_static_v8 import timestamp_to_v8_format, timestamp_to_v10_for
 from traceability import on_post_creation_callback
 
 from util.error_handling import LogExceptionAndSkip
+
 EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
@@ -340,8 +341,9 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
     requests.post(bridge_service_url, data=data_to_send)
     result_generator = wait_for_result(new_id)
 
-    result, _, _ = serve_selection(data=result_generator,
-                                   side_judgment_cache=side_judgment_cache)
+    result, _, _ = serve_selection(
+        data=result_generator, side_judgment_cache=side_judgment_cache
+    )
 
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
@@ -2301,7 +2303,8 @@ def do_queue_handling(response_cache: ResponseCache):
             loop_persistent_data.side_judgment_cache.save()
             gpt2_output, loop_persistent_data = text_post_from_gpt2_service(
                 loop_persistent_data=loop_persistent_data,
-                mood=mood_for_queue_writing, ts=dt
+                mood=mood_for_queue_writing,
+                ts=dt,
             )
 
             log_data = gpt2_output
@@ -2534,9 +2537,11 @@ def load_retention(side_judgment_cache):
 
     retention_stack_proba = side_judgment_cache.query_multi(
         retention_stack, v10_timestamps=v10_timestamps
-    )['selection_proba']
+    )["selection_proba"]
 
-    retention_stack, retention_stack_proba = apply_retention_cutoff(retention_stack, retention_stack_proba)
+    retention_stack, retention_stack_proba = apply_retention_cutoff(
+        retention_stack, retention_stack_proba
+    )
 
     return retention_stack, retention_stack_proba
 

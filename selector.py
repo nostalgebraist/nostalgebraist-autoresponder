@@ -309,7 +309,9 @@ def record_side_judgements(
         )
 
 
-def serve_selection(data, side_judgment_cache, retention_stack=None, retention_stack_proba=None):
+def serve_selection(
+    data, side_judgment_cache, retention_stack=None, retention_stack_proba=None
+):
     global wrapped
 
     continuations = data["continuations"]

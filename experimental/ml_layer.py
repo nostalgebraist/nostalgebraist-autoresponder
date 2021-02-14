@@ -234,7 +234,7 @@ def poll(
                 *requested_args, **requested_kwargs
             )
 
-            if isinstance(result, np.array):
+            if isinstance(result, np.ndarray):
                 result = result.tolist()
 
             RESULT_STACK[prompt_id] = {"result": result}

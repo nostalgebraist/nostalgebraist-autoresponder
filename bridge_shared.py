@@ -40,8 +40,8 @@ def side_judgments_from_gpt2_service(
     texts,
     v8_timestamps=None,
     v10_timestamps=None,
-    wait_first_time=5,
-    wait_recheck_time=2.5,
+    wait_first_time=3,
+    wait_recheck_time=1.5,
     verbose=False,
 ):
     if verbose:
@@ -62,5 +62,5 @@ def side_judgments_from_gpt2_service(
     data_to_send["id"] = new_id
 
     requests.post(url, json=data_to_send)
-    result = wait_for_result(new_id, wait_first_time=5, wait_recheck_time=2.5)
+    result = wait_for_result(new_id, wait_first_time=wait_first_time, wait_recheck_time=wait_recheck_time)
     return result

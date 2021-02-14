@@ -2288,7 +2288,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
     return loop_persistent_data, response_cache, n_asks
 
 
-def do_queue_handling(response_cache: ResponseCache):
+def do_queue_handling(loop_persistent_data, response_cache):
     queue = private_client.queue(blogName, limit=20)["posts"]
 
     n_posts_in_queue = len(queue)
@@ -2300,7 +2300,7 @@ def do_queue_handling(response_cache: ResponseCache):
             mood_for_queue_writing = determine_mood(response_cache, dt=dt)
 
             print(f"writing new text post... ({textpost_ix}/{N_TO_WRITE})")
-            loop_persistent_data.side_judgment_cache.save()
+
             gpt2_output, loop_persistent_data = text_post_from_gpt2_service(
                 loop_persistent_data=loop_persistent_data,
                 mood=mood_for_queue_writing,
@@ -2320,6 +2320,7 @@ def do_queue_handling(response_cache: ResponseCache):
 
         n_posts_in_queue = len(private_client.queue(blogName, limit=20)["posts"])
         print(f"now {n_posts_in_queue} posts in queue")
+    return loop_persistent_data, response_cache
 
 
 def do_rts(response_cache):
@@ -2515,7 +2516,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         print(f"{len(drafts)} waiting for review")
 
         ### do queue check
-        do_queue_handling(response_cache)
+        loop_persistent_data, response_cache = do_queue_handling(loop_persistent_data, response_cache)
     else:
         print("skipping asks, queue, drafts until we're no longer rate limited")
         print(relevant_ratelimit_data)

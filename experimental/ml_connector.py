@@ -1,3 +1,8 @@
+from autoresponder_config import *
+from autoresponder_static import *
+from autoresponder_static_v8 import *
+
+
 def finalize_prompt_for_neural(
     prompt,
     override_disable_forumlike=False,
@@ -26,12 +31,7 @@ class MLModelInterface:
         raise NotImplementedError
 
     def do(self, method, *args, **kwargs):
-        data = {
-            "model": self.name,
-            "method": method,
-            "args": args,
-            "kwargs": kwargs
-        }
+        data = {"model": self.name, "method": method, "args": args, "kwargs": kwargs}
         new_id = bridge_service_unique_id(bridge_service_url, data)
 
         data_to_send = dict()
@@ -45,7 +45,7 @@ class MLModelInterface:
 
 class GeneratorModelInterface(MLModelInterface):
     def __init__(self):
-        raise self.name = "generator"
+        self.name = "generator"
 
     def write(self, *args, **kwargs):
         return self.do("write", *args, **kwargs)
@@ -61,7 +61,7 @@ class SideJudgmentModelInterface(MLModelInterface):
     def predict_proba(self, *args, **kwargs):
         return self.do("predict_proba", *args, **kwargs)
 
-    def _predict(self,  *args, **kwargs):
+    def _predict(self, *args, **kwargs):
         return self.do("_predict", *args, **kwargs)
 
 
@@ -79,6 +79,7 @@ def request_prompted_continuation(
         mirotarg = np.random.choice(MIRO_TARGET_ALL)
 
     return generator_model.write(prompt, mirotarg=mirotarg, verbose=verbose)
+
 
 def parse_continuation(continuation: str, verbose=True, wrap=False):
     if verbose:
@@ -208,9 +209,11 @@ def basic_n_continuations(
 
     while len(continuations) < N:
         time.sleep(1)
-        response = requests.post(bridge_service_url + "/getresult", data={"id": bridge_id}).json()
+        response = requests.post(
+            bridge_service_url + "/getresult", data={"id": bridge_id}
+        ).json()
 
-        this_batch_continuations = response["result"][len(continuations):]
+        this_batch_continuations = response["result"][len(continuations) :]
 
         for c in this_batch_continuations:
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
@@ -304,6 +307,7 @@ def show_note_probas(texts, probas, sentiment_logit_diffs=None, console_width=11
             print("\n".join(wrap(tpe, replace_whitespace=False, width=console_width)))
             print("\n~_~_~_~_~_\n")
 
+
 def predict_select(data, debug=False, override_disable_forumlike=False):
     selector_input = []
     for text in data.selector_input:
@@ -336,7 +340,9 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
     response = None
     while response is None:
         time.sleep(1)
-        response = requests.post(bridge_service_url + "/getresult", data={"id": bridge_id}).json()
+        response = requests.post(
+            bridge_service_url + "/getresult", data={"id": bridge_id}
+        ).json()
 
     result = response["result"]
     probs = result[:, 1]
@@ -373,7 +379,9 @@ def predict_sentiment(data, debug=False):
     response = None
     while response is None:
         time.sleep(1)
-        response = requests.post(bridge_service_url + "/getresult", data={"id": bridge_id}).json()
+        response = requests.post(
+            bridge_service_url + "/getresult", data={"id": bridge_id}
+        ).json()
 
     logits = response["result"]
 
@@ -408,6 +416,7 @@ def _make_alt_timestamps(v10_timestamp):
         for month in months:
             alts.append(v10_timestamp.replace("January", month).replace("2021", year))
     return alts
+
 
 def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
     if ts is None:

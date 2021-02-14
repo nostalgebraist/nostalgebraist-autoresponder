@@ -149,9 +149,6 @@ HALLOWEEN_2K20_BEHAVIOR_TESTING = False
 FIC_TRIGGER = True
 FIC_TRIGGER_TESTING = False
 
-DO_FAKE_V10_YEAR_MONTH = False
-FAKE_V10_YEAR_MONTH = "December 2020"
-
 IMAGE_CREATION = True
 IMAGE_CREATION_TESTING = False
 
@@ -873,7 +870,9 @@ def respond_to_reblogs_replies(
                 "mood": determine_mood(response_cache),
                 "return_all_conts": int(halloweenize),
                 "selector_cut_to_final_exchange": 1,  # int(is_reply),
-            }
+            },
+            loop_persistent_data=loop_persistent_data,
+            BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
         )
         loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
 
@@ -1964,7 +1963,9 @@ def handle_review_command(
             "write_fic_override": 0,
             "write_review_override": 1,
         },
+        loop_persistent_data=loop_persistent_data,
         no_timestamp=True,
+        BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
     )
     loop_persistent_data.side_judgment_cache = SideJudgementCache.load()
 
@@ -2175,7 +2176,9 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     "mood": determine_mood(response_cache),
                     "forced_tags_string": forced_tags_string,
                     "write_fic_override": write_fic_override,
-                }
+                },
+                loop_persistent_data=loop_persistent_data,
+                BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG
             )
             loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
 
@@ -2222,6 +2225,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
                 loop_persistent_data=loop_persistent_data,
                 mood=mood_for_queue_writing,
                 ts=dt,
+                BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
             )
 
             log_data = gpt2_output

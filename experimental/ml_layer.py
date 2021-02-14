@@ -197,7 +197,7 @@ def poll(
     for port, route in zip(ports, routes):
         r = requests.post(
             f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
-            json={"results": RESULT_STACK if not dummy else {}},
+            json=RESULT_STACK if not dummy else {},
         )
 
         PROMPT_STACK = r.json()
@@ -276,7 +276,7 @@ def poll(
         if len(PROMPT_STACK) > 0:
             r = requests.post(
                 f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
-                json={"results": RESULT_STACK if not dummy else {}},
+                json=RESULT_STACK if not dummy else {},
             )
             time.sleep(1)
 

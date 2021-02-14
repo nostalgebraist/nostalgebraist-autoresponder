@@ -17,7 +17,6 @@ import time
 from tqdm import tqdm
 
 from bot_config import BotSpecificConstants
-from side_judgments import SideJudgmentCache, SELECT_VIA_GENERATOR
 from image_analysis import IMAGE_DELIMITER_WHITESPACED
 
 Q_CHAR = "会"
@@ -326,18 +325,7 @@ def serve_selection(
         selection_proba_screened = selection_proba
         retained_mirotarg = mirotarg
 
-    if SELECT_VIA_GENERATOR:
-        proba = np.asarray(selection_proba_screened)
-    else:
-        proba = wrapped.predict_proba([s.lstrip("翰") for s in continuations_screened])[
-            :, 1
-        ]
-        show_note_probas(
-            continuations_screened,
-            proba,
-            continuation_sentiments,
-            other_proba=selection_proba_screened,
-        )
+    proba = np.asarray(selection_proba_screened)
 
     if strategy == "argmax":
         choice_ix = proba.argmax()

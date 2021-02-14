@@ -71,6 +71,8 @@ def pollml():
                 RESULT_STACK[id_][k] = []
             RESULT_STACK[id_][k].append(data[id_][k])
 
+    print(f"RESULT_STACK: {RESULT_STACK}")
+
     return jsonify(PROMPT_STACK)
 
 
@@ -406,15 +408,18 @@ def getresult():
     response = {"done": False, "result": ""}
 
     desired_id = request.form["id"]
+    print(f"desired_id: {desired_id}")
+    if len(RESULT_STACK) > 0:
+        print(f"have: {list(RESULT_STACK.keys())}")
 
     if desired_id in GENERATION_RESULT_STACK:
         if GENERATION_RESULT_STACK[desired_id]["done"]:
             response["done"] = True
-            response["result"] = GENERATION_RESULT_STACK.pop(desired_id)
+            response["result"] = GENERATION_RESULT_STACK[desired_id]
         print(f"got result for {desired_id}")
     elif desired_id in RESULT_STACK:
         response["done"] = True
-        response["result"] = RESULT_STACK.pop(desired_id)
+        response["result"] = RESULT_STACK[desired_id]
         print(f"got result for {desired_id}")
 
     return jsonify(response)

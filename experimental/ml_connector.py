@@ -1,4 +1,9 @@
 import time
+import uuid
+import re
+from textwrap import wrap, fill
+from datetime import datetime
+from string import whitespace
 
 import requests
 import numpy as np
@@ -10,9 +15,57 @@ from autoresponder_static_v8 import *
 
 from bridge_shared import bridge_service_unique_id
 from bot_config import BotSpecificConstants
+from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
+from selector import serve_selection
 
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_url = bot_specific_constants.bridge_service_url
+
+TRADE_QUALITY_FOR_SPEED = False
+
+logit_diff_sample_series = load_logit_diff_sample()
+EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
+
+# note to self: trying to be more random about textposts / use retention_stack less
+# to give the selector more training signal
+#
+# interventions:
+#   - fewer candidates
+#   - higher eps in eps_greedy
+#   - higher retention_stack proba cutoff (to the point that the stack is usu. small)
+TEXTPOST_N_CANDIDATES_TARGET = 15 if (not TRADE_QUALITY_FOR_SPEED) else 12
+# TEXTPOST_N_CANDIDATES_TARGET = 20 if (not TRADE_QUALITY_FOR_SPEED) else 18
+
+Q_CHAR = "会"
+A_CHAR = "域"
+T_CHAR = "职"
+
+UNAME_CHAR = "友"
+ORIG_POST_CHAR = "翰"
+
+AB_TEST_SELECTOR = True
+AB_TEST_A_SEQUENCE = "\uFFF9"
+AB_TEST_B_SEQUENCE = "\uFFF9\uFFFA\uFFFB"
+
+PROMPT_STACK = {}
+RESULT_STACK = {}
+
+GENERATION_RESULT_STACK = {}
+
+# GENERATIONS_PER_REQUEST = 1
+
+DO_FAKE_V10_YEAR_MONTH = False
+FAKE_V10_YEAR_MONTH = "December 2020"
+
+if V10:
+    CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V10"]
+else:
+    CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V9"]
+
+if FORUMLIKE:
+    ORIG_POST_CHAR = CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
+else:
+    ORIG_POST_CHAR = ORIG_POST_CHAR_CHINESE
 
 
 def finalize_prompt_for_neural(
@@ -224,8 +277,15 @@ def basic_n_continuations(
         response = requests.post(
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
+        # print(f"raw response: {repr(response)}")
+        if not response["done"]:
+            continue
 
-        this_batch_continuations = response["result"][len(continuations) :]
+        print(f"have {len(continuations)} of {N}")
+        result = [entry[0] for entry in response["result"]["result"]]
+        this_batch_continuations = result[len(continuations) :]
+        print(f"result: {repr(result)}")
+        print(f"this_batch_continuations: {repr(this_batch_continuations)}")
 
         for c in this_batch_continuations:
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
@@ -278,11 +338,11 @@ def basic_n_continuations(
                 continuations.append(c)
                 continuation_side_data.append({"mirotarg": mirotarg})
 
-    r = requests.post(bridge_service_url + "/done", data={"id": bridge_id})
+    r = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
     print(r.json())
 
     bridge_id = generator_model.done_writing(prompt)
-    requests.post(bridge_service_url + "/done", data={"id": bridge_id})
+    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
     print(r.json())
 
     continuations_ = []
@@ -360,10 +420,11 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
 
-    rdone = requests.post(bridge_service_url + "/done", data={"id": bridge_id})
+    rdone = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
     print(rdone.json())
 
-    result = response["result"]
+    # print(f"raw response: {repr(response)}")
+    result = np.array(response["result"]["result"][0])
     probs = result[:, 1]
     return probs
 
@@ -393,6 +454,8 @@ def predict_sentiment(data, debug=False):
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
 
+    data = data.to_dict(orient="records")
+
     bridge_id = sentiment_est._predict(data, key="logits")
 
     response = {"done": False}
@@ -402,10 +465,10 @@ def predict_sentiment(data, debug=False):
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
 
-    rdone = requests.post(bridge_service_url + "/done", data={"id": bridge_id})
+    rdone = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
     print(rdone.json())
 
-    logits = response["result"]
+    logits = np.array(response["result"]["result"][0])
 
     logit_diffs = logits[:, 1:] - logits[:, :1]
 
@@ -440,7 +503,7 @@ def _make_alt_timestamps(v10_timestamp):
     return alts
 
 
-def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
+def answer_from_gpt2_service(data: dict, loop_persistent_data, ts=None, no_timestamp=False, BEAMSPLIT_TESTING_FLAG=False):
     if ts is None:
         ts = datetime.now()
     data["v8_timestamp"] = timestamp_to_v8_format(ts)
@@ -459,7 +522,7 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
     result_generator = old_bridge_call__answer(data=data)
 
     result, _, _ = serve_selection(
-        data=result_generator, side_judgment_cache=side_judgment_cache
+        data=result_generator, side_judgment_cache=loop_persistent_data.side_judgment_cache
     )
 
     # for logging, add any input fields that didn't make the round trip
@@ -471,7 +534,7 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
     return result
 
 
-def text_post_from_gpt2_service(loop_persistent_data, mood=None, ts=None):
+def text_post_from_gpt2_service(loop_persistent_data, mood=None, ts=None, BEAMSPLIT_TESTING_FLAG=False):
     data = {"mood": mood}
 
     if ts is None:
@@ -555,7 +618,6 @@ def old_bridge_call__answer(data):
     global PROMPT_STACK
 
     prompt = data["question"]
-    new_id = data["id"]
     mood = data.get("mood")
     exact_prompt = data.get("exact_prompt", False)
     v8_timestamp = data.get("v8_timestamp", "")
@@ -616,8 +678,6 @@ def old_bridge_call__answer(data):
     kwargs["best_of"] += discounted_extra_best_of
     print(f"discounting to {discounted_extra_best_of} --> best_of={kwargs['best_of']}")
 
-    if any([d.get("base_id") == new_id for d in PROMPT_STACK.values()]):
-        return jsonify({"collision": True})
     kwargs["strategy"] = "proportional_winnowed"
     kwargs["avoid_if_under"] = 10
     if kwargs["write_fic_override"]:
@@ -643,14 +703,15 @@ def old_bridge_call__answer(data):
         "type": "answer",
         "prompt": prompt,
         "kwargs": kwargs,
-        "base_id": new_id,
         "v8_timestamp": v8_timestamp,
         "v10_timestamp": v10_timestamp,
     }
     PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"][
         "best_of"
     ]
-    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = GENERATIONS_PER_REQUEST
+    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = PROMPT_STACK[generation_id]["kwargs"][
+        "best_of"
+    ]
     print(
         f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
     )
@@ -660,7 +721,6 @@ def old_bridge_call__answer(data):
 def old_bridge_call__textpost(data):
     global PROMPT_STACK
 
-    new_id = data["id"]
     mood = data.get("mood")
     v8_timestamp = data.get("v8_timestamp", "")
     v10_timestamp = data.get("v10_timestamp", "")
@@ -676,8 +736,6 @@ def old_bridge_call__textpost(data):
         "return_all_conts": return_all_conts,
     }
 
-    if any([d.get("base_id") == new_id for d in PROMPT_STACK.values()]):
-        return jsonify({"collision": True})
     kwargs["strategy"] = "proportional"
     kwargs["avoid_if_under"] = 20
     kwargs["avoid_half_if_under"] = 40
@@ -729,14 +787,15 @@ def old_bridge_call__textpost(data):
     PROMPT_STACK[generation_id] = {
         "type": "textpost",
         "kwargs": kwargs,
-        "base_id": new_id,
         "v8_timestamp": v8_timestamp,
         "v10_timestamp": v10_timestamp,
     }
     PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"][
         "best_of"
     ]
-    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = GENERATIONS_PER_REQUEST
+    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = PROMPT_STACK[generation_id]["kwargs"][
+        "best_of"
+    ]
     print(
         f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
     )
@@ -860,11 +919,11 @@ def serve_answer(data):
     selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
     sentiment_results = predict_sentiment(selector_inputs, debug=True)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
-    show_note_probas(
-        continuations,
-        probas=parsed["selection_proba"],
-        sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
-    )
+    # show_note_probas(
+    #     continuations,
+    #     probas=parsed["selection_proba"],
+    #     sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
+    # )
 
     if GLOBAL_DEBUG:
         print(f"sending back: {parsed}")
@@ -952,11 +1011,11 @@ def serve_textpost(data):
     selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
     sentiment_results = predict_sentiment(selector_inputs, debug=True)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
-    show_note_probas(
-        continuations,
-        probas=parsed["selection_proba"],
-        sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
-    )
+    # show_note_probas(
+    #     continuations,
+    #     probas=parsed["selection_proba"],
+    #     sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
+    # )
 
     if GLOBAL_DEBUG:
         print(f"sending back: {parsed}")

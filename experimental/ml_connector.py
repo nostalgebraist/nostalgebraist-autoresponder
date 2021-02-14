@@ -1,3 +1,5 @@
+import time
+
 import requests
 import numpy as np
 import pandas as pd
@@ -7,6 +9,10 @@ from autoresponder_static import *
 from autoresponder_static_v8 import *
 
 from bridge_shared import bridge_service_unique_id
+from bot_config import BotSpecificConstants
+
+bot_specific_constants = BotSpecificConstants.load()
+bridge_service_url = bot_specific_constants.bridge_service_url
 
 
 def finalize_prompt_for_neural(
@@ -44,7 +50,7 @@ class MLModelInterface:
         data_to_send.update(data)
         data_to_send["id"] = new_id
 
-        requests.post(bridge_service_url + "/requestml", data=data_to_send)
+        requests.post(bridge_service_url + "/requestml", json=data_to_send)
 
         return new_id
 
@@ -342,6 +348,8 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
 
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
+
+    data = data.to_dict(orient="records")
 
     bridge_id = selector_est.predict_proba(data)
 

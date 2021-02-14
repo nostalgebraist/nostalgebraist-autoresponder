@@ -178,7 +178,6 @@ sentiment_est.length = length_sentiment
 lr_calib_sentiment = selector_est.lr_calib_
 
 
-
 def poll(
     dummy=False,
     ports=[
@@ -221,11 +220,17 @@ def poll(
 
             requested_method = data["method"]
             if not hasattr(requested_model, requested_model):
-                raise ValueError(f"requested_model {requested_model} has no method {requested_method}")
+                raise ValueError(
+                    f"requested_model {requested_model} has no method {requested_method}"
+                )
 
-            requested_args, requested_kwargs = data.get("args", []), data.get("kwargs", {})
+            requested_args, requested_kwargs = data.get("args", []), data.get(
+                "kwargs", {}
+            )
 
-            result = getattr(requested_model, requested_method)(*requested_args, **requested_kwargs)
+            result = getattr(requested_model, requested_method)(
+                *requested_args, **requested_kwargs
+            )
 
             if isinstance(result, np.array):
                 result = result.tolist()
@@ -287,9 +292,7 @@ def loop_poll(
     global RESULT_STACK
     while True:
         try:
-            poll(
-                dummy=dummy, ports=ports, routes=routes
-            )
+            poll(dummy=dummy, ports=ports, routes=routes)
         except Exception as e:
             print(f"{type(e)}: {e}")
             time.sleep(period * 10)

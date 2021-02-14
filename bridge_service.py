@@ -5,6 +5,7 @@ tumblr API compontents.
 import numpy as np
 import uuid
 from datetime import datetime
+from itertools import chain
 
 from flask import Flask, request, jsonify
 
@@ -447,6 +448,7 @@ def pollselector():
 
 @app.route("/getresult", methods=["POST"])
 def getresult():
+    global RESULT_STACK
     global GENERATION_RESULT_STACK
 
     response = {"done": False, "result": ""}
@@ -456,7 +458,11 @@ def getresult():
     if desired_id in GENERATION_RESULT_STACK:
         if GENERATION_RESULT_STACK[desired_id]["done"]:
             response["done"] = True
-            response["result"] = RESULT_STACK.pop(desired_id)
+            response["result"] = GENERATION_RESULT_STACK.pop(desired_id)
+        print(f"got result for {desired_id}")
+    elif desired_id in RESULT_STACK:
+        response["done"] = True
+        response["result"] = RESULT_STACK.pop(desired_id)
         print(f"got result for {desired_id}")
 
     return jsonify(response)

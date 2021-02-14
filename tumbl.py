@@ -2532,12 +2532,19 @@ def load_retention(side_judgment_cache):
     with open("data/retention_stack.pkl.gz", "rb") as f:
         retention_stack = pickle.load(f)
 
+    retention_stack = list(retention_stack)
+
+    print(f"loaded retention_stack:")
+    for t in retention_stack:
+        print("\t" + repr(t))
     ts = datetime.now()
     v10_timestamps = [timestamp_to_v10_format(ts) for _ in retention_stack]
 
-    retention_stack_proba = side_judgment_cache.query_multi(
-        retention_stack, v10_timestamps=v10_timestamps
-    )["selection_proba"]
+    retention_stack_side_judgments = side_judgment_cache.query_multi(
+        [ORIG_POST_CHAR + t for t in retention_stack],
+        v10_timestamps=v10_timestamps,
+    )
+    retention_stack_proba = [judg["selection_proba"] for judg in retention_stack_side_judgments]
 
     retention_stack, retention_stack_proba = apply_retention_cutoff(
         retention_stack, retention_stack_proba

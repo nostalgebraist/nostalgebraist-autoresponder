@@ -581,15 +581,13 @@ def old_bridge_call__answer(data):
 
 def old_bridge_call__textpost(data):
     global PROMPT_STACK
-    global RETENTION_STACK
-    global N_RETENTION
-    global RETENTION_PROBA_ID
 
     new_id = data["id"]
     mood = data.get("mood")
     v8_timestamp = data.get("v8_timestamp", "")
     v10_timestamp = data.get("v10_timestamp", "")
     return_all_conts = bool(int(data.get("return_all_conts", False)))
+    n_retention = int(data.get("n_retention"))
 
     kwargs = {
         "best_of": 10,
@@ -641,28 +639,13 @@ def old_bridge_call__textpost(data):
         f"discounting to {discounted_extra_best_of} --> n_candidates_target={n_candidates_target}"
     )
 
-    if N_RETENTION is not None:
-        n_candidates_target = max(0, n_candidates_target - N_RETENTION)
-        print(f"with {N_RETENTION} on stack, only need {n_candidates_target}")
-
-        if RETENTION_STACK is not None and RETENTION_PROBA_VIA_GENERATOR:
-            url = bridge_service_url + "/raw_select"
-            data = {"texts": RETENTION_STACK}
-            new_retention_proba_id = bridge_service_unique_id(url, data)
-
-            if new_retention_proba_id != RETENTION_PROBA_ID:
-                ts = datetime.now()
-                v10_timestamps = [timestamp_to_v10_format(ts) for _ in data["texts"]]
-                make_raw_select(
-                    data["texts"], new_retention_proba_id, v10_timestamps=v10_timestamps
-                )
-                if RETENTION_PROBA_ID in RESULT_STACK:
-                    RESULT_STACK.pop(RETENTION_PROBA_ID)
-                RETENTION_PROBA_ID = new_retention_proba_id
+    if n_retention is not None:
+        n_candidates_target = max(0, n_candidates_target - n_retention)
+        print(f"with {n_retention} on stack, only need {n_candidates_target}")
 
     kwargs["best_of"] = n_candidates_target
 
-    print(f"AB test: fork {fork}, N_RETENTION {N_RETENTION}, kwargs {kwargs}")
+    print(f"AB test: fork {fork}, n_retention {n_retention}, kwargs {kwargs}")
 
     generation_id = str(uuid.uuid4())
     PROMPT_STACK[generation_id] = {

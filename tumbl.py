@@ -370,6 +370,9 @@ def text_post_from_gpt2_service(loop_persistent_data, mood=None, ts=None):
 
     if BEAMSPLIT_TESTING_FLAG:
         data["na_beamsplit"] = True
+
+    data['n_retention'] = len(loop_persistent_data.retention_stack)
+
     new_id = bridge_service_unique_id(url, data)
 
     data_to_send = dict()

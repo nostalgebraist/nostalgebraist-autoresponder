@@ -55,10 +55,6 @@ RESULT_STACK = {}
 SELECTION_PROMPT_STACK = {}
 GENERATION_RESULT_STACK = {}
 
-RETENTION_STACK = None
-N_RETENTION = None
-RETENTION_PROBA_ID = None
-
 GENERATIONS_PER_REQUEST = 1
 
 ### FLASK
@@ -211,15 +207,13 @@ def answer():
 @app.route("/textpost", methods=["POST"])
 def textpost():
     global PROMPT_STACK
-    global RETENTION_STACK
-    global N_RETENTION
-    global RETENTION_PROBA_ID
 
     new_id = request.form["id"]
     mood = request.form.get("mood")
     v8_timestamp = request.form.get("v8_timestamp", "")
     v10_timestamp = request.form.get("v10_timestamp", "")
     return_all_conts = bool(int(request.form.get("return_all_conts", False)))
+    n_retention = request.form.get("n_retention")
 
     kwargs = {
         "best_of": 10,
@@ -271,28 +265,13 @@ def textpost():
         f"discounting to {discounted_extra_best_of} --> n_candidates_target={n_candidates_target}"
     )
 
-    if N_RETENTION is not None:
-        n_candidates_target = max(0, n_candidates_target - N_RETENTION)
-        print(f"with {N_RETENTION} on stack, only need {n_candidates_target}")
-
-        if RETENTION_STACK is not None and RETENTION_PROBA_VIA_GENERATOR:
-            url = bridge_service_url + "/raw_select"
-            data = {"texts": RETENTION_STACK}
-            new_retention_proba_id = bridge_service_unique_id(url, data)
-
-            if new_retention_proba_id != RETENTION_PROBA_ID:
-                ts = datetime.now()
-                v10_timestamps = [timestamp_to_v10_format(ts) for _ in data["texts"]]
-                make_raw_select(
-                    data["texts"], new_retention_proba_id, v10_timestamps=v10_timestamps
-                )
-                if RETENTION_PROBA_ID in RESULT_STACK:
-                    RESULT_STACK.pop(RETENTION_PROBA_ID)
-                RETENTION_PROBA_ID = new_retention_proba_id
+    if n_retention is not None:
+        n_candidates_target = max(0, n_candidates_target - n_retention)
+        print(f"with {n_retention} on stack, only need {n_candidates_target}")
 
     kwargs["best_of"] = n_candidates_target
 
-    print(f"AB test: fork {fork}, N_RETENTION {N_RETENTION}, kwargs {kwargs}")
+    print(f"AB test: fork {fork}, n_retention {n_retention}, kwargs {kwargs}")
 
     generation_id = str(uuid.uuid4())
     PROMPT_STACK[generation_id] = {
@@ -386,66 +365,6 @@ def pollgenerator():
         PROMPT_STACK.pop(result_id)
 
     return jsonify(PROMPT_STACK)
-
-
-@app.route("/pollselector", methods=["POST"])
-def pollselector():
-    global GENERATION_RESULT_STACK
-    global SELECTION_PROMPT_STACK
-    global RESULT_STACK
-    global RETENTION_STACK
-    global N_RETENTION
-    global RETENTION_PROBA_ID
-
-    transferred_ids = set()
-    for id_, result in GENERATION_RESULT_STACK.items():
-        if result.get("done"):
-            SELECTION_PROMPT_STACK[result["base_id"]] = result
-            transferred_ids.add(id_)
-
-    for id_ in transferred_ids:
-        GENERATION_RESULT_STACK.pop(id_)
-
-    posted_results = request.json["results"]
-    RETENTION_STACK = request.json.get("retention_stack")
-    if RETENTION_STACK is not None:
-        if RETENTION_STACK is not None and RETENTION_PROBA_VIA_GENERATOR:
-            url = bridge_service_url + "/raw_select"
-            data = {"texts": RETENTION_STACK}
-            new_retention_proba_id = bridge_service_unique_id(url, data)
-
-            if new_retention_proba_id != RETENTION_PROBA_ID:
-                ts = datetime.now()
-                v10_timestamps = [timestamp_to_v10_format(ts) for _ in data["texts"]]
-                make_raw_select(
-                    data["texts"], new_retention_proba_id, v10_timestamps=v10_timestamps
-                )
-                RETENTION_PROBA_ID = new_retention_proba_id
-
-        N_RETENTION = len(RETENTION_STACK)
-        print(f"N_RETENTION: {N_RETENTION}")
-    print(posted_results)
-
-    handled_ids = set()
-
-    for result_id, result in posted_results.items():
-        if result_id in SELECTION_PROMPT_STACK:
-            RESULT_STACK[result_id] = result
-            handled_ids.add(result_id)
-
-    for result_id in handled_ids:
-        SELECTION_PROMPT_STACK.pop(result_id)
-
-    RETENTION_STACK_PROBA = None
-    if RETENTION_PROBA_ID in RESULT_STACK:
-        RETENTION_STACK_PROBA = RESULT_STACK[RETENTION_PROBA_ID]["selection_proba"]
-
-    return jsonify(
-        {
-            "SELECTION_PROMPT_STACK": SELECTION_PROMPT_STACK,
-            "RETENTION_STACK_PROBA": RETENTION_STACK_PROBA,
-        }
-    )
 
 
 @app.route("/getresult", methods=["POST"])

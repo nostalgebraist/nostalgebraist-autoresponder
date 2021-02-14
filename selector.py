@@ -32,7 +32,7 @@ bot_specific_constants = BotSpecificConstants.load()
 selector_url = bot_specific_constants.bridge_service_url + "/pollselector"
 generator_url = bot_specific_constants.bridge_service_url + "/pollgenerator"
 
-RETENTION_STACK = {}
+retention_stack = {}
 RESULT_STACK = {}
 wrapped = None
 
@@ -54,12 +54,6 @@ REVIEW_COLDSTART_DELTA = 0.1
 IMAGE_COLDSTART_DELTA = 0.1
 
 WARN_ABOUT_LOST_KEYS = False
-
-
-def load_retention():
-    global RETENTION_STACK
-    with open("data/retention_stack.pkl.gz", "rb") as f:
-        RETENTION_STACK = pickle.load(f)
 
 
 def logit_diff(sentiment):
@@ -534,70 +528,68 @@ do_image_coldstart = partial(
 )
 
 
-def apply_retention_cutoff():
-    global RETENTION_STACK
-    global RETENTION_STACK_PROBA
-
+def apply_retention_cutoff(retention_stack, retention_stack_proba):
     if FIC_COLDSTART:
-        RETENTION_STACK_PROBA = do_fic_coldstart(
-            sorted(RETENTION_STACK),
-            RETENTION_STACK_PROBA,
+        retention_stack_proba = do_fic_coldstart(
+            sorted(retention_stack),
+            retention_stack_proba,
         )
 
     if REVIEW_COLDSTART:
-        RETENTION_STACK_PROBA = do_review_coldstart(
-            sorted(RETENTION_STACK),
-            RETENTION_STACK_PROBA,
+        retention_stack_proba = do_review_coldstart(
+            sorted(retention_stack),
+            retention_stack_proba,
         )
 
-    n_before_stack, n_before_proba = len(RETENTION_STACK), len(RETENTION_STACK_PROBA)
-    retain = [p > RETENTION_CUTOFF for p in RETENTION_STACK_PROBA]
+    n_before_stack, n_before_proba = len(retention_stack), len(retention_stack_proba)
+    retain = [p > RETENTION_CUTOFF for p in retention_stack_proba]
 
     if False in retain:
-        for s, p, r in zip(sorted(RETENTION_STACK), RETENTION_STACK_PROBA, retain):
+        for s, p, r in zip(sorted(retention_stack), retention_stack_proba, retain):
             if not r:
                 print(f"excluding, p={p:.1%}: {repr(s[:100])} [...]")
             else:
                 print(f"keeping, p={p:.1%}: {repr(s[:100])} [...]")
 
-    new_stack = [s for s, r in zip(sorted(RETENTION_STACK), retain) if r]
-    new_proba = [p for p, r in zip(RETENTION_STACK_PROBA, retain) if r]
+    new_stack = [s for s, r in zip(sorted(retention_stack), retain) if r]
+    new_proba = [p for p, r in zip(retention_stack_proba, retain) if r]
 
-    RETENTION_STACK = set(new_stack)
-    RETENTION_STACK_PROBA = new_proba
+    retention_stack = set(new_stack)
+    retention_stack_proba = new_proba
 
-    n_after_stack, n_after_proba = len(RETENTION_STACK), len(RETENTION_STACK_PROBA)
+    n_after_stack, n_after_proba = len(retention_stack), len(retention_stack_proba)
 
     all_unchanged = (n_before_stack == n_after_stack) and (
         n_before_proba == n_after_proba
     )
     if not all_unchanged:
         print(
-            f"before: {n_before_stack} in RETENTION_STACK, {n_before_proba} in RETENTION_STACK_PROBA"
+            f"before: {n_before_stack} in retention_stack, {n_before_proba} in retention_stack_proba"
         )
         print(
-            f"after: {n_after_stack} in RETENTION_STACK, {n_after_proba} in RETENTION_STACK_PROBA"
+            f"after: {n_after_stack} in retention_stack, {n_after_proba} in retention_stack_proba"
         )
+    return retention_stack, retention_stack_proba
 
 
 def poll():
     global RESULT_STACK
-    global RETENTION_STACK
-    global RETENTION_STACK_PROBA
+    global retention_stack
+    global retention_stack_proba
 
     r = requests.post(
         selector_url,
         json={
             "results": RESULT_STACK,
-            "retention_stack": sorted(RETENTION_STACK),
+            "retention_stack": sorted(retention_stack),
         },
     )
 
     received_data = r.json()
     PROMPT_STACK = received_data["SELECTION_PROMPT_STACK"]
-    RETENTION_STACK_PROBA = received_data["RETENTION_STACK_PROBA"]
+    retention_stack_proba = received_data["retention_stack_proba"]
 
-    if ENFORCE_RETENTION_CUTOFF and RETENTION_STACK_PROBA is not None:
+    if ENFORCE_RETENTION_CUTOFF and retention_stack_proba is not None:
         apply_retention_cutoff()
 
     RESULT_STACK = {
@@ -617,7 +609,7 @@ def poll():
     if len(RESULT_STACK) > 0:
         requests.post(
             selector_url,
-            json={"results": RESULT_STACK, "n_retention": len(RETENTION_STACK)},
+            json={"results": RESULT_STACK, "n_retention": len(retention_stack)},
         )
 
     if len(PROMPT_STACK) > 0 and not data.get("raw_selection_request", False):
@@ -637,7 +629,7 @@ def loop_poll(period=60):
 
 def selector_main_loop():
     global RESULT_STACK
-    global RETENTION_STACK
+    global retention_stack
 
     load_retention()
     if not SELECT_VIA_GENERATOR:

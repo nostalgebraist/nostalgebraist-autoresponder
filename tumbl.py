@@ -44,7 +44,7 @@ from mood_dynamic import (
 
 from munging_shared import *
 from bridge_shared import bridge_service_unique_id, wait_for_result
-from selector import serve_selection
+from selector import serve_selection, apply_retention_cutoff
 
 from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 
@@ -2535,6 +2535,8 @@ def load_retention(side_judgment_cache):
     retention_stack_proba = side_judgment_cache.query_multi(
         retention_stack, v10_timestamps=v10_timestamps
     )['selection_proba']
+
+    retention_stack, retention_stack_proba = apply_retention_cutoff(retention_stack, retention_stack_proba)
 
     return retention_stack, retention_stack_proba
 

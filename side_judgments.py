@@ -7,7 +7,7 @@ from string import whitespace
 from datetime import datetime, timedelta
 
 from mood import logit_diff_to_pos_sent
-from bridge_shared import side_judgments_from_gpt2_service
+from experimental.ml_connector import side_judgments_from_gpt2_service
 
 SELECT_VIA_GENERATOR = True
 SENTIMENT_VIA_GENERATOR = True

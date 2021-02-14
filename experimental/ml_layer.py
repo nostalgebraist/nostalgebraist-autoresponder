@@ -186,7 +186,7 @@ def poll(
         bridge_service_port,
     ],
     routes=[
-        "pollgenerator",
+        "pollml",
     ],
 ):
     global RESULT_STACK

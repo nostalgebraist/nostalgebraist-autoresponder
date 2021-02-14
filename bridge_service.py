@@ -62,7 +62,7 @@ def pollml():
     global PROMPT_STACK
     global RESULT_STACK
 
-    data = request.json()
+    data = request.json
     for id_ in data.keys():
         if id_ not in RESULT_STACK:
             RESULT_STACK[id_] = {}
@@ -71,13 +71,35 @@ def pollml():
                 RESULT_STACK[id_][k] = []
             RESULT_STACK[id_][k].append(data[id_][k])
 
+    return jsonify(PROMPT_STACK)
+
 
 @app.route("/requestml", methods=["POST"])
 def requestml():
     global PROMPT_STACK
 
-    data = request.json()
+    data = request.json
     PROMPT_STACK[data["id"]] = data
+
+    return jsonify({})
+
+
+@app.route("/done", methods=["POST"])
+def done():
+    global PROMPT_STACK
+    global RESULT_STACK
+
+    cleared_from = []
+
+    data = request.json
+    if data["id"] in PROMPT_STACK:
+        del PROMPT_STACK[data["id"]]
+        cleared_from.append("PROMPT_STACK")
+    if data["id"] in RESULT_STACK:
+        del RESULT_STACK[data["id"]]
+        cleared_from.append("RESULT_STACK")
+
+    return jsonify({"cleared_from": cleared_from})
 
 
 def make_raw_select(texts, new_id, v8_timestamps=None, v10_timestamps=None):

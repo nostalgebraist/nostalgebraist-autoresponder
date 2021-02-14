@@ -1,6 +1,12 @@
+import requests
+import numpy as np
+import pandas as pd
+
 from autoresponder_config import *
 from autoresponder_static import *
 from autoresponder_static_v8 import *
+
+from bridge_shared import bridge_service_unique_id
 
 
 def finalize_prompt_for_neural(
@@ -266,10 +272,12 @@ def basic_n_continuations(
                 continuations.append(c)
                 continuation_side_data.append({"mirotarg": mirotarg})
 
-    requests.post(bridge_service_url + "/done", data={"id": bridge_id})
+    r = requests.post(bridge_service_url + "/done", data={"id": bridge_id})
+    print(r.json())
 
     bridge_id = generator_model.done_writing(prompt)
     requests.post(bridge_service_url + "/done", data={"id": bridge_id})
+    print(r.json())
 
     continuations_ = []
     for continuation in continuations:
@@ -337,12 +345,15 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
 
     bridge_id = selector_est.predict_proba(data)
 
-    response = None
-    while response is None:
+    response = {"done": False}
+    while not response["done"]:
         time.sleep(1)
         response = requests.post(
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
+
+    rdone = requests.post(bridge_service_url + "/done", data={"id": bridge_id})
+    print(rdone.json())
 
     result = response["result"]
     probs = result[:, 1]
@@ -376,12 +387,15 @@ def predict_sentiment(data, debug=False):
 
     bridge_id = sentiment_est._predict(data, key="logits")
 
-    response = None
-    while response is None:
+    response = {"done": False}
+    while not response["done"]:
         time.sleep(1)
         response = requests.post(
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
+
+    rdone = requests.post(bridge_service_url + "/done", data={"id": bridge_id})
+    print(rdone.json())
 
     logits = response["result"]
 
@@ -515,21 +529,18 @@ def side_judgments_from_gpt2_service(
 
 
 def old_bridge_call__raw_select(data):
-    global PROMPT_STACK
-
     texts = data["texts"]
-    new_id = data["id"]
     v8_timestamps = data.get("v8_timestamps", None)
     v10_timestamps = data.get("v10_timestamps", None)
 
-    PROMPT_STACK[new_id] = {"texts": texts, "type": "raw_select"}
+    data_to_pass_on = {"texts": texts, "type": "raw_select"}
     if v8_timestamps is not None:
-        PROMPT_STACK[new_id]["v8_timestamp"] = v8_timestamps[0]  # TODO: make not weird
+        data_to_pass_on["v8_timestamp"] = v8_timestamps[0]  # TODO: make not weird
     if v10_timestamps is not None:
-        PROMPT_STACK[new_id]["v10_timestamp"] = v10_timestamps[
+        data_to_pass_on["v10_timestamp"] = v10_timestamps[
             0
         ]  # TODO: make not weird
-    return serve_raw_select(PROMPT_STACK[new_id])
+    return serve_raw_select(data_to_pass_on)
 
 
 def old_bridge_call__answer(data):

@@ -68,14 +68,6 @@ def pos_sent(sentiment):
     return sentiment["prob"] if sentiment["label"] == "1" else 1.0 - sentiment["prob"]
 
 
-def show_note_preds(texts, preds):
-    for tpe, pred in zip(texts, preds):
-        print(f"\tpredicted notes: {pred:.1f}\n")
-        print("\n~_~_~_~_~_\n")
-        print("\n".join(wrap(tpe)))
-        print("\n~_~_~_~_~_\n")
-
-
 def show_note_probas(texts, probas, continuation_sentiments=None, other_proba=None):
     if continuation_sentiments is None:
         sent_segments = ["" for _ in texts]
@@ -136,9 +128,7 @@ def parse_continuation(continuation: str, verbose=True):
             tags = fic_tags + tags
             post = post[: post.index("#original fiction")]
 
-    post = post.lstrip(
-        ORIG_POST_CHAR
-    )  # TODO: fix this in get_prompted_continuation_with_length_proportional_sampling
+    post = post.lstrip(ORIG_POST_CHAR)
     parsed = {"post": post, "tags": tags}
     return parsed
 
@@ -248,56 +238,6 @@ def sentiment_screen(
         all_continuation_sentiments,
         retained_mirotarg,
     )
-
-
-def sentiment_screen_legacy(proba, continuations, mood):
-    continuation_sentiments = get_continuation_sentiments(continuations)
-
-    score_fn = mood["score_fn"]
-    if score_fn == "logit_diff":
-        scores = np.asarray(
-            [logit_diff(sentiment) for sentiment in continuation_sentiments]
-        )
-    elif score_fn == "pos_sentiment":
-        scores = np.asarray(
-            [pos_sent(sentiment) for sentiment in continuation_sentiments]
-        )
-    else:
-        raise ValueError(f"score_fn {score_fn} not understood")
-
-    proba_ = proba.copy()
-    exclusion_mask = np.zeros_like(proba, dtype=bool)
-
-    min_allowed_score = mood["min_allowed_score"]
-    max_allowed_score = mood["max_allowed_score"]
-
-    print(f"proba: {proba}\nscores: {scores}\n")
-
-    if (scores >= min_allowed_score).any():
-        exclude_lower = scores < min_allowed_score
-        print(
-            f"excluding {exclude_lower.sum()} of {len(proba)} with {score_fn}<{min_allowed_score}"
-        )
-        exclusion_mask[exclude_lower] = True
-    else:
-        print(
-            f"couldn't find any with {score_fn}>={min_allowed_score}, highest is {scores.max()}"
-        )
-
-    if (scores <= max_allowed_score).any():
-        exclude_upper = scores > max_allowed_score
-        print(
-            f"excluding {exclude_upper.sum()} of {len(proba)} with {score_fn}>{max_allowed_score}"
-        )
-        exclusion_mask[exclude_upper] = True
-    else:
-        print(
-            f"couldn't find any with {score_fn}<={max_allowed_score}, lowest is {scores.min()}"
-        )
-
-    proba_[exclusion_mask] = 0
-
-    return proba_, continuation_sentiments
 
 
 def record_side_judgements(
@@ -493,19 +433,6 @@ def serve_selection(
     return parsed, retention_stack, retention_stack_proba
 
 
-def select_one(data):
-    global wrapped
-    texts = data["texts"]
-
-    proba = wrapped.predict_proba([s.lstrip("翰") for s in texts])[:, 1]
-
-    selection_proba = [float(p) for p in proba]
-    results = {"selection_proba": selection_proba}
-
-    print(f"sending back: {results}")
-    return results
-
-
 def do_coldstart(continuations, selection_proba, substring, delta):
     selection_proba_ = []
     for c, p in zip(continuations, selection_proba):
@@ -569,73 +496,3 @@ def apply_retention_cutoff(retention_stack, retention_stack_proba):
             f"after: {n_after_stack} in retention_stack, {n_after_proba} in retention_stack_proba"
         )
     return retention_stack, retention_stack_proba
-
-
-def poll():
-    global RESULT_STACK
-    global retention_stack
-    global retention_stack_proba
-
-    r = requests.post(
-        selector_url,
-        json={
-            "results": RESULT_STACK,
-            "retention_stack": sorted(retention_stack),
-        },
-    )
-
-    received_data = r.json()
-    PROMPT_STACK = received_data["SELECTION_PROMPT_STACK"]
-    retention_stack_proba = received_data["retention_stack_proba"]
-
-    if ENFORCE_RETENTION_CUTOFF and retention_stack_proba is not None:
-        apply_retention_cutoff()
-
-    RESULT_STACK = {
-        k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK
-    }  # clean out already used results
-
-    if len(PROMPT_STACK) > 0:
-        print(f"got prompt stack: {PROMPT_STACK}")
-
-    for prompt_id, data in PROMPT_STACK.items():
-        print("selecting...")
-        if data.get("raw_selection_request", False):
-            RESULT_STACK[prompt_id] = select_one(data)
-        else:
-            RESULT_STACK[prompt_id] = serve_selection(data)
-
-    if len(RESULT_STACK) > 0:
-        requests.post(
-            selector_url,
-            json={"results": RESULT_STACK, "n_retention": len(retention_stack)},
-        )
-
-    if len(PROMPT_STACK) > 0 and not data.get("raw_selection_request", False):
-        r = requests.post(generator_url, json={"results": RESULT_STACK})
-        time.sleep(1)
-
-
-def loop_poll(period=60):
-    while True:
-        try:
-            poll()
-        except Exception as e:
-            print(f"{type(e)}: {e}")
-            time.sleep(period * 10)
-        time.sleep(period)
-
-
-def selector_main_loop():
-    global RESULT_STACK
-    global retention_stack
-
-    load_retention()
-    if not SELECT_VIA_GENERATOR:
-        raise ValueError("SELECT_VIA_GENERATOR=False is no longer implemented")
-
-    loop_poll(period=5)
-
-
-if __name__ == "__main__":
-    sys.exit(selector_main_loop())

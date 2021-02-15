@@ -107,6 +107,8 @@ def alldone():
     PROMPT_STACK = {}
     RESULT_STACK = {}
 
+    return jsonify({})
+
 
 @app.route("/getresult", methods=["POST"])
 def getresult():

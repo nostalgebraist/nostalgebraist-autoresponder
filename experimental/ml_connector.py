@@ -299,8 +299,7 @@ def basic_n_continuations(
             write_fic_override=write_fic_override,
         )
 
-        if GLOBAL_DEBUG:
-            print(f"in basic_n_continuations, using prompt: {repr(prompt)}")
+        print(f"neural model will see:\n\n{repr(prompt)}")
 
         bridge_id = request_prompted_continuation(
             prompt,
@@ -882,10 +881,6 @@ def old_bridge_call__textpost(data):
 
 
 def serve_answer(data):
-    print("\n------------\n")
-    print("serving answer for\n")
-    for k, v in data.items():
-        print(f"\t{k}: {v}")
     print("\n------------\n")
     prompt = data["prompt"].rstrip(whitespace)
 

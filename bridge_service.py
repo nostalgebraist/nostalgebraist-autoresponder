@@ -119,7 +119,7 @@ def getresult():
     if desired_id in RESULT_STACK:
         response = RESULT_STACK[desired_id]
     else:
-        print(f"desired_id: {desired_id} not available, have ids {list(RESULT_STACK.keys())}")
+        # print(f"desired_id: {desired_id} not available, have ids {list(RESULT_STACK.keys())}")
         response = []
 
     return jsonify(response)

@@ -2562,6 +2562,7 @@ if __name__ == "__main__":
         side_judgment_cache=side_judgment_cache,
         image_analysis_cache=image_analysis_cache,
         retention_stack=retention_stack,
+        retention_stack_proba=retention_stack_proba,
     )
 
     while True:

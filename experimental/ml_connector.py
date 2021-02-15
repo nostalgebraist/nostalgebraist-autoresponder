@@ -341,10 +341,15 @@ def basic_n_continuations(
 
         n_batches_so_far = len(batches_written)
 
-        def _tabfill(s, ntab=2, **kwargs):
+        def _tabfill(s, ntab=2, escape=True, **kwargs):
+            kwargs_ = {"width": 80}
+            kwargs_.update(kwargs)
+
             tabs = ntab * '\t'
             sep = '\n' + tabs
-            return sep + sep.join(wrap(c, **kwargs))
+            c_ = c.encode('unicode_escape').decode() if escape else c
+
+            return sep + sep.join(wrap(c_, **kwargs_))
 
         for c, pr in zip(this_batch_continuations, this_batch_prompts):
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):

@@ -18,7 +18,6 @@ from bridge_shared import bridge_service_unique_id
 from bot_config import BotSpecificConstants
 from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
 from selector import serve_selection
-from util.error_handling import LogExceptionAndSkip
 
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_url = bot_specific_constants.bridge_service_url
@@ -254,9 +253,9 @@ def basic_n_continuations(
         raw_prompts, overrides, probs = get_textpost_prompts()
         prompts = []
         for p, o in zip(raw_prompts, overrides):
-            v8_timestamp = o.get("v8_timestamp", v8_timestamp)
-            v10_timestamp = o.get("v10_timestamp", v10_timestamp)
-            relevant_timestamp = v10_timestamp if V10 else v8_timestamp
+            this_v8_timestamp = o.get("v8_timestamp", v8_timestamp)
+            this_v10_timestamp = o.get("v10_timestamp", v10_timestamp)
+            relevant_timestamp = this_v10_timestamp if V10 else this_v8_timestamp
 
             ts_string = format_segment_v8_time(
                 relevant_timestamp, control_seg_config=CONTROL_SEG_CONFIG
@@ -283,6 +282,9 @@ def basic_n_continuations(
             )
             prompts.append(prompt)
 
+        print(f"formed prompts:")
+        for _p in prompts:
+            print(repr(_p))
         bridge_id = request_prompted_continuation_random_prompt(
             prompts,
             probs,

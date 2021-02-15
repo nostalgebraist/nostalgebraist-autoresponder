@@ -37,4 +37,4 @@ def wait_for_result(new_id, wait_first_time=40, wait_recheck_time=5):
 
 
 def send_alldone():
-    requests.post(bridge_service_url + "/send_alldone")
+    requests.post(bridge_service_url + "/alldone")

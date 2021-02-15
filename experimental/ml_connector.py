@@ -14,7 +14,7 @@ from autoresponder_config import *
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
-from bridge_shared import bridge_service_unique_id, send_alldone
+from bridge_shared import bridge_service_unique_id
 from bot_config import BotSpecificConstants
 from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
 from selector import serve_selection
@@ -584,12 +584,11 @@ def answer_from_gpt2_service(data: dict, loop_persistent_data, ts=None, no_times
     if BEAMSPLIT_TESTING_FLAG:
         data["na_beamsplit"] = True
 
-    with LogExceptionAndSkip(name="write answer", cleanup_fn=send_alldone):
-        result_generator = old_bridge_call__answer(data=data)
+    result_generator = old_bridge_call__answer(data=data)
 
-        result, _, _ = serve_selection(
-            data=result_generator, side_judgment_cache=loop_persistent_data.side_judgment_cache
-        )
+    result, _, _ = serve_selection(
+        data=result_generator, side_judgment_cache=loop_persistent_data.side_judgment_cache
+    )
 
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
@@ -625,15 +624,14 @@ def text_post_from_gpt2_service(loop_persistent_data, mood=None, ts=None, BEAMSP
 
     data["n_retention"] = len(loop_persistent_data.retention_stack)
 
-    with LogExceptionAndSkip(name="write textpost", cleanup_fn=send_alldone):
-        result_generator = old_bridge_call__textpost(data=data)
+    result_generator = old_bridge_call__textpost(data=data)
 
-        result, retention_stack, retention_stack_proba = serve_selection(
-            data=result_generator,
-            side_judgment_cache=loop_persistent_data.side_judgment_cache,
-            retention_stack=loop_persistent_data.retention_stack,
-            retention_stack_proba=loop_persistent_data.retention_stack_proba,
-        )
+    result, retention_stack, retention_stack_proba = serve_selection(
+        data=result_generator,
+        side_judgment_cache=loop_persistent_data.side_judgment_cache,
+        retention_stack=loop_persistent_data.retention_stack,
+        retention_stack_proba=loop_persistent_data.retention_stack_proba,
+    )
 
     save_retention(retention_stack)
 
@@ -668,8 +666,7 @@ def side_judgments_from_gpt2_service(
     if verbose:
         print(f"side_judgments_from_gpt2_service: data={data}")
 
-    with LogExceptionAndSkip(name="get side judgments", cleanup_fn=send_alldone):
-        result = old_bridge_call__raw_select(data=data)
+    result = old_bridge_call__raw_select(data=data)
     # requests.post(url, json=data_to_send)
     # result = wait_for_result(new_id, wait_first_time=wait_first_time, wait_recheck_time=wait_recheck_time)
     return result

@@ -121,7 +121,7 @@ class GeneratorModel:
             print(f"done_writing: prompt not in cache: {repr(prompt)}")
 
     def write_random_prompt(self, prompts: list, probs: list, mirotarg: float, verbose=False):
-        prompt = np.random.choice(prompts, p=probs / sum(probs))
+        prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))
         return {"prompt": prompt,
                 "continuations": self.write(prompt=prompt, mirotarg=mirotarg, verbose=verbose)}
 

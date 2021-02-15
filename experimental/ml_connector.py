@@ -139,31 +139,6 @@ selector_est = SideJudgmentModelInterface("selector")
 sentiment_est = SideJudgmentModelInterface("sentiment")
 
 
-def request_prompted_continuation(
-    prompt: str,
-    verbose=False,
-    mirotarg=None,  # TODO: allow vary across batch, add noise inside this fn
-):
-    if mirotarg is None:
-        mirotarg = np.random.choice(MIRO_TARGET_ALL)
-
-    return generator_model.write(prompt, mirotarg=mirotarg, verbose=verbose)
-
-
-def request_prompted_continuation_random_prompt(
-    prompts: list,
-    probs: list,
-    verbose=False,
-    mirotarg=None,  # TODO: allow vary across batch, add noise inside this fn
-):
-    if mirotarg is None:
-        mirotarg = np.random.choice(MIRO_TARGET_ALL)
-
-    return generator_model.write_random_prompt(prompts=prompts,
-                                               probs=probs,
-                                               mirotarg=mirotarg, verbose=verbose)
-
-
 def parse_continuation(continuation: str, verbose=True, wrap=False):
     if verbose:
         print(
@@ -285,7 +260,7 @@ def basic_n_continuations(
         print(f"formed prompts:")
         for _p in prompts:
             print(repr(_p))
-        bridge_id = request_prompted_continuation_random_prompt(
+        bridge_id = generator_model.write_random_prompt(
             prompts,
             probs,
             verbose=verbose,
@@ -303,7 +278,7 @@ def basic_n_continuations(
 
         print(f"neural model will see:\n\n{repr(prompt)}")
 
-        bridge_id = request_prompted_continuation(
+        bridge_id = generator_model.write(
             prompt,
             verbose=verbose,
             mirotarg=mirotarg,

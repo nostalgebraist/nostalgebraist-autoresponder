@@ -102,7 +102,7 @@ def verify_new_model():
     show_note_probas(textpost_examples, proba_tpe)
 
 
-def parse_continuation(continuation: str, verbose=True):
+def parse_continuation(continuation: str, verbose=False):
     if verbose:
         print(
             f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"

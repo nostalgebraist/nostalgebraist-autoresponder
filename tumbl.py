@@ -121,7 +121,7 @@ REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
 
-DASH_REBLOG_SELECTION_CUTOFF = 0.667
+DASH_REBLOG_SELECTION_CUTOFF = 0.6
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
@@ -868,7 +868,7 @@ def respond_to_reblogs_replies(
                 "asking_name": reblog_identifier.blog_name,
                 "exact_prompt": True,
                 "mood": determine_mood(response_cache),
-                "return_all_conts": int(halloweenize),
+                "return_all_conts": 1,  # int(halloweenize),
                 "selector_cut_to_final_exchange": 1,  # int(is_reply),
             },
             loop_persistent_data=loop_persistent_data,
@@ -2458,9 +2458,6 @@ def load_retention(side_judgment_cache):
 
     retention_stack = list(retention_stack)
 
-    print(f"loaded retention_stack:")
-    for t in retention_stack:
-        print("\t" + repr(t))
     ts = datetime.now()
     v10_timestamps = [timestamp_to_v10_format(ts) for _ in retention_stack]
 

@@ -5,6 +5,7 @@ This was copied out of a jupyter notebook and hasn't been edited much since then
 code quality is even uglier than usual :(
 """
 from functools import partial
+from datetime import datetime
 
 import numpy as np
 import pickle
@@ -19,6 +20,7 @@ from tqdm import tqdm
 from bot_config import BotSpecificConstants
 from side_judgments import SideJudgmentCache, SELECT_VIA_GENERATOR
 from image_analysis import IMAGE_DELIMITER_WHITESPACED
+from autoresponder_static_v8 import timestamp_to_v10_format
 
 Q_CHAR = "会"
 A_CHAR = "域"
@@ -32,7 +34,6 @@ bot_specific_constants = BotSpecificConstants.load()
 selector_url = bot_specific_constants.bridge_service_url + "/pollselector"
 generator_url = bot_specific_constants.bridge_service_url + "/pollgenerator"
 
-retention_stack = {}
 RESULT_STACK = {}
 wrapped = None
 
@@ -454,7 +455,17 @@ do_image_coldstart = partial(
 )
 
 
-def apply_retention_cutoff(retention_stack, retention_stack_proba):
+def apply_retention_cutoff(retention_stack, side_judgment_cache):
+    ts = datetime.now()
+    v10_timestamps = [timestamp_to_v10_format(ts) for _ in retention_stack]
+
+    retention_stack_side_judgments = side_judgment_cache.query_multi(
+        [ORIG_POST_CHAR + t for t in sorted(retention_stack)],
+        v10_timestamps=v10_timestamps,
+        verbose=False,
+    )
+    retention_stack_proba = [judg["selection_proba"] for judg in retention_stack_side_judgments]
+
     if FIC_COLDSTART:
         retention_stack_proba = do_fic_coldstart(
             sorted(retention_stack),

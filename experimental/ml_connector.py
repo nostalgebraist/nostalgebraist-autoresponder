@@ -219,9 +219,6 @@ def basic_n_continuations(
 ):
     continuation_side_data = []
 
-    if mirotarg is None:
-        mirotarg = np.random.choice(MIRO_TARGET_ALL)
-
     relevant_timestamp = v10_timestamp if V10 else v8_timestamp
 
     if use_textpost_prompt:

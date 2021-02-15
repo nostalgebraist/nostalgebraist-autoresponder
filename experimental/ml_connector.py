@@ -117,7 +117,7 @@ class GeneratorModelInterface(MLModelInterface):
         return self.do("write", *args, **kwargs)
 
     def write_random_prompt(self, *args, **kwargs):
-        return self.do("write", *args, **kwargs)
+        return self.do("write_random_prompt", *args, **kwargs)
 
     def done_writing(self, *args, **kwargs):
         return self.do("done_writing", *args, **kwargs)
@@ -472,7 +472,7 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
     print(rdone.json())
 
     # print(f"raw response: {repr(response)}")
-    result = np.array(response_data["result"][0])
+    result = np.array(response_data[0]["result"])
     probs = result[:, 1]
     return probs
 
@@ -516,7 +516,7 @@ def predict_sentiment(data, debug=False):
     rdone = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
     print(rdone.json())
 
-    logits = np.array(response_data["result"][0])
+    logits = np.array(response_data[0]["result"])
 
     logit_diffs = logits[:, 1:] - logits[:, :1]
 

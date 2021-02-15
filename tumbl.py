@@ -121,7 +121,7 @@ REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
 
-DASH_REBLOG_SELECTION_CUTOFF = 0.6
+DASH_REBLOG_SELECTION_CUTOFF = 0.75
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
@@ -2475,6 +2475,7 @@ if __name__ == "__main__":
         side_judgment_cache=side_judgment_cache,
         image_analysis_cache=image_analysis_cache,
         retention_stack=retention_stack,
+        retention_stack_proba=retention_stack_proba,
     )
 
     while True:

@@ -397,12 +397,10 @@ def basic_n_continuations(
             print(f"have {len(continuations)} of {N}... ", end="")
 
     r = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
-    print(r.json())
 
     for pr in all_prompts:
         bridge_id = generator_model.done_writing(pr)
         requests.post(bridge_service_url + "/done", json={"id": bridge_id})
-        print(r.json())
 
     continuations_ = []
     for continuation, pr in zip(continuations, all_prompts):
@@ -480,7 +478,6 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
         ).json()
 
     rdone = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
-    print(rdone.json())
 
     # print(f"raw response: {repr(response)}")
     result = np.array(response_data[0]["result"])
@@ -525,7 +522,6 @@ def predict_sentiment(data, debug=False):
         ).json()
 
     rdone = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
-    print(rdone.json())
 
     logits = np.array(response_data[0]["result"])
 

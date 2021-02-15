@@ -314,7 +314,7 @@ def basic_n_continuations(
     n_batches_so_far = 0
 
     while len(continuations) < N:
-        time.sleep(1)
+        time.sleep(5)
         batches_written = requests.post(
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
@@ -412,7 +412,7 @@ def basic_n_continuations(
 
     for pr in set(all_prompts):
         bridge_id = generator_model.done_writing(pr)
-        requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+        # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     continuations_ = []
     for continuation, pr in zip(continuations, all_prompts):

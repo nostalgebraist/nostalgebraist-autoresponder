@@ -2484,9 +2484,11 @@ if __name__ == "__main__":
                 loop_persistent_data, response_cache
             )
             time.sleep(sleep_time())
+            send_alldone()
         except (requests.exceptions.ConnectionError, KeyError, ValueError):
             print("hit an error, waiting for a little while...")
             time.sleep(sleep_time(multiplier=5))
+            send_alldone()
         except KeyboardInterrupt:
             send_alldone()
             raise KeyboardInterrupt

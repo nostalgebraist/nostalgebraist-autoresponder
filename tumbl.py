@@ -43,7 +43,7 @@ from mood_dynamic import (
 )
 
 from munging_shared import *
-from bridge_shared import bridge_service_unique_id, wait_for_result
+from bridge_shared import bridge_service_unique_id, wait_for_result, send_alldone
 from selector import serve_selection, apply_retention_cutoff
 from experimental.ml_connector import answer_from_gpt2_service, text_post_from_gpt2_service
 
@@ -2483,3 +2483,5 @@ if __name__ == "__main__":
         except (requests.exceptions.ConnectionError, KeyError, ValueError):
             print("hit an error, waiting for a little while...")
             time.sleep(sleep_time(multiplier=5))
+        except KeyboardInterrupt:
+            send_alldone()

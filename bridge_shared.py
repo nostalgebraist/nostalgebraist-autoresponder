@@ -34,3 +34,7 @@ def wait_for_result(new_id, wait_first_time=40, wait_recheck_time=5):
     dt = done_waiting_ts - started_waiting_ts
     print(f"Turnaround time: {dt//60:.0f} min {dt%60:.0f}s")
     return result["result"]
+
+
+def send_alldone():
+    requests.post(bridge_service_url + "/send_alldone")

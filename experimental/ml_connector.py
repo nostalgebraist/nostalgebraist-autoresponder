@@ -324,9 +324,6 @@ def basic_n_continuations(
             continue
 
         if use_textpost_prompt:
-            print(f"raw response: {repr(batches_written)}")
-
-        if use_textpost_prompt:
             this_batch_prompts = [
                 batch["prompt"]
                 for batch in batches_written[n_batches_so_far :]

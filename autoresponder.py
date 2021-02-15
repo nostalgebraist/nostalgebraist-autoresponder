@@ -886,12 +886,12 @@ def poll_no_capture(
             }
             RESULT_STACK[prompt_id]["model_info"] = model_info
 
-        if len(PROMPT_STACK) > 0:
+        if len(RESULT_STACK) > 0:
             r = requests.post(
                 f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
                 json={"results": RESULT_STACK if not dummy else {}},
             )
-            time.sleep(1)
+            RESULT_STACK = {}
 
 
 def loop_poll_no_capture(

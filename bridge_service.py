@@ -101,6 +101,15 @@ def done():
     return jsonify({"cleared_from": cleared_from})
 
 
+@app.route("/alldone", methods=["POST"])
+def alldone():
+    global PROMPT_STACK
+    global RESULT_STACK
+
+    PROMPT_STACK = {}
+    RESULT_STACK = {}
+
+
 @app.route("/getresult", methods=["POST"])
 def getresult():
     global RESULT_STACK

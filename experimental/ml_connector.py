@@ -18,6 +18,7 @@ from bridge_shared import bridge_service_unique_id
 from bot_config import BotSpecificConstants
 from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
 from selector import serve_selection
+from util.error_handling import LogExceptionAndSkip
 
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_url = bot_specific_constants.bridge_service_url
@@ -408,7 +409,7 @@ def basic_n_continuations(
 
     r = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
-    for pr in all_prompts:
+    for pr in set(all_prompts):
         bridge_id = generator_model.done_writing(pr)
         requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
@@ -568,6 +569,10 @@ def _make_alt_timestamps(v10_timestamp):
     return alts
 
 
+def alldone():
+    requests.post(bridge_service_url + "/alldone")
+
+
 def answer_from_gpt2_service(data: dict, loop_persistent_data, ts=None, no_timestamp=False, BEAMSPLIT_TESTING_FLAG=False):
     if ts is None:
         ts = datetime.now()
@@ -584,11 +589,12 @@ def answer_from_gpt2_service(data: dict, loop_persistent_data, ts=None, no_times
     if BEAMSPLIT_TESTING_FLAG:
         data["na_beamsplit"] = True
 
-    result_generator = old_bridge_call__answer(data=data)
+    with LogExceptionAndSkip(name="write answer", cleanup_fn=alldone):
+        result_generator = old_bridge_call__answer(data=data)
 
-    result, _, _ = serve_selection(
-        data=result_generator, side_judgment_cache=loop_persistent_data.side_judgment_cache
-    )
+        result, _, _ = serve_selection(
+            data=result_generator, side_judgment_cache=loop_persistent_data.side_judgment_cache
+        )
 
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
@@ -624,14 +630,15 @@ def text_post_from_gpt2_service(loop_persistent_data, mood=None, ts=None, BEAMSP
 
     data["n_retention"] = len(loop_persistent_data.retention_stack)
 
-    result_generator = old_bridge_call__textpost(data=data)
+    with LogExceptionAndSkip(name="write textpost", cleanup_fn=alldone):
+        result_generator = old_bridge_call__textpost(data=data)
 
-    result, retention_stack, retention_stack_proba = serve_selection(
-        data=result_generator,
-        side_judgment_cache=loop_persistent_data.side_judgment_cache,
-        retention_stack=loop_persistent_data.retention_stack,
-        retention_stack_proba=loop_persistent_data.retention_stack_proba,
-    )
+        result, retention_stack, retention_stack_proba = serve_selection(
+            data=result_generator,
+            side_judgment_cache=loop_persistent_data.side_judgment_cache,
+            retention_stack=loop_persistent_data.retention_stack,
+            retention_stack_proba=loop_persistent_data.retention_stack_proba,
+        )
 
     save_retention(retention_stack)
 
@@ -666,7 +673,8 @@ def side_judgments_from_gpt2_service(
     if verbose:
         print(f"side_judgments_from_gpt2_service: data={data}")
 
-    result = old_bridge_call__raw_select(data=data)
+    with LogExceptionAndSkip(name="get side judgments", cleanup_fn=alldone):
+        result = old_bridge_call__raw_select(data=data)
     # requests.post(url, json=data_to_send)
     # result = wait_for_result(new_id, wait_first_time=wait_first_time, wait_recheck_time=wait_recheck_time)
     return result
@@ -1015,37 +1023,19 @@ def serve_textpost(data):
     if continue_if_cut_off:
         avoid_if_cut_off = False
 
-    try:
-        continuations, continuation_side_data = basic_n_continuations(
-            prompt,
-            N=kwargs["best_of"],
-            avoid_if_under=avoid_if_under,
-            avoid_half_if_under=avoid_half_if_under,
-            avoid_if_cut_off=avoid_if_cut_off,
-            split_on_control_char=split_on_control_char,
-            use_textpost_prompt=True,
-            avoid_initial_blockquote=avoid_initial_blockquote,
-            v8_timestamp=data.get("v8_timestamp"),
-            v10_timestamp=data.get("v10_timestamp", ""),
-            continue_if_cut_off=continue_if_cut_off,
-        )
-    except Exception as e:
-        if EVEN_BETTER_LENGTH:
-            raise (e)
-        print(f"got {e}, trying without continue_if_cut_off")
-        continuations, continuation_side_data = basic_n_continuations(
-            prompt,
-            N=kwargs["best_of"],
-            avoid_if_under=avoid_if_under,
-            avoid_half_if_under=avoid_half_if_under,
-            avoid_if_cut_off=avoid_if_cut_off,
-            split_on_control_char=split_on_control_char,
-            use_textpost_prompt=True,
-            avoid_initial_blockquote=avoid_initial_blockquote,
-            v8_timestamp=data.get("v8_timestamp"),
-            v10_timestamp=data.get("v10_timestamp", ""),
-            continue_if_cut_off=False,
-        )
+    continuations, continuation_side_data = basic_n_continuations(
+        prompt,
+        N=kwargs["best_of"],
+        avoid_if_under=avoid_if_under,
+        avoid_half_if_under=avoid_half_if_under,
+        avoid_if_cut_off=avoid_if_cut_off,
+        split_on_control_char=split_on_control_char,
+        use_textpost_prompt=True,
+        avoid_initial_blockquote=avoid_initial_blockquote,
+        v8_timestamp=data.get("v8_timestamp"),
+        v10_timestamp=data.get("v10_timestamp", ""),
+        continue_if_cut_off=continue_if_cut_off,
+    )
     parsed = data.copy()
     parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
     parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]

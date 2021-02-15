@@ -237,7 +237,8 @@ def poll(
             if isinstance(result, np.ndarray):
                 result = result.tolist()
 
-            RESULT_STACK[prompt_id] = {"result": result}
+            if requested_method not in {"done_writing"}:
+                RESULT_STACK[prompt_id] = {"result": result}
 
             sampling_info = {
                 "MIRO": MIRO,

@@ -341,6 +341,11 @@ def basic_n_continuations(
 
         n_batches_so_far = len(batches_written)
 
+        def _tabfill(s, ntab=2, **kwargs):
+            tabs = ntab * '\t'
+            sep = '\n' + tabs
+            return sep + sep.join(wrap(c, **kwargs))
+
         for c, pr in zip(this_batch_continuations, this_batch_prompts):
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
                 if split_on_control_char:
@@ -349,45 +354,45 @@ def basic_n_continuations(
                         c, control_seg_config=CONTROL_SEG_CONFIG
                     )[1]
                     csub = c[:min_ix]
-                    print(f"splitting on control char:")
+                    print(f"\n\tsplitting on control char:")
                     print(
-                        f"\t{len(c)} chars, {len(c.split(' '))} words-->\n\t{len(csub)} chars, {len(csub.split(' '))} words"
+                        f"\n\t\t{len(c)} chars, {len(c.split(' '))} words-->\n\t{len(csub)} chars, {len(csub.split(' '))} words\n"
                     )
                     c = csub
                 else:
-                    print(f"rejecting because control char: \n{fill(c)}\n")
+                    print(f"\n\trejecting because control char: {_tabfill(c)}\n")
                     continue
 
             roll = np.random.rand()
             if len(c.partition("\n")[2].split(" ")) < avoid_if_under:
-                print(f"rejecting because length under {avoid_if_under}: \n{fill(c)}\n")
+                print(f"\n\trejecting because length under {avoid_if_under}: {_tabfill(c)}\n")
             elif (
                 len(c.partition("\n")[2].split(" ")) < avoid_half_if_under
             ) and roll < 0.5:
                 print(
-                    f"rejecting because length under {avoid_half_if_under} and roll {roll}: \n{fill(c)}\n"
+                    f"\n\trejecting because length under {avoid_half_if_under} and roll {roll}: {_tabfill(c)}\n"
                 )
             elif (not c.endswith(eot_end_segment)) and avoid_if_cut_off:
-                print(f"rejecting because cut off: \n{fill(c)}\n")
+                print(f"\n\trejecting because cut off: {_tabfill(c)}\n")
             elif (
                 c.partition("\n")[2].lstrip(" \n").startswith("<blockquote")
             ) and avoid_initial_blockquote:
-                print(f"rejecting because initial blockquote: \n{fill(c)}\n")
+                print(f"\n\trejecting because initial blockquote: {_tabfill(c)}\n")
             elif len([char for char in c if char == T_CHAR]) >= 2:
-                print(f"rejecting because multiple T_CHAR: \n{fill(c)}\n")
+                print(f"\n\trejecting because multiple T_CHAR: {_tabfill(c)}\n")
             elif (
                 any([subs in c.lower() for subs in profane_substrings])
                 and avoid_if_profane
             ):
-                print(f"rejecting because profane: \n{fill(c)}\n")
+                print(f"\n\trejecting because profane: {_tabfill(c)}\n")
             elif normalize_for_generator(
                 c.partition(T_CHAR)[0].strip(whitespace)
             ) in normalize_for_generator(pr):
-                print(f"rejecting because repeating myself: \n{fill(c)}\n")
+                print(f"\n\trejecting because repeating myself: {_tabfill(c)}\n")
             else:
                 if len(c.partition("\n")[2].split(" ")) < avoid_half_if_under:
                     print(
-                        f"keeping with roll {roll}, although length under {avoid_half_if_under}"
+                        f"\n\tkeeping with roll {roll}, although length under {avoid_half_if_under}\n"
                     )
                 continuations.append(c)
                 continuation_side_data.append({"mirotarg": mirotarg})

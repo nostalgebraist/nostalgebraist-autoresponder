@@ -807,10 +807,11 @@ def respond_to_reblogs_replies(
     proba_threshold=None,
     is_user_input=True,
 ):
-    for reblog_identifier in identifiers:
+    n_ri = len(identifiers)
+    for ri_ix, reblog_identifier in enumerate(identifiers):
         if not roll_for_limited_users(reblog_identifier.blog_name):
             continue
-        print(f"\n\t--> begin handling {reblog_identifier}\n")
+        print(f"\n\t--> {ri_ix+1}/{n_ri} begin handling {reblog_identifier}\n")
         is_reply = reblog_identifier in reply_set
         halloweenize = (
             HALLOWEEN_2K20_BEHAVIOR or HALLOWEEN_2K20_BEHAVIOR_TESTING
@@ -2332,9 +2333,6 @@ def do_rts(response_cache):
 
 
 def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseCache):
-    # DEBUG
-    loop_persistent_data, response_cache = do_queue_handling(loop_persistent_data, response_cache)
-
     response_cache = do_rts(response_cache)
 
     ### decide whether we'll do the reblog/reply check

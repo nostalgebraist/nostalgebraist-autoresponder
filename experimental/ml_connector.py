@@ -307,6 +307,7 @@ def basic_n_continuations(
             mirotarg=mirotarg,
         )
 
+    all_prompts = []
     continuations = []
     n_batches_so_far = 0
 
@@ -325,14 +326,25 @@ def basic_n_continuations(
         if use_textpost_prompt:
             print(f"raw response: {repr(batches_written)}")
 
-        this_batch_continuations = [entry for batch in batches_written[n_batches_so_far :] for entry in batch]
         if use_textpost_prompt:
-            prompt = [entry["continuations"] for entry in this_batch_continuations]
-            this_batch_continuations = [entry["continuations"] for entry in this_batch_continuations]
+            this_batch_prompts = [
+                batch["prompt"]
+                for batch in batches_written[n_batches_so_far :]
+                for _ in batch["continuations"]
+            ]
+
+            this_batch_continuations = [
+                entry
+                for batch in batches_written[n_batches_so_far :]
+                for entry in batch["continuations"]
+            ]
+        else:
+            this_batch_continuations = [entry for batch in batches_written[n_batches_so_far :] for entry in batch]
+            this_batch_prompts = [prompt for _ in this_batch_continuations]
 
         n_batches_so_far = len(batches_written)
 
-        for c in this_batch_continuations:
+        for c, pr in zip(this_batch_continuations, this_batch_prompts):
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
                 if split_on_control_char:
                     # min_ix = min([i for i, char in enumerate(c) if char in {Q_CHAR, A_CHAR, ORIG_POST_CHAR, UNAME_CHAR}])
@@ -373,7 +385,7 @@ def basic_n_continuations(
                 print(f"rejecting because profane: \n{fill(c)}\n")
             elif normalize_for_generator(
                 c.partition(T_CHAR)[0].strip(whitespace)
-            ) in normalize_for_generator(prompt):
+            ) in normalize_for_generator(pr):
                 print(f"rejecting because repeating myself: \n{fill(c)}\n")
             else:
                 if len(c.partition("\n")[2].split(" ")) < avoid_half_if_under:
@@ -382,6 +394,7 @@ def basic_n_continuations(
                     )
                 continuations.append(c)
                 continuation_side_data.append({"mirotarg": mirotarg})
+                all_prompts.append(pr)
 
         if len(this_batch_continuations) > 0:
             print(f"have {len(continuations)} of {N}... ", end="")
@@ -389,14 +402,15 @@ def basic_n_continuations(
     r = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
     print(r.json())
 
-    bridge_id = generator_model.done_writing(prompt)
-    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
-    print(r.json())
+    for pr in all_prompts:
+        bridge_id = generator_model.done_writing(pr)
+        requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+        print(r.json())
 
     continuations_ = []
-    for continuation in continuations:
+    for continuation, pr in zip(continuations, all_prompts):
         if use_textpost_prompt:
-            continuation = prompt + continuation
+            continuation = pr + continuation
             if EOT_PREPEND and continuation.startswith("<|endoftext|>"):
                 continuation = continuation[len("<|endoftext|>") :]
             if FORUMLIKE and continuation.startswith(ORIG_POST_CHAR_CHINESE):

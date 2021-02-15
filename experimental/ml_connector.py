@@ -252,7 +252,7 @@ def basic_n_continuations(
     if use_textpost_prompt:
         raw_prompts, overrides, probs = get_textpost_prompts()
         prompts = []
-        for p, o in zip(prompts, overrides):
+        for p, o in zip(raw_prompts, overrides):
             v8_timestamp = o.get("v8_timestamp", v8_timestamp)
             v10_timestamp = o.get("v10_timestamp", v10_timestamp)
             relevant_timestamp = v10_timestamp if V10 else v8_timestamp

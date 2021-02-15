@@ -68,8 +68,6 @@ def pollml():
             RESULT_STACK[id_] = []
         RESULT_STACK[id_].append(data[id_])
 
-    print(f"RESULT_STACK: {RESULT_STACK}")
-
     return jsonify(PROMPT_STACK)
 
 

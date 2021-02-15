@@ -308,32 +308,29 @@ def basic_n_continuations(
         )
 
     continuations = []
-    n_batches_tried = 0
+    n_batches_so_far = 0
 
     while len(continuations) < N:
         time.sleep(1)
-        response = requests.post(
+        batches_written = requests.post(
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
-        if not response["done"]:
-            continue
 
-        result = response["result"]["result"]
+        # TODO: include model info here
+        batches_written = [entry["result"] for entry in batches_written]
 
-        if len(result) <= n_batches_tried:
+        if len(batches_written) <= n_batches_so_far:
             continue
 
         if use_textpost_prompt:
-            print(f"raw response: {repr(response)}")
+            print(f"raw response: {repr(batches_written)}")
 
+        this_batch_continuations = [entry for batch in batches_written[n_batches_so_far :] for entry in batch]
         if use_textpost_prompt:
-            prompt = result["prompt"]
-            result = result["continuations"]
-        this_batch_continuations = result[len(n_batches_tried) :]
-        n_batches_tried = len(result)
+            prompt = [entry["continuations"] for entry in this_batch_continuations]
+            this_batch_continuations = [entry["continuations"] for entry in this_batch_continuations]
 
-        if len(this_batch_continuations) > 0:
-            print(f"have {len(continuations)} of {N}... ", end="")
+        n_batches_so_far = len(batches_written)
 
         for c in this_batch_continuations:
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
@@ -385,6 +382,9 @@ def basic_n_continuations(
                     )
                 continuations.append(c)
                 continuation_side_data.append({"mirotarg": mirotarg})
+
+        if len(this_batch_continuations) > 0:
+            print(f"have {len(continuations)} of {N}... ", end="")
 
     r = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
     print(r.json())
@@ -461,10 +461,10 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
 
     bridge_id = selector_est.predict_proba(data)
 
-    response = {"done": False}
-    while not response["done"]:
+    response_data = []
+    while len(response_data) == 0:
         time.sleep(1)
-        response = requests.post(
+        response_data = requests.post(
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
 
@@ -472,7 +472,7 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
     print(rdone.json())
 
     # print(f"raw response: {repr(response)}")
-    result = np.array(response["result"]["result"][0])
+    result = np.array(response_data["result"][0])
     probs = result[:, 1]
     return probs
 
@@ -506,17 +506,17 @@ def predict_sentiment(data, debug=False):
 
     bridge_id = sentiment_est._predict(data, key="logits")
 
-    response = {"done": False}
-    while not response["done"]:
+    response_data = []
+    while len(response_data) == 0:
         time.sleep(1)
-        response = requests.post(
+        response_data = requests.post(
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
 
     rdone = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
     print(rdone.json())
 
-    logits = np.array(response["result"]["result"][0])
+    logits = np.array(response_data["result"][0])
 
     logit_diffs = logits[:, 1:] - logits[:, :1]
 

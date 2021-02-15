@@ -308,6 +308,7 @@ def basic_n_continuations(
         )
 
     continuations = []
+    n_batches_tried = 0
 
     while len(continuations) < N:
         time.sleep(1)
@@ -317,14 +318,19 @@ def basic_n_continuations(
         if not response["done"]:
             continue
 
+        result = response["result"]["result"]
+
+        if len(result) <= n_batches_tried:
+            continue
+
         if use_textpost_prompt:
             print(f"raw response: {repr(response)}")
 
-        result = [entry[0] for entry in response["result"]["result"]]
         if use_textpost_prompt:
             prompt = result["prompt"]
             result = result["continuations"]
-        this_batch_continuations = result[len(continuations) :]
+        this_batch_continuations = result[len(n_batches_tried) :]
+        n_batches_tried = len(result)
 
         if len(this_batch_continuations) > 0:
             print(f"have {len(continuations)} of {N}... ", end="")

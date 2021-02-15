@@ -117,8 +117,6 @@ class GeneratorModel:
     def done_writing(self, prompt: str):
         if prompt in self.startup_presents_for_prompt:
             del self.startup_presents_for_prompt[prompt]
-        else:
-            print(f"done_writing: prompt not in cache: {repr(prompt)}")
 
     def write_random_prompt(self, prompts: list, probs: list, mirotarg: float = None, verbose=False):
         if mirotarg is None:

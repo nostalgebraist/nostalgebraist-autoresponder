@@ -399,7 +399,7 @@ def basic_n_continuations(
                 all_prompts.append(pr)
 
         if len(this_batch_continuations) > 0:
-            print(f"have {len(continuations)} of {N}... ", end="")
+            print(f"have {len(continuations)} of {N}... ", end="", flush=True)
 
     r = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 

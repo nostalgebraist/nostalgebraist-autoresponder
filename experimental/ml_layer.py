@@ -271,15 +271,6 @@ def poll(
             }
             RESULT_STACK[prompt_id]["model_info"] = model_info
 
-        # print("done generating for this poll")
-
-        if len(PROMPT_STACK) > 0:
-            r = requests.post(
-                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
-                json=RESULT_STACK if not dummy else {},
-            )
-            RESULT_STACK = {}
-
 
 def loop_poll(
     period=60,

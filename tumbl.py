@@ -957,7 +957,7 @@ def respond_to_reblogs_replies(
                 "asking_name": reblog_identifier.blog_name,
                 "exact_prompt": True,
                 "mood": determine_mood(response_cache),
-                "return_all_conts": int(halloweenize),
+                "return_all_conts": 1,  # int(halloweenize),
                 "selector_cut_to_final_exchange": 1,  # int(is_reply),
             }
         )

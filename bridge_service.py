@@ -114,9 +114,7 @@ def answer():
             + "\n"
             + A_CHAR
         )
-    elif not exact_prompt:
-        prompt = Q_CHAR + prompt + "\n" + A_CHAR
-    print(f"got prompt: {prompt}")
+        print(f"formed prompt: {prompt}")
 
     kwargs = {
         "best_of": 13 if (not TRADE_QUALITY_FOR_SPEED) else 10,

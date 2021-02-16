@@ -115,13 +115,13 @@ class GeneratorModelInterface(MLModelInterface):
         self.name = "generator"
 
     def write(self, *args, repeat_until_done_signal=False, **kwargs):
-        return self.do("write", *args, **kwargs)
+        return self.do("write", repeat_until_done_signal=repeat_until_done_signal, *args, **kwargs)
 
     def write_random_prompt(self, *args, repeat_until_done_signal=False, **kwargs):
-        return self.do("write_random_prompt", *args, **kwargs)
+        return self.do("write_random_prompt", repeat_until_done_signal=repeat_until_done_signal, *args, **kwargs)
 
     def done_writing(self, *args, repeat_until_done_signal=False, **kwargs):
-        return self.do("done_writing", *args, **kwargs)
+        return self.do("done_writing", repeat_until_done_signal=repeat_until_done_signal, *args, **kwargs)
 
 
 class SideJudgmentModelInterface(MLModelInterface):
@@ -129,10 +129,10 @@ class SideJudgmentModelInterface(MLModelInterface):
         self.name = name
 
     def predict_proba(self, *args, repeat_until_done_signal=False, **kwargs):
-        return self.do("predict_proba", *args, **kwargs)
+        return self.do("predict_proba", repeat_until_done_signal=repeat_until_done_signal, *args, **kwargs)
 
     def _predict(self, *args, repeat_until_done_signal=False, **kwargs):
-        return self.do("_predict", *args, **kwargs)
+        return self.do("_predict", repeat_until_done_signal=repeat_until_done_signal, *args, **kwargs)
 
 
 generator_model = GeneratorModelInterface()

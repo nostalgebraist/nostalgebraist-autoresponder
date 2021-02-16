@@ -294,3 +294,5 @@ def loop_poll(
             time.sleep(period * 10)
         if len(RESULT_STACK) == 0 or dummy:
             time.sleep(period)
+        else:
+            time.sleep(0.2)

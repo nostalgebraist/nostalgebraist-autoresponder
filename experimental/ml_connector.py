@@ -96,8 +96,9 @@ class MLModelInterface:
     def __init__(self):
         raise NotImplementedError
 
-    def do(self, method, *args, **kwargs):
-        data = {"model": self.name, "method": method, "args": args, "kwargs": kwargs}
+    def do(self, method, *args, repeat_until_done_signal=False, **kwargs):
+        data = {"model": self.name, "method": method, "args": args, "kwargs": kwargs,
+                "repeat_until_done_signal": repeat_until_done_signal}
         new_id = bridge_service_unique_id(bridge_service_url, data)
 
         data_to_send = dict()
@@ -113,13 +114,13 @@ class GeneratorModelInterface(MLModelInterface):
     def __init__(self):
         self.name = "generator"
 
-    def write(self, *args, **kwargs):
+    def write(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do("write", *args, **kwargs)
 
-    def write_random_prompt(self, *args, **kwargs):
+    def write_random_prompt(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do("write_random_prompt", *args, **kwargs)
 
-    def done_writing(self, *args, **kwargs):
+    def done_writing(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do("done_writing", *args, **kwargs)
 
 
@@ -127,10 +128,10 @@ class SideJudgmentModelInterface(MLModelInterface):
     def __init__(self, name):
         self.name = name
 
-    def predict_proba(self, *args, **kwargs):
+    def predict_proba(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do("predict_proba", *args, **kwargs)
 
-    def _predict(self, *args, **kwargs):
+    def _predict(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do("_predict", *args, **kwargs)
 
 
@@ -277,6 +278,7 @@ def basic_n_continuations(
 
         bridge_id = generator_model.write(
             prompt,
+            repeat_until_done_signal=True,
             verbose=verbose,
             mirotarg=mirotarg,
         )

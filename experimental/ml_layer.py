@@ -37,6 +37,7 @@ else:
     ORIG_POST_CHAR = ORIG_POST_CHAR_CHINESE
 
 RESULT_STACK = {}
+CLOSED_REQUEST_IDS = set()
 
 
 def load_from_gdrive_with_gs_fallback(
@@ -167,8 +168,10 @@ def poll(
         "pollml",
     ],
 ):
-    global RESULT_STACK
     global model_name
+    global RESULT_STACK
+    global CLOSED_REQUEST_IDS
+
     if model_name == "1558M":
         raise ValueError("don't use base gpt2 for AR, rob...")
 
@@ -178,14 +181,10 @@ def poll(
             json=RESULT_STACK if not dummy else {},
         )
 
-        PROMPT_STACK = r.json()
-
-        if (port, route) == (ports[0], routes[0]):
-            RESULT_STACK = {
-                k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK
-            }  # clean out already used results
-
-        # print(f"got prompt stack: {PROMPT_STACK}")
+        PROMPT_STACK = {prompt_id: data
+                        for prompt_id, data in r.json()
+                        if prompt_id not in CLOSED_REQUEST_IDS
+                        }
 
         for prompt_id, data in PROMPT_STACK.items():
             requested_model = None
@@ -252,6 +251,15 @@ def poll(
             }
             RESULT_STACK[prompt_id]["model_info"] = model_info
 
+        open_request_ids = set()
+        for prompt_id in PROMPT_STACK:
+            if PROMPT_STACK[prompt_id].get("repeat_until_done_signal", False):
+                open_request_ids.add(prompt_id)
+            else:
+                CLOSED_REQUEST_IDS.add(prompt_id)
+
+        return open_request_ids
+
 
 def loop_poll(
     period=60,
@@ -263,14 +271,14 @@ def loop_poll(
         "pollml",
     ],
 ):
-    global RESULT_STACK
+    open_request_ids = set()
     while True:
         try:
-            poll(dummy=dummy, ports=ports, routes=routes)
+            open_request_ids = poll(dummy=dummy, ports=ports, routes=routes)
         except Exception as e:
             print(f"{type(e)}: {e}")
             time.sleep(period * 10)
-        if len(RESULT_STACK) == 0 or dummy:
+        if len(open_request_ids) == 0 or dummy:
             time.sleep(period)
         else:
             time.sleep(0.2)

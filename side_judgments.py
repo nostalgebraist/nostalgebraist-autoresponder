@@ -241,7 +241,7 @@ class SideJudgmentCache:
         iter_ = zip(batch_ixs, batch_responses, batch_texts)
 
         if progbar:
-            iter_ = tqdm(iter_, total=len(batch_ixs), unit="judg")
+            iter_ = tqdm(iter_, total=len(batch_ixs), unit="judg", unit_scale=batch_size)
 
         for b, br, bt in iter_:
             for ix, r, t in zip(b, br, bt):

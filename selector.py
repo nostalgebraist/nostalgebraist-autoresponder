@@ -361,7 +361,7 @@ def serve_selection(
     )
 
     if data["type"] == "textpost":
-        for i, p in enumerate(selection_proba):
+        for i, p in enumerate(proba):
             if p > RETENTION_CUTOFF and continuations[i] not in retention_stack:
                 retention_stack.add(continuations[i])
 

@@ -43,14 +43,14 @@ from mood_dynamic import (
 )
 
 from munging_shared import *
-from bridge_shared import bridge_service_unique_id, wait_for_result, send_alldone
-from selector import serve_selection, apply_retention_cutoff
+from bridge_shared import send_alldone
+from selector import apply_retention_cutoff
 from experimental.ml_connector import answer_from_gpt2_service, text_post_from_gpt2_service
 
 from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 
 from autoresponder_static import DEFAULT_CSC
-from autoresponder_static_v8 import timestamp_to_v8_format, timestamp_to_v10_format
+from autoresponder_static_v8 import timestamp_to_v10_format
 
 from traceability import on_post_creation_callback
 

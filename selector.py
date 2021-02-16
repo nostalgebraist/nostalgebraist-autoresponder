@@ -8,13 +8,8 @@ from functools import partial
 from datetime import datetime
 
 import numpy as np
-import pickle
-import sys
 from textwrap import wrap
 
-
-import requests
-import time
 from tqdm import tqdm
 
 from bot_config import BotSpecificConstants

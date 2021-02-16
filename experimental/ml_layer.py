@@ -1,34 +1,12 @@
-import sys
-import json
 import os
 import subprocess
-import pickle
-import re
 import time
-from string import whitespace
-from textwrap import wrap, fill
-from functools import partial
-
-# TODO: use the following
-# import textwrap
-
-# def optional_fill(s, wrap=True):
-#   return textwrap.fill(s) if wrap else s
-
-# def optional_wrap(s, wrap=True):
-#   return textwrap.fill(s) if wrap else s
 
 import requests
 import numpy as np
-import pandas as pd
-from IPython.utils.capture import capture_output
-
-import tensorflow as tf
 
 import model
 import encoder
-
-from flask import Flask, escape, request, jsonify
 
 from autoresponder_config import *
 from autoresponder_static import *

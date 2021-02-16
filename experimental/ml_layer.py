@@ -182,7 +182,7 @@ def poll(
         )
 
         PROMPT_STACK = {prompt_id: data
-                        for prompt_id, data in r.json()
+                        for prompt_id, data in r.json().items()
                         if prompt_id not in CLOSED_REQUEST_IDS
                         }
 

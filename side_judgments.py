@@ -6,6 +6,8 @@ import os
 from string import whitespace
 from datetime import datetime, timedelta
 
+from tqdm import tqdm
+
 from mood import logit_diff_to_pos_sent
 from experimental.ml_connector import side_judgments_from_gpt2_service
 
@@ -207,6 +209,7 @@ class SideJudgmentCache:
         sleep_time: float = 0.2,
         batch_size: int = 4,
         verbose=True,
+        progbar=True,
     ):
         now = datetime.now()
 
@@ -234,7 +237,13 @@ class SideJudgmentCache:
         ]
         if verbose:
             print(f"query_multi:\n\tbatch_responses={batch_responses}\n")
-        for b, br, bt in zip(batch_ixs, batch_responses, batch_texts):
+
+        iter_ = zip(batch_ixs, batch_responses, batch_texts)
+
+        if progbar:
+            iter_ = tqdm(iter_, total=len(batch_ixs), unit="judg")
+
+        for b, br, bt in iter_:
             for ix, r, t in zip(b, br, bt):
                 if verbose:
                     print(f"query_multi:\n\tfilling {ix}:\n\t{t}\nwith\n\t{r}\n")

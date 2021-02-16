@@ -52,6 +52,7 @@ DETERMINER_CENTER_UPDATES = {
     WEIGHTED_AVG_START_TIME: 0.0,
     pd.Timestamp("2021-02-08 09:25:00"): -0.25,
     pd.Timestamp("2021-02-14 17:55:00"): -0.125,
+    pd.Timestamp("2021-02-15 17:25:00"): 0,
 }
 DETERMINER_MULTIPLIER_UPDATES = {
     pd.Timestamp("2020-08-25 17:00:00"): 0.1 / RESPONSE_SCALE_BASE,

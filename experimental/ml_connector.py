@@ -261,6 +261,7 @@ def basic_n_continuations(
         bridge_id = generator_model.write_random_prompt(
             prompts,
             probs,
+            repeat_until_done_signal=True,
             verbose=verbose,
             mirotarg=mirotarg,
         )

@@ -19,6 +19,8 @@ This repo includes code to run the bot and code to train the generator, selector
 - Tumblr scraping scripts used in generator and selector training
 - Data prep script used in generator training
 
+**Update 2/15/21**: A large refactor is underway on the branch [minimize-gpu-bundled-code](https://github.com/nostalgebraist/nostalgebraist-autoresponder/tree/minimize-gpu-bundled-code).  I'm currently serving the bot from that branch for testing.  I'll merge to `main` when I'm confident in the change.
+
 ### Disclaimers
 
 *This is not good code!* It is a personal project for my own entertainment.  Code style varies greatly, some code is still in horrible Jupyter notebooks (or still bears the scars of its origins in horrible Jupyter notebooks), the various components are coupled together in subtle ways, etc.

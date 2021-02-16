@@ -36,7 +36,6 @@ if FORUMLIKE:
 else:
     ORIG_POST_CHAR = ORIG_POST_CHAR_CHINESE
 
-RESULT_STACK = {}
 CLOSED_REQUEST_IDS = set()
 
 
@@ -168,23 +167,19 @@ def poll(
         "pollml",
     ],
 ):
-    global model_name
-    global RESULT_STACK
     global CLOSED_REQUEST_IDS
 
-    if model_name == "1558M":
-        raise ValueError("don't use base gpt2 for AR, rob...")
-
     for port, route in zip(ports, routes):
-        r = requests.post(
+        r = requests.get(
             f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
-            json=RESULT_STACK if not dummy else {},
         )
 
         PROMPT_STACK = {prompt_id: data
                         for prompt_id, data in r.json().items()
                         if prompt_id not in CLOSED_REQUEST_IDS
                         }
+
+        RESULT_STACK = {}
 
         for prompt_id, data in PROMPT_STACK.items():
             requested_model = None
@@ -250,6 +245,12 @@ def poll(
                 "sampling_info": sampling_info,
             }
             RESULT_STACK[prompt_id]["model_info"] = model_info
+
+        if len(RESULT_STACK) > 0:
+            requests.post(
+                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
+                json=RESULT_STACK if not dummy else {},
+            )
 
         open_request_ids = set()
         for prompt_id in PROMPT_STACK:

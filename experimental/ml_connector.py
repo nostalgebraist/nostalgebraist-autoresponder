@@ -301,6 +301,9 @@ def basic_n_continuations(
             continue
 
         if use_textpost_prompt:
+            print(f"got raw batches_written (length {len(batches_written)}):")
+            print(batches_written)
+
             this_batch_prompts = [
                 batch["prompt"]
                 for batch in batches_written[n_batches_so_far :]
@@ -312,6 +315,12 @@ def basic_n_continuations(
                 for batch in batches_written[n_batches_so_far :]
                 for entry in batch["continuations"]
             ]
+
+            print(f"inferred this_batch_prompts (length {len(this_batch_prompts)}):")
+            print(this_batch_prompts)
+            print(f"inferred this_batch_continuations (length {len(this_batch_continuations)}):")
+            print(this_batch_continuations)
+
         else:
             this_batch_continuations = [entry for batch in batches_written[n_batches_so_far :] for entry in batch]
             this_batch_prompts = [prompt for _ in this_batch_continuations]

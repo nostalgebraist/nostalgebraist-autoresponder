@@ -57,18 +57,25 @@ GENERATIONS_PER_REQUEST = 1
 app = Flask(__name__)
 
 
-@app.route("/pollml", methods=["POST"])
+@app.route("/pollml", methods=["GET", "POST"])
 def pollml():
     global PROMPT_STACK
     global RESULT_STACK
 
-    data = request.json
-    for id_ in data.keys():
-        if id_ not in RESULT_STACK:
-            RESULT_STACK[id_] = []
-        RESULT_STACK[id_].append(data[id_])
+    if request.method == "POST":
+        data = request.json
+        for id_ in data.keys():
+            if id_ not in RESULT_STACK:
+                RESULT_STACK[id_] = []
+            # print(f"for {id_}, length before: {len(RESULT_STACK[id_])}")
+            RESULT_STACK[id_].append(data[id_])
 
-    return jsonify(PROMPT_STACK)
+        # for id_ in data.keys():
+        #     print(f"for {id_}, length after: {len(RESULT_STACK[id_])}")
+
+        return jsonify({})
+    elif request.method == "GET":
+        return jsonify(PROMPT_STACK)
 
 
 @app.route("/requestml", methods=["POST"])

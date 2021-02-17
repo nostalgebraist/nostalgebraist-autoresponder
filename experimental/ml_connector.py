@@ -22,7 +22,7 @@ from selector import serve_selection
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_url = bot_specific_constants.bridge_service_url
 
-TRADE_QUALITY_FOR_SPEED = False
+TRADE_QUALITY_FOR_SPEED = True
 
 logit_diff_sample_series = load_logit_diff_sample()
 EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
@@ -736,10 +736,10 @@ def old_bridge_call__answer(data):
     print(f"discounting to {discounted_extra_best_of} --> best_of={kwargs['best_of']}")
 
     kwargs["strategy"] = "proportional_winnowed"
-    kwargs["avoid_if_under"] = 10
+    kwargs["avoid_if_under"] = 5
     if kwargs["write_fic_override"]:
         kwargs["avoid_if_under"] = 100
-    kwargs["avoid_half_if_under"] = 15
+    kwargs["avoid_half_if_under"] = 10
     kwargs["avoid_if_cut_off"] = False
     kwargs["split_on_control_char"] = True
     kwargs["avoid_initial_blockquote"] = True

@@ -863,7 +863,6 @@ def respond_to_reblogs_replies(
             )
         print(f"\n\t--> using question:\n---------\n{question}\n---------\n")
 
-        loop_persistent_data.side_judgment_cache.save()
         gpt2_output = answer_from_gpt2_service(
             data={
                 "question": question,
@@ -876,7 +875,6 @@ def respond_to_reblogs_replies(
             loop_persistent_data=loop_persistent_data,
             BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
         )
-        loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
 
         if (
             SAVE_USER_INPUT_SENTIMENTS
@@ -1954,7 +1952,6 @@ def construct_review_question(user_args):
 def handle_review_command(
     user_args, input_ident, asking_url, loop_persistent_data, response_cache
 ):
-    loop_persistent_data.side_judgment_cache.save()
     question, full_input = construct_review_question(user_args)
     gpt2_output = answer_from_gpt2_service(
         data={
@@ -1970,7 +1967,6 @@ def handle_review_command(
         no_timestamp=True,
         BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
     )
-    loop_persistent_data.side_judgment_cache = SideJudgementCache.load()
 
     log_data = gpt2_output
     log_data["post_type"] = "review"
@@ -2171,7 +2167,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         f"for {user_input_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
                     )
 
-            loop_persistent_data.side_judgment_cache.save()
             gpt2_output = answer_from_gpt2_service(
                 data={
                     "question": question,
@@ -2183,7 +2178,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 loop_persistent_data=loop_persistent_data,
                 BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG
             )
-            loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
 
             if (
                 response_cache.get_cached_user_input_sentiment(user_input_identifier)

@@ -15,6 +15,8 @@ from scipy.signal.ltisys import StateSpaceContinuous
 
 from tqdm.autonotebook import tqdm
 
+from IPython.display import display
+
 from response_cache import (
     ResponseCache,
     UserInputIdentifier,
@@ -326,6 +328,26 @@ def show_unit_mood_inputs(response_cache: ResponseCache, uii: UserInputIdentifie
     print(f"mood inputs/effects:")
     for col in ['logit_diff', 'p75_generated_logit_diff', 'determiner', 'centered_determiner']:
         print(f"\t{umi[col]: .2f} | {col}")
+
+
+def make_mood_inputs_readable(mi, show=True):
+    cols = ['blog_name', 'text_for_sentiment',
+            'logit_diff', 'p75_generated_logit_diff',
+            'determiner', 'centered_determiner']
+    shortnames = {
+        "logit_diff": "ldiff",
+        "p75_generated_logit_diff": "p75",
+        "text_for_sentiment": "text",
+        "determiner": "det",
+        "centered_determiner": "cdet"
+    }
+    readable = mi[cols].rename(columns=shortnames)
+    if show:
+        with pd.option_context("display.float_format", lambda x: f"{x:.1f}",
+                               "display.max_colwidth", 100):
+            display(readable)
+    else:
+        return readable
 
 
 def apply_daily_mood_offset(

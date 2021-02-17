@@ -339,6 +339,7 @@ def serve_selection(
 
     chosen_mirotarg = chosen_continuation_side_data.get("mirotarg")
     chosen_prompt_for_neural = chosen_continuation_side_data.get("prompt_for_neural")
+    chosen_model_info = chosen_continuation_side_data.get("model_info")
     print(
         f"\nselecting #{choice_ix} with pred {chosen_proba:.1%}, pos_sent {chosen_pos_sent:.1%}:\n{continuation}, mirotarg {chosen_mirotarg}\n"
     )
@@ -356,6 +357,7 @@ def serve_selection(
     parsed["pos_sentiment"] = float(chosen_pos_sent)
     parsed["mirotarg"] = chosen_mirotarg
     parsed["prompt_for_neural"] = chosen_prompt_for_neural
+    parsed["model_info"] = chosen_model_info
     parsed["all_pos_sentiment"] = [
         float(pos_sent(s)) for s in all_continuation_sentiments
     ]
@@ -385,9 +387,6 @@ def serve_selection(
             post = post[:newline_switch_ix]
     else:
         print(f"not AB testing, have kwargs {kwargs}")
-
-    if "model_info" in data:
-        parsed["model_info"] = data["model_info"]
 
     lost_keys = [k for k in data.keys() if k not in parsed]
     if WARN_ABOUT_LOST_KEYS and len(lost_keys) > 0:

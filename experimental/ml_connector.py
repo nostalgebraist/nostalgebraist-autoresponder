@@ -318,12 +318,13 @@ def basic_n_continuations(
 
     while len(continuations) < N:
         time.sleep(5)
-        batches_written = requests.post(
+        batches_written_raw = requests.post(
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
 
         # TODO: include model info here
-        batches_written = [entry["result"] for entry in batches_written]
+        batches_written = [entry["result"] for entry in batches_written_raw]
+        model_infos = [entry["model_info"] for entry in batches_written_raw]
 
         if len(batches_written) <= n_batches_so_far:
             continue
@@ -340,6 +341,12 @@ def basic_n_continuations(
             for entry in batch["continuations"]
         ]
 
+        this_batch_model_info = [
+            minfo
+            for batch, minfo in zip(batches_written[n_batches_so_far:], model_infos[n_batches_so_far:])
+            for entry in batch["continuations"]
+        ]
+
         n_batches_so_far = len(batches_written)
 
         def _tabfill(s, ntab=2, escape=True, **kwargs):
@@ -352,7 +359,7 @@ def basic_n_continuations(
 
             return sep + sep.join(wrap(c_, **kwargs_))
 
-        for c, sdata in zip(this_batch_continuations, this_batch_side_data):
+        for c, sdata, minfo in zip(this_batch_continuations, this_batch_side_data, this_batch_model_info):
             pr = sdata["prompt_for_neural"]
 
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
@@ -404,7 +411,9 @@ def basic_n_continuations(
                         f"\n\tkeeping with roll {roll}, although length under {avoid_half_if_under}\n"
                     )
                 continuations.append(c)
-                continuation_side_data.append(sdata)
+                sdata_plus_minfo = {k: v for k, v in sdata.items()}
+                sdata_plus_minfo["model_info"] = minfo
+                continuation_side_data.append(sdata_plus_minfo)
                 all_prompts.append(pr)
 
         if len(this_batch_continuations) > 0:

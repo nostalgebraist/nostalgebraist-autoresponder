@@ -366,7 +366,7 @@ def compute_dynamic_mood_over_interval(
     # sentiment_centered = (
     #     system.determiner_multiplier_series(sentiment_centered) * sentiment_centered
     # )
-    sentiment_centered = df["scaled_determiner"]
+    sentiment_centered = mood_inputs["scaled_determiner"]
     sentiment_centered = sentiment_centered.loc[start_time:end_time]
     sentiment_centered_indexed = sentiment_centered.resample(
         f"{system.step_sec}s"

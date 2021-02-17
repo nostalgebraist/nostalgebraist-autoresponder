@@ -36,7 +36,7 @@ if FORUMLIKE:
 else:
     ORIG_POST_CHAR = ORIG_POST_CHAR_CHINESE
 
-CLOSED_REQUEST_IDS = set()
+CLOSED_REQUESTS = {}
 
 
 def load_from_gdrive_with_gs_fallback(
@@ -167,7 +167,7 @@ def poll(
         "pollml",
     ],
 ):
-    global CLOSED_REQUEST_IDS
+    global CLOSED_REQUESTS
 
     for port, route in zip(ports, routes):
         r = requests.get(
@@ -176,12 +176,15 @@ def poll(
 
         PROMPT_STACK = {prompt_id: data
                         for prompt_id, data in r.json().items()
-                        if prompt_id not in CLOSED_REQUEST_IDS
                         }
 
         RESULT_STACK = {}
 
         for prompt_id, data in PROMPT_STACK.items():
+            if prompt_id in CLOSED_REQUESTS:
+                RESULT_STACK[prompt_id] = CLOSED_REQUESTS[prompt_id]
+                continue
+
             requested_model = None
             if data["model"] == "generator":
                 requested_model = generator_model
@@ -256,8 +259,8 @@ def poll(
         for prompt_id in PROMPT_STACK:
             if PROMPT_STACK[prompt_id].get("repeat_until_done_signal", False):
                 open_request_ids.add(prompt_id)
-            else:
-                CLOSED_REQUEST_IDS.add(prompt_id)
+            elif prompt_id in RESULT_STACK:
+                CLOSED_REQUESTS[prompt_id] = RESULT_STACK[prompt_id]
 
         return open_request_ids
 

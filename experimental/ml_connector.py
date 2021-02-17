@@ -97,8 +97,13 @@ class MLModelInterface:
         raise NotImplementedError
 
     def do(self, method, *args, repeat_until_done_signal=False, **kwargs):
-        data = {"model": self.name, "method": method, "args": args, "kwargs": kwargs,
-                "repeat_until_done_signal": repeat_until_done_signal}
+        data = {
+            "model": self.name,
+            "method": method,
+            "args": args,
+            "kwargs": kwargs,
+            "repeat_until_done_signal": repeat_until_done_signal,
+        }
         new_id = bridge_service_unique_id(bridge_service_url, data)
 
         data_to_send = dict()
@@ -115,13 +120,25 @@ class GeneratorModelInterface(MLModelInterface):
         self.name = "generator"
 
     def write(self, *args, repeat_until_done_signal=False, **kwargs):
-        return self.do("write", repeat_until_done_signal=repeat_until_done_signal, *args, **kwargs)
+        return self.do(
+            "write", repeat_until_done_signal=repeat_until_done_signal, *args, **kwargs
+        )
 
     def write_random_prompt(self, *args, repeat_until_done_signal=False, **kwargs):
-        return self.do("write_random_prompt", repeat_until_done_signal=repeat_until_done_signal, *args, **kwargs)
+        return self.do(
+            "write_random_prompt",
+            repeat_until_done_signal=repeat_until_done_signal,
+            *args,
+            **kwargs,
+        )
 
     def done_writing(self, *args, repeat_until_done_signal=False, **kwargs):
-        return self.do("done_writing", repeat_until_done_signal=repeat_until_done_signal, *args, **kwargs)
+        return self.do(
+            "done_writing",
+            repeat_until_done_signal=repeat_until_done_signal,
+            *args,
+            **kwargs,
+        )
 
 
 class SideJudgmentModelInterface(MLModelInterface):
@@ -129,10 +146,20 @@ class SideJudgmentModelInterface(MLModelInterface):
         self.name = name
 
     def predict_proba(self, *args, repeat_until_done_signal=False, **kwargs):
-        return self.do("predict_proba", repeat_until_done_signal=repeat_until_done_signal, *args, **kwargs)
+        return self.do(
+            "predict_proba",
+            repeat_until_done_signal=repeat_until_done_signal,
+            *args,
+            **kwargs,
+        )
 
     def _predict(self, *args, repeat_until_done_signal=False, **kwargs):
-        return self.do("_predict", repeat_until_done_signal=repeat_until_done_signal, *args, **kwargs)
+        return self.do(
+            "_predict",
+            repeat_until_done_signal=repeat_until_done_signal,
+            *args,
+            **kwargs,
+        )
 
 
 generator_model = GeneratorModelInterface()
@@ -166,14 +193,13 @@ def get_textpost_prompts():
     probs = []
 
     prompts.append(CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"])
-    overrides.append({"v8_timestamp": "",
-                      "v10_timestamp": ""})
+    overrides.append({"v8_timestamp": "", "v10_timestamp": ""})
     probs.append(FORUMLIKE_REVIEW_PROB)
 
     prompts.append(CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"])
-    overrides.append({"v8_timestamp": "",
-                      "v10_timestamp": "",
-                      "tag_string_raw": "#original fiction"})
+    overrides.append(
+        {"v8_timestamp": "", "v10_timestamp": "", "tag_string_raw": "#original fiction"}
+    )
     probs.append(FORUMLIKE_FIC_PROB)
 
     prompts.append(CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"])
@@ -249,7 +275,8 @@ def basic_n_continuations(
             )
             prompt = finalize_prompt_for_neural(
                 prompt,
-                override_disable_forumlike=use_textpost_prompt or override_disable_forumlike,
+                override_disable_forumlike=use_textpost_prompt
+                or override_disable_forumlike,
                 forced_tags_string=forced_tags_string,
                 write_fic_override=write_fic_override,
             )
@@ -270,7 +297,8 @@ def basic_n_continuations(
 
         prompt = finalize_prompt_for_neural(
             prompt,
-            override_disable_forumlike=use_textpost_prompt or override_disable_forumlike,
+            override_disable_forumlike=use_textpost_prompt
+            or override_disable_forumlike,
             forced_tags_string=forced_tags_string,
             write_fic_override=write_fic_override,
         )
@@ -302,40 +330,15 @@ def basic_n_continuations(
 
         this_batch_continuations = [
             entry
-            for batch in batches_written[n_batches_so_far :]
+            for batch in batches_written[n_batches_so_far:]
             for entry in batch["continuations"]
         ]
 
         this_batch_side_data = [
             batch["side_data"]
-            for batch in batches_written[n_batches_so_far :]
+            for batch in batches_written[n_batches_so_far:]
             for entry in batch["continuations"]
         ]
-
-        # if use_textpost_prompt:
-        #     print(f"got raw batches_written (length {len(batches_written)}):")
-        #     print(batches_written)
-        #
-        #     this_batch_prompts = [
-        #         batch["prompt"]
-        #         for batch in batches_written[n_batches_so_far :]
-        #         for _ in batch["continuations"]
-        #     ]
-        #
-        #     this_batch_continuations = [
-        #         entry
-        #         for batch in batches_written[n_batches_so_far :]
-        #         for entry in batch["continuations"]
-        #     ]
-        #
-        #     print(f"inferred this_batch_prompts (length {len(this_batch_prompts)}):")
-        #     print(this_batch_prompts)
-        #     print(f"inferred this_batch_continuations (length {len(this_batch_continuations)}):")
-        #     print(this_batch_continuations)
-        #
-        # else:
-        #     this_batch_continuations = [entry for batch in batches_written[n_batches_so_far :] for entry in batch]
-        #     this_batch_prompts = [prompt for _ in this_batch_continuations]
 
         n_batches_so_far = len(batches_written)
 
@@ -343,9 +346,9 @@ def basic_n_continuations(
             kwargs_ = {"width": 80}
             kwargs_.update(kwargs)
 
-            tabs = ntab * '\t'
-            sep = '\n' + tabs
-            c_ = c.encode('unicode_escape').decode() if escape else c
+            tabs = ntab * "\t"
+            sep = "\n" + tabs
+            c_ = c.encode("unicode_escape").decode() if escape else c
 
             return sep + sep.join(wrap(c_, **kwargs_))
 
@@ -369,7 +372,9 @@ def basic_n_continuations(
 
             roll = np.random.rand()
             if len(c.partition("\n")[2].split(" ")) < avoid_if_under:
-                print(f"\n\trejecting because length under {avoid_if_under}: {_tabfill(c)}\n")
+                print(
+                    f"\n\trejecting because length under {avoid_if_under}: {_tabfill(c)}\n"
+                )
             elif (
                 len(c.partition("\n")[2].split(" ")) < avoid_half_if_under
             ) and roll < 0.5:
@@ -573,7 +578,13 @@ def _make_alt_timestamps(v10_timestamp):
     return alts
 
 
-def answer_from_gpt2_service(data: dict, loop_persistent_data, ts=None, no_timestamp=False, BEAMSPLIT_TESTING_FLAG=False):
+def answer_from_gpt2_service(
+    data: dict,
+    loop_persistent_data,
+    ts=None,
+    no_timestamp=False,
+    BEAMSPLIT_TESTING_FLAG=False,
+):
     if ts is None:
         ts = datetime.now()
     data["v8_timestamp"] = timestamp_to_v8_format(ts)
@@ -592,7 +603,8 @@ def answer_from_gpt2_service(data: dict, loop_persistent_data, ts=None, no_times
     result_generator = old_bridge_call__answer(data=data)
 
     result, _, _ = serve_selection(
-        data=result_generator, side_judgment_cache=loop_persistent_data.side_judgment_cache
+        data=result_generator,
+        side_judgment_cache=loop_persistent_data.side_judgment_cache,
     )
 
     # for logging, add any input fields that didn't make the round trip
@@ -612,7 +624,9 @@ def save_retention(retention_stack):
         pickle.dump(retention_stack, f)
 
 
-def text_post_from_gpt2_service(loop_persistent_data, mood=None, ts=None, BEAMSPLIT_TESTING_FLAG=False):
+def text_post_from_gpt2_service(
+    loop_persistent_data, mood=None, ts=None, BEAMSPLIT_TESTING_FLAG=False
+):
     data = {"mood": mood}
 
     if ts is None:
@@ -686,9 +700,7 @@ def old_bridge_call__raw_select(data):
     if v8_timestamps is not None:
         data_to_pass_on["v8_timestamp"] = v8_timestamps[0]  # TODO: make not weird
     if v10_timestamps is not None:
-        data_to_pass_on["v10_timestamp"] = v10_timestamps[
-            0
-        ]  # TODO: make not weird
+        data_to_pass_on["v10_timestamp"] = v10_timestamps[0]  # TODO: make not weird
     return serve_raw_select(data_to_pass_on)
 
 
@@ -785,9 +797,9 @@ def old_bridge_call__answer(data):
     PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"][
         "best_of"
     ]
-    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = PROMPT_STACK[generation_id]["kwargs"][
-        "best_of"
-    ]
+    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = PROMPT_STACK[generation_id][
+        "kwargs"
+    ]["best_of"]
     print(
         f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
     )
@@ -869,9 +881,9 @@ def old_bridge_call__textpost(data):
     PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"][
         "best_of"
     ]
-    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = PROMPT_STACK[generation_id]["kwargs"][
-        "best_of"
-    ]
+    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = PROMPT_STACK[generation_id][
+        "kwargs"
+    ]["best_of"]
     print(
         f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
     )

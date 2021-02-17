@@ -230,7 +230,9 @@ def serve_selection(
 ):
     continuations = data["continuations"]
     selection_proba = data.get("selection_proba")
-    continuation_side_data = data.get("continuation_side_data", [{} for _ in continuations])
+    continuation_side_data = data.get(
+        "continuation_side_data", [{} for _ in continuations]
+    )
 
     if FIC_COLDSTART:
         selection_proba = do_fic_coldstart(continuations, selection_proba)
@@ -287,7 +289,11 @@ def serve_selection(
             all_continuation_sentiments,
             retained_continuation_side_data,
         ) = sentiment_screen(
-            side_judgment_cache, continuations, mood, selection_proba, continuation_side_data
+            side_judgment_cache,
+            continuations,
+            mood,
+            selection_proba,
+            continuation_side_data,
         )
     else:
         continuation_sentiments = get_continuation_sentiments(
@@ -423,7 +429,9 @@ def apply_retention_cutoff(retention_stack, side_judgment_cache):
         v10_timestamps=v10_timestamps,
         verbose=False,
     )
-    retention_stack_proba = [judg["selection_proba"] for judg in retention_stack_side_judgments]
+    retention_stack_proba = [
+        judg["selection_proba"] for judg in retention_stack_side_judgments
+    ]
 
     if FIC_COLDSTART:
         retention_stack_proba = do_fic_coldstart(

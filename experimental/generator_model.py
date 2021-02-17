@@ -118,7 +118,9 @@ class GeneratorModel:
         if prompt in self.startup_presents_for_prompt:
             del self.startup_presents_for_prompt[prompt]
 
-    def write_random_prompt(self, prompts: list, probs: list, mirotarg: float = None, verbose=False):
+    def write_random_prompt(
+        self, prompts: list, probs: list, mirotarg: float = None, verbose=False
+    ):
         if mirotarg is None:
             mirotarg = np.random.choice(MIRO_TARGET_ALL)
 
@@ -398,7 +400,7 @@ class GeneratorModel:
             "side_data": {
                 "prompt_for_neural": prompt,
                 "mirotarg": mirotarg,
-            }
+            },
         }
 
     def restore_checkpoint(self, path, retries=False):

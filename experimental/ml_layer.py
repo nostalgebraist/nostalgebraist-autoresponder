@@ -174,9 +174,7 @@ def poll(
             f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
         )
 
-        PROMPT_STACK = {prompt_id: data
-                        for prompt_id, data in r.json().items()
-                        }
+        PROMPT_STACK = {prompt_id: data for prompt_id, data in r.json().items()}
 
         RESULT_STACK = {}
 

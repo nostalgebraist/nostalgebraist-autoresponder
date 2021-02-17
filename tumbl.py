@@ -40,6 +40,7 @@ from mood_dynamic import (
     mood_buff_v2,
     WINDOW_LENGTH_DAYS,
     pos_sent_to_logit_diff,
+    show_unit_mood_inputs,
 )
 
 from munging_shared import *
@@ -904,6 +905,7 @@ def respond_to_reblogs_replies(
                 sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
                 sent["generated_ts"] = datetime.now()
                 response_cache.mark_user_input_sentiment(user_input_identifier, sent)
+                show_unit_mood_inputs(response_cache, user_input_identifier)
 
         okay_to_reply = True
 
@@ -2193,6 +2195,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
                 sent["generated_ts"] = datetime.now()
                 response_cache.mark_user_input_sentiment(user_input_identifier, sent)
+                show_unit_mood_inputs(response_cache, user_input_identifier)
             log_data = gpt2_output
             log_data["post_type"] = "ask"
             log_data["input_ident"] = (x["id"], x["asking_name"])

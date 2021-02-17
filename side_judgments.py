@@ -207,7 +207,7 @@ class SideJudgmentCache:
         v8_timestamps=None,
         v10_timestamps=None,
         sleep_time: float = 0.2,
-        batch_size: int = 4,
+        batch_size: int = 16,
         verbose=True,
         progbar=True,
     ):

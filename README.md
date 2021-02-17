@@ -96,9 +96,9 @@ To train the generator:
   - _How to do this_:  and run the script `gpt-2/train.py`
     - This step requires a TPUv3 (because we need ~16GB memory to store GPT-2 1.5B's params + the Adam accumulators for them).
     - This means it won't run on Colab, which only provides TPUv2.  I run it on Google Cloud Engine.  (Running it on GCE requires some one-time setup of the VM instance not yet documented here.)
- 
+
 An example invocation of `gpt-2/train.py` on an appropriately configured GCE VM:
- 
+
 ```bash
 python3.7 -u gpt-2/train.py \
 --model_name 1558M \
@@ -157,6 +157,8 @@ To train the sentiment model
 
 ### Repo structure
 
+Note: Things in the `experimental/` subdirectory are not necessarily "experimental."  (If they've been merged to `main`, in fact, they definitely _aren't_.)  I put new things in `experimental/` when I'm working on them, and sometimes I'm lazy and don't move them out afterwards.
+
 - Scripts that should run simultaneously while the bot is in operation (details above)
   - `tumbl.py`
   - `bridge_service.py`
@@ -173,11 +175,12 @@ To train the sentiment model
     - `munging_shared.py` (utility code wrapping `reblogs_v5.py` and providing other functionality needed at the interface with the tumblr API)
     - `autoresponder_static.py` and `autoresponder_static_v8.py` (conversion between the old structured text format produced by `reblogs_v5.py` and newer structured formats used by the generator)
   - ML code that operates on formatted text:
-    - `autoresponder.py` (machine learning layer; ML models run in a notebook `autoresponder_wrapper.ipynb` which is a lightweight wrapper around this file)
-    - `autoresponder_config.py` (config file for machine learning layer)
     - `experimental/generator_model.py` (class providing an interface for GPT-2 model loading and sampling)
     - `selector_model/selector_nn.py` and `selector_model/selector_estimator.py` (code implementing the selector and sentiment models)
-    - `side_judgments.py` (abstraction layer around the selector and sentiment layers, used to construct calls to these ML models and cache responses)
+    - `experimental/ml_connector.py` (business logic for when/where/how to call the ML models during bot operation)
+    - `experimental/ml_layer.py` (code intended to run on compute instances, making them available as backends for `experimental/ml_connector.py`; can be run on Google Colab through the notebook `ml_layer_wrapper.ipynb`)
+    - `autoresponder_config.py` (config file for machine learning layer)
+    - `side_judgments.py` (abstraction layer around the selector and sentiment layers, used to construct typical calls to these models and cache responses)
 - Helper code for specific, less central features
   - `reply_munging.py` (responding to replies in an Xkit-like manner)
   - `sentiment.py` (wrapper around a sentiment analysis API, for the "mood" feature)

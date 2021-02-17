@@ -136,12 +136,12 @@ def get_continuation_sentiments(side_judgment_cache, continuations, sleep_time=0
 
 
 def sentiment_screen(
-    side_judgment_cache, continuations, mood, selection_proba=None, mirotarg=None
+    side_judgment_cache, continuations, mood, selection_proba=None, continuation_side_data=None
 ):
     if selection_proba is None:
         selection_proba = [None for _ in continuations]
-    if mirotarg is None:
-        mirotarg = [None for _ in continuations]
+    if continuation_side_data is None:
+        continuation_side_data = [None for _ in continuations]
 
     all_continuation_sentiments = get_continuation_sentiments(
         side_judgment_cache, continuations
@@ -205,14 +205,14 @@ def sentiment_screen(
     retained_selection_proba = [
         p for mask, p in zip(exclusion_mask, selection_proba) if not mask
     ]
-    retained_mirotarg = [m for mask, m in zip(exclusion_mask, mirotarg) if not mask]
+    retained_continuation_side_data = [m for mask, m in zip(exclusion_mask, continuation_side_data) if not mask]
 
     return (
         retained_continuations,
         retained_continuation_sentiments,
         retained_selection_proba,
         all_continuation_sentiments,
-        retained_mirotarg,
+        retained_continuation_side_data,
     )
 
 
@@ -283,9 +283,9 @@ def serve_selection(
 
     if do_mood_screen:
         (
-            continuations_screened,
-            continuation_sentiments,
-            selection_proba_screened,
+            retained_continuations,
+            continuation_sentiments,  # TODO: clearer name here
+            retained_selection_proba,
             all_continuation_sentiments,
             retained_continuation_side_data,
         ) = sentiment_screen(
@@ -299,12 +299,12 @@ def serve_selection(
         continuation_sentiments = get_continuation_sentiments(
             side_judgment_cache, continuations
         )
-        continuations_screened = continuations
+        retained_continuations = continuations
         all_continuation_sentiments = continuation_sentiments
-        selection_proba_screened = selection_proba
+        retained_selection_proba = selection_proba
         retained_continuation_side_data = continuation_side_data
 
-    proba = np.asarray(selection_proba_screened)
+    proba = np.asarray(retained_selection_proba)  # TODO: clearer name here
 
     if strategy == "argmax":
         choice_ix = proba.argmax()
@@ -328,14 +328,14 @@ def serve_selection(
         choice_ix = np.random.choice(list(range(len(probs))), p=probs)
     elif strategy == "uniform":
         print("choosing randomly with uniform distribution")
-        choice_ix = np.random.choice(list(range(len(continuations_screened))))
+        choice_ix = np.random.choice(list(range(len(retained_continuations))))
     else:
         raise ValueError(f"strategy {strategy}")
 
-    continuation = continuations_screened[choice_ix]
+    continuation = retained_continuations[choice_ix]
     chosen_proba = proba[choice_ix]
     chosen_pos_sent = pos_sent(continuation_sentiments[choice_ix])
-    chosen_continuation_side_data = continuation_side_data[choice_ix]
+    chosen_continuation_side_data = retained_continuation_side_data[choice_ix]
 
     chosen_mirotarg = chosen_continuation_side_data.get("mirotarg")
     chosen_prompt_for_neural = chosen_continuation_side_data.get("prompt_for_neural")
@@ -345,7 +345,7 @@ def serve_selection(
     )
 
     if data["type"] == "textpost":
-        for i, p in enumerate(proba):
+        for i, p in enumerate(selection_proba):
             if p > RETENTION_CUTOFF and continuations[i] not in retention_stack:
                 retention_stack.add(continuations[i])
 

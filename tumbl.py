@@ -40,16 +40,18 @@ from mood_dynamic import (
     mood_buff_v2,
     WINDOW_LENGTH_DAYS,
     pos_sent_to_logit_diff,
+    show_unit_mood_inputs,
 )
 
 from munging_shared import *
-from bridge_shared import bridge_service_unique_id, wait_for_result
-from selector import serve_selection, apply_retention_cutoff
+from bridge_shared import send_alldone
+from selector import apply_retention_cutoff
+from experimental.ml_connector import answer_from_gpt2_service, text_post_from_gpt2_service
 
 from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 
 from autoresponder_static import DEFAULT_CSC
-from autoresponder_static_v8 import timestamp_to_v8_format, timestamp_to_v10_format
+from autoresponder_static_v8 import timestamp_to_v10_format
 
 from traceability import on_post_creation_callback
 
@@ -120,7 +122,7 @@ REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
 
-DASH_REBLOG_SELECTION_CUTOFF = 0.6
+DASH_REBLOG_SELECTION_CUTOFF = 0.65
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
@@ -147,9 +149,6 @@ HALLOWEEN_2K20_BEHAVIOR_TESTING = False
 
 FIC_TRIGGER = True
 FIC_TRIGGER_TESTING = False
-
-DO_FAKE_V10_YEAR_MONTH = False
-FAKE_V10_YEAR_MONTH = "December 2020"
 
 IMAGE_CREATION = True
 IMAGE_CREATION_TESTING = False
@@ -315,93 +314,6 @@ def determine_mood(
     if return_mood_value:
         return mood, mood_value
     return mood
-
-
-def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
-    if ts is None:
-        ts = datetime.now()
-    data["v8_timestamp"] = timestamp_to_v8_format(ts)
-    data["v10_timestamp"] = timestamp_to_v10_format(ts)
-    if DO_FAKE_V10_YEAR_MONTH:
-        data["v10_timestamp"] = (
-            " ".join(data["v10_timestamp"].split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
-        )
-    if no_timestamp:
-        data["v8_timestamp"] = ""
-        data["v10_timestamp"] = ""
-
-    if BEAMSPLIT_TESTING_FLAG:
-        data["na_beamsplit"] = True
-    new_id = bridge_service_unique_id(bridge_service_url, data)
-
-    data_to_send = dict()
-    data_to_send.update(data)
-    data_to_send["id"] = new_id
-
-    requests.post(bridge_service_url, data=data_to_send)
-    result_generator = wait_for_result(new_id)
-
-    result, _, _ = serve_selection(
-        data=result_generator, side_judgment_cache=side_judgment_cache
-    )
-
-    # for logging, add any input fields that didn't make the round trip
-    for k, v in data.items():
-        if k not in result:
-            print(f"adding key {k}")
-            result[k] = v
-
-    return result
-
-
-def text_post_from_gpt2_service(loop_persistent_data, mood=None, ts=None):
-    data = {"mood": mood}
-
-    if ts is None:
-        ts = datetime.now()
-    data["v8_timestamp"] = timestamp_to_v8_format(ts)
-    data["v10_timestamp"] = timestamp_to_v10_format(ts)
-    if DO_FAKE_V10_YEAR_MONTH:
-        data["v10_timestamp"] = (
-            " ".join(data["v10_timestamp"].split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
-        )
-
-    url = bridge_service_url + "/textpost"
-
-    if BEAMSPLIT_TESTING_FLAG:
-        data["na_beamsplit"] = True
-
-    data['n_retention'] = len(loop_persistent_data.retention_stack)
-
-    new_id = bridge_service_unique_id(url, data)
-
-    data_to_send = dict()
-    data_to_send.update(data)
-    data_to_send["id"] = new_id
-
-    data["id"] = new_id
-    requests.post(url, data=data_to_send)
-    result_generator = wait_for_result(new_id)
-
-    result, retention_stack, retention_stack_proba = serve_selection(
-        data=result_generator,
-        side_judgment_cache=loop_persistent_data.side_judgment_cache,
-        retention_stack=loop_persistent_data.retention_stack,
-        retention_stack_proba=loop_persistent_data.retention_stack_proba,
-    )
-
-    save_retention(retention_stack)
-
-    loop_persistent_data.retention_stack = retention_stack
-    loop_persistent_data.retention_stack_proba = retention_stack_proba
-
-    # for logging, add any input fields that didn't make the round trip
-    for k, v in data.items():
-        if k not in result:
-            print(f"adding key {k}")
-            result[k] = v
-
-    return result, loop_persistent_data
 
 
 def strip_spurious_blognames_from_tags(client, tags, auto_accept_list=set()):
@@ -896,10 +808,11 @@ def respond_to_reblogs_replies(
     proba_threshold=None,
     is_user_input=True,
 ):
-    for reblog_identifier in identifiers:
+    n_ri = len(identifiers)
+    for ri_ix, reblog_identifier in enumerate(identifiers):
         if not roll_for_limited_users(reblog_identifier.blog_name):
             continue
-        print(f"\n\t--> begin handling {reblog_identifier}\n")
+        print(f"\n\t--> {ri_ix+1}/{n_ri} begin handling {reblog_identifier}\n")
         is_reply = reblog_identifier in reply_set
         halloweenize = (
             HALLOWEEN_2K20_BEHAVIOR or HALLOWEEN_2K20_BEHAVIOR_TESTING
@@ -950,7 +863,6 @@ def respond_to_reblogs_replies(
             )
         print(f"\n\t--> using question:\n---------\n{question}\n---------\n")
 
-        loop_persistent_data.side_judgment_cache.save()
         gpt2_output = answer_from_gpt2_service(
             data={
                 "question": question,
@@ -959,9 +871,10 @@ def respond_to_reblogs_replies(
                 "mood": determine_mood(response_cache),
                 "return_all_conts": 1,  # int(halloweenize),
                 "selector_cut_to_final_exchange": 1,  # int(is_reply),
-            }
+            },
+            loop_persistent_data=loop_persistent_data,
+            BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
         )
-        loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
 
         if (
             SAVE_USER_INPUT_SENTIMENTS
@@ -990,6 +903,7 @@ def respond_to_reblogs_replies(
                 sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
                 sent["generated_ts"] = datetime.now()
                 response_cache.mark_user_input_sentiment(user_input_identifier, sent)
+                show_unit_mood_inputs(response_cache, user_input_identifier)
 
         okay_to_reply = True
 
@@ -2038,7 +1952,6 @@ def construct_review_question(user_args):
 def handle_review_command(
     user_args, input_ident, asking_url, loop_persistent_data, response_cache
 ):
-    loop_persistent_data.side_judgment_cache.save()
     question, full_input = construct_review_question(user_args)
     gpt2_output = answer_from_gpt2_service(
         data={
@@ -2050,9 +1963,10 @@ def handle_review_command(
             "write_fic_override": 0,
             "write_review_override": 1,
         },
+        loop_persistent_data=loop_persistent_data,
         no_timestamp=True,
+        BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
     )
-    loop_persistent_data.side_judgment_cache = SideJudgementCache.load()
 
     log_data = gpt2_output
     log_data["post_type"] = "review"
@@ -2253,7 +2167,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         f"for {user_input_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
                     )
 
-            loop_persistent_data.side_judgment_cache.save()
             gpt2_output = answer_from_gpt2_service(
                 data={
                     "question": question,
@@ -2261,9 +2174,10 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     "mood": determine_mood(response_cache),
                     "forced_tags_string": forced_tags_string,
                     "write_fic_override": write_fic_override,
-                }
+                },
+                loop_persistent_data=loop_persistent_data,
+                BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG
             )
-            loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
 
             if (
                 response_cache.get_cached_user_input_sentiment(user_input_identifier)
@@ -2275,6 +2189,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
                 sent["generated_ts"] = datetime.now()
                 response_cache.mark_user_input_sentiment(user_input_identifier, sent)
+                show_unit_mood_inputs(response_cache, user_input_identifier)
             log_data = gpt2_output
             log_data["post_type"] = "ask"
             log_data["input_ident"] = (x["id"], x["asking_name"])
@@ -2308,6 +2223,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
                 loop_persistent_data=loop_persistent_data,
                 mood=mood_for_queue_writing,
                 ts=dt,
+                BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
             )
 
             log_data = gpt2_output
@@ -2414,7 +2330,6 @@ def do_rts(response_cache):
 
 
 def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseCache):
-    # DEBUG
     response_cache = do_rts(response_cache)
 
     ### decide whether we'll do the reblog/reply check
@@ -2543,14 +2458,6 @@ def load_retention(side_judgment_cache):
     return retention_stack, retention_stack_proba
 
 
-def save_retention(retention_stack):
-    with open("data/retention_stack.pkl.gz", "wb") as f:
-        pickle.dump(retention_stack, f)
-
-    with open("data/retention_stack_backup.pkl.gz", "wb") as f:
-        pickle.dump(retention_stack, f)
-
-
 if __name__ == "__main__":
     response_cache = ResponseCache.load(tank_client)
     side_judgment_cache = SideJudgmentCache.load()
@@ -2571,6 +2478,11 @@ if __name__ == "__main__":
                 loop_persistent_data, response_cache
             )
             time.sleep(sleep_time())
+            send_alldone()
         except (requests.exceptions.ConnectionError, KeyError, ValueError):
             print("hit an error, waiting for a little while...")
             time.sleep(sleep_time(multiplier=5))
+            send_alldone()
+        except KeyboardInterrupt:
+            send_alldone()
+            raise KeyboardInterrupt

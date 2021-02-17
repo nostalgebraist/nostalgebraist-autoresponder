@@ -1126,6 +1126,9 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         return results
 
     def _predict(self, X, key="preds", disable_calibration=False):
+        if isinstance(X, list):
+            X = pd.DataFrame.from_records(X)
+
         all_pd_ixs = []
         all_preds = []
         data = self._make_batched_data(X)

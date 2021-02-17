@@ -8,37 +8,21 @@ from functools import partial
 from datetime import datetime
 
 import numpy as np
-import pickle
-import sys
 from textwrap import wrap
 
-
-import requests
-import time
 from tqdm import tqdm
 
 from bot_config import BotSpecificConstants
-from side_judgments import SideJudgmentCache, SELECT_VIA_GENERATOR
 from image_analysis import IMAGE_DELIMITER_WHITESPACED
 from autoresponder_static_v8 import timestamp_to_v10_format
 
-Q_CHAR = "会"
-A_CHAR = "域"
-T_CHAR = "职"
-ORIG_POST_CHAR = "翰"
-
-AB_TEST_A_SEQUENCE = "\uFFFA"
-AB_TEST_B_SEQUENCE = "\uFFFB"
+from munging_shared import T_CHAR, ORIG_POST_CHAR
 
 bot_specific_constants = BotSpecificConstants.load()
 selector_url = bot_specific_constants.bridge_service_url + "/pollselector"
 generator_url = bot_specific_constants.bridge_service_url + "/pollgenerator"
 
 RESULT_STACK = {}
-wrapped = None
-
-MODEL_NAME = "bert_6_25_20_WITH_FIX"
-VERIFY_MODEL = False
 
 RETENTION_CUTOFF = 0.6
 ENFORCE_RETENTION_CUTOFF = True
@@ -92,15 +76,6 @@ def show_note_probas(texts, probas, continuation_sentiments=None, other_proba=No
         print("\n~_~_~_~_~_\n")
         print("\n".join(wrap(tpe)))
         print("\n~_~_~_~_~_\n")
-
-
-def verify_new_model():
-    global wrapped
-    with open("reward/textpost_examples.pkl.gz", "rb") as f:
-        textpost_examples = pickle.load(f)
-    textpost_examples = [s.lstrip(ORIG_POST_CHAR) for s in textpost_examples]
-    proba_tpe = wrapped.predict_proba(textpost_examples)[:, 1]
-    show_note_probas(textpost_examples, proba_tpe)
 
 
 def parse_continuation(continuation: str, verbose=False):
@@ -253,8 +228,6 @@ def record_side_judgements(
 def serve_selection(
     data, side_judgment_cache, retention_stack=None, retention_stack_proba=None
 ):
-    global wrapped
-
     continuations = data["continuations"]
     selection_proba = data.get("selection_proba")
     mirotarg = data.get("mirotarg", [None for _ in continuations])
@@ -302,8 +275,6 @@ def serve_selection(
             # TODO: store retention_stack mirotarg
             mirotarg += [None for _ in retention_stack]
 
-    base_id = data["base_id"]
-
     do_mood_screen = False
     if mood is not None:
         do_mood_screen = mood.get("name") != "unrestricted"
@@ -327,18 +298,7 @@ def serve_selection(
         selection_proba_screened = selection_proba
         retained_mirotarg = mirotarg
 
-    if SELECT_VIA_GENERATOR:
-        proba = np.asarray(selection_proba_screened)
-    else:
-        proba = wrapped.predict_proba([s.lstrip("翰") for s in continuations_screened])[
-            :, 1
-        ]
-        show_note_probas(
-            continuations_screened,
-            proba,
-            continuation_sentiments,
-            other_proba=selection_proba_screened,
-        )
+    proba = np.asarray(selection_proba_screened)
 
     if strategy == "argmax":
         choice_ix = proba.argmax()
@@ -403,8 +363,6 @@ def serve_selection(
         all_tags = [p["tags"] for p in all_parsed]
         parsed["all_posts"] = all_posts
         parsed["all_tags"] = all_tags
-
-    parsed["base_id"] = base_id
 
     if "AB_fork" in kwargs:
         fork = kwargs["AB_fork"]

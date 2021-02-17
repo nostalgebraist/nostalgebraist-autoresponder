@@ -117,10 +117,19 @@ class GeneratorModel:
     def done_writing(self, prompt: str):
         if prompt in self.startup_presents_for_prompt:
             del self.startup_presents_for_prompt[prompt]
-        else:
-            print(f"done_writing: prompt not in cache: {repr(prompt)}")
 
-    def write(self, prompt: str, mirotarg: float, verbose=False):
+    def write_random_prompt(self, prompts: list, probs: list, mirotarg: float = None, verbose=False):
+        if mirotarg is None:
+            mirotarg = np.random.choice(MIRO_TARGET_ALL)
+
+        prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))
+        return {"prompt": prompt,
+                "continuations": self.write(prompt=prompt, mirotarg=mirotarg, verbose=verbose)}
+
+    def write(self, prompt: str, mirotarg: float = None, verbose=False):
+        if mirotarg is None:
+            mirotarg = np.random.choice(MIRO_TARGET_ALL)
+
         context_tokens = self.enc.encode(prompt)
 
         startup_presents = self.startup_presents_for_prompt.get(prompt, None)

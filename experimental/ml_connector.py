@@ -436,6 +436,10 @@ def show_note_probas(texts, probas, sentiment_logit_diffs=None, console_width=11
 
 
 def predict_select(data, debug=False, override_disable_forumlike=False):
+    if len(data) == 0:
+        # this can happen if the retention_stack is big enough
+        return np.array([])
+
     selector_input = []
     for text in data.selector_input:
         for end_segment in {
@@ -482,6 +486,10 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
 
 
 def predict_sentiment(data, debug=False):
+    if len(data) == 0:
+        # this can happen if the retention_stack is big enough
+        return np.array([])
+
     selector_input = []
     for text in data.selector_input:
         for end_segment in {
@@ -1046,11 +1054,6 @@ def serve_textpost(data):
     selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
     sentiment_results = predict_sentiment(selector_inputs, debug=True)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
-    # show_note_probas(
-    #     continuations,
-    #     probas=parsed["selection_proba"],
-    #     sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
-    # )
 
     if GLOBAL_DEBUG:
         print(f"sending back: {parsed}")

@@ -44,7 +44,7 @@ When running and communicating with tumblr, the bot consists of the following pr
 1. tumblr API layer
     - script `tumbl.py`
 2.  machine learning layer
-    - `ml_layer_wrapper.ipynb` (a lightweight wrapper around `autoresponder.py`)
+    - `ml_layer_wrapper.ipynb` (a lightweight wrapper around `experimental/ml_layer.py`)
     - Running this layer requires:
       - a GPU with ~16GB memory
       - a GCS bucket containing trained generator, selector and sentiment models

@@ -392,11 +392,10 @@ def basic_n_continuations(
         if len(this_batch_continuations) > 0:
             print(f"have {len(continuations)} of {N}... ", end="", flush=True)
 
-    r = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     for pr in set(all_prompts):
         bridge_id = generator_model.done_writing(pr)
-        # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     continuations_ = []
     for continuation, pr in zip(continuations, all_prompts):
@@ -477,9 +476,8 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
 
-    rdone = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
-    # print(f"raw response: {repr(response)}")
     result = np.array(response_data[0]["result"])
     probs = result[:, 1]
     return probs
@@ -525,7 +523,7 @@ def predict_sentiment(data, debug=False):
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
 
-    rdone = requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     logits = np.array(response_data[0]["result"])
 

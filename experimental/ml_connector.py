@@ -307,9 +307,9 @@ def basic_n_continuations(
         ]
 
         this_batch_side_data = [
-            entry
+            batch["side_data"]
             for batch in batches_written[n_batches_so_far :]
-            for entry in batch["side_data"]
+            for entry in batch["continuations"]
         ]
 
         # if use_textpost_prompt:
@@ -350,7 +350,7 @@ def basic_n_continuations(
             return sep + sep.join(wrap(c_, **kwargs_))
 
         for c, sdata in zip(this_batch_continuations, this_batch_side_data):
-            pr = sdata["prompt"]
+            pr = sdata["prompt_for_neural"]
 
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
                 if split_on_control_char:

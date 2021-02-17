@@ -929,7 +929,9 @@ def serve_answer(data):
     )
     parsed = data.copy()
     parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
-    parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
+    parsed["continuation_side_data"] = continuation_side_data
+    # parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
+    # parsed["prompt_for_neural"] = [cd.get("prompt_for_neural") for cd in continuation_side_data]
 
     if SELECTOR_CAN_SEE_PROMPTS:
         if selector_cut_to_final_exchange and not override_disable_forumlike:

@@ -230,7 +230,7 @@ def serve_selection(
 ):
     continuations = data["continuations"]
     selection_proba = data.get("selection_proba")
-    mirotarg = data.get("mirotarg", [None for _ in continuations])
+    continuation_side_data = data.get("continuation_side_data", [{} for _ in continuations])
 
     if FIC_COLDSTART:
         selection_proba = do_fic_coldstart(continuations, selection_proba)
@@ -273,7 +273,7 @@ def serve_selection(
             else:
                 selection_proba += [None for _ in retention_stack]
             # TODO: store retention_stack mirotarg
-            mirotarg += [None for _ in retention_stack]
+            continuation_side_data += [{} for _ in retention_stack]
 
     do_mood_screen = False
     if mood is not None:
@@ -285,9 +285,9 @@ def serve_selection(
             continuation_sentiments,
             selection_proba_screened,
             all_continuation_sentiments,
-            retained_mirotarg,
+            retained_continuation_side_data,
         ) = sentiment_screen(
-            side_judgment_cache, continuations, mood, selection_proba, mirotarg
+            side_judgment_cache, continuations, mood, selection_proba, continuation_side_data
         )
     else:
         continuation_sentiments = get_continuation_sentiments(
@@ -296,7 +296,7 @@ def serve_selection(
         continuations_screened = continuations
         all_continuation_sentiments = continuation_sentiments
         selection_proba_screened = selection_proba
-        retained_mirotarg = mirotarg
+        retained_continuation_side_data = continuation_side_data
 
     proba = np.asarray(selection_proba_screened)
 
@@ -329,7 +329,10 @@ def serve_selection(
     continuation = continuations_screened[choice_ix]
     chosen_proba = proba[choice_ix]
     chosen_pos_sent = pos_sent(continuation_sentiments[choice_ix])
-    chosen_mirotarg = retained_mirotarg[choice_ix]
+    chosen_continuation_side_data = continuation_side_data[choice_ix]
+
+    chosen_mirotarg = chosen_continuation_side_data.get("mirotarg")
+    chosen_prompt_for_neural = chosen_continuation_side_data.get("prompt_for_neural")
     print(
         f"\nselecting #{choice_ix} with pred {chosen_proba:.1%}, pos_sent {chosen_pos_sent:.1%}:\n{continuation}, mirotarg {chosen_mirotarg}\n"
     )
@@ -346,11 +349,12 @@ def serve_selection(
     parsed["proba"] = float(chosen_proba)
     parsed["pos_sentiment"] = float(chosen_pos_sent)
     parsed["mirotarg"] = chosen_mirotarg
+    parsed["prompt_for_neural"] = chosen_prompt_for_neural
     parsed["all_pos_sentiment"] = [
         float(pos_sent(s)) for s in all_continuation_sentiments
     ]
     parsed["all_proba"] = [float(p) for p in selection_proba]
-    parsed["all_mirotarg"] = mirotarg
+    parsed["all_mirotarg"] = [sd.get("mirotarg") for sd in continuation_side_data]
     for k in data.keys():
         if "alt_selection_proba" in k:
             parsed[f"all_{k}"] = [float(p) for p in data[k]]
@@ -378,9 +382,6 @@ def serve_selection(
 
     if "model_info" in data:
         parsed["model_info"] = data["model_info"]
-
-    if "prompt_for_neural" in data:
-        parsed["prompt_for_neural"] = data["prompt_for_neural"]
 
     lost_keys = [k for k in data.keys() if k not in parsed]
     if WARN_ABOUT_LOST_KEYS and len(lost_keys) > 0:

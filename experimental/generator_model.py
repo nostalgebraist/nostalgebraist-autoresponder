@@ -123,8 +123,7 @@ class GeneratorModel:
             mirotarg = np.random.choice(MIRO_TARGET_ALL)
 
         prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))
-        return {"prompt": prompt,
-                "continuations": self.write(prompt=prompt, mirotarg=mirotarg, verbose=verbose)}
+        return self.write(prompt=prompt, mirotarg=mirotarg, verbose=verbose)
 
     def write(self, prompt: str, mirotarg: float = None, verbose=False):
         if mirotarg is None:
@@ -394,7 +393,13 @@ class GeneratorModel:
                 text = text.split(eot_end_segment)[0] + eot_end_segment
             continuations_.append(text)
 
-        return continuations_
+        return {
+            "continuations": continuations_,
+            "side_data": {
+                "prompt_for_neural": prompt,
+                "mirotarg": mirotarg,
+            }
+        }
 
     def restore_checkpoint(self, path, retries=False):
         enclosing_dir = path.rpartition("/")[0]

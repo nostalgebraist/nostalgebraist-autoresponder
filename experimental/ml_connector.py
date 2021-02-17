@@ -300,30 +300,42 @@ def basic_n_continuations(
         if len(batches_written) <= n_batches_so_far:
             continue
 
-        if use_textpost_prompt:
-            print(f"got raw batches_written (length {len(batches_written)}):")
-            print(batches_written)
+        this_batch_continuations = [
+            entry
+            for batch in batches_written[n_batches_so_far :]
+            for entry in batch["continuations"]
+        ]
 
-            this_batch_prompts = [
-                batch["prompt"]
-                for batch in batches_written[n_batches_so_far :]
-                for _ in batch["continuations"]
-            ]
+        this_batch_side_data = [
+            entry
+            for batch in batches_written[n_batches_so_far :]
+            for entry in batch["side_data"]
+        ]
 
-            this_batch_continuations = [
-                entry
-                for batch in batches_written[n_batches_so_far :]
-                for entry in batch["continuations"]
-            ]
-
-            print(f"inferred this_batch_prompts (length {len(this_batch_prompts)}):")
-            print(this_batch_prompts)
-            print(f"inferred this_batch_continuations (length {len(this_batch_continuations)}):")
-            print(this_batch_continuations)
-
-        else:
-            this_batch_continuations = [entry for batch in batches_written[n_batches_so_far :] for entry in batch]
-            this_batch_prompts = [prompt for _ in this_batch_continuations]
+        # if use_textpost_prompt:
+        #     print(f"got raw batches_written (length {len(batches_written)}):")
+        #     print(batches_written)
+        #
+        #     this_batch_prompts = [
+        #         batch["prompt"]
+        #         for batch in batches_written[n_batches_so_far :]
+        #         for _ in batch["continuations"]
+        #     ]
+        #
+        #     this_batch_continuations = [
+        #         entry
+        #         for batch in batches_written[n_batches_so_far :]
+        #         for entry in batch["continuations"]
+        #     ]
+        #
+        #     print(f"inferred this_batch_prompts (length {len(this_batch_prompts)}):")
+        #     print(this_batch_prompts)
+        #     print(f"inferred this_batch_continuations (length {len(this_batch_continuations)}):")
+        #     print(this_batch_continuations)
+        #
+        # else:
+        #     this_batch_continuations = [entry for batch in batches_written[n_batches_so_far :] for entry in batch]
+        #     this_batch_prompts = [prompt for _ in this_batch_continuations]
 
         n_batches_so_far = len(batches_written)
 
@@ -337,10 +349,11 @@ def basic_n_continuations(
 
             return sep + sep.join(wrap(c_, **kwargs_))
 
-        for c, pr in zip(this_batch_continuations, this_batch_prompts):
+        for c, sdata in zip(this_batch_continuations, this_batch_side_data):
+            pr = sdata["prompt"]
+
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
                 if split_on_control_char:
-                    # min_ix = min([i for i, char in enumerate(c) if char in {Q_CHAR, A_CHAR, ORIG_POST_CHAR, UNAME_CHAR}])
                     min_ix = first_control_char(
                         c, control_seg_config=CONTROL_SEG_CONFIG
                     )[1]
@@ -386,7 +399,7 @@ def basic_n_continuations(
                         f"\n\tkeeping with roll {roll}, although length under {avoid_half_if_under}\n"
                     )
                 continuations.append(c)
-                continuation_side_data.append({"mirotarg": mirotarg})
+                continuation_side_data.append(sdata)
                 all_prompts.append(pr)
 
         if len(this_batch_continuations) > 0:

@@ -271,12 +271,14 @@ def serve_selection(
         continuations += sorted(retention_stack)
         if selection_proba is not None:
             if retention_stack_proba is not None:
+                print(f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}")
                 selection_proba += retention_stack_proba
             else:
                 selection_proba += [None for _ in retention_stack]
             # TODO: store retention_stack mirotarg
             continuation_side_data += [{} for _ in retention_stack]
 
+    print(f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}")
     do_mood_screen = False
     if mood is not None:
         do_mood_screen = mood.get("name") != "unrestricted"
@@ -344,6 +346,7 @@ def serve_selection(
         f"\nselecting #{choice_ix} with pred {chosen_proba:.1%}, pos_sent {chosen_pos_sent:.1%}:\n{continuation}, mirotarg {chosen_mirotarg}\n"
     )
 
+    print(f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}")
     if data["type"] == "textpost":
         for i, p in enumerate(selection_proba):
             if p > RETENTION_CUTOFF and continuations[i] not in retention_stack:
@@ -472,4 +475,5 @@ def apply_retention_cutoff(retention_stack, side_judgment_cache):
         print(
             f"after: {n_after_stack} in retention_stack, {n_after_proba} in retention_stack_proba"
         )
+    print(f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}")
     return retention_stack, retention_stack_proba

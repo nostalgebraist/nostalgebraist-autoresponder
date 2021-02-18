@@ -355,6 +355,10 @@ def serve_selection(
         if continuation in retention_stack:
             retention_stack.remove(continuation)
 
+    retention_stack, retention_stack_proba = apply_retention_cutoff(
+        retention_stack, side_judgment_cache
+    )
+
     parsed = parse_continuation(continuation)
     parsed["proba"] = float(chosen_proba)
     parsed["pos_sentiment"] = float(chosen_pos_sent)
@@ -423,13 +427,14 @@ do_image_coldstart = partial(
 
 
 def apply_retention_cutoff(retention_stack, side_judgment_cache):
+    # TODO: return side_judgment_cache so we don't lose what is learned inside here
     ts = datetime.now()
     v10_timestamps = [timestamp_to_v10_format(ts) for _ in retention_stack]
 
     retention_stack_side_judgments = side_judgment_cache.query_multi(
         [ORIG_POST_CHAR + t for t in sorted(retention_stack)],
         v10_timestamps=v10_timestamps,
-        verbose=False,
+        verbose=True,
     )
     retention_stack_proba = [
         judg["selection_proba"] for judg in retention_stack_side_judgments

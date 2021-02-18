@@ -250,6 +250,13 @@ class SideJudgmentCache:
                 results[ix] = r
                 self.cache[t] = r
                 self.cache[t]["last_accessed_time"] = now
+
+        if len(results) > len(texts):
+            # TODO: actually fix!!!!!
+            print(f"RS BUG!: len(results) {len(results)} vs len(texts) {len(texts)}")
+            print(("results", results))
+            print(("texts", texts))
+            return results[:len(texts)]
         return results
 
     def save(self, verbose=True, do_backup=True):

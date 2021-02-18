@@ -355,9 +355,9 @@ def serve_selection(
         if continuation in retention_stack:
             retention_stack.remove(continuation)
 
-    retention_stack, retention_stack_proba = apply_retention_cutoff(
-        retention_stack, side_judgment_cache
-    )
+        retention_stack, retention_stack_proba = apply_retention_cutoff(
+            retention_stack, side_judgment_cache
+        )
 
     parsed = parse_continuation(continuation)
     parsed["proba"] = float(chosen_proba)

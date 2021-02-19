@@ -92,7 +92,7 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
                 c_attn_w = model.get_variable("w") or tf.get_variable(
                     "w", [1, nx, nf], initializer=initializer(dtype=dtype)
                 )
-                c_attn_kv_w, c_attn_q_w = tf.split(c_attn_w, [n_state * 2, n_state])
+                c_attn_kv_w, c_attn_q_w = tf.split(c_attn_w, [n_state * 2, n_state], axis=2)
             c_kv = conv1d_overridable(x, "c_attn_kv", n_state * 2, hparams=hparams, w=c_attn_kv_w)
         else:
             c_kv = model.conv1d(x, "c_attn_kv", n_state * 2, hparams=hparams)

@@ -27,7 +27,6 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
 
     def mask_attn_weights(w):
         # w has shape [batch, heads, dst_sequence, src_sequence], where information flows from src to dst.
-        print(("w", w))
         _, _, nd, ns = model.shape_list(w)
         b = model.attention_mask(nd, ns, dtype=w.dtype)
         b = tf.reshape(b, [1, 1, nd, ns])
@@ -39,7 +38,6 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
         w = tf.matmul(q, k, transpose_b=True)
         w = w * tf.rsqrt(tf.cast(v.shape[-1].value, w.dtype))
 
-        print(("w", w))
         # w = mask_attn_weights(w)
         attn_dropout = (
             hparams.get("attn_dropout_adapt", 0)
@@ -70,20 +68,12 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
         # TODO: "classic_init"
         c_kv = model.conv1d(x, "c_attn_kv", n_state * 2, hparams=hparams)
         k, v = tf.split(c_kv, 2, axis=2)
-        print(("k", k))
-        print(("v", v))
 
         x_at_selection_ix = extract_selection_ix(X, x, batch_size, selection_tok)["extracted"]
-        print(("x_at_selection_ix", x_at_selection_ix))
         x_at_selection_ix = x_at_selection_ix[:, tf.newaxis, :]
-        print(("x_at_selection_ix", x_at_selection_ix))
         q = model.conv1d(x_at_selection_ix, "c_attn_q", n_state, hparams=hparams)
-        print(("q", q))
 
         q, k, v = map(split_heads, [q, k, v])
-        print(("q", q))
-        print(("k", k))
-        print(("v", v))
         present = tf.stack([k, v], axis=1)
         if past is not None:
             pk, pv = tf.unstack(past, axis=1)
@@ -213,22 +203,11 @@ def selector(
 
             h_select_in = tf.concat(hs_select, axis=-1)
             if hparams_select.get("selector_style_attn", False):
-                print(("h_select_in", h_select_in))
                 h_select_in_at_selection_ix = h_select_in[:, 0, :]
-                print(("h_select_in_at_selection_ix", h_select_in_at_selection_ix))
             else:
                 h_select_in_at_selection_ix = extract_selection_ix(
                     X, h_select_in, batch_size=batch_size, selection_tok=selection_tok
                 )["extracted"]
-            # selection_ix_position = tf.cast(
-            #     tf.reshape(
-            #         extract_selection_ix_position(
-            #             X, batch_size=batch_size, selection_tok=selection_tok
-            #         )["extracted"],
-            #         [-1, 1],
-            #     ),
-            #     tf.float32,
-            # )
 
         if use_mlp:
             nx = h_select_in_at_selection_ix.shape[-1].value

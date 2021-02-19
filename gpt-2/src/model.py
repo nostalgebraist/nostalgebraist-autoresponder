@@ -33,6 +33,7 @@ def default_hparams():
         init_default_gain=1.0,
         adapt_layers=[0],
         selector_style_attn=False,
+        classic_init=True,
     )
 
 
@@ -63,6 +64,8 @@ def hparams_1558M():
         he_init=False,
         init_default_gain=1.0,
         adapt_layers=[0],
+        selector_style_attn=False,
+        classic_init=True,
     )
 
 

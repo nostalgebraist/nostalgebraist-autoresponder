@@ -66,6 +66,8 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
         # print(("k", k))
         # print(("v", v))
 
+        # works, better than above?
+        # TODO: "classic_init"
         c_kv = model.conv1d(x, "c_attn_kv", n_state * 2, hparams=hparams)
         k, v = tf.split(c_kv, 2, axis=2)
         print(("k", k))

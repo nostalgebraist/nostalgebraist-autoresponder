@@ -32,7 +32,7 @@ def post_body_find_reply_data(post_body: str):
 
     url = seg2.partition(">")[0]
     urlseg = url.partition("/post/")[2]
-    pid = urlseg.rpartition("/")[0]
+    pid = urlseg.rstrip("/\"")
 
     replier_seg = seg1
     if replier_seg.endswith(">"):
@@ -45,5 +45,6 @@ def post_body_find_reply_data(post_body: str):
     except:
         msg = f"couldn't extract reply metadata from\n{post_body}\nwith"
         msg += f"\n\tseg={seg1}\n\tseg2={seg2}\n\turl={url}"
+        msg += f"\n\turlseg={urlseg}\n\tpid={pid}"
         print(msg)
         return None, None

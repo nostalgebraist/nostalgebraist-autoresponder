@@ -426,13 +426,19 @@ do_image_coldstart = partial(
 )
 
 
-def apply_retention_cutoff(retention_stack, side_judgment_cache):
+def apply_retention_cutoff(retention_stack, side_judgment_cache, force=False):
     # TODO: return side_judgment_cache so we don't lose what is learned inside here
     ts = datetime.now()
     v10_timestamps = [timestamp_to_v10_format(ts) for _ in retention_stack]
 
+    texts_for_selection = [ORIG_POST_CHAR + t for t in sorted(retention_stack)]
+    if force:
+        to_delete = [t for t in texts_for_selection if t in side_judgment_cache.cache]
+        for t in to_delete:
+            del side_judgment_cache.cache[t]
+
     retention_stack_side_judgments = side_judgment_cache.query_multi(
-        [ORIG_POST_CHAR + t for t in sorted(retention_stack)],
+        texts_for_selection,
         v10_timestamps=v10_timestamps,
         verbose=True,
     )

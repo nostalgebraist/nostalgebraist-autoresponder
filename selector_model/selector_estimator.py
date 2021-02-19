@@ -177,6 +177,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         flooding=False,
         flood_level=0.0,
         accumulate_gradients=1,
+        selector_style_attn=False,
     ):
         self.ckpt = ckpt
         self.layer_nums = layer_nums
@@ -247,6 +248,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.flooding = flooding
         self.flood_level = flood_level
         self.accumulate_gradients = accumulate_gradients
+        self.selector_style_attn = selector_style_attn
 
         self.uid_ = None
         self.select_scope_ = None
@@ -344,6 +346,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             init_default_gain=self.init_default_gain,
             init_lreg_gain=self.init_lreg_gain,
             additional_full_blocks=self.additional_full_blocks,
+            selector_style_attn=self.selector_style_attn,
         )
 
         # TODO: DRY
@@ -364,6 +367,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             init_default_gain=self.init_default_gain,
             init_lreg_gain=self.init_lreg_gain,
             additional_full_blocks=self.additional_full_blocks,
+            selector_style_attn=self.selector_style_attn,
         )
 
         if self.session_override is not None:

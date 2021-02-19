@@ -32,6 +32,7 @@ def default_hparams():
         he_init=False,
         init_default_gain=1.0,
         adapt_layers=[0],
+        selector_style_attn=False,
     )
 
 

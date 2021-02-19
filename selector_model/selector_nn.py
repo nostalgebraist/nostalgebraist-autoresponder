@@ -6,6 +6,25 @@ sys.path.append("gpt-2/src/")
 import model
 
 
+def conv1d_overridable(x, scope, nf, *, gain=None, hparams=None, w=None):
+    dtype = hparams.dtype if hparams else tf.float32
+    with tf.variable_scope(scope, dtype=dtype):
+        *start, nx = model.shape_list(x)
+        initializer = model.get_initializer(hparams, scope, nx, gain)
+        if w is None:
+            w = model.get_variable("w") or tf.get_variable(
+                "w", [1, nx, nf], initializer=initializer(dtype=dtype)
+            )
+        b = model.get_variable("b") or tf.get_variable(
+            "b", [nf], initializer=tf.constant_initializer(0, dtype=dtype)
+        )
+        c = tf.reshape(
+            tf.matmul(tf.reshape(x, [-1, nx]), tf.reshape(w, [-1, nf])) + b,
+            start + [nf],
+        )
+        return c
+
+
 def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, adapt=False,
                   X=None, batch_size=None, selection_tok=None):
     if n_head is None:
@@ -65,13 +84,25 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
         # print(("v", v))
 
         # works, better than above?
-        # TODO: "classic_init"
-        c_kv = model.conv1d(x, "c_attn_kv", n_state * 2, hparams=hparams)
+        classic_init = hparams.get("classic_init", False)
+        if classic_init:
+            with tf.variable_scope("c_attn", dtype=dtype):
+                nx, nf = n_state, 3 * n_state
+                c_attn_w = model.get_variable("w") or tf.get_variable(
+                    "w", [1, nx, nf], initializer=model.initializer(dtype=dtype)
+                )
+                c_attn_kv_w, c_attn_q_w = tf.split(c_attn_w, [n_state * 2, n_state])
+            c_kv = conv1d_overridable(x, "c_attn_kv", n_state * 2, hparams=hparams, w=c_attn_kv_w)
+        else:
+            c_kv = model.conv1d(x, "c_attn_kv", n_state * 2, hparams=hparams)
         k, v = tf.split(c_kv, 2, axis=2)
 
         x_at_selection_ix = extract_selection_ix(X, x, batch_size, selection_tok)["extracted"]
         x_at_selection_ix = x_at_selection_ix[:, tf.newaxis, :]
-        q = model.conv1d(x_at_selection_ix, "c_attn_q", n_state, hparams=hparams)
+        if classic_init:
+            q = conv1d_overridable(x_at_selection_ix, "c_attn_q", n_state, hparams=hparams, w=c_attn_q_w)
+        else:
+            q = model.conv1d(x_at_selection_ix, "c_attn_q", n_state, hparams=hparams)
 
         q, k, v = map(split_heads, [q, k, v])
         present = tf.stack([k, v], axis=1)

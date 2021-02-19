@@ -56,14 +56,28 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
 
     dtype = hparams.dtype if hparams else tf.float32
     with tf.variable_scope(scope, dtype=dtype):
-        c = model.conv1d(x, "c_attn", n_state * 3, hparams=hparams)
-        q, k, v = tf.split(c, 3, axis=2)
-        q = extract_selection_ix(X, q, batch_size, selection_tok)["extracted"]
-        print(("q", q))
-        q = q[:, tf.newaxis, :]
-        print(("q", q))
+        # works
+        # c = model.conv1d(x, "c_attn", n_state * 3, hparams=hparams)
+        # q, k, v = tf.split(c, 3, axis=2)
+        # q = extract_selection_ix(X, q, batch_size, selection_tok)["extracted"]
+        # print(("q", q))
+        # q = q[:, tf.newaxis, :]
+        # print(("q", q))
+        # print(("k", k))
+        # print(("v", v))
+
+        c_kv = model.conv1d(x, "c_attn_kv", n_state * 2, hparams=hparams)
+        k, v = tf.split(c_kv, 2, axis=2)
         print(("k", k))
         print(("v", v))
+
+        x_at_selection_ix = extract_selection_ix(X, x, batch_size, selection_tok)["extracted"]
+        print(("x_at_selection_ix", x_at_selection_ix))
+        x_at_selection_ix = x_at_selection_ix[:, tf.newaxis, :]
+        print(("x_at_selection_ix", x_at_selection_ix))
+        q = model.conv1d(x_at_selection_ix, "c_attn_kv", n_state, hparams=hparams)
+        print(("q", q))
+
         q, k, v = map(split_heads, [q, k, v])
         print(("q", q))
         print(("k", k))

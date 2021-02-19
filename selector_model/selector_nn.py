@@ -61,7 +61,10 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
         print(("q", q))
         q = q[:, tf.newaxis, :]
         print(("q", q))
-        # q, k, v = map(split_heads, tf.split(c, 3, axis=2))
+        q, k, v = map(split_heads, [q, k, v])
+        print(("q", q))
+        print(("k", k))
+        print(("v", v))
         present = tf.stack([k, v], axis=1)
         if past is not None:
             pk, pv = tf.unstack(past, axis=1)

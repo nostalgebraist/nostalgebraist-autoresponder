@@ -900,10 +900,13 @@ def respond_to_reblogs_replies(
                 sent = response_cache.get_cached_user_input_sentiment(
                     user_input_identifier
                 )
-                sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
-                sent["generated_ts"] = datetime.now()
-                response_cache.mark_user_input_sentiment(user_input_identifier, sent)
-                show_unit_mood_inputs(response_cache, user_input_identifier)
+                if sent.get("generated_pos_sent") is not None:
+                    print(f"not overwriting existing mood effects for {user_input_identifier}")
+                else:
+                    sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
+                    sent["generated_ts"] = datetime.now()
+                    response_cache.mark_user_input_sentiment(user_input_identifier, sent)
+                    show_unit_mood_inputs(response_cache, user_input_identifier)
 
         okay_to_reply = True
 
@@ -2186,10 +2189,13 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 sent = response_cache.get_cached_user_input_sentiment(
                     user_input_identifier
                 )
-                sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
-                sent["generated_ts"] = datetime.now()
-                response_cache.mark_user_input_sentiment(user_input_identifier, sent)
-                show_unit_mood_inputs(response_cache, user_input_identifier)
+                if sent.get("generated_pos_sent") is not None:
+                    print(f"not overwriting existing mood effects for {user_input_identifier}")
+                else:
+                    sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
+                    sent["generated_ts"] = datetime.now()
+                    response_cache.mark_user_input_sentiment(user_input_identifier, sent)
+                    show_unit_mood_inputs(response_cache, user_input_identifier)
             log_data = gpt2_output
             log_data["post_type"] = "ask"
             log_data["input_ident"] = (x["id"], x["asking_name"])

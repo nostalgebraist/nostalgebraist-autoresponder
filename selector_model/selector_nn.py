@@ -75,7 +75,7 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
         print(("x_at_selection_ix", x_at_selection_ix))
         x_at_selection_ix = x_at_selection_ix[:, tf.newaxis, :]
         print(("x_at_selection_ix", x_at_selection_ix))
-        q = model.conv1d(x_at_selection_ix, "c_attn_kv", n_state, hparams=hparams)
+        q = model.conv1d(x_at_selection_ix, "c_attn_q", n_state, hparams=hparams)
         print(("q", q))
 
         q, k, v = map(split_heads, [q, k, v])

@@ -1025,15 +1025,15 @@ def respond_to_reblogs_replies(
                     print(
                         f"tried to use screener_string_from_bootstrap_draft, encountered {e}: {eargs}"
                     )
-                screener_question = (
-                    response_cache.query(
-                        CachedResponseType.POSTS,
-                        reblog_identifier,
-                        care_about_notes=False,
+                    screener_question = (
+                        response_cache.query(
+                            CachedResponseType.POSTS,
+                            reblog_identifier,
+                            care_about_notes=False,
+                        )
+                        .get("reblog", {})
+                        .get("comment", "")
                     )
-                    .get("reblog", {})
-                    .get("comment", "")
-                )
                 print(f"using screener_question: {repr(screener_question)}")
 
                 to_drafts = HALLOWEEN_2K20_BEHAVIOR_TESTING

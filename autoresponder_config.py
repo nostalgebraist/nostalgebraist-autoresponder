@@ -51,7 +51,7 @@ model_name = "autoresponder_v10"
 model_path = os.path.join("models", model_name, "model-135.hdf5")
 
 dataset = "data/v10/ALL_data_v10_nost_tuning.npz"
-ckpt_select = "selector/v10/v9/.hdf5"
+ckpt_select = "selector/v10/v10/.hdf5"
 ckpt_sentiment = "sentiment/v10/v2/.hdf5"
 
 TRUNCATE_AT_RIGHT = False

@@ -177,7 +177,8 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         flooding=False,
         flood_level=0.0,
         accumulate_gradients=1,
-        selector_style_attn=False,
+        selector_style_attn=True,
+        classic_init=True,
     ):
         self.ckpt = ckpt
         self.layer_nums = layer_nums
@@ -249,6 +250,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.flood_level = flood_level
         self.accumulate_gradients = accumulate_gradients
         self.selector_style_attn = selector_style_attn
+        self.classic_init = classic_init
 
         self.uid_ = None
         self.select_scope_ = None
@@ -300,7 +302,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                             tf.int32, [self.batch_size], name="select_target"
                         )
 
-                    _ = model_fn(
+                    model_fn(
                         hparams=self.base_hparams,
                         X=self.context_for_h_,
                         return_activations_at=self.layer_nums,
@@ -347,6 +349,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             init_lreg_gain=self.init_lreg_gain,
             additional_full_blocks=self.additional_full_blocks,
             selector_style_attn=self.selector_style_attn,
+            classic_init=self.classic_init,
         )
 
         # TODO: DRY
@@ -368,6 +371,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             init_lreg_gain=self.init_lreg_gain,
             additional_full_blocks=self.additional_full_blocks,
             selector_style_attn=self.selector_style_attn,
+            classic_init=self.classic_init,
         )
 
         if self.session_override is not None:

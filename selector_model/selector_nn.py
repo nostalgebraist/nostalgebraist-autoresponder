@@ -196,7 +196,7 @@ def selector(
             hs_select.append(h_select)
 
             h_select_in = tf.concat(hs_select, axis=-1)
-            if hparams.get("selector_style_attn", False):
+            if hparams_select.get("selector_style_attn", False):
                 print(("h_select_in", h_select_in))
                 h_select_in = h_select_in[:, 0, :]
                 print(("h_select_in", h_select_in))

@@ -59,6 +59,7 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
         q = extract_selection_ix(X, q, batch_size, selection_tok)["extracted"]
         print(("q", q))
         q = q[:, tf.newaxis, :]
+        print(("q", q))
         # q, k, v = map(split_heads, tf.split(c, 3, axis=2))
         present = tf.stack([k, v], axis=1)
         if past is not None:

@@ -39,7 +39,8 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
         w = tf.matmul(q, k, transpose_b=True)
         w = w * tf.rsqrt(tf.cast(v.shape[-1].value, w.dtype))
 
-        w = mask_attn_weights(w)
+        print(("w", w))
+        # w = mask_attn_weights(w)
         attn_dropout = (
             hparams.get("attn_dropout_adapt", 0)
             if adapt
@@ -61,6 +62,8 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
         print(("q", q))
         q = q[:, tf.newaxis, :]
         print(("q", q))
+        print(("k", k))
+        print(("v", v))
         q, k, v = map(split_heads, [q, k, v])
         print(("q", q))
         print(("k", k))

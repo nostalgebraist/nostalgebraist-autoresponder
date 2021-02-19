@@ -197,9 +197,9 @@ def selector(
 
             h_select_in = tf.concat(hs_select, axis=-1)
             if hparams.get("selector_style_attn", False):
-                print(("h_select_in", "h_select_in"))
+                print(("h_select_in", h_select_in))
                 h_select_in = h_select_in[:, 0, :]
-                print(("h_select_in", "h_select_in"))
+                print(("h_select_in", h_select_in))
             else:
                 h_select_in_at_selection_ix = extract_selection_ix(
                     X, h_select_in, batch_size=batch_size, selection_tok=selection_tok

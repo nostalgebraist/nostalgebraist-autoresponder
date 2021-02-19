@@ -27,6 +27,7 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
 
     def mask_attn_weights(w):
         # w has shape [batch, heads, dst_sequence, src_sequence], where information flows from src to dst.
+        print(("w", w))
         _, _, nd, ns = model.shape_list(w)
         b = model.attention_mask(nd, ns, dtype=w.dtype)
         b = tf.reshape(b, [1, 1, nd, ns])

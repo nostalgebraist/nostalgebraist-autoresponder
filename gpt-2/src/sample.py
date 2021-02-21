@@ -102,11 +102,6 @@ def mirostat_logits_v2(
     denominator = tf.cumsum(probs_sort, axis=1)
     numerator = tf.cumsum(surprises * probs_sort, axis=1)
     surprises_expectations = numerator / denominator
-    # surprises_expectations = surprises_csum * mirostat_harmonic
-
-    print(("surprises_expectations", surprises_expectations))
-    print(("mirostat_mu", mirostat_mu))
-    print(("mirostat_mu[:, tf.newaxis]", mirostat_mu[:, tf.newaxis]))
 
     k_summand = tf.where(
         surprises_expectations < mirostat_mu[:, tf.newaxis],

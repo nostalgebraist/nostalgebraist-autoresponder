@@ -70,7 +70,7 @@ class GeneratorModel:
 
             sampling_args = dict(
                 stop_at_EOT=True,
-                better_length=better_length,
+                # better_length=better_length,
                 eot_workaround=EOT_WORKAROUND,
                 enc=self.enc,
                 hparams=self.hparams,
@@ -89,6 +89,7 @@ class GeneratorModel:
             # TODO: DRY
             self.first_sample_op = sample.sample_sequence(
                 length=pre_continue_length,
+                better_length=False,
                 temperature=pre_continue_temperature,
                 top_k=pre_continue_top_k,
                 top_p=pre_continue_top_p,
@@ -99,8 +100,22 @@ class GeneratorModel:
                 **sampling_args,
             )
             # TODO: DRY
-            self.second_sample_op = sample.sample_sequence(
+            self.sample_op_fill_window = sample.sample_sequence(
+                length=max_ctx_fits_on_gpu,
+                better_length=True,
+                temperature=temperature,
+                top_k=top_k,
+                top_p=top_p,
+                middle_p=middle_p,
+                chop_lowest=chop_lowest,
+                chop_highest=chop_highest,
+                mirostat=MIRO,
+                **sampling_args,
+            )
+            # TODO: DRY
+            self.sample_op_beyond_window = sample.sample_sequence(
                 length=length,
+                better_length=False,
                 temperature=temperature,
                 top_k=top_k,
                 top_p=top_p,
@@ -135,10 +150,11 @@ class GeneratorModel:
 
         startup_presents = self.startup_presents_for_prompt.get(prompt, None)
 
-        if better_length:
-            max_context_size = length - required_continuation_room
-        else:
-            max_context_size = max_ctx_fits_on_gpu - length
+        max_context_size = max_ctx_fits_on_gpu - length
+        # if better_length:
+        #     max_context_size = length - required_continuation_room
+        # else:
+        #     max_context_size = max_ctx_fits_on_gpu - length
         if len(context_tokens) > max_context_size:
             orig_len = len(context_tokens)
             context_tokens = context_tokens[-(max_context_size):]
@@ -198,7 +214,7 @@ class GeneratorModel:
                             )
                         print(f"miromu on entry: {miromu}")
                         sample_output_dict = self.session.run(
-                            self.second_sample_op,
+                            self.sample_op_beyond_window,
                             feed_dict={
                                 self.context: batch_context_tokens,
                                 self.mirostat_target: mirotarg,
@@ -226,7 +242,7 @@ class GeneratorModel:
                             )
                         print(f"miromu on entry: {miromu}")
                         sample_output_dict = self.session.run(
-                            self.second_sample_op,
+                            self.sample_op_fill_window,
                             feed_dict={
                                 self.context: batch_context_tokens,
                                 self.sample_pasts: presents,

@@ -104,8 +104,12 @@ def mirostat_logits_v2(
     surprises_expectations = numerator / denominator
     # surprises_expectations = surprises_csum * mirostat_harmonic
 
+    print(("surprises_expectations", surprises_expectations))
+    print(("mirostat_mu", mirostat_mu))
+    print(("mirostat_mu[:, tf.newaxis]", mirostat_mu[:, tf.newaxis]))
+
     k_summand = tf.where(
-        surprises_expectations < mirostat_mu,
+        surprises_expectations < mirostat_mu[:, tf.newaxis],
         tf.ones_like(surprises_expectations, dtype=tf.int32),
         tf.zeros_like(surprises_expectations, dtype=tf.int32),
     )

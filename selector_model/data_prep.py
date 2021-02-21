@@ -85,7 +85,7 @@ def get_all_posts(
         sorted(all_fns),
         mininterval=1,
         miniters=1,
-        smoothing=0,
+        smoothing=0.3,
     )
 
     for ix, fn in enumerate(iter_):

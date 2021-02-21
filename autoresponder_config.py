@@ -106,7 +106,7 @@ else:
 
 
 # sets max context size, for long prompts we want to cut off to allow bot to write at least this many tokens
-required_continuation_room = 200
+required_continuation_room = 280
 
 if EVEN_BETTER_LENGTH:
     better_length = False

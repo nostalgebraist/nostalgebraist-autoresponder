@@ -114,7 +114,8 @@ if EVEN_BETTER_LENGTH:
     # MAX_CONTINUE_TOKENS=2210 if _gpu_type() == "big" else 1600
     MAX_CONTINUE_TOKENS = 1600
 
-    MAX_CONTINUE_STEPS = 100  # disable via huge
+    # MAX_CONTINUE_STEPS = 100  # disable via huge
+    MAX_CONTINUE_STEPS = 4  # first_sample_op + sample_op_fill_window + 2 x (sample_op_beyond_window)
 else:
     better_length = True
     length = max_ctx_fits_on_gpu

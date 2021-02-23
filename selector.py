@@ -1,8 +1,5 @@
 """
-Runs the selector, regularly polling the bridge service and handling selection needs.
-
-This was copied out of a jupyter notebook and hasn't been edited much since then, so
-code quality is even uglier than usual :(
+Helper functions for selecting one "best" output from GPT-2 from a list of such outputs.
 """
 from functools import partial
 from datetime import datetime

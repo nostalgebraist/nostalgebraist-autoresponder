@@ -25,8 +25,20 @@ def conv1d_overridable(x, scope, nf, *, gain=None, hparams=None, w=None):
         return c
 
 
-def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, adapt=False,
-                  X=None, batch_size=None, selection_tok=None):
+def selector_attn(
+    x,
+    scope,
+    n_state,
+    *,
+    past,
+    hparams,
+    n_head=None,
+    gain=None,
+    adapt=False,
+    X=None,
+    batch_size=None,
+    selection_tok=None,
+):
     if n_head is None:
         n_head = hparams.n_head
     assert x.shape.ndims == 3  # Should be [batch, sequence, features]
@@ -73,17 +85,6 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
 
     dtype = hparams.dtype if hparams else tf.float32
     with tf.variable_scope(scope, dtype=dtype):
-        # works
-        # c = model.conv1d(x, "c_attn", n_state * 3, hparams=hparams)
-        # q, k, v = tf.split(c, 3, axis=2)
-        # q = extract_selection_ix(X, q, batch_size, selection_tok)["extracted"]
-        # print(("q", q))
-        # q = q[:, tf.newaxis, :]
-        # print(("q", q))
-        # print(("k", k))
-        # print(("v", v))
-
-        # works, better than above?
         classic_init = hparams.get("classic_init", False)
         if classic_init:
             with tf.variable_scope("c_attn", dtype=dtype):
@@ -92,16 +93,24 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
                 c_attn_w = model.get_variable("w") or tf.get_variable(
                     "w", [1, nx, nf], initializer=initializer(dtype=dtype)
                 )
-                c_attn_kv_w, c_attn_q_w = tf.split(c_attn_w, [n_state * 2, n_state], axis=2)
-            c_kv = conv1d_overridable(x, "c_attn_kv", n_state * 2, hparams=hparams, w=c_attn_kv_w)
+                c_attn_kv_w, c_attn_q_w = tf.split(
+                    c_attn_w, [n_state * 2, n_state], axis=2
+                )
+            c_kv = conv1d_overridable(
+                x, "c_attn_kv", n_state * 2, hparams=hparams, w=c_attn_kv_w
+            )
         else:
             c_kv = model.conv1d(x, "c_attn_kv", n_state * 2, hparams=hparams)
         k, v = tf.split(c_kv, 2, axis=2)
 
-        x_at_selection_ix = extract_selection_ix(X, x, batch_size, selection_tok)["extracted"]
+        x_at_selection_ix = extract_selection_ix(X, x, batch_size, selection_tok)[
+            "extracted"
+        ]
         x_at_selection_ix = x_at_selection_ix[:, tf.newaxis, :]
         if classic_init:
-            q = conv1d_overridable(x_at_selection_ix, "c_attn_q", n_state, hparams=hparams, w=c_attn_q_w)
+            q = conv1d_overridable(
+                x_at_selection_ix, "c_attn_q", n_state, hparams=hparams, w=c_attn_q_w
+            )
         else:
             q = model.conv1d(x_at_selection_ix, "c_attn_q", n_state, hparams=hparams)
 
@@ -123,8 +132,17 @@ def selector_attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, a
         return a, present
 
 
-def attn_only_block(x, scope, *, past, hparams, do_input_norm=True,
-                    X=None, batch_size=None, selection_tok=None):
+def attn_only_block(
+    x,
+    scope,
+    *,
+    past,
+    hparams,
+    do_input_norm=True,
+    X=None,
+    batch_size=None,
+    selection_tok=None,
+):
     dtype = hparams.dtype if hparams else tf.float32
     do_resid = hparams.do_resid if hparams else True
     print(f"do_resid: {do_resid}")
@@ -138,8 +156,16 @@ def attn_only_block(x, scope, *, past, hparams, do_input_norm=True,
             x_attn_in = x
 
         if hparams.get("selector_style_attn", False):
-            a, present = selector_attn(x_attn_in, "attn", nx, past=past, hparams=hparams,
-                                       X=X, batch_size=batch_size, selection_tok=selection_tok)
+            a, present = selector_attn(
+                x_attn_in,
+                "attn",
+                nx,
+                past=past,
+                hparams=hparams,
+                X=X,
+                batch_size=batch_size,
+                selection_tok=selection_tok,
+            )
         else:
             a, present = model.attn(x_attn_in, "attn", nx, past=past, hparams=hparams)
         if do_resid:
@@ -229,7 +255,7 @@ def selector(
                 do_input_norm=True,
                 X=X,
                 batch_size=batch_size,
-                selection_tok=selection_tok
+                selection_tok=selection_tok,
             )
             hs_select.append(h_select)
 

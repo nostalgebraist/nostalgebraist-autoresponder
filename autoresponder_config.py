@@ -1,6 +1,5 @@
 # HPARAMS, FLAGS, ETC
 import os
-import json
 import subprocess
 
 from bot_config import BotSpecificConstants
@@ -57,7 +56,9 @@ ckpt_sentiment = "sentiment/v10/v2/.hdf5"
 TRUNCATE_AT_RIGHT = False
 SELECTOR_EOT_PREPEND = True
 
-gs_command_get_dataset = f"gsutil -m cp gs://{BUCKET_NAME}/data/v10/ALL_data_v10_nost_tuning.npz /data/v10/"
+gs_command_get_dataset = (
+    f"gsutil -m cp gs://{BUCKET_NAME}/data/v10/ALL_data_v10_nost_tuning.npz /data/v10/"
+)
 
 gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/encoder.json /models/autoresponder_v10/"
 gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/autoresponder_v10/"
@@ -67,7 +68,9 @@ gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/auto
 gs_command_get_selector = (
     f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/* /selector/v10/"
 )
-gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
+gs_command_get_sentiment = (
+    f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
+)
 
 length_select = 825
 
@@ -115,7 +118,9 @@ if EVEN_BETTER_LENGTH:
     MAX_CONTINUE_TOKENS = 1600
 
     # MAX_CONTINUE_STEPS = 100  # disable via huge
-    MAX_CONTINUE_STEPS = 2 + 6  # first_sample_op + sample_op_fill_window + 6 x (sample_op_beyond_window)
+    MAX_CONTINUE_STEPS = (
+        2 + 6
+    )  # first_sample_op + sample_op_fill_window + 6 x (sample_op_beyond_window)
 else:
     better_length = True
     length = max_ctx_fits_on_gpu

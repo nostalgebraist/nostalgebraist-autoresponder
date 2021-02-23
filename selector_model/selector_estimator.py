@@ -7,7 +7,6 @@ import json
 import sys
 
 sys.path.append("gpt-2/src/")
-import time
 from datetime import datetime
 import numpy as np
 import pandas as pd
@@ -998,7 +997,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 delta = criterion - self.last_best_val_metric_
                 delta_is_okay = (
                     (delta > 0)
-                    if eval_metrics[self.stopping_metric]["greater_is_better"]
+                    if eval_metrics_results[self.stopping_metric]["greater_is_better"]
                     else (delta < 0)
                 )
                 stop_early_signal = not delta_is_okay

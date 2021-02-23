@@ -343,7 +343,9 @@ def basic_n_continuations(
 
         this_batch_model_info = [
             minfo
-            for batch, minfo in zip(batches_written[n_batches_so_far:], model_infos[n_batches_so_far:])
+            for batch, minfo in zip(
+                batches_written[n_batches_so_far:], model_infos[n_batches_so_far:]
+            )
             for entry in batch["continuations"]
         ]
 
@@ -359,7 +361,9 @@ def basic_n_continuations(
 
             return sep + sep.join(wrap(c_, **kwargs_))
 
-        for c, sdata, minfo in zip(this_batch_continuations, this_batch_side_data, this_batch_model_info):
+        for c, sdata, minfo in zip(
+            this_batch_continuations, this_batch_side_data, this_batch_model_info
+        ):
             pr = sdata["prompt_for_neural"]
 
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):

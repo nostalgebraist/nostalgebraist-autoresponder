@@ -3,7 +3,6 @@ import tflex
 
 import model
 import sample
-import encoder
 
 from autoresponder_config import *  # TODO: turn these into class constructor args/kwargs
 

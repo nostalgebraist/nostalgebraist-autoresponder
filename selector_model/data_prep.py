@@ -1,14 +1,9 @@
 import os
-import time
 import re
 import argparse
 import pickle
-from collections import Counter, defaultdict
+from collections import defaultdict
 from functools import partial
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 
 from tqdm.autonotebook import tqdm
 

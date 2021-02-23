@@ -122,13 +122,13 @@ REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
 
-DASH_REBLOG_SELECTION_CUTOFF = 0.55
+DASH_REBLOG_SELECTION_CUTOFF = 0.45
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
 DASH_REBLOG_CONTINUATION_CUTOFF = 0.5  # "roll" # 0.5
 
-DASH_REBLOG_REQUIRE_COMMENT = False  # ! experimental
+DASH_REBLOG_REQUIRE_COMMENT = False
 
 MOOD = True
 MOOD_DYN = True
@@ -2102,29 +2102,32 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
             write_fic_override = 0
             if FIC_TRIGGER:
-                fic_triger_criterion = any(
+                fic_trigger_criterion = any(
                     [
                         subs in x["question"].lower()
                         for subs in [
                             "tell me a story",
+                            "tell me the story of",
                             "a story about",
                             "write a story",
+                            "write a fanfic",
+                            "write a fic",
                         ]
                     ]
                 )
                 print(
-                    f"fic_triger_criterion: {fic_triger_criterion} with x['question']: {x['question']}"
+                    f"fic_trigger_criterion: {fic_trigger_criterion} with x['question']: {x['question']}"
                 )
                 if FIC_TRIGGER_TESTING:
-                    fic_triger_criterion = fic_triger_criterion and (
+                    fic_trigger_criterion = fic_trigger_criterion and (
                         x["asking_name"] == "nostalgebraist"
                     )
                     print(
-                        f"fic_triger_criterion: {fic_triger_criterion} with x['asking_name']: {x['asking_name']}"
+                        f"fic_trigger_criterion: {fic_trigger_criterion} with x['asking_name']: {x['asking_name']}"
                     )
 
-                if fic_triger_criterion:
-                    print("fic_triger_criterion passed")
+                if fic_trigger_criterion:
+                    print("fic_trigger_criterion passed")
                     # forced_tags_string += " #original fiction"
                     write_fic_override = 1
 

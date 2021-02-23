@@ -27,7 +27,7 @@ ENFORCE_RETENTION_CUTOFF = True
 EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
-FIC_COLDSTART = True
+FIC_COLDSTART = False
 REVIEW_COLDSTART = False
 IMAGE_COLDSTART = False
 

@@ -1889,7 +1889,7 @@ def do_reblog_reply_handling(
     time_ordered_idents = sorted(reblog_reply_timestamps.keys(), key=lambda r: reblog_reply_timestamps[r])
 
     kept = time_ordered_idents[:MAX_POSTS_PER_STEP]
-    excluded = submissions[MAX_POSTS_PER_STEP:]
+    excluded = time_ordered_idents[MAX_POSTS_PER_STEP:]
     if len(excluded) > 0:
         print(f"saving {len(excluded)} of {len(submissions)} for later with MAX_POSTS_PER_STEP={MAX_POSTS_PER_STEP}")
         for r in excluded:

@@ -121,6 +121,7 @@ REVIEW_COMMAND = "!review"
 REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
+MAX_POSTS_PER_STEP = 5
 
 DASH_REBLOG_SELECTION_CUTOFF = 0.45
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
@@ -1805,8 +1806,6 @@ def do_reblog_reply_handling(
                 )
                 continue
 
-            # updated_last_seen_ts = max([n['timestamp'] for n in notes] + [updated_last_seen_ts])
-
             reblogs = [
                 n
                 for n in notes
@@ -1882,6 +1881,35 @@ def do_reblog_reply_handling(
         print(f"handling replies:")
         for item in replies_to_handle:
             print(f"\t{item}")
+
+    reblog_reply_timestamps = {r: loop_persistent_data.timestamps[r]
+                               for r in reblogs_to_handle}
+    reblog_reply_timestamps.update({ri: ri.timestamp
+                                    for ri in replies_to_handle})
+    time_ordered_idents = sorted(reblog_reply_timestamps.keys(), key=lambda r: reblog_reply_timestamps[r])
+
+    kept = time_ordered_idents[:MAX_POSTS_PER_STEP]
+    excluded = submissions[MAX_POSTS_PER_STEP:]
+    if len(excluded) > 0:
+        print(f"saving {len(excluded)} of {len(submissions)} for later with MAX_POSTS_PER_STEP={MAX_POSTS_PER_STEP}")
+        for r in excluded:
+            print(
+                f"\t saving {r} for later..."
+            )
+
+    kept_reblogs = [r for r in kept if r in reblogs_to_handle]
+    kept_replies = [r for r in kept if r in replies_to_handle]
+
+    reblogs_to_handle = kept_reblogs
+    replies_to_handle = kept_replies
+
+    if is_dashboard:
+        last_handled_in_step_ts = max([reblog_reply_timestamps[r] for r in kept])
+        if last_handled_in_step_ts < updated_last_seen_ts:
+            print(f"rolling back updated_last_seen_ts: {updated_last_seen_ts} --> {last_handled_in_step_ts}")
+            updated_last_seen_ts = last_handled_in_step_ts
+        else:
+            print(f"weirdness: last_handled_in_step_ts {last_handled_in_step_ts} > updated_last_seen_ts{updated_last_seen_ts}")
 
     # handle reblogs, replies
     loop_persistent_data, response_cache = respond_to_reblogs_replies(
@@ -2016,9 +2044,17 @@ def do_ask_handling(loop_persistent_data, response_cache):
             )
             submissions.remove(r)
 
+    kept = submissions[-MAX_POSTS_PER_STEP:]
+    excluded = submissions[:-MAX_POSTS_PER_STEP]
+    if len(excluded) > 0:
+        print(f"saving {len(excluded)} of {len(submissions)} for later with MAX_POSTS_PER_STEP={MAX_POSTS_PER_STEP}")
+        for r in excluded:
+            print(
+                f"\t saving {r['asking_name']}, question={r['question']} for later..."
+            )
+    submissions = kept
+
     for x in submissions[::-1]:
-        # if not roll_for_limited_users(x['asking_name'], text=x['question']):
-        #     continue
         if x.get("summary", "") == FOLLOW_COMMAND:
             with LogExceptionAndSkip("follow"):
                 loop_persistent_data = update_follower_names_v2(

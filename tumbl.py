@@ -1890,6 +1890,7 @@ def do_reblog_reply_handling(
 
     kept = time_ordered_idents[:MAX_POSTS_PER_STEP]
     excluded = time_ordered_idents[MAX_POSTS_PER_STEP:]
+
     if len(excluded) > 0:
         print(f"saving {len(excluded)} of {len(time_ordered_idents)} for later with MAX_POSTS_PER_STEP={MAX_POSTS_PER_STEP}")
         for r in excluded:
@@ -1903,7 +1904,7 @@ def do_reblog_reply_handling(
     reblogs_to_handle = kept_reblogs
     replies_to_handle = kept_replies
 
-    if is_dashboard:
+    if is_dashboard and len(kept) > 0 and len(excluded) > 0:
         last_handled_in_step_ts = max([reblog_reply_timestamps[r] for r in kept])
         if last_handled_in_step_ts < updated_last_seen_ts:
             print(f"rolling back updated_last_seen_ts: {updated_last_seen_ts} --> {last_handled_in_step_ts}")

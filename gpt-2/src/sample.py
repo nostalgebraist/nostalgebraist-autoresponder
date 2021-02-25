@@ -168,8 +168,9 @@ def apply_avoid_tag_only_posts(
     logits,
     prev,
     output,
+    initial_newline_count,
     newline_token,
-    space_token
+    space_token,
 ):
     # build boolean trigger
 
@@ -188,7 +189,7 @@ def apply_avoid_tag_only_posts(
         axis=-1
     )  # [batchsize,]
 
-    only_one_newline = tf.equal(newline_count, 1)  # [batchsize,]
+    only_one_newline = tf.equal(newline_count - initial_newline_count, 1)  # [batchsize,]
 
     trigger_condition = tf.math.logical_and(
         last_token_was_newline,
@@ -285,6 +286,17 @@ def sample_sequence(
 
     elif stop_at_EOT:
         raise ValueError("must supply enc when stop_at_EOT=True")
+
+    # count initial newlines
+    initial_newline_mask = tf.equal(
+        tf.dtypes.cast(context, tf.int32),
+        NEWLINE_TOKEN
+    )  # [batchsize, ntok]
+
+    initial_newline_count = tf.reduce_sum(
+        tf.dtypes.cast(initial_newline_mask, tf.int32),
+        axis=-1
+    )  # [batchsize,]
 
     def step(hparams, tokens, past=None, past_adapt=None):
         lm_output = model.model(
@@ -384,6 +396,7 @@ def sample_sequence(
                     logits,
                     prev,
                     output,
+                    initial_newline_count=initial_newline_count,
                     newline_token=NEWLINE_TOKEN,
                     space_token=SPACE_TOKEN)
 

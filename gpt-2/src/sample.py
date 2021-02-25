@@ -164,6 +164,60 @@ def midde_p_logits(logits, retain_middle=None, chop_lowest=None, chop_highest=No
         )
 
 
+def apply_avoid_tag_only_posts(
+    logits,
+    prev,
+    output,
+    newline_token,
+    space_token
+):
+    # build boolean trigger
+
+    last_token_was_newline = tf.equal(
+        tf.dtypes.cast(prev, tf.int32),
+        newline_token
+    )  # [batchsize,]
+
+    newline_mask = tf.equal(
+        tf.dtypes.cast(output, tf.int32),
+        newline_token
+    )  # [batchsize, ntok]
+
+    newline_count = tf.reduce_sum(
+        tf.dtypes.cast(newline_mask, tf.int32),
+        axis=-1
+    )  # [batchsize,]
+
+    only_one_newline = tf.equal(newline_count, 1)  # [batchsize,]
+
+    trigger_condition = tf.math.logical_and(
+        last_token_was_newline,
+        only_one_newline
+    )  # [batchsize,]
+
+    # build replacement
+    space_logits = logits[:, space_token]  # [batchsize,]
+    space_logits = tf.where(
+        trigger_condition,
+        tf.ones_like(space_logits, dtype=space_logits.dtype) * -1e10,
+        space_logits,
+    )
+
+    # insert replacement
+    # this probably "should" be a tf.scatter_nd
+    # but i'm not ready to spend 5 hours again trying to understand its call signature :P
+    logits = tf.concat(
+        [
+            logits[:, :space_token],
+            space_logits[:, tf.newaxis],
+            logits[:, space_token + 1 :]
+        ],
+        axis=1
+    )
+
+    return logits
+
+
 def sample_sequence(
     *,
     hparams,
@@ -195,6 +249,7 @@ def sample_sequence(
     mirostat_mu_lower_clip=0.0,
     mirostat_v2=False,
     disable_prints=False,
+    avoid_tag_only_posts=True,
 ):
     if mirostat_mu_init is None:
         mu_init_scale = 1.0 if mirostat_v2 else 2.0
@@ -224,6 +279,9 @@ def sample_sequence(
         if not eot_workaround:
             EOT_TOKEN2 = enc.encode("<|endoftext|>")[1]
             print(f"EOT_TOKEN2: {EOT_TOKEN2}")
+
+        NEWLINE_TOKEN = enc.encode("\n")[-1]
+        SPACE_TOKEN = enc.encode(" ")[-1]
 
     elif stop_at_EOT:
         raise ValueError("must supply enc when stop_at_EOT=True")
@@ -320,6 +378,14 @@ def sample_sequence(
                 next_mirostat_mu = mirostat_mus[:, -1]
                 k_ms = mirostat_ks[:, -1]
                 s_ms = mirostat_ss[:, -1]
+
+            if avoid_tag_only_posts:
+                logits = apply_avoid_tag_only_posts(
+                    logits,
+                    prev,
+                    output,
+                    newline_token=NEWLINE_TOKEN,
+                    space_token=SPACE_TOKEN)
 
             if mirostat:
                 ixs = np.arange(1, mirostat_trunc + 2, 1, dtype=float)

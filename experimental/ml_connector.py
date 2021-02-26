@@ -165,6 +165,7 @@ class SideJudgmentModelInterface(MLModelInterface):
 generator_model = GeneratorModelInterface()
 selector_est = SideJudgmentModelInterface("selector")
 sentiment_est = SideJudgmentModelInterface("sentiment")
+selector_est = SideJudgmentModelInterface("autoreviewer")
 
 
 def parse_continuation(continuation: str, verbose=True, wrap=False):
@@ -1062,6 +1063,12 @@ def serve_answer(data):
     autoreview_inputs = [
         join_time_sidechannel(s, relevant_timestamp) for s in autoreview_inputs
     ]
+    autoreview_inputs = pd.DataFrame(
+        {
+            "selector_input": autoreview_inputs,
+            "prompt_finalchar": ["" for _ in range(len(autoreview_inputs))],
+        }
+    )
     autoreview_results = predict_autoreview(
         autoreview_inputs,
         debug=True,

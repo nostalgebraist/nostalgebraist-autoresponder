@@ -563,6 +563,41 @@ def predict_sentiment(data, debug=False):
     return logit_diffs
 
 
+def predict_autoreview(data, debug=True,):
+    selector_input = []
+    for text in data.selector_input:
+        if text.endswith(eot_end_segment):
+            text = text[: -len(eot_end_segment)]
+
+        text = final_munge_before_neural(text)
+
+        if EOT_PREPEND:
+            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
+                text = text[len(EOT_FULL) :]
+            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
+                text = EOT_FULL + text
+
+        selector_input.append(text)
+    data.loc[:, "selector_input"] = selector_input
+
+    data = data.to_dict(orient="records")
+
+    bridge_id = autoreviewer_est.predict_proba(data)
+
+    response_data = []
+    while len(response_data) == 0:
+        time.sleep(1)
+        response_data = requests.post(
+            bridge_service_url + "/getresult", data={"id": bridge_id}
+        ).json()
+
+    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+
+    result = np.array(response_data[0]["result"])
+    probs = result[:, 1]
+    return probs
+
+
 RESULT_STACK = {}
 
 
@@ -1018,11 +1053,20 @@ def serve_answer(data):
     selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
     sentiment_results = predict_sentiment(selector_inputs, debug=True)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
-    # show_note_probas(
-    #     continuations,
-    #     probas=parsed["selection_proba"],
-    #     sentiment_logit_diffs=parsed["sentiment_logit_diffs"],
-    # )
+
+    autoreview_inputs = [
+        cut_to_new_since_last_frank_post(prompt + final_munge_after_neural(c))
+        for c in continuations
+    ]
+
+    autoreview_inputs = [
+        join_time_sidechannel(s, relevant_timestamp) for s in autoreview_inputs
+    ]
+    autoreview_results = predict_autoreview(
+        autoreview_inputs,
+        debug=True,
+    )
+    parsed["autoreview_proba"] = [float(p) for p in autoreview_results]
 
     if GLOBAL_DEBUG:
         print(f"sending back: {parsed}")

@@ -157,6 +157,16 @@ sentiment_est.length = length_sentiment
 
 lr_calib_sentiment = selector_est.lr_calib_
 
+autoreviewer_est = load_from_gdrive_with_gs_fallback(
+    load_fn=load_selector,
+    relative_path=ckpt_autoreviewer.rpartition("/")[0],  # TODO: redefine ckpt_select
+    gs_command=gs_command_get_autoreviewer,
+    session=generator_model.session,
+    base_hparams=hparams,
+    enc=enc,
+    batch_size=batch_size,
+)
+
 
 def poll(
     dummy=False,
@@ -190,6 +200,8 @@ def poll(
                 requested_model = selector_est
             elif data["model"] == "sentiment":
                 requested_model = sentiment_est
+            elif data["model"] == "autoreviewer":
+                requested_model = autoreviewer_est
             else:
                 raise ValueError(f"requested_model: {requested_model}")
 

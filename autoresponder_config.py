@@ -52,6 +52,7 @@ model_path = os.path.join("models", model_name, "model-135.hdf5")
 dataset = "data/v10/ALL_data_v10_nost_tuning.npz"
 ckpt_select = "selector/v10/v14/.hdf5"
 ckpt_sentiment = "sentiment/v10/v2/.hdf5"
+ckpt_autoreviewer = "draft_autoreviewer/v10/v0/.hdf5"
 
 TRUNCATE_AT_RIGHT = False
 SELECTOR_EOT_PREPEND = True
@@ -70,6 +71,9 @@ gs_command_get_selector = (
 )
 gs_command_get_sentiment = (
     f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
+)
+gs_command_get_autoreviewer = (
+    f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10/* /draft_autoreviewer/v10/"
 )
 
 length_select = 825

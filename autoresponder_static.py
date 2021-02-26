@@ -17,7 +17,13 @@ V10_ASK_CHAR = "要"
 
 ORIG_POST_CHAR_CHINESE = "翰"
 
-CHINESE_CHAR_DELIMITERS = [UNAME_CHAR, Q_CHAR, A_CHAR, V10_ASK_CHAR, ORIG_POST_CHAR_CHINESE]
+CHINESE_CHAR_DELIMITERS = [
+    UNAME_CHAR,
+    Q_CHAR,
+    A_CHAR,
+    V10_ASK_CHAR,
+    ORIG_POST_CHAR_CHINESE,
+]
 
 ORIG_POST_CHAR_FORUMLIKE = " Blog post by Frank\n\n"
 ORIG_POST_CHAR_FORUMLIKE_V10 = " Frank posted:\n\n"
@@ -471,3 +477,38 @@ def cut_to_final_exchange_chinese(to_cut):
     cut_ix = find_all_control_chars_chinese(to_cut)[-2][1]
     print(f"cutting at {cut_ix}")
     return to_cut[cut_ix:]
+
+
+def cut_to_new_since_last_frank_post(
+    processed, keep_one_prev_frank_post=True, verbose=False
+):
+    """slightly adapted from munging_shared.screener_string_from_bootstrap_draft"""
+    cchars = find_all_control_chars_chinese(processed)
+
+    if len(cchars) == 0:
+        msg = f"cut_to_new_since_last_frank_post:\n\tweirdness: couldn't find control chars in {processed}"
+        print(msg)
+        return ""
+
+    if verbose:
+        print(f"cchars: {cchars}")
+
+    start_ixs = [0]
+    for cc1, cc2 in zip(cchars[:-1], cchars[1:]):
+        if cc1[0] == A_CHAR:
+            # if we wrote the post in cc1, we know everything's good until the start of cc2
+            if keep_one_prev_frank_post:
+                start_ixs.append(cc1[1])
+            else:
+                start_ixs.append(cc2[1])
+    start_ixs = sorted(start_ixs)
+    start_ix = start_ixs[-1]
+
+    if verbose:
+        print(f"start_ixs: {start_ixs}")
+
+    if verbose:
+        print(f"start_ix: {start_ix}")
+
+    screener_string = processed[start_ix:]
+    return screener_string

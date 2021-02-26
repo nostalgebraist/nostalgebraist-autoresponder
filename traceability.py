@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import pandas as pd
 
-TRACEABILITY_FN = "data/traceability_logs.pkl.gz"
+TRACEABILITY_FN = os.path.join(os.path.dirname(__file__), "data/traceability_logs.pkl.gz")
 
 
 def _add_field(logs, fieldname):

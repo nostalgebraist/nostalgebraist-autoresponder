@@ -786,7 +786,7 @@ def old_bridge_call__answer(data):
     kwargs["avoid_half_if_under"] = 10
     kwargs["avoid_if_cut_off"] = False
     kwargs["split_on_control_char"] = True
-    kwargs["avoid_initial_blockquote"] = True
+    kwargs["avoid_initial_blockquote"] = False
     kwargs["avoid_if_profane"] = False
     if data["asking_name"] == "bukbot":
         kwargs["avoid_if_profane"] = True

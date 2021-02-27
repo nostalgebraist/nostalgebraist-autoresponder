@@ -2217,6 +2217,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     "mood": determine_mood(response_cache),
                     "forced_tags_string": forced_tags_string,
                     "write_fic_override": write_fic_override,
+                    "return_all_conts": 1,
                 },
                 loop_persistent_data=loop_persistent_data,
                 BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG

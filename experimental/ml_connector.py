@@ -165,7 +165,7 @@ class SideJudgmentModelInterface(MLModelInterface):
 generator_model = GeneratorModelInterface()
 selector_est = SideJudgmentModelInterface("selector")
 sentiment_est = SideJudgmentModelInterface("sentiment")
-selector_est = SideJudgmentModelInterface("autoreviewer")
+autoreviewer_est = SideJudgmentModelInterface("autoreviewer")
 
 
 def parse_continuation(continuation: str, verbose=True, wrap=False):

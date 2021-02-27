@@ -133,12 +133,17 @@ def get_continuation_sentiments(side_judgment_cache, continuations, sleep_time=0
 
 
 def sentiment_screen(
-    side_judgment_cache, continuations, mood, selection_proba=None, continuation_side_data=None
+    side_judgment_cache, continuations, mood,
+    selection_proba=None,
+    continuation_side_data=None,
+    autoreview_proba=None
 ):
     if selection_proba is None:
         selection_proba = [None for _ in continuations]
     if continuation_side_data is None:
         continuation_side_data = [None for _ in continuations]
+    if autoreview_proba is None:
+        autoreview_proba = [None for _ in continuations]
 
     all_continuation_sentiments = get_continuation_sentiments(
         side_judgment_cache, continuations
@@ -204,12 +209,15 @@ def sentiment_screen(
     ]
     retained_continuation_side_data = [m for mask, m in zip(exclusion_mask, continuation_side_data) if not mask]
 
+    retained_autoreview_proba = [m for mask, m in zip(exclusion_mask, autoreview_proba) if not mask]
+
     return (
         retained_continuations,
         retained_continuation_sentiments,
         retained_selection_proba,
         all_continuation_sentiments,
         retained_continuation_side_data,
+        retained_autoreview_proba,
     )
 
 
@@ -248,6 +256,8 @@ def serve_selection(
     else:
         print("selection_proba is None")
 
+    autoreview_proba = data.get("autoreview_proba", [None for _ in continuations])
+
     if selection_proba is not None and sentiment_logit_diffs is not None:
         record_side_judgements(
             side_judgment_cache, continuations, selection_proba, sentiment_logit_diffs
@@ -274,6 +284,7 @@ def serve_selection(
                 selection_proba += [None for _ in retention_stack]
             # TODO: store retention_stack mirotarg
             continuation_side_data += [{} for _ in retention_stack]
+            autoreview_proba += [None for _ in retention_stack]
 
     print(f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}")
     do_mood_screen = False
@@ -287,12 +298,14 @@ def serve_selection(
             retained_selection_proba,
             all_continuation_sentiments,
             retained_continuation_side_data,
+            retained_autoreview_proba,
         ) = sentiment_screen(
             side_judgment_cache,
             continuations,
             mood,
             selection_proba,
             continuation_side_data,
+            autoreview_proba,
         )
     else:
         continuation_sentiments = get_continuation_sentiments(
@@ -335,6 +348,7 @@ def serve_selection(
     chosen_proba = proba[choice_ix]
     chosen_pos_sent = pos_sent(continuation_sentiments[choice_ix])
     chosen_continuation_side_data = retained_continuation_side_data[choice_ix]
+    chosen_autoreview_proba = retained_autoreview_proba[choice_ix]
 
     chosen_mirotarg = chosen_continuation_side_data.get("mirotarg")
     chosen_prompt_for_neural = chosen_continuation_side_data.get("prompt_for_neural")
@@ -359,6 +373,7 @@ def serve_selection(
     parsed = parse_continuation(continuation)
     parsed["proba"] = float(chosen_proba)
     parsed["pos_sentiment"] = float(chosen_pos_sent)
+    parsed["autoreview_proba"] = None if chosen_autoreview_proba is None else float(chosen_autoreview_proba)
     parsed["mirotarg"] = chosen_mirotarg
     parsed["prompt_for_neural"] = chosen_prompt_for_neural
     parsed["model_info"] = chosen_model_info
@@ -366,6 +381,7 @@ def serve_selection(
         float(pos_sent(s)) for s in all_continuation_sentiments
     ]
     parsed["all_proba"] = [float(p) for p in selection_proba]
+    parsed["all_autoreview_proba"] = [None if p is None else float(p) for p in autoreview_proba]
     parsed["all_mirotarg"] = [sd.get("mirotarg") for sd in continuation_side_data]
     for k in data.keys():
         if "alt_selection_proba" in k:

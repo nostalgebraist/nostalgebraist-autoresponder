@@ -203,7 +203,7 @@ def poll(
             elif data["model"] == "autoreviewer":
                 requested_model = autoreviewer_est
             else:
-                raise ValueError(f"requested_model: {requested_model}")
+                raise ValueError(f"requested_model: {data.get('model')}")
 
             requested_method = data["method"]
             if not hasattr(requested_model, requested_method):

@@ -345,16 +345,25 @@ def strip_avoid_listed_strings_from_tags(tags):
 
 
 def autopublish_screener(
-    asking_name: str, question: str, answer: str, tags: list, screen_robnost=True
+    asking_name: str, question: str, answer: str, tags: list,
+    screen_robnost=True,
+    trace=False,
+    silent=False,
 ):
+    def sprint(*args, **kwargs):
+        if not silent:
+            print(*args, **kwargs)
+
+    traced_reasons = []
+
     profanity_strictness = False
     if asking_name == "bukbot":
         profanity_strictness = True
-        print("profanity_strictness: ON")
+        sprint("profanity_strictness: ON")
 
     if ((not IMAGE_CREATION) or IMAGE_CREATION_TESTING) and (IMAGE_DELIMITER in answer):
-        print("screened because image delimiter in answer")
-        return False
+        sprint("screened because image delimiter in answer")
+        traced_reasons.append({"type": "substring", "substring": IMAGE_DELIMITER})
 
     review_string = (
         asking_name + " " + question + " " + answer + " " + " ".join(tags)
@@ -408,18 +417,27 @@ def autopublish_screener(
                 if end_ix < len(review_string_subtype):
                     sf_formatted = sf_formatted + "... "
 
-                print(f"\t{sf}: |{repr(sf_formatted)}|")
+                sprint(f"\t{sf}: |{repr(sf_formatted)}|")
 
-                return False
+                traced_reasons.append({"type": "substring", "substring": sf})
+
     if asking_name == "nostalgebraist" and screen_robnost:
-        print("screened because robnost")
-        return False
+        sprint("screened because robnost")
+        traced_reasons.append({"type": "username", "substring": asking_name})
     if asking_name == "Anonymous" and SCREEN_ANON:
-        print("screened because anon")
-        return False
+        sprint("screened because anon")
+        traced_reasons.append({"type": "username", "substring": asking_name})
     if asking_name in SCREENED_USERS:
-        print(f"screened because asking_name={asking_name}")
+        sprint(f"screened because asking_name={asking_name}")
+        traced_reasons.append({"type": "username", "substring": asking_name})
+    if len(traced_reasons) > 0:
+        if trace:
+            # dedup dict
+            traced_reasons = [dict(s) for s in {frozenset(d.items()) for d in traced_reasons}]
+            return False, traced_reasons
         return False
+    if trace:
+        return True, traced_reasons
     return True
 
 

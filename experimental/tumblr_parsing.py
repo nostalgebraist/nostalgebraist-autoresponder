@@ -1,5 +1,6 @@
 from typing import List, Optional
 from collections import defaultdict
+from itertools import zip_longest
 
 
 class TumblrContentBlockBase:
@@ -20,14 +21,15 @@ class LegacyBlock(TumblrContentBlockBase):
 
 
 class NPFFormattingRange:
-    def __init__(self,
-                 start: int,
-                 end: int,
-                 type: str,
-                 url: Optional[str],
-                 blog: Optional[dict],
-                 hex: Optional[str]
-                 ):
+    def __init__(
+        self,
+        start: int,
+        end: int,
+        type: str,
+        url: Optional[str] = None,
+        blog: Optional[dict] = None,
+        hex: Optional[str] = None,
+    ):
         self.start = start
         self.end = end
         self.type = type
@@ -51,13 +53,13 @@ class NPFFormattingRange:
             result["start_insert"] = f"<{tag}>"
             result["end_insert"] = f"</{tag}>"
         elif self.type == "link":
-            result["start_insert"] = f"<a href={self.url}>"
+            result["start_insert"] = f"<a href=\"{self.url}\">"
             result["end_insert"] = f"</a>"
         elif self.type == "mention":
-            result["start_insert"] = f"<a class=\"tumblelog\" href={self.url}>"
+            result["start_insert"] = f'<a class="tumblelog" href=\"{self.url}\">'
             result["end_insert"] = f"</a>"
         elif self.type == "color":
-            result["start_insert"] = f"<span style=\"color:{self.hex}\">"
+            result["start_insert"] = f'<span style="color:{self.hex}">'
             result["end_insert"] = f"</span>"
         else:
             raise ValueError(self.type)
@@ -84,12 +86,13 @@ class NPFSubtype:
 
 
 class NPFTextBlock(TumblrContentBlockBase):
-    def __init__(self,
-                 text: str,
-                 subtype: Optional[NPFSubtype],
-                 indent_level: Optional[int],
-                 formatting: List[NPFFormattingRange]
-                 ):
+    def __init__(
+        self,
+        text: str,
+        subtype: Optional[NPFSubtype],
+        indent_level: Optional[int],
+        formatting: List[NPFFormattingRange],
+    ):
         self.text = text
         self.subtype = subtype
         self.indent_level = indent_level
@@ -100,19 +103,21 @@ class NPFTextBlock(TumblrContentBlockBase):
 
         insert_ix_to_inserted_text = defaultdict(list)
         for insertion in insertions:
-            insert_ix_to_inserted_text[insertion['start']].append(insertion['start_insert'])
-            insert_ix_to_inserted_text[insertion['end']].append(insertion['end_insert'])
+            insert_ix_to_inserted_text[insertion["start"]].append(
+                insertion["start_insert"]
+            )
+            insert_ix_to_inserted_text[insertion["end"]].append(insertion["end_insert"])
 
         split_ixs = {0, len(self.text)}
         split_ixs.update(insert_ix_to_inserted_text.keys())
         split_ixs = sorted(split_ixs)
 
-        segments = [self.text[ix1:ix2] for ix1, ix2 in zip(split_ixs[:-1], split_ixs[1:])]
-
         accum = []
-        for seg, split_ix in zip(segments, split_ixs):
-            accum.append("".join(insert_ix_to_inserted_text[split_ix]))
-            accum.append(seg)
+
+        for ix1, ix2 in zip_longest(split_ixs, split_ixs[1:], fillvalue=split_ixs[-1]):
+            accum.extend(insert_ix_to_inserted_text[ix1])
+            accum.append(self.text[ix1:ix2])
+
         return "".join(accum)
 
     def to_html(self):
@@ -124,12 +129,16 @@ class NPFTextBlock(TumblrContentBlockBase):
         return formatted
 
     @staticmethod
-    def from_payload(payload: dict) -> 'NPFTextBlock':
+    def from_payload(payload: dict) -> "NPFTextBlock":
         return NPFTextBlock(
-            text=payload['text'],
-            subtype=None if payload.get('subtype') is None else NPFSubtype(subtype=payload.get('subtype')),
-            indent_level=payload.get('indent_level'),
-            formatting=[NPFFormattingRange(**entry) for entry in payload.get('formatting', [])],
+            text=payload["text"],
+            subtype=None
+            if payload.get("subtype") is None
+            else NPFSubtype(subtype=payload.get("subtype")),
+            indent_level=payload.get("indent_level"),
+            formatting=[
+                NPFFormattingRange(**entry) for entry in payload.get("formatting", [])
+            ],
         )
 
 

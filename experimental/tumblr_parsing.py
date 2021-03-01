@@ -171,14 +171,30 @@ class NPFContent(TumblrContentBase):
         ]
 
     def _assign_indents(self):
-        # TODO: handle the way that 1st blockquote/list level has indent_level 0
+        #  this doesn't quite work
+        #  stepping out a level should close the tag *currently* top of stack
+        #  not the tag *opened by the block that steps out*
+
+        indenting_subtypes = {"indented", "ordered-list-item", "unordered-list-item"}
+        prev_subtypes = [None] + [block.base_block.subtype_name for block in self.blocks]
+
         cur_level = 0
 
-        for block in self.blocks:
-            block.indent_delta = block.base_block.indent_level - cur_level
-            cur_level = block.base_block.indent_level
+        for block, prev_subtype in zip(self.blocks, prev_subtypes):
+            indent_delta = block.base_block.indent_level - cur_level
+            this_indents = block.base_block.subtype_name in indenting_subtypes
+            prev_indents = prev_subtype in indenting_subtypes
 
-        # TODO: what happens if nonzero indent_level at final block?
+            if indent_delta != 0:
+                block.indent_delta = indent_delta
+            elif this_indents and not prev_indents:
+                block.indent_delta = 1
+            elif prev_indents and not this_indents:
+                block.indent_delta = -1
+            else:
+                block.indent_delta = 0
+
+            cur_level = block.base_block.indent_level
 
     def _assign_nonlocal_tags(self):
         subtype_and_sign_to_tag = {
@@ -190,6 +206,8 @@ class NPFContent(TumblrContentBase):
             ("unordered-list-item", False): "</ul>",
         }
 
+        stack = []
+
         for block in self.blocks:
             if block.indent_delta == 0:
                 continue
@@ -197,17 +215,30 @@ class NPFContent(TumblrContentBase):
             sign = block.indent_delta > 0
             abs = block.indent_delta if sign else -1 * block.indent_delta
 
-            key = (block.base_block.subtype_name, sign)
+            if sign:
+                subtype_key = block.base_block.subtype_name
+                stack.append(subtype_key)
+            else:
+                subtype_key = stack.pop()
+
+            key = (subtype_key, sign)
             if key not in subtype_and_sign_to_tag:
                 raise ValueError(key)  # TODO: improve
 
             tag = subtype_and_sign_to_tag[key]
             tags = abs * tag
 
-            if sign:
-                block.prefix = tags
-            else:
-                block.suffix = tags
+            block.prefix = tags
+
+        closers = []
+        while len(stack) > 0:
+            print(stack)
+            print(closers)
+            subtype_key = stack.pop()
+            key = (subtype_key, False)
+            closers.append(subtype_and_sign_to_tag[key])
+
+        self.blocks[-1].suffix = "".join(closers)
 
     def to_html(self):
         self._assign_indents()

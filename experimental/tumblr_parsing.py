@@ -72,31 +72,33 @@ class NPFSubtype:
 
     def format_html(self, text: str):
         if self.subtype == "heading1":
-            return f"<h2>{text}</h2>"  # TODO: verify
+            return f"<p><h2>{text}</h2></p>"  # TODO: verify
         elif self.subtype == "heading2":
-            return f"<h2>{text}</h2>"  # TODO: verify
-        elif self.subtype == "indented":
-            return f"<blockquote>{text}</blockquote>"
+            return f"<p><h2>{text}</h2></p>"  # TODO: verify
         elif self.subtype == "ordered-list-item":
             return f"<li>{text}</li>"
         elif self.subtype == "unordered-list-item":
             return f"<li>{text}</li>"
         else:
-            return text
+            return f"<p>{text}</p>"
 
 
 class NPFTextBlock(TumblrContentBlockBase):
     def __init__(
         self,
         text: str,
-        subtype: Optional[NPFSubtype],
-        indent_level: Optional[int],
-        formatting: List[NPFFormattingRange],
+        subtype: Optional[NPFSubtype] = None,
+        indent_level: Optional[int] = None,
+        formatting: List[NPFFormattingRange] = None,
     ):
         self.text = text
-        self.subtype = subtype
-        self.indent_level = indent_level
-        self.formatting = formatting
+        self.subtype = NPFSubtype("no_subtype") if subtype is None else subtype
+        self.indent_level = 0 if indent_level is None else indent_level
+        self.formatting = [] if formatting is None else formatting
+
+    @property
+    def subtype_name(self):
+        return self.subtype.subtype
 
     def apply_formatting(self):
         insertions = [formatting.to_html() for formatting in self.formatting]
@@ -132,9 +134,7 @@ class NPFTextBlock(TumblrContentBlockBase):
     def from_payload(payload: dict) -> "NPFTextBlock":
         return NPFTextBlock(
             text=payload["text"],
-            subtype=None
-            if payload.get("subtype") is None
-            else NPFSubtype(subtype=payload.get("subtype")),
+            subtype=NPFSubtype(subtype=payload.get("subtype", "no_subtype")),
             indent_level=payload.get("indent_level"),
             formatting=[
                 NPFFormattingRange(**entry) for entry in payload.get("formatting", [])
@@ -142,14 +142,85 @@ class NPFTextBlock(TumblrContentBlockBase):
         )
 
 
-TumblrContent = List[TumblrContentBlockBase]
+class TumblrContentBase:
+    def __init__(self, content: List[TumblrContentBlockBase]):
+        self.content = content
+
+    def to_html(self) -> str:
+        raise NotImplementedError
+
+
+class NPFBlockAnnotated(TumblrContentBlockBase):
+    def __init__(self, base_block: TumblrContentBlockBase):
+        self.base_block = base_block
+
+        self.prefix = ""
+        self.suffix = ""
+        self.indent_delta = None
+
+    def to_html(self):
+        inside = self.base_block.to_html()
+        return self.prefix + inside + self.suffix
+
+
+class NPFContent(TumblrContentBase):
+    def __init__(self, blocks: List[TumblrContentBlockBase]):
+        self.blocks = [
+            block if isinstance(block, NPFBlockAnnotated) else NPFBlockAnnotated(block)
+            for block in blocks
+        ]
+
+    def _assign_indents(self):
+        # TODO: handle the way that 1st blockquote/list level has indent_level 0
+        cur_level = 0
+
+        for block in self.blocks:
+            block.indent_delta = block.base_block.indent_level - cur_level
+            cur_level = block.base_block.indent_level
+
+        # TODO: what happens if nonzero indent_level at final block?
+
+    def _assign_nonlocal_tags(self):
+        subtype_and_sign_to_tag = {
+            ("indented", True): "<blockquote>",
+            ("indented", False): "</blockquote>",
+            ("ordered-list-item", True): "<ol>",
+            ("ordered-list-item", False): "</ol>",
+            ("unordered-list-item", True): "<ul>",
+            ("unordered-list-item", False): "</ul>",
+        }
+
+        for block in self.blocks:
+            if block.indent_delta == 0:
+                continue
+
+            sign = block.indent_delta > 0
+            abs = block.indent_delta if sign else -1 * block.indent_delta
+
+            key = (block.base_block.subtype_name, sign)
+            if key not in subtype_and_sign_to_tag:
+                raise ValueError(key)  # TODO: improve
+
+            tag = subtype_and_sign_to_tag[key]
+            tags = abs * tag
+
+            if sign:
+                block.prefix = tags
+            else:
+                block.suffix = tags
+
+    def to_html(self):
+        self._assign_indents()
+        self._assign_nonlocal_tags()
+
+        return "".join([block.to_html() for block in self.blocks])
 
 
 class TumblrPostBase:
     def __init__(
         self,
         blog_name: str,
-        content: TumblrContent,
+        content: TumblrContentBase,
     ):
         self._blog_name = blog_name
         self._content = content
@@ -167,7 +238,7 @@ class TumblrPost(TumblrPostBase):
     def __init__(
         self,
         blog_name: str,
-        content: TumblrContent,
+        content: TumblrContentBase,
         tags: Optional[List[str]],
     ):
         self._blog_name = blog_name

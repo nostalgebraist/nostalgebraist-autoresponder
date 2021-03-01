@@ -1,6 +1,7 @@
 import os
 import pickle
 from copy import deepcopy
+from datetime import datetime
 
 import pandas as pd
 
@@ -21,11 +22,13 @@ def on_post_creation_callback(api_response: dict, bridge_response: dict):
     if not os.path.exists(TRACEABILITY_FN):
         logs = {"fields": [], "data": []}
     else:
-        with open(TRACEABILITY_FN, "rb") as f:
+        with open(TRACEABILITY_FN, "rb") as f:  # TODO: make this less slow
             logs = pickle.load(f)
 
     entry = {"api__" + k: v for k, v in api_response.items()}
     entry.update(bridge_response)
+
+    entry['timestamp_manual'] = datetime.now().timestamp()
 
     for k in sorted(entry.keys()):
         if k not in logs["fields"]:

@@ -245,6 +245,7 @@ def poll(
                 "model_name": model_name,
                 "ckpt_select": ckpt_select,
                 "ckpt_sentiment": ckpt_sentiment,
+                "ckpt_autoreviewer": ckpt_autoreviewer,
                 "hparams_select": {
                     k: v
                     for k, v in selector_est.hparams_select_train_.values().items()

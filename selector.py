@@ -353,8 +353,10 @@ def serve_selection(
     chosen_mirotarg = chosen_continuation_side_data.get("mirotarg")
     chosen_prompt_for_neural = chosen_continuation_side_data.get("prompt_for_neural")
     chosen_model_info = chosen_continuation_side_data.get("model_info")
+
+    autorev_for_display = None if chosen_autoreview_proba is None else f"{chosen_autoreview_proba:.1%}"
     print(
-        f"\nselecting #{choice_ix} with pred {chosen_proba:.1%}, pos_sent {chosen_pos_sent:.1%}, autorev {chosen_autoreview_proba:.1%}, mirotarg {chosen_mirotarg}:\n{continuation}"
+        f"\nselecting #{choice_ix} with pred {chosen_proba:.1%}, pos_sent {chosen_pos_sent:.1%}, autorev {autorev_for_display}, mirotarg {chosen_mirotarg}:\n{continuation}"
     )
 
     print(f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}")

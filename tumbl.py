@@ -1736,11 +1736,12 @@ def do_reblog_reply_handling(
     posts = []
     updated_last_seen_ts = loop_persistent_data.last_seen_ts
 
+    next_posts, next_offset = post_getter(
+        limit=limit_, offset=offset_, notes_info=(not is_dashboard)
+    )
     next_ = [
         p
-        for p in post_getter(
-            limit=limit_, offset=offset_, notes_info=(not is_dashboard)
-        )
+        for p in next_posts
         if p["timestamp"] > start_ts
         and p["id"] not in NO_REBLOG_IDS
         and not any(
@@ -1751,16 +1752,17 @@ def do_reblog_reply_handling(
         )
     ]
     posts.extend(next_)
-    offset_ += len(next_)
+    offset_ = next_offset
     while len(next_) != 0 and len(posts) < n_posts_to_check:
         min_ts = min([p["timestamp"] for p in next_])
         print(f"got {len(next_)}, starting with {next_[0]['id']}, min_ts={min_ts}")
         time.sleep(0.1)
+        next_posts, next_offset = post_getter(
+            limit=limit_, offset=offset_, notes_info=(not is_dashboard)
+        )
         next_ = [
             p
-            for p in post_getter(
-                limit=limit_, offset=offset_, notes_info=(not is_dashboard)
-            )
+            for p in next_posts
             if p["timestamp"] > start_ts
             and p["id"] not in NO_REBLOG_IDS
             and not any(
@@ -1771,7 +1773,7 @@ def do_reblog_reply_handling(
             )
         ]
         posts.extend(next_)
-        offset_ += len(next_)
+        offset_ = next_offset
     if len(next_) > 0:
         # TODO: DRY
         min_ts = min([p["timestamp"] for p in next_])

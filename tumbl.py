@@ -1675,7 +1675,7 @@ def do_reblog_reply_handling(
         if next_offset is None:
             next_offset = kwargs['offset'] + len(posts)  # fallback
             print(f"falling back to: old offset {kwargs['offset']} + page size {len(posts)} = {next_offset}")
-        return posts, paging_kwargs
+        return posts, next_offset
 
     if is_dashboard and not pseudo_dashboard:
         post_getter = dashboard_post_getter

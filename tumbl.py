@@ -1656,19 +1656,32 @@ def do_reblog_reply_handling(
     ]
 
     def dashboard_post_getter(**kwargs):
-        return response_cache.record_response_to_cache(
+        response = response_cache.record_response_to_cache(
             dashboard_client.dashboard(**kwargs), care_about_notes=False
-        )["posts"]
+        )
+        posts = response["posts"]
+        next_offset = kwargs['offset'] + len(posts)
+        return posts, next_offset
 
     def reblogs_post_getter(**kwargs):
-        return response_cache.record_response_to_cache(
+        response = response_cache.record_response_to_cache(
             response_cache.client.posts(blogName, **kwargs), care_about_notes=False
-        )["posts"]
+        )
+        posts = response["posts"]
+
+        next_offset = None
+        with LogExceptionAndSkip("get next offset for /posts"):
+            next_offset = response['_links']['next']['query_params']['offset']
+        if next_offset is None:
+            next_offset = kwargs['offset'] + len(posts)  # fallback
+            print(f"falling back to: old offset {kwargs['offset']} + page size {len(posts)} = {next_offset}")
+        return posts, paging_kwargs
 
     if is_dashboard and not pseudo_dashboard:
         post_getter = dashboard_post_getter
         start_ts = max(DASH_START_TS, loop_persistent_data.last_seen_ts)
     elif is_dashboard:
+        raise ValueError('pseudo-dashboard is deprecated')
 
         def _get_pseudo_dashboard(**kwargs):
             psd_limit = 1

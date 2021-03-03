@@ -1,3 +1,4 @@
 data/*
 /config.json
+/config_remote.json
 notes/*

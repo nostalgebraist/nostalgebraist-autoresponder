@@ -417,6 +417,7 @@ def model(
     reuse=tf.AUTO_REUSE,
     return_activations_at=[],
     return_activations_only=False,
+    return_activations_stop_gradient=True,
     silent=False,
 ):
     activations = []
@@ -449,7 +450,9 @@ def model(
             if not silent:
                 print(f"{h_name} found")
             h_names.append(h_name)
-            activations.append(h)
+
+            h_to_append = tf.stop_gradient(h) if return_activations_stop_gradient else h
+            activations.append(h_to_append)
 
         # Transformer
         presents = []
@@ -483,7 +486,8 @@ def model(
                 if not silent:
                     print(f"{h_name} found")
                 h_names.append(h_name)
-                activations.append(h)
+                h_to_append = tf.stop_gradient(h) if return_activations_stop_gradient else h
+                activations.append(h_to_append)
 
                 if return_activations_only and layer == max(return_activations_at):
                     break

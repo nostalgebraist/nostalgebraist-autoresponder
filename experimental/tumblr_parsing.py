@@ -54,10 +54,10 @@ class NPFFormattingRange:
             result["start_insert"] = f"<{tag}>"
             result["end_insert"] = f"</{tag}>"
         elif self.type == "link":
-            result["start_insert"] = f"<a href=\"{self.url}\">"
+            result["start_insert"] = f'<a href="{self.url}">'
             result["end_insert"] = f"</a>"
         elif self.type == "mention":
-            result["start_insert"] = f'<a class="tumblelog" href=\"{self.url}\">'
+            result["start_insert"] = f'<a class="tumblelog" href="{self.url}">'
             result["end_insert"] = f"</a>"
         elif self.type == "color":
             result["start_insert"] = f'<span style="color:{self.hex}">'
@@ -169,11 +169,12 @@ class TumblrContentBase:
 
 
 class NPFContent(TumblrContentBase):
-    def __init__(self, blocks: List[TumblrContentBlockBase]):
+    def __init__(self, blocks: List[TumblrContentBlockBase], layout: NPFLayout):
         self.blocks = [
             block if isinstance(block, NPFBlockAnnotated) else NPFBlockAnnotated(block)
             for block in blocks
         ]
+        self.layout = layout
 
     def _assign_indents(self):
         #  i think the below comment is out of date and this works now?  TODO: verify
@@ -183,7 +184,9 @@ class NPFContent(TumblrContentBase):
         #  not the tag *opened by the block that steps out*
 
         indenting_subtypes = {"indented", "ordered-list-item", "unordered-list-item"}
-        prev_subtypes = [None] + [block.base_block.subtype_name for block in self.blocks]
+        prev_subtypes = [None] + [
+            block.base_block.subtype_name for block in self.blocks
+        ]
 
         cur_level = 0
 

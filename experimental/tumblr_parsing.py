@@ -143,12 +143,8 @@ class NPFTextBlock(TumblrContentBlockBase):
         )
 
 
-class TumblrContentBase:
-    def __init__(self, content: List[TumblrContentBlockBase]):
-        self.content = content
-
-    def to_html(self) -> str:
-        raise NotImplementedError
+class NPFLayout:
+    pass  # TODO
 
 
 class NPFBlockAnnotated(TumblrContentBlockBase):
@@ -164,6 +160,14 @@ class NPFBlockAnnotated(TumblrContentBlockBase):
         return self.prefix + inside + self.suffix
 
 
+class TumblrContentBase:
+    def __init__(self, content: List[TumblrContentBlockBase]):
+        self.content = content
+
+    def to_html(self) -> str:
+        raise NotImplementedError
+
+
 class NPFContent(TumblrContentBase):
     def __init__(self, blocks: List[TumblrContentBlockBase]):
         self.blocks = [
@@ -172,6 +176,8 @@ class NPFContent(TumblrContentBase):
         ]
 
     def _assign_indents(self):
+        #  i think the below comment is out of date and this works now?  TODO: verify
+        #
         #  this doesn't quite work
         #  stepping out a level should close the tag *currently* top of stack
         #  not the tag *opened by the block that steps out*
@@ -233,8 +239,6 @@ class NPFContent(TumblrContentBase):
 
         closers = []
         while len(stack) > 0:
-            print(stack)
-            print(closers)
             subtype_key = stack.pop()
             key = (subtype_key, False)
             closers.append(subtype_and_sign_to_tag[key])

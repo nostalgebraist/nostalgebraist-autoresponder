@@ -333,12 +333,16 @@ class TumblrContentBase:
 
 
 class NPFContent(TumblrContentBase):
-    def __init__(self, blocks: List[NPFBlock], layout: List[NPFLayout]):
+    def __init__(self,
+                 blocks: List[NPFBlock],
+                 layout: List[NPFLayout],
+                 blog_name: str):
         self.raw_blocks = [
             block if isinstance(block, NPFBlockAnnotated) else NPFBlockAnnotated(block)
             for block in blocks
         ]
         self.layout = layout
+        self.blog_name = blog_name
 
         self.blocks = self._make_blocks()
 
@@ -385,7 +389,8 @@ class NPFContent(TumblrContentBase):
     def from_payload(payload: dict) -> 'NPFContent':
         blocks = [NPFBlock.from_payload(bl) for bl in payload['content']]
         layout = [NPFLayout.from_payload(lay) for lay in payload['layout']]
-        return NPFContent(blocks=blocks, layout=layout)
+        blog_name = payload['blog']['name']
+        return NPFContent(blocks=blocks, layout=layout, blog_name=blog_name)
 
     def _assign_indents(self):
         #  i think the below comment is out of date and this works now?  TODO: verify
@@ -460,16 +465,20 @@ class NPFContent(TumblrContentBase):
         self.blocks[-1].suffix = "".join(closers)
 
     def _assign_ask_tags(self):
-        if len(self.ask_blocks) == 0:
-            return None
+        if len(self.ask_blocks) > 0:
+            first_ask_block = self.ask_blocks[0]
+            last_ask_block = self.ask_blocks[-1]
 
-        first_ask_block = self.ask_blocks[0]
-        last_ask_block = self.ask_blocks[-1]
+            # TODO: make this work if there's already a prefix/suffix on the blocks
+            # TODO: make the formatting real
+            first_ask_block.prefix = f"<p><b>{first_ask_block.asking_name} asked:</b></p>"
+            last_ask_block.suffix = "<p><b>Ask ends</b></p>"
 
+        # blogname / answering name prefix
         # TODO: make this work if there's already a prefix/suffix on the blocks
         # TODO: make the formatting real
-        first_ask_block.prefix = f"<p><b>{first_ask_block.asking_name} asked:</b></p>"
-        last_ask_block.suffix = "<p><b>Ask ends</b></p>"
+        first_nonask_block = self.blocks[len(self.ask_blocks)]
+        first_nonask_block.prefix = f"<p><b>{self.blog_name}:</b></p>"
 
     def to_html(self):
         self._assign_indents()
@@ -512,6 +521,10 @@ class TumblrPost(TumblrPostBase):
     def tags(self):
         return self._tags
 
+    def to_html(self) -> str:
+        # TODO: tags?
+        return self._content.to_html()
+
 
 class TumblrThread:
     def __init__(self, posts: List[TumblrPost]):
@@ -520,3 +533,12 @@ class TumblrThread:
     @property
     def posts(self):
         return self._posts
+
+    def to_html(self) -> str:
+        result = ""
+
+        for post in self.posts[:-1]:
+            result = f"<blockquote>{result}{post.to_html()}</blockquote>"
+
+        result += self.posts[-1].to_html()
+        return result

@@ -144,7 +144,66 @@ class NPFTextBlock(TumblrContentBlockBase):
 
 
 class NPFLayout:
-    pass  # TODO
+    @property
+    def layout_type(self):
+        return self._layout_type
+
+
+class NPFLayoutMode:
+    def __init__(self, mode_type: str):
+        self._mode_type = mode_type
+
+    @property
+    def mode_type(self):
+        return self._mode_type
+
+    @staticmethod
+    def from_payload(payload: dict) -> "NPFLayoutMode":
+        return NPFLayoutMode(mode_type=payload['type'])
+
+
+class NPFRow:
+    def __init__(self,
+                 blocks: List[int],
+                 mode: Optional[NPFLayoutMode] = None,
+                 ):
+        self._blocks = blocks
+        self._mode = mode
+
+    @property
+    def blocks(self):
+        return self._blocks
+
+    @property
+    def mode(self):
+        return self._mode
+
+    @staticmethod
+    def from_payload(payload: dict) -> "NPFRow":
+        return NPFRow(blocks=payload['blocks'], mode=payload.get('mode'))
+
+
+class NPFLayoutRows(NPFLayout):
+    def __init__(self,
+                 rows: List[NPFRow],
+                 truncate_after: Optional[int] = None,
+                 ):
+        self._rows = rows
+        self._truncate_after = truncate_after
+        self._layout_type = "rows"
+
+    @property
+    def rows(self):
+        return self._rows
+
+    @property
+    def truncate_after(self):
+        return self._truncate_after
+
+    @staticmethod
+    def from_payload(payload: dict) -> "NPFLayoutRows":
+        return NPFLayoutRows(rows=payload['display'],
+                             truncate_after=payload.get('truncate_after'))
 
 
 class NPFBlockAnnotated(TumblrContentBlockBase):
@@ -169,12 +228,32 @@ class TumblrContentBase:
 
 
 class NPFContent(TumblrContentBase):
-    def __init__(self, blocks: List[TumblrContentBlockBase], layout: NPFLayout):
-        self.blocks = [
+    def __init__(self, blocks: List[TumblrContentBlockBase], layout: List[NPFLayout]):
+        self.raw_blocks = [
             block if isinstance(block, NPFBlockAnnotated) else NPFBlockAnnotated(block)
             for block in blocks
         ]
         self.layout = layout
+
+    @property
+    def blocks(self):
+        if len(self.layout) == 0:
+            return self.raw_blocks
+        else:
+            # TODO: figure out how to handle asks
+            # TODO: figure out how to handle truncate_after
+            ordered_block_ixs = []
+            for layout_entry in self.layout:
+                # note: this doesn't properly handle multi-column rows
+                # TODO: handle multi-column rows
+                ordered_block_ixs.extend(layout_entry.rows)
+            return [self.raw_blocks[ix] for ix in ordered_block_ixs]
+
+    @staticmethod
+    def from_payload(payload: dict) -> 'NPFContent':
+        blocks = [NPFTextBlock.from_payload(bl)for bl in payload['content']]
+        layout = [NPFLayoutRows.from_payload(lay) for lay in payload['layout']]
+        return NPFContent(blocks=blocks, layout=layout)
 
     def _assign_indents(self):
         #  i think the below comment is out of date and this works now?  TODO: verify

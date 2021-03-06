@@ -278,6 +278,12 @@ class NPFLayoutAsk(NPFLayout):
     def attribution(self):
         return self._attribution
 
+    @property
+    def asking_name(self):
+        if self.attribution is None:
+            return 'Anonymous'
+        return self.attribution['url'].partition('.tumblr.com')[0].partition('//')[2]
+
     @staticmethod
     def from_payload(payload: dict) -> "NPFLayoutAsk":
         return NPFLayoutAsk(blocks=payload['blocks'],
@@ -285,20 +291,33 @@ class NPFLayoutAsk(NPFLayout):
 
 
 class NPFBlockAnnotated(NPFBlock):
-    def __init__(self, base_block: NPFBlock, is_ask_block: bool = False):
+    def __init__(self,
+                 base_block: NPFBlock,
+                 is_ask_block: bool = False,
+                 ask_layout: Optional[NPFLayoutAsk] = None):
         self.base_block = base_block
 
         self.prefix = ""
         self.suffix = ""
         self.indent_delta = None
         self.is_ask_block = is_ask_block
+        self.ask_layout = ask_layout
 
-    def as_ask_block(self):
+    def as_ask_block(self, ask_layout: NPFLayoutAsk) -> 'NPFBlockAnnotated':
         new = deepcopy(self)
         new.is_ask_block = True
+        new.ask_layout = ask_layout
         return new
 
-    def to_html(self):
+    @property
+    def asking_name(self):
+        if not self.is_ask_block:
+            return None
+        if self.ask_layout is None:
+            return None
+        return self.ask_layout.asking_name
+
+    def to_html(self) -> str:
         inside = self.base_block.to_html()
         return self.prefix + inside + self.suffix
 
@@ -319,33 +338,51 @@ class NPFContent(TumblrContentBase):
         ]
         self.layout = layout
 
-    @property
-    def blocks(self):
+        self.blocks = self._make_blocks()
+
+    def _make_blocks(self) -> List[NPFBlockAnnotated]:
         if len(self.layout) == 0:
             return self.raw_blocks
         else:
-            # TODO: figure out how to handle asks
             # TODO: figure out how to handle truncate_after
             ordered_block_ixs = []
             ask_ixs = set()
+            ask_ixs_to_layouts = {}
             for layout_entry in self.layout:
                 if layout_entry.layout_type == "rows":
                     # note: this doesn't properly handle multi-column rows
                     # TODO: handle multi-column rows
                     ordered_block_ixs.extend(layout_entry.rows)
                 elif layout_entry.layout_type == "ask":
+                    print("in ask block")
                     ordered_block_ixs.extend(layout_entry.blocks)
                     ask_ixs.update(layout_entry.blocks)
+                    ask_ixs_to_layouts.update(
+                        {ix: layout_entry
+                         for ix in layout_entry.blocks}
+                    )
+            print(ask_ixs)
+            if all([layout_entry.layout_type == "ask"
+                    for layout_entry in self.layout]):
+                extras = [ix for ix in range(len(self.raw_blocks))
+                          if ix not in ask_ixs]
+                ordered_block_ixs.extend(extras)
             return [
-                self.raw_blocks[ix].as_ask_block()
+                self.raw_blocks[ix].as_ask_block(
+                    ask_layout=ask_ixs_to_layouts[ix]
+                )
                 if ix in ask_ixs
                 else self.raw_blocks[ix]
                 for ix in ordered_block_ixs
             ]
 
+    @property
+    def ask_blocks(self) -> List[NPFBlockAnnotated]:
+        return [bl for bl in self.blocks if bl.is_ask_block]
+
     @staticmethod
     def from_payload(payload: dict) -> 'NPFContent':
-        blocks = [NPFBlock.from_payload(bl)for bl in payload['content']]
+        blocks = [NPFBlock.from_payload(bl) for bl in payload['content']]
         layout = [NPFLayout.from_payload(lay) for lay in payload['layout']]
         return NPFContent(blocks=blocks, layout=layout)
 
@@ -421,9 +458,22 @@ class NPFContent(TumblrContentBase):
 
         self.blocks[-1].suffix = "".join(closers)
 
+    def _assign_ask_tags(self):
+        if len(self.ask_blocks) == 0:
+            return None
+
+        first_ask_block = self.ask_blocks[0]
+        last_ask_block = self.ask_blocks[-1]
+
+        # TODO: make this work if there's already a prefix/suffix on the blocks
+        # TODO: make the formatting real
+        first_ask_block.prefix = f"<p>{first_ask_block.asking_name} asked:</p>"
+        last_ask_block.suffix = "<p><b>Ask ends</b></p>"
+
     def to_html(self):
         self._assign_indents()
         self._assign_nonlocal_tags()
+        self._assign_ask_tags()
 
         return "".join([block.to_html() for block in self.blocks])
 

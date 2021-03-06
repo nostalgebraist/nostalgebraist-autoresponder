@@ -2,6 +2,7 @@
 from typing import List, Optional
 from collections import defaultdict
 from itertools import zip_longest
+from copy import deepcopy
 
 
 class TumblrContentBlockBase:
@@ -57,7 +58,8 @@ class NPFFormattingRange:
             result["start_insert"] = f'<a href="{self.url}">'
             result["end_insert"] = f"</a>"
         elif self.type == "mention":
-            result["start_insert"] = f'<a class="tumblelog" href="{self.url}">'
+            blog_url = self.blog.get('url')
+            result["start_insert"] = f'<a class="tumblelog" href="{blog_url}">'
             result["end_insert"] = f"</a>"
         elif self.type == "color":
             result["start_insert"] = f'<span style="color:{self.hex}">'
@@ -84,7 +86,17 @@ class NPFSubtype:
             return f"<p>{text}</p>"
 
 
-class NPFTextBlock(TumblrContentBlockBase):
+class NPFBlock(TumblrContentBlockBase):
+    def from_payload(payload: dict) -> 'NPFBlock':
+        if payload.get('type') == 'text':
+            return NPFTextBlock.from_payload(payload)
+        elif payload.get('type') == 'image':
+            return NPFImageBlock.from_payload(payload)
+        else:
+            raise ValueError(payload.get('type'))
+
+
+class NPFTextBlock(NPFBlock):
     def __init__(
         self,
         text: str,
@@ -143,10 +155,53 @@ class NPFTextBlock(TumblrContentBlockBase):
         )
 
 
+class NPFNonTextBlockMixin:
+    @property
+    def subtype_name(self):
+        return 'no_subtype'
+
+    @property
+    def indent_level(self):
+        return 0
+
+
+class NPFImageBlock(NPFBlock, NPFNonTextBlockMixin):
+    def __init__(self,
+                 media: List[dict],
+                 alt_text: Optional[str] = None):
+        self._media = media
+        self._alt_text = alt_text
+
+    @property
+    def media(self):
+        return self._media
+
+    @property
+    def alt_text(self):
+        return self._alt_text
+
+    @staticmethod
+    def from_payload(payload: dict) -> 'NPFImageBlock':
+        return NPFImageBlock(media=payload['media'],
+                             alt_text=payload.get('alt_text'))
+
+    def to_html(self) -> str:
+        # TODO: implement
+        return "<p><b>Image blocks not yet implemented</b></p>"
+
+
 class NPFLayout:
     @property
     def layout_type(self):
         return self._layout_type
+
+    def from_payload(payload: dict) -> 'NPFLayout':
+        if payload.get('type') == 'rows':
+            return NPFLayoutRows.from_payload(payload)
+        elif payload.get('type') == 'ask':
+            return NPFLayoutAsk.from_payload(payload)
+        else:
+            raise ValueError(payload.get('type'))
 
 
 class NPFLayoutMode:
@@ -206,13 +261,42 @@ class NPFLayoutRows(NPFLayout):
                              truncate_after=payload.get('truncate_after'))
 
 
-class NPFBlockAnnotated(TumblrContentBlockBase):
-    def __init__(self, base_block: TumblrContentBlockBase):
+class NPFLayoutAsk(NPFLayout):
+    def __init__(self,
+                 blocks: List[int],
+                 attribution: Optional[dict] = None,
+                 ):
+        self._blocks = blocks
+        self._attribution = attribution
+        self._layout_type = "ask"
+
+    @property
+    def blocks(self):
+        return self._blocks
+
+    @property
+    def attribution(self):
+        return self._attribution
+
+    @staticmethod
+    def from_payload(payload: dict) -> "NPFLayoutAsk":
+        return NPFLayoutAsk(blocks=payload['blocks'],
+                            attribution=payload.get('attribution'))
+
+
+class NPFBlockAnnotated(NPFBlock):
+    def __init__(self, base_block: NPFBlock, is_ask_block: bool = False):
         self.base_block = base_block
 
         self.prefix = ""
         self.suffix = ""
         self.indent_delta = None
+        self.is_ask_block = is_ask_block
+
+    def as_ask_block(self):
+        new = deepcopy(self)
+        new.is_ask_block = True
+        return new
 
     def to_html(self):
         inside = self.base_block.to_html()
@@ -228,7 +312,7 @@ class TumblrContentBase:
 
 
 class NPFContent(TumblrContentBase):
-    def __init__(self, blocks: List[TumblrContentBlockBase], layout: List[NPFLayout]):
+    def __init__(self, blocks: List[NPFBlock], layout: List[NPFLayout]):
         self.raw_blocks = [
             block if isinstance(block, NPFBlockAnnotated) else NPFBlockAnnotated(block)
             for block in blocks
@@ -243,16 +327,26 @@ class NPFContent(TumblrContentBase):
             # TODO: figure out how to handle asks
             # TODO: figure out how to handle truncate_after
             ordered_block_ixs = []
+            ask_ixs = set()
             for layout_entry in self.layout:
-                # note: this doesn't properly handle multi-column rows
-                # TODO: handle multi-column rows
-                ordered_block_ixs.extend(layout_entry.rows)
-            return [self.raw_blocks[ix] for ix in ordered_block_ixs]
+                if layout_entry.layout_type == "rows":
+                    # note: this doesn't properly handle multi-column rows
+                    # TODO: handle multi-column rows
+                    ordered_block_ixs.extend(layout_entry.rows)
+                elif layout_entry.layout_type == "ask":
+                    ordered_block_ixs.extend(layout_entry.blocks)
+                    ask_ixs.update(layout_entry.blocks)
+            return [
+                self.raw_blocks[ix].as_ask_block()
+                if ix in ask_ixs
+                else self.raw_blocks[ix]
+                for ix in ordered_block_ixs
+            ]
 
     @staticmethod
     def from_payload(payload: dict) -> 'NPFContent':
-        blocks = [NPFTextBlock.from_payload(bl)for bl in payload['content']]
-        layout = [NPFLayoutRows.from_payload(lay) for lay in payload['layout']]
+        blocks = [NPFBlock.from_payload(bl)for bl in payload['content']]
+        layout = [NPFLayout.from_payload(lay) for lay in payload['layout']]
         return NPFContent(blocks=blocks, layout=layout)
 
     def _assign_indents(self):

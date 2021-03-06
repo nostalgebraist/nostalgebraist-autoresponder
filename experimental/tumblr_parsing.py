@@ -512,20 +512,6 @@ class TumblrPost(TumblrPostBase):
         return self._tags
 
 
-class TumblrAsk(TumblrPostBase):
-    pass
-
-
-class TumblrAnswer(TumblrPost):
-    def __init__(self, ask: TumblrAsk, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._ask = ask
-
-    @property
-    def ask(self):
-        return self._ask
-
-
 class TumblrThread:
     def __init__(self, posts: List[TumblrPost]):
         self._posts = posts

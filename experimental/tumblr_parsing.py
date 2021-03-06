@@ -257,7 +257,8 @@ class NPFLayoutRows(NPFLayout):
 
     @staticmethod
     def from_payload(payload: dict) -> "NPFLayoutRows":
-        return NPFLayoutRows(rows=payload['display'],
+        rows = [entry['blocks'] for entry in payload['display']]
+        return NPFLayoutRows(rows=rows,
                              truncate_after=payload.get('truncate_after'))
 
 
@@ -350,18 +351,17 @@ class NPFContent(TumblrContentBase):
             ask_ixs_to_layouts = {}
             for layout_entry in self.layout:
                 if layout_entry.layout_type == "rows":
-                    # note: this doesn't properly handle multi-column rows
-                    # TODO: handle multi-column rows
-                    ordered_block_ixs.extend(layout_entry.rows)
+                    for row_ixs in layout_entry.rows:
+                        # note: this doesn't properly handle multi-column rows
+                        # TODO: handle multi-column rows
+                        ordered_block_ixs.extend(row_ixs)
                 elif layout_entry.layout_type == "ask":
-                    print("in ask block")
                     ordered_block_ixs.extend(layout_entry.blocks)
                     ask_ixs.update(layout_entry.blocks)
                     ask_ixs_to_layouts.update(
                         {ix: layout_entry
                          for ix in layout_entry.blocks}
                     )
-            print(ask_ixs)
             if all([layout_entry.layout_type == "ask"
                     for layout_entry in self.layout]):
                 extras = [ix for ix in range(len(self.raw_blocks))

@@ -74,16 +74,17 @@ class NPFSubtype:
         self.subtype = subtype
 
     def format_html(self, text: str):
+        text_or_break = text if len(text) > 0 else "<br>"
         if self.subtype == "heading1":
-            return f"<p><h2>{text}</h2></p>"  # TODO: verify
+            return f"<p><h2>{text_or_break}</h2></p>"  # TODO: verify
         elif self.subtype == "heading2":
-            return f"<p><h2>{text}</h2></p>"  # TODO: verify
+            return f"<p><h2>{text_or_break}</h2></p>"  # TODO: verify
         elif self.subtype == "ordered-list-item":
             return f"<li>{text}</li>"
         elif self.subtype == "unordered-list-item":
             return f"<li>{text}</li>"
         else:
-            return f"<p>{text}</p>"
+            return f"<p>{text_or_break}</p>"
 
 
 class NPFBlock(TumblrContentBlockBase):
@@ -467,7 +468,7 @@ class NPFContent(TumblrContentBase):
 
         # TODO: make this work if there's already a prefix/suffix on the blocks
         # TODO: make the formatting real
-        first_ask_block.prefix = f"<p>{first_ask_block.asking_name} asked:</p>"
+        first_ask_block.prefix = f"<p><b>{first_ask_block.asking_name} asked:</b></p>"
         last_ask_block.suffix = "<p><b>Ask ends</b></p>"
 
     def to_html(self):

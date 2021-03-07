@@ -223,6 +223,13 @@ class DynamicMoodSystem:
 
         return determiner_multiplier_s
 
+    def set_centered_scaled_determiner(self,
+                                       mood_inputs: pd.DataFrame,
+                                       ) -> pd.DataFrame:
+        mood_inputs["centered_determiner"] = mood_inputs["determiner"] - self.determiner_center_series(mood_inputs["determiner"])
+        mood_inputs["scaled_determiner"] = self.determiner_multiplier_series(mood_inputs["centered_determiner"]) * mood_inputs["centered_determiner"]
+        return mood_inputs
+
 
 def compute_determiner(row):
     if np.isfinite(row.p75_generated_logit_diff) and (
@@ -296,17 +303,9 @@ def compute_dynamic_mood_inputs(
 
     df["determiner"] = df.apply(compute_determiner, axis=1)
 
-    # df["determiner"] = df.apply(
-    #     lambda row: convert_p75_generated_logit_diff_to_user_input_logit_diff(row.p75_generated_logit_diff)
-    #     if (np.isfinite(row.p75_generated_logit_diff) and (row.generated_ts == row.generated_ts))
-    #     else row.logit_diff,
-    #     axis=1
-    # )
-
     mood_inputs = df.set_index("time")
 
-    mood_inputs["centered_determiner"] = mood_inputs["determiner"] - system.determiner_center_series(mood_inputs["determiner"])
-    mood_inputs["scaled_determiner"] = system.determiner_multiplier_series(mood_inputs["centered_determiner"]) * mood_inputs["centered_determiner"]
+    mood_inputs = system.set_centered_scaled_determiner(mood_inputs)
 
     duplicate_bug_filter = ~mood_inputs.index.duplicated(keep="first")
     duplicate_bug_filter = duplicate_bug_filter | (
@@ -623,6 +622,7 @@ def counterfactual_mood_graph(
 
     lti_serieses = {}
     for name, system in tqdm(systems.items()):
+        mood_inputs = system.set_centered_scaled_determiner(mood_inputs)
         lti_series = compute_dynamic_mood_over_interval(
             mood_inputs, left_time, end_time, system
         ).apply(ytrans)

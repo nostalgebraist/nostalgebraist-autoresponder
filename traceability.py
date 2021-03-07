@@ -1,10 +1,12 @@
 import os
 import pickle
+import time
 from copy import deepcopy
+from datetime import datetime
 
 import pandas as pd
 
-TRACEABILITY_FN = "data/traceability_logs.pkl.gz"
+TRACEABILITY_FN = os.path.join(os.path.dirname(__file__), "data/traceability_logs.pkl.gz")
 
 
 def _add_field(logs, fieldname):
@@ -18,14 +20,18 @@ def _add_field(logs, fieldname):
 
 
 def on_post_creation_callback(api_response: dict, bridge_response: dict):
+    t1 = time.time()
+
     if not os.path.exists(TRACEABILITY_FN):
         logs = {"fields": [], "data": []}
     else:
-        with open(TRACEABILITY_FN, "rb") as f:
+        with open(TRACEABILITY_FN, "rb") as f:  # TODO: make this less slow
             logs = pickle.load(f)
 
     entry = {"api__" + k: v for k, v in api_response.items()}
     entry.update(bridge_response)
+
+    entry['timestamp_manual'] = datetime.now().timestamp()
 
     for k in sorted(entry.keys()):
         if k not in logs["fields"]:
@@ -39,6 +45,9 @@ def on_post_creation_callback(api_response: dict, bridge_response: dict):
 
     with open(TRACEABILITY_FN[: -len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
         pickle.dump(logs, f)
+
+    t2 = time.time()
+    print(f"on_post_creation_callback: took {t2-t1:.3f}s sec")
 
 
 def traceability_logs_to_df(logs, boring_fields=None, make_input_blogname=True):

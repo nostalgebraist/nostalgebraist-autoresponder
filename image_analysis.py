@@ -487,7 +487,7 @@ def V9_IMAGE_FORMATTER(image_text):
 
 def format_extracted_text(image_text, image_formatter=V9_IMAGE_FORMATTER, verbose=False):
     if verbose and len(image_text) > 0:
-        print(f"for {url}, analysis text is\n{image_text}\n")
+        print(f"analysis text is\n{image_text}\n")
     if len(image_text) > 0:
         return image_formatter(image_text)
     return ""

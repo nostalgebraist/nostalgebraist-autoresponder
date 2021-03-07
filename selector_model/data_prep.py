@@ -1,14 +1,9 @@
 import os
-import time
 import re
 import argparse
 import pickle
-from collections import Counter, defaultdict
+from collections import defaultdict
 from functools import partial
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 
 from tqdm.autonotebook import tqdm
 
@@ -85,7 +80,7 @@ def get_all_posts(
         sorted(all_fns),
         mininterval=1,
         miniters=1,
-        smoothing=0,
+        smoothing=0.3,
     )
 
     for ix, fn in enumerate(iter_):

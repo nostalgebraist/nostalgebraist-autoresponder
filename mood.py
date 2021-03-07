@@ -57,7 +57,7 @@ def get_mood_by_name(mood_name: str):
             "score_fn": "pos_sentiment",
         },
         "only_happy": {
-            "min_allowed_score": 0.4,
+            "min_allowed_score": 0.3,  # 0.4,
             "max_allowed_score": bound_names["no_upper_bound"],
             "score_fn": "pos_sentiment",
         },

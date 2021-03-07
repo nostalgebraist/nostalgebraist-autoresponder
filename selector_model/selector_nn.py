@@ -6,7 +6,143 @@ sys.path.append("gpt-2/src/")
 import model
 
 
-def attn_only_block(x, scope, *, past, hparams, do_input_norm=True):
+def conv1d_overridable(x, scope, nf, *, gain=None, hparams=None, w=None):
+    dtype = hparams.dtype if hparams else tf.float32
+    with tf.variable_scope(scope, dtype=dtype):
+        *start, nx = model.shape_list(x)
+        initializer = model.get_initializer(hparams, scope, nx, gain)
+        if w is None:
+            w = model.get_variable("w") or tf.get_variable(
+                "w", [1, nx, nf], initializer=initializer(dtype=dtype)
+            )
+        b = model.get_variable("b") or tf.get_variable(
+            "b", [nf], initializer=tf.constant_initializer(0, dtype=dtype)
+        )
+        c = tf.reshape(
+            tf.matmul(tf.reshape(x, [-1, nx]), tf.reshape(w, [-1, nf])) + b,
+            start + [nf],
+        )
+        return c
+
+
+def selector_attn(
+    x,
+    scope,
+    n_state,
+    *,
+    past,
+    hparams,
+    n_head=None,
+    gain=None,
+    adapt=False,
+    X=None,
+    batch_size=None,
+    selection_tok=None,
+):
+    if n_head is None:
+        n_head = hparams.n_head
+    assert x.shape.ndims == 3  # Should be [batch, sequence, features]
+    assert n_state % n_head == 0
+    if past is not None:
+        assert (
+            past.shape.ndims == 5
+        )  # Should be [batch, 2, heads, sequence, features], where 2 is [k, v]
+
+    def split_heads(x):
+        # From [batch, sequence, features] to [batch, heads, sequence, features]
+        return tf.transpose(model.split_states(x, n_head), [0, 2, 1, 3])
+
+    def merge_heads(x):
+        # Reverse of split_heads
+        return model.merge_states(tf.transpose(x, [0, 2, 1, 3]))
+
+    def mask_attn_weights(w):
+        # w has shape [batch, heads, dst_sequence, src_sequence], where information flows from src to dst.
+        _, _, nd, ns = model.shape_list(w)
+        b = model.attention_mask(nd, ns, dtype=w.dtype)
+        b = tf.reshape(b, [1, 1, nd, ns])
+        w = w * b - tf.cast(65500 if w.dtype != tf.float32 else 1e10, w.dtype) * (1 - b)
+        return w
+
+    def multihead_attn(q, k, v):
+        # q, k, v have shape [batch, heads, sequence, features]
+        w = tf.matmul(q, k, transpose_b=True)
+        w = w * tf.rsqrt(tf.cast(v.shape[-1].value, w.dtype))
+
+        # w = mask_attn_weights(w)
+        attn_dropout = (
+            hparams.get("attn_dropout_adapt", 0)
+            if adapt
+            else hparams.get("attn_dropout", 0)
+        )
+        if hparams.get("attn_dropout_before_softmax", False):
+            w = model.dropout(w, attn_dropout)
+        w = model.softmax(w)
+        if not hparams.get("attn_dropout_before_softmax", False):
+            w = model.dropout(w, attn_dropout)
+        a = tf.matmul(w, v)
+        return a
+
+    dtype = hparams.dtype if hparams else tf.float32
+    with tf.variable_scope(scope, dtype=dtype):
+        classic_init = hparams.get("classic_init", False)
+        if classic_init:
+            with tf.variable_scope("c_attn", dtype=dtype):
+                nx, nf = n_state, 3 * n_state
+                initializer = model.get_initializer(hparams, "c_attn", nx)
+                c_attn_w = model.get_variable("w") or tf.get_variable(
+                    "w", [1, nx, nf], initializer=initializer(dtype=dtype)
+                )
+                c_attn_kv_w, c_attn_q_w = tf.split(
+                    c_attn_w, [n_state * 2, n_state], axis=2
+                )
+            c_kv = conv1d_overridable(
+                x, "c_attn_kv", n_state * 2, hparams=hparams, w=c_attn_kv_w
+            )
+        else:
+            c_kv = model.conv1d(x, "c_attn_kv", n_state * 2, hparams=hparams)
+        k, v = tf.split(c_kv, 2, axis=2)
+
+        x_at_selection_ix = extract_selection_ix(X, x, batch_size, selection_tok)[
+            "extracted"
+        ]
+        x_at_selection_ix = x_at_selection_ix[:, tf.newaxis, :]
+        if classic_init:
+            q = conv1d_overridable(
+                x_at_selection_ix, "c_attn_q", n_state, hparams=hparams, w=c_attn_q_w
+            )
+        else:
+            q = model.conv1d(x_at_selection_ix, "c_attn_q", n_state, hparams=hparams)
+
+        q, k, v = map(split_heads, [q, k, v])
+        present = tf.stack([k, v], axis=1)
+        if past is not None:
+            pk, pv = tf.unstack(past, axis=1)
+            k = tf.concat([pk, k], axis=-2)
+            v = tf.concat([pv, v], axis=-2)
+        a = multihead_attn(q, k, v)
+        a = merge_heads(a)
+        a = model.conv1d(a, "c_proj", n_state, hparams=hparams)
+        res_dropout = (
+            hparams.get("res_dropout_adapt", 0)
+            if adapt
+            else hparams.get("res_dropout", 0)
+        )
+        a = model.dropout(a, res_dropout)
+        return a, present
+
+
+def attn_only_block(
+    x,
+    scope,
+    *,
+    past,
+    hparams,
+    do_input_norm=True,
+    X=None,
+    batch_size=None,
+    selection_tok=None,
+):
     dtype = hparams.dtype if hparams else tf.float32
     do_resid = hparams.do_resid if hparams else True
     print(f"do_resid: {do_resid}")
@@ -19,7 +155,19 @@ def attn_only_block(x, scope, *, past, hparams, do_input_norm=True):
         else:
             x_attn_in = x
 
-        a, present = model.attn(x_attn_in, "attn", nx, past=past, hparams=hparams)
+        if hparams.get("selector_style_attn", False):
+            a, present = selector_attn(
+                x_attn_in,
+                "attn",
+                nx,
+                past=past,
+                hparams=hparams,
+                X=X,
+                batch_size=batch_size,
+                selection_tok=selection_tok,
+            )
+        else:
+            a, present = model.attn(x_attn_in, "attn", nx, past=past, hparams=hparams)
         if do_resid:
             x = x + a
         else:
@@ -105,23 +253,19 @@ def selector(
                 hparams=hparams_select,
                 past=None,
                 do_input_norm=True,
+                X=X,
+                batch_size=batch_size,
+                selection_tok=selection_tok,
             )
             hs_select.append(h_select)
 
             h_select_in = tf.concat(hs_select, axis=-1)
-
-            h_select_in_at_selection_ix = extract_selection_ix(
-                X, h_select_in, batch_size=batch_size, selection_tok=selection_tok
-            )["extracted"]
-            selection_ix_position = tf.cast(
-                tf.reshape(
-                    extract_selection_ix_position(
-                        X, batch_size=batch_size, selection_tok=selection_tok
-                    )["extracted"],
-                    [-1, 1],
-                ),
-                tf.float32,
-            )
+            if hparams_select.get("selector_style_attn", False):
+                h_select_in_at_selection_ix = h_select_in[:, 0, :]
+            else:
+                h_select_in_at_selection_ix = extract_selection_ix(
+                    X, h_select_in, batch_size=batch_size, selection_tok=selection_tok
+                )["extracted"]
 
         if use_mlp:
             nx = h_select_in_at_selection_ix.shape[-1].value
@@ -138,8 +282,8 @@ def selector(
             else:
                 h_select_in_at_selection_ix = m
 
-        logit_size = (1 if use_only_logit_diff else 2)
-        
+        logit_size = 1 if use_only_logit_diff else 2
+
         w_select = model.get_variable("w_select")
         if w_select is None:
             initializer = model.get_initializer(

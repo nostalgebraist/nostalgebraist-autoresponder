@@ -7,7 +7,6 @@ import json
 import sys
 
 sys.path.append("gpt-2/src/")
-import time
 from datetime import datetime
 import numpy as np
 import pandas as pd
@@ -177,6 +176,8 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         flooding=False,
         flood_level=0.0,
         accumulate_gradients=1,
+        selector_style_attn=True,
+        classic_init=True,
     ):
         self.ckpt = ckpt
         self.layer_nums = layer_nums
@@ -247,6 +248,8 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.flooding = flooding
         self.flood_level = flood_level
         self.accumulate_gradients = accumulate_gradients
+        self.selector_style_attn = selector_style_attn
+        self.classic_init = classic_init
 
         self.uid_ = None
         self.select_scope_ = None
@@ -298,7 +301,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                             tf.int32, [self.batch_size], name="select_target"
                         )
 
-                    _ = model_fn(
+                    model_fn(
                         hparams=self.base_hparams,
                         X=self.context_for_h_,
                         return_activations_at=self.layer_nums,
@@ -344,6 +347,8 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             init_default_gain=self.init_default_gain,
             init_lreg_gain=self.init_lreg_gain,
             additional_full_blocks=self.additional_full_blocks,
+            selector_style_attn=self.selector_style_attn,
+            classic_init=self.classic_init,
         )
 
         # TODO: DRY
@@ -364,6 +369,8 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             init_default_gain=self.init_default_gain,
             init_lreg_gain=self.init_lreg_gain,
             additional_full_blocks=self.additional_full_blocks,
+            selector_style_attn=self.selector_style_attn,
+            classic_init=self.classic_init,
         )
 
         if self.session_override is not None:
@@ -990,7 +997,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 delta = criterion - self.last_best_val_metric_
                 delta_is_okay = (
                     (delta > 0)
-                    if eval_metrics[self.stopping_metric]["greater_is_better"]
+                    if eval_metrics_results[self.stopping_metric]["greater_is_better"]
                     else (delta < 0)
                 )
                 stop_early_signal = not delta_is_okay
@@ -1126,6 +1133,9 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         return results
 
     def _predict(self, X, key="preds", disable_calibration=False):
+        if isinstance(X, list):
+            X = pd.DataFrame.from_records(X)
+
         all_pd_ixs = []
         all_preds = []
         data = self._make_batched_data(X)

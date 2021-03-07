@@ -2,6 +2,7 @@
 Tumblr API layer and main loop of the bot during operation.
 """
 import os
+import pickle
 from datetime import datetime
 from string import punctuation, whitespace
 from itertools import product
@@ -39,19 +40,23 @@ from mood_dynamic import (
     mood_buff_v2,
     WINDOW_LENGTH_DAYS,
     pos_sent_to_logit_diff,
+    show_unit_mood_inputs,
 )
 
 from munging_shared import *
-from bridge_shared import bridge_service_unique_id, wait_for_result
+from bridge_shared import send_alldone
+from selector import apply_retention_cutoff
+from experimental.ml_connector import answer_from_gpt2_service, text_post_from_gpt2_service
 
 from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 
 from autoresponder_static import DEFAULT_CSC
-from autoresponder_static_v8 import timestamp_to_v8_format, timestamp_to_v10_format
+from autoresponder_static_v8 import timestamp_to_v10_format
 
 from traceability import on_post_creation_callback
 
 from util.error_handling import LogExceptionAndSkip
+
 EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
@@ -116,14 +121,15 @@ REVIEW_COMMAND = "!review"
 REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
+MAX_POSTS_PER_STEP = 5
 
-DASH_REBLOG_SELECTION_CUTOFF = 0.4
+DASH_REBLOG_SELECTION_CUTOFF = 0.5
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
 DASH_REBLOG_CONTINUATION_CUTOFF = 0.5  # "roll" # 0.5
 
-DASH_REBLOG_REQUIRE_COMMENT = False  # ! experimental
+DASH_REBLOG_REQUIRE_COMMENT = False
 
 MOOD = True
 MOOD_DYN = True
@@ -144,9 +150,6 @@ HALLOWEEN_2K20_BEHAVIOR_TESTING = False
 
 FIC_TRIGGER = True
 FIC_TRIGGER_TESTING = False
-
-DO_FAKE_V10_YEAR_MONTH = False
-FAKE_V10_YEAR_MONTH = "December 2020"
 
 IMAGE_CREATION = True
 IMAGE_CREATION_TESTING = False
@@ -314,74 +317,6 @@ def determine_mood(
     return mood
 
 
-def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
-    if ts is None:
-        ts = datetime.now()
-    data["v8_timestamp"] = timestamp_to_v8_format(ts)
-    data["v10_timestamp"] = timestamp_to_v10_format(ts)
-    if DO_FAKE_V10_YEAR_MONTH:
-        data["v10_timestamp"] = (
-            " ".join(data["v10_timestamp"].split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
-        )
-    if no_timestamp:
-        data["v8_timestamp"] = ""
-        data["v10_timestamp"] = ""
-
-    if BEAMSPLIT_TESTING_FLAG:
-        data["na_beamsplit"] = True
-    new_id = bridge_service_unique_id(bridge_service_url, data)
-
-    data_to_send = dict()
-    data_to_send.update(data)
-    data_to_send["id"] = new_id
-
-    requests.post(bridge_service_url, data=data_to_send)
-    result = wait_for_result(new_id)
-
-    # for logging, add any input fields that didn't make the round trip
-    for k, v in data.items():
-        if k not in result:
-            print(f"adding key {k}")
-            result[k] = v
-
-    return result
-
-
-def text_post_from_gpt2_service(mood=None, ts=None):
-    data = {"mood": mood}
-
-    if ts is None:
-        ts = datetime.now()
-    data["v8_timestamp"] = timestamp_to_v8_format(ts)
-    data["v10_timestamp"] = timestamp_to_v10_format(ts)
-    if DO_FAKE_V10_YEAR_MONTH:
-        data["v10_timestamp"] = (
-            " ".join(data["v10_timestamp"].split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
-        )
-
-    url = bridge_service_url + "/textpost"
-
-    if BEAMSPLIT_TESTING_FLAG:
-        data["na_beamsplit"] = True
-    new_id = bridge_service_unique_id(url, data)
-
-    data_to_send = dict()
-    data_to_send.update(data)
-    data_to_send["id"] = new_id
-
-    data["id"] = new_id
-    requests.post(url, data=data_to_send)
-    result = wait_for_result(new_id)
-
-    # for logging, add any input fields that didn't make the round trip
-    for k, v in data.items():
-        if k not in result:
-            print(f"adding key {k}")
-            result[k] = v
-
-    return result
-
-
 def strip_spurious_blognames_from_tags(client, tags, auto_accept_list=set()):
     def okay_to_keep(tag):
         if tag in auto_accept_list:
@@ -410,16 +345,25 @@ def strip_avoid_listed_strings_from_tags(tags):
 
 
 def autopublish_screener(
-    asking_name: str, question: str, answer: str, tags: list, screen_robnost=True
+    asking_name: str, question: str, answer: str, tags: list,
+    screen_robnost=True,
+    trace=False,
+    silent=False,
 ):
+    def sprint(*args, **kwargs):
+        if not silent:
+            print(*args, **kwargs)
+
+    traced_reasons = []
+
     profanity_strictness = False
     if asking_name == "bukbot":
         profanity_strictness = True
-        print("profanity_strictness: ON")
+        sprint("profanity_strictness: ON")
 
     if ((not IMAGE_CREATION) or IMAGE_CREATION_TESTING) and (IMAGE_DELIMITER in answer):
-        print("screened because image delimiter in answer")
-        return False
+        sprint("screened because image delimiter in answer")
+        traced_reasons.append({"type": "substring", "substring": IMAGE_DELIMITER})
 
     review_string = (
         asking_name + " " + question + " " + answer + " " + " ".join(tags)
@@ -473,18 +417,27 @@ def autopublish_screener(
                 if end_ix < len(review_string_subtype):
                     sf_formatted = sf_formatted + "... "
 
-                print(f"\t{sf}: |{repr(sf_formatted)}|")
+                sprint(f"\t{sf}: |{repr(sf_formatted)}|")
 
-                return False
+                traced_reasons.append({"type": "substring", "substring": sf})
+
     if asking_name == "nostalgebraist" and screen_robnost:
-        print("screened because robnost")
-        return False
+        sprint("screened because robnost")
+        traced_reasons.append({"type": "username", "substring": asking_name})
     if asking_name == "Anonymous" and SCREEN_ANON:
-        print("screened because anon")
-        return False
+        sprint("screened because anon")
+        traced_reasons.append({"type": "username", "substring": asking_name})
     if asking_name in SCREENED_USERS:
-        print(f"screened because asking_name={asking_name}")
+        sprint(f"screened because asking_name={asking_name}")
+        traced_reasons.append({"type": "username", "substring": asking_name})
+    if len(traced_reasons) > 0:
+        if trace:
+            # dedup dict
+            traced_reasons = [dict(s) for s in {frozenset(d.items()) for d in traced_reasons}]
+            return False, traced_reasons
         return False
+    if trace:
+        return True, traced_reasons
     return True
 
 
@@ -801,6 +754,8 @@ class LoopPersistentData:
         side_judgment_cache: SideJudgmentCache = SideJudgmentCache(),
         follower_names=None,
         image_analysis_cache: ImageAnalysisCache = ImageAnalysisCache(),
+        retention_stack: set = set(),
+        retention_stack_proba: list = [],
     ):
         self.reblogs_from_me = reblogs_from_me
         self.reblog_worthy_dash_posts = reblog_worthy_dash_posts
@@ -816,6 +771,8 @@ class LoopPersistentData:
         self.side_judgment_cache = side_judgment_cache
         self.follower_names = follower_names
         self.image_analysis_cache = image_analysis_cache
+        self.retention_stack = retention_stack
+        self.retention_stack_proba = retention_stack_proba
 
         if len(self.requests_per_check_history) == 0:
             self.requests_per_check_history.extend(
@@ -870,10 +827,11 @@ def respond_to_reblogs_replies(
     proba_threshold=None,
     is_user_input=True,
 ):
-    for reblog_identifier in identifiers:
+    n_ri = len(identifiers)
+    for ri_ix, reblog_identifier in enumerate(identifiers):
         if not roll_for_limited_users(reblog_identifier.blog_name):
             continue
-        print(f"\n\t--> begin handling {reblog_identifier}\n")
+        print(f"\n\t--> {ri_ix+1}/{n_ri} begin handling {reblog_identifier}\n")
         is_reply = reblog_identifier in reply_set
         halloweenize = (
             HALLOWEEN_2K20_BEHAVIOR or HALLOWEEN_2K20_BEHAVIOR_TESTING
@@ -924,18 +882,18 @@ def respond_to_reblogs_replies(
             )
         print(f"\n\t--> using question:\n---------\n{question}\n---------\n")
 
-        loop_persistent_data.side_judgment_cache.save()
         gpt2_output = answer_from_gpt2_service(
             data={
                 "question": question,
                 "asking_name": reblog_identifier.blog_name,
                 "exact_prompt": True,
                 "mood": determine_mood(response_cache),
-                "return_all_conts": int(halloweenize),
+                "return_all_conts": 1,  # int(halloweenize),
                 "selector_cut_to_final_exchange": 1,  # int(is_reply),
-            }
+            },
+            loop_persistent_data=loop_persistent_data,
+            BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
         )
-        loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
 
         if (
             SAVE_USER_INPUT_SENTIMENTS
@@ -961,9 +919,13 @@ def respond_to_reblogs_replies(
                 sent = response_cache.get_cached_user_input_sentiment(
                     user_input_identifier
                 )
-                sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
-                sent["generated_ts"] = datetime.now()
-                response_cache.mark_user_input_sentiment(user_input_identifier, sent)
+                if sent.get("generated_pos_sent") is not None:
+                    print(f"not overwriting existing mood effects for {user_input_identifier}")
+                else:
+                    sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
+                    sent["generated_ts"] = datetime.now()
+                    response_cache.mark_user_input_sentiment(user_input_identifier, sent)
+                    show_unit_mood_inputs(response_cache, user_input_identifier)
 
         okay_to_reply = True
 
@@ -1082,15 +1044,15 @@ def respond_to_reblogs_replies(
                     print(
                         f"tried to use screener_string_from_bootstrap_draft, encountered {e}: {eargs}"
                     )
-                screener_question = (
-                    response_cache.query(
-                        CachedResponseType.POSTS,
-                        reblog_identifier,
-                        care_about_notes=False,
+                    screener_question = (
+                        response_cache.query(
+                            CachedResponseType.POSTS,
+                            reblog_identifier,
+                            care_about_notes=False,
+                        )
+                        .get("reblog", {})
+                        .get("comment", "")
                     )
-                    .get("reblog", {})
-                    .get("comment", "")
-                )
                 print(f"using screener_question: {repr(screener_question)}")
 
                 to_drafts = HALLOWEEN_2K20_BEHAVIOR_TESTING
@@ -1694,19 +1656,32 @@ def do_reblog_reply_handling(
     ]
 
     def dashboard_post_getter(**kwargs):
-        return response_cache.record_response_to_cache(
+        response = response_cache.record_response_to_cache(
             dashboard_client.dashboard(**kwargs), care_about_notes=False
-        )["posts"]
+        )
+        posts = response["posts"]
+        next_offset = kwargs['offset'] + len(posts)
+        return posts, next_offset
 
     def reblogs_post_getter(**kwargs):
-        return response_cache.record_response_to_cache(
+        response = response_cache.record_response_to_cache(
             response_cache.client.posts(blogName, **kwargs), care_about_notes=False
-        )["posts"]
+        )
+        posts = response["posts"]
+
+        next_offset = None
+        with LogExceptionAndSkip("get next offset for /posts"):
+            next_offset = response['_links']['next']['query_params']['offset']
+        if next_offset is None:
+            next_offset = kwargs['offset'] + len(posts)  # fallback
+            print(f"falling back to: old offset {kwargs['offset']} + page size {len(posts)} = {next_offset}")
+        return posts, next_offset
 
     if is_dashboard and not pseudo_dashboard:
         post_getter = dashboard_post_getter
         start_ts = max(DASH_START_TS, loop_persistent_data.last_seen_ts)
     elif is_dashboard:
+        raise ValueError('pseudo-dashboard is deprecated')
 
         def _get_pseudo_dashboard(**kwargs):
             psd_limit = 1
@@ -1761,11 +1736,12 @@ def do_reblog_reply_handling(
     posts = []
     updated_last_seen_ts = loop_persistent_data.last_seen_ts
 
+    next_posts, next_offset = post_getter(
+        limit=limit_, offset=offset_, notes_info=(not is_dashboard)
+    )
     next_ = [
         p
-        for p in post_getter(
-            limit=limit_, offset=offset_, notes_info=(not is_dashboard)
-        )
+        for p in next_posts
         if p["timestamp"] > start_ts
         and p["id"] not in NO_REBLOG_IDS
         and not any(
@@ -1776,16 +1752,17 @@ def do_reblog_reply_handling(
         )
     ]
     posts.extend(next_)
-    offset_ += len(next_)
+    offset_ = next_offset
     while len(next_) != 0 and len(posts) < n_posts_to_check:
         min_ts = min([p["timestamp"] for p in next_])
         print(f"got {len(next_)}, starting with {next_[0]['id']}, min_ts={min_ts}")
         time.sleep(0.1)
+        next_posts, next_offset = post_getter(
+            limit=limit_, offset=offset_, notes_info=(not is_dashboard)
+        )
         next_ = [
             p
-            for p in post_getter(
-                limit=limit_, offset=offset_, notes_info=(not is_dashboard)
-            )
+            for p in next_posts
             if p["timestamp"] > start_ts
             and p["id"] not in NO_REBLOG_IDS
             and not any(
@@ -1796,7 +1773,7 @@ def do_reblog_reply_handling(
             )
         ]
         posts.extend(next_)
-        offset_ += len(next_)
+        offset_ = next_offset
     if len(next_) > 0:
         # TODO: DRY
         min_ts = min([p["timestamp"] for p in next_])
@@ -1861,8 +1838,6 @@ def do_reblog_reply_handling(
                     f"encountered {repr(e)} trying to get notes for {post_identifier}, notes field was {post.get('notes')}"
                 )
                 continue
-
-            # updated_last_seen_ts = max([n['timestamp'] for n in notes] + [updated_last_seen_ts])
 
             reblogs = [
                 n
@@ -1940,6 +1915,36 @@ def do_reblog_reply_handling(
         for item in replies_to_handle:
             print(f"\t{item}")
 
+    reblog_reply_timestamps = {r: loop_persistent_data.timestamps[r]
+                               for r in reblogs_to_handle}
+    reblog_reply_timestamps.update({ri: ri.timestamp
+                                    for ri in replies_to_handle})
+    time_ordered_idents = sorted(reblog_reply_timestamps.keys(), key=lambda r: reblog_reply_timestamps[r])
+
+    kept = time_ordered_idents[:MAX_POSTS_PER_STEP]
+    excluded = time_ordered_idents[MAX_POSTS_PER_STEP:]
+
+    if len(excluded) > 0:
+        print(f"saving {len(excluded)} of {len(time_ordered_idents)} for later with MAX_POSTS_PER_STEP={MAX_POSTS_PER_STEP}")
+        for r in excluded:
+            print(
+                f"\t saving {r} for later..."
+            )
+
+    kept_reblogs = [r for r in kept if r in reblogs_to_handle]
+    kept_replies = [r for r in kept if r in replies_to_handle]
+
+    reblogs_to_handle = kept_reblogs
+    replies_to_handle = kept_replies
+
+    if is_dashboard and len(kept) > 0 and len(excluded) > 0:
+        last_handled_in_step_ts = max([reblog_reply_timestamps[r] for r in kept])
+        if last_handled_in_step_ts < updated_last_seen_ts:
+            print(f"rolling back updated_last_seen_ts: {updated_last_seen_ts} --> {last_handled_in_step_ts}")
+            updated_last_seen_ts = last_handled_in_step_ts
+        else:
+            print(f"weirdness: last_handled_in_step_ts {last_handled_in_step_ts} > updated_last_seen_ts{updated_last_seen_ts}")
+
     # handle reblogs, replies
     loop_persistent_data, response_cache = respond_to_reblogs_replies(
         identifiers=reblogs_to_handle + list(replies_to_handle),
@@ -2012,7 +2017,6 @@ def construct_review_question(user_args):
 def handle_review_command(
     user_args, input_ident, asking_url, loop_persistent_data, response_cache
 ):
-    loop_persistent_data.side_judgment_cache.save()
     question, full_input = construct_review_question(user_args)
     gpt2_output = answer_from_gpt2_service(
         data={
@@ -2024,9 +2028,10 @@ def handle_review_command(
             "write_fic_override": 0,
             "write_review_override": 1,
         },
+        loop_persistent_data=loop_persistent_data,
         no_timestamp=True,
+        BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
     )
-    loop_persistent_data.side_judgment_cache = SideJudgementCache.load()
 
     log_data = gpt2_output
     log_data["post_type"] = "review"
@@ -2073,9 +2078,17 @@ def do_ask_handling(loop_persistent_data, response_cache):
             )
             submissions.remove(r)
 
+    kept = submissions[-MAX_POSTS_PER_STEP:]
+    excluded = submissions[:-MAX_POSTS_PER_STEP]
+    if len(excluded) > 0:
+        print(f"saving {len(excluded)} of {len(submissions)} for later with MAX_POSTS_PER_STEP={MAX_POSTS_PER_STEP}")
+        for r in excluded:
+            print(
+                f"\t saving {r['asking_name']}, question={r['question']} for later..."
+            )
+    submissions = kept
+
     for x in submissions[::-1]:
-        # if not roll_for_limited_users(x['asking_name'], text=x['question']):
-        #     continue
         if x.get("summary", "") == FOLLOW_COMMAND:
             with LogExceptionAndSkip("follow"):
                 loop_persistent_data = update_follower_names_v2(
@@ -2159,29 +2172,32 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
             write_fic_override = 0
             if FIC_TRIGGER:
-                fic_triger_criterion = any(
+                fic_trigger_criterion = any(
                     [
                         subs in x["question"].lower()
                         for subs in [
                             "tell me a story",
+                            "tell me the story of",
                             "a story about",
                             "write a story",
+                            "write a fanfic",
+                            "write a fic",
                         ]
                     ]
                 )
                 print(
-                    f"fic_triger_criterion: {fic_triger_criterion} with x['question']: {x['question']}"
+                    f"fic_trigger_criterion: {fic_trigger_criterion} with x['question']: {x['question']}"
                 )
                 if FIC_TRIGGER_TESTING:
-                    fic_triger_criterion = fic_triger_criterion and (
+                    fic_trigger_criterion = fic_trigger_criterion and (
                         x["asking_name"] == "nostalgebraist"
                     )
                     print(
-                        f"fic_triger_criterion: {fic_triger_criterion} with x['asking_name']: {x['asking_name']}"
+                        f"fic_trigger_criterion: {fic_trigger_criterion} with x['asking_name']: {x['asking_name']}"
                     )
 
-                if fic_triger_criterion:
-                    print("fic_triger_criterion passed")
+                if fic_trigger_criterion:
+                    print("fic_trigger_criterion passed")
                     # forced_tags_string += " #original fiction"
                     write_fic_override = 1
 
@@ -2227,7 +2243,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         f"for {user_input_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
                     )
 
-            loop_persistent_data.side_judgment_cache.save()
             gpt2_output = answer_from_gpt2_service(
                 data={
                     "question": question,
@@ -2235,9 +2250,11 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     "mood": determine_mood(response_cache),
                     "forced_tags_string": forced_tags_string,
                     "write_fic_override": write_fic_override,
-                }
+                    "return_all_conts": 1,
+                },
+                loop_persistent_data=loop_persistent_data,
+                BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG
             )
-            loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
 
             if (
                 response_cache.get_cached_user_input_sentiment(user_input_identifier)
@@ -2246,9 +2263,13 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 sent = response_cache.get_cached_user_input_sentiment(
                     user_input_identifier
                 )
-                sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
-                sent["generated_ts"] = datetime.now()
-                response_cache.mark_user_input_sentiment(user_input_identifier, sent)
+                if sent.get("generated_pos_sent") is not None:
+                    print(f"not overwriting existing mood effects for {user_input_identifier}")
+                else:
+                    sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
+                    sent["generated_ts"] = datetime.now()
+                    response_cache.mark_user_input_sentiment(user_input_identifier, sent)
+                    show_unit_mood_inputs(response_cache, user_input_identifier)
             log_data = gpt2_output
             log_data["post_type"] = "ask"
             log_data["input_ident"] = (x["id"], x["asking_name"])
@@ -2265,7 +2286,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
     return loop_persistent_data, response_cache, n_asks
 
 
-def do_queue_handling(response_cache: ResponseCache):
+def do_queue_handling(loop_persistent_data, response_cache):
     queue = private_client.queue(blogName, limit=20)["posts"]
 
     n_posts_in_queue = len(queue)
@@ -2277,11 +2298,13 @@ def do_queue_handling(response_cache: ResponseCache):
             mood_for_queue_writing = determine_mood(response_cache, dt=dt)
 
             print(f"writing new text post... ({textpost_ix}/{N_TO_WRITE})")
-            loop_persistent_data.side_judgment_cache.save()
-            gpt2_output = text_post_from_gpt2_service(
-                mood=mood_for_queue_writing, ts=dt
+
+            gpt2_output, loop_persistent_data = text_post_from_gpt2_service(
+                loop_persistent_data=loop_persistent_data,
+                mood=mood_for_queue_writing,
+                ts=dt,
+                BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
             )
-            loop_persistent_data.side_judgment_cache = SideJudgmentCache.load()
 
             log_data = gpt2_output
             log_data["post_type"] = "textpost"
@@ -2296,6 +2319,7 @@ def do_queue_handling(response_cache: ResponseCache):
 
         n_posts_in_queue = len(private_client.queue(blogName, limit=20)["posts"])
         print(f"now {n_posts_in_queue} posts in queue")
+    return loop_persistent_data, response_cache
 
 
 def do_rts(response_cache):
@@ -2386,7 +2410,8 @@ def do_rts(response_cache):
 
 
 def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseCache):
-    # DEBUG
+    loop_persistent_data, response_cache = do_queue_handling(loop_persistent_data, response_cache)
+
     response_cache = do_rts(response_cache)
 
     ### decide whether we'll do the reblog/reply check
@@ -2491,7 +2516,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         print(f"{len(drafts)} waiting for review")
 
         ### do queue check
-        do_queue_handling(response_cache)
+        loop_persistent_data, response_cache = do_queue_handling(loop_persistent_data, response_cache)
     else:
         print("skipping asks, queue, drafts until we're no longer rate limited")
         print(relevant_ratelimit_data)
@@ -2504,13 +2529,29 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     return loop_persistent_data, response_cache
 
 
+def load_retention(side_judgment_cache):
+    with open("data/retention_stack.pkl.gz", "rb") as f:
+        retention_stack = pickle.load(f)
+
+    retention_stack, retention_stack_proba = apply_retention_cutoff(
+        retention_stack, side_judgment_cache
+    )
+
+    return retention_stack, retention_stack_proba
+
+
 if __name__ == "__main__":
     response_cache = ResponseCache.load(tank_client)
     side_judgment_cache = SideJudgmentCache.load()
     image_analysis_cache = ImageAnalysisCache.load()
+
+    retention_stack, retention_stack_proba = load_retention(side_judgment_cache)
+
     loop_persistent_data = LoopPersistentData(
         side_judgment_cache=side_judgment_cache,
         image_analysis_cache=image_analysis_cache,
+        retention_stack=retention_stack,
+        retention_stack_proba=retention_stack_proba,
     )
 
     while True:
@@ -2519,6 +2560,11 @@ if __name__ == "__main__":
                 loop_persistent_data, response_cache
             )
             time.sleep(sleep_time())
+            send_alldone()
         except (requests.exceptions.ConnectionError, KeyError, ValueError):
             print("hit an error, waiting for a little while...")
             time.sleep(sleep_time(multiplier=5))
+            send_alldone()
+        except KeyboardInterrupt:
+            send_alldone()
+            raise KeyboardInterrupt

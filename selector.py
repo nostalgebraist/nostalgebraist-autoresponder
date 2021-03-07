@@ -1,43 +1,25 @@
 """
-Runs the selector, regularly polling the bridge service and handling selection needs.
-
-This was copied out of a jupyter notebook and hasn't been edited much since then, so
-code quality is even uglier than usual :(
+Helper functions for selecting one "best" output from GPT-2 from a list of such outputs.
 """
 from functools import partial
+from datetime import datetime
 
 import numpy as np
-import pickle
-import sys
 from textwrap import wrap
 
-
-import requests
-import time
 from tqdm import tqdm
 
 from bot_config import BotSpecificConstants
-from side_judgments import SideJudgmentCache, SELECT_VIA_GENERATOR
 from image_analysis import IMAGE_DELIMITER_WHITESPACED
+from autoresponder_static_v8 import timestamp_to_v10_format
 
-Q_CHAR = "会"
-A_CHAR = "域"
-T_CHAR = "职"
-ORIG_POST_CHAR = "翰"
-
-AB_TEST_A_SEQUENCE = "\uFFFA"
-AB_TEST_B_SEQUENCE = "\uFFFB"
+from munging_shared import T_CHAR, ORIG_POST_CHAR
 
 bot_specific_constants = BotSpecificConstants.load()
 selector_url = bot_specific_constants.bridge_service_url + "/pollselector"
 generator_url = bot_specific_constants.bridge_service_url + "/pollgenerator"
 
-RETENTION_STACK = {}
 RESULT_STACK = {}
-wrapped = None
-
-MODEL_NAME = "bert_6_25_20_WITH_FIX"
-VERIFY_MODEL = False
 
 RETENTION_CUTOFF = 0.6
 ENFORCE_RETENTION_CUTOFF = True
@@ -45,7 +27,7 @@ ENFORCE_RETENTION_CUTOFF = True
 EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
-FIC_COLDSTART = True
+FIC_COLDSTART = False
 REVIEW_COLDSTART = False
 IMAGE_COLDSTART = False
 
@@ -54,12 +36,6 @@ REVIEW_COLDSTART_DELTA = 0.1
 IMAGE_COLDSTART_DELTA = 0.1
 
 WARN_ABOUT_LOST_KEYS = False
-
-
-def load_retention():
-    global RETENTION_STACK
-    with open("data/retention_stack.pkl.gz", "rb") as f:
-        RETENTION_STACK = pickle.load(f)
 
 
 def logit_diff(sentiment):
@@ -72,14 +48,6 @@ def pos_sent(sentiment):
     if sentiment is None:
         return 0.0
     return sentiment["prob"] if sentiment["label"] == "1" else 1.0 - sentiment["prob"]
-
-
-def show_note_preds(texts, preds):
-    for tpe, pred in zip(texts, preds):
-        print(f"\tpredicted notes: {pred:.1f}\n")
-        print("\n~_~_~_~_~_\n")
-        print("\n".join(wrap(tpe)))
-        print("\n~_~_~_~_~_\n")
 
 
 def show_note_probas(texts, probas, continuation_sentiments=None, other_proba=None):
@@ -107,16 +75,7 @@ def show_note_probas(texts, probas, continuation_sentiments=None, other_proba=No
         print("\n~_~_~_~_~_\n")
 
 
-def verify_new_model():
-    global wrapped
-    with open("reward/textpost_examples.pkl.gz", "rb") as f:
-        textpost_examples = pickle.load(f)
-    textpost_examples = [s.lstrip(ORIG_POST_CHAR) for s in textpost_examples]
-    proba_tpe = wrapped.predict_proba(textpost_examples)[:, 1]
-    show_note_probas(textpost_examples, proba_tpe)
-
-
-def parse_continuation(continuation: str, verbose=True):
+def parse_continuation(continuation: str, verbose=False):
     if verbose:
         print(
             f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"
@@ -142,9 +101,7 @@ def parse_continuation(continuation: str, verbose=True):
             tags = fic_tags + tags
             post = post[: post.index("#original fiction")]
 
-    post = post.lstrip(
-        ORIG_POST_CHAR
-    )  # TODO: fix this in get_prompted_continuation_with_length_proportional_sampling
+    post = post.lstrip(ORIG_POST_CHAR)
     parsed = {"post": post, "tags": tags}
     return parsed
 
@@ -176,12 +133,17 @@ def get_continuation_sentiments(side_judgment_cache, continuations, sleep_time=0
 
 
 def sentiment_screen(
-    side_judgment_cache, continuations, mood, selection_proba=None, mirotarg=None
+    side_judgment_cache, continuations, mood,
+    selection_proba=None,
+    continuation_side_data=None,
+    autoreview_proba=None
 ):
     if selection_proba is None:
         selection_proba = [None for _ in continuations]
-    if mirotarg is None:
-        mirotarg = [None for _ in continuations]
+    if continuation_side_data is None:
+        continuation_side_data = [None for _ in continuations]
+    if autoreview_proba is None:
+        autoreview_proba = [None for _ in continuations]
 
     all_continuation_sentiments = get_continuation_sentiments(
         side_judgment_cache, continuations
@@ -245,65 +207,18 @@ def sentiment_screen(
     retained_selection_proba = [
         p for mask, p in zip(exclusion_mask, selection_proba) if not mask
     ]
-    retained_mirotarg = [m for mask, m in zip(exclusion_mask, mirotarg) if not mask]
+    retained_continuation_side_data = [m for mask, m in zip(exclusion_mask, continuation_side_data) if not mask]
+
+    retained_autoreview_proba = [m for mask, m in zip(exclusion_mask, autoreview_proba) if not mask]
 
     return (
         retained_continuations,
         retained_continuation_sentiments,
         retained_selection_proba,
         all_continuation_sentiments,
-        retained_mirotarg,
+        retained_continuation_side_data,
+        retained_autoreview_proba,
     )
-
-
-def sentiment_screen_legacy(proba, continuations, mood):
-    continuation_sentiments = get_continuation_sentiments(continuations)
-
-    score_fn = mood["score_fn"]
-    if score_fn == "logit_diff":
-        scores = np.asarray(
-            [logit_diff(sentiment) for sentiment in continuation_sentiments]
-        )
-    elif score_fn == "pos_sentiment":
-        scores = np.asarray(
-            [pos_sent(sentiment) for sentiment in continuation_sentiments]
-        )
-    else:
-        raise ValueError(f"score_fn {score_fn} not understood")
-
-    proba_ = proba.copy()
-    exclusion_mask = np.zeros_like(proba, dtype=bool)
-
-    min_allowed_score = mood["min_allowed_score"]
-    max_allowed_score = mood["max_allowed_score"]
-
-    print(f"proba: {proba}\nscores: {scores}\n")
-
-    if (scores >= min_allowed_score).any():
-        exclude_lower = scores < min_allowed_score
-        print(
-            f"excluding {exclude_lower.sum()} of {len(proba)} with {score_fn}<{min_allowed_score}"
-        )
-        exclusion_mask[exclude_lower] = True
-    else:
-        print(
-            f"couldn't find any with {score_fn}>={min_allowed_score}, highest is {scores.max()}"
-        )
-
-    if (scores <= max_allowed_score).any():
-        exclude_upper = scores > max_allowed_score
-        print(
-            f"excluding {exclude_upper.sum()} of {len(proba)} with {score_fn}>{max_allowed_score}"
-        )
-        exclusion_mask[exclude_upper] = True
-    else:
-        print(
-            f"couldn't find any with {score_fn}<={max_allowed_score}, lowest is {scores.min()}"
-        )
-
-    proba_[exclusion_mask] = 0
-
-    return proba_, continuation_sentiments
 
 
 def record_side_judgements(
@@ -315,14 +230,14 @@ def record_side_judgements(
         )
 
 
-def serve_selection(data):
-    global RETENTION_STACK
-    global RETENTION_STACK_PROBA
-    global wrapped
-
+def serve_selection(
+    data, side_judgment_cache, retention_stack=None, retention_stack_proba=None
+):
     continuations = data["continuations"]
     selection_proba = data.get("selection_proba")
-    mirotarg = data.get("mirotarg", [None for _ in continuations])
+    continuation_side_data = data.get(
+        "continuation_side_data", [{} for _ in continuations]
+    )
 
     if FIC_COLDSTART:
         selection_proba = do_fic_coldstart(continuations, selection_proba)
@@ -341,7 +256,8 @@ def serve_selection(data):
     else:
         print("selection_proba is None")
 
-    side_judgment_cache = SideJudgmentCache.load()
+    autoreview_proba = data.get("autoreview_proba", [None for _ in continuations])
+
     if selection_proba is not None and sentiment_logit_diffs is not None:
         record_side_judgements(
             side_judgment_cache, continuations, selection_proba, sentiment_logit_diffs
@@ -359,56 +275,50 @@ def serve_selection(data):
         eps = kwargs["eps"]
 
     if (data["type"] == "textpost") and (strategy != "uniform"):
-        continuations += sorted(RETENTION_STACK)
+        continuations += sorted(retention_stack)
         if selection_proba is not None:
-            if RETENTION_STACK_PROBA is not None:
-                selection_proba += RETENTION_STACK_PROBA
+            if retention_stack_proba is not None:
+                print(f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}")
+                selection_proba += retention_stack_proba
             else:
-                selection_proba += [None for _ in RETENTION_STACK]
+                selection_proba += [None for _ in retention_stack]
             # TODO: store retention_stack mirotarg
-            mirotarg += [None for _ in RETENTION_STACK]
+            continuation_side_data += [{} for _ in retention_stack]
+            autoreview_proba += [None for _ in retention_stack]
 
-    base_id = data["base_id"]
-
+    print(f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}")
     do_mood_screen = False
     if mood is not None:
         do_mood_screen = mood.get("name") != "unrestricted"
 
     if do_mood_screen:
         (
-            continuations_screened,
-            continuation_sentiments,
-            selection_proba_screened,
+            retained_continuations,
+            continuation_sentiments,  # TODO: clearer name here
+            retained_selection_proba,
             all_continuation_sentiments,
-            retained_mirotarg,
+            retained_continuation_side_data,
+            retained_autoreview_proba,
         ) = sentiment_screen(
-            side_judgment_cache, continuations, mood, selection_proba, mirotarg
+            side_judgment_cache,
+            continuations,
+            mood,
+            selection_proba,
+            continuation_side_data,
+            autoreview_proba,
         )
     else:
         continuation_sentiments = get_continuation_sentiments(
             side_judgment_cache, continuations
         )
-        continuations_screened = continuations
+        retained_continuations = continuations
         all_continuation_sentiments = continuation_sentiments
-        selection_proba_screened = selection_proba
-        retained_mirotarg = mirotarg
+        retained_selection_proba = selection_proba
+        retained_continuation_side_data = continuation_side_data
 
-    if SELECT_VIA_GENERATOR:
-        proba = np.asarray(selection_proba_screened)
-        show_note_probas(continuations_screened, proba, continuation_sentiments)
-    else:
-        proba = wrapped.predict_proba([s.lstrip("翰") for s in continuations_screened])[
-            :, 1
-        ]
-        show_note_probas(
-            continuations_screened,
-            proba,
-            continuation_sentiments,
-            other_proba=selection_proba_screened,
-        )
+    proba = np.asarray(retained_selection_proba)  # TODO: clearer name here
 
     if strategy == "argmax":
-        # choice_ix = preds.argmax()
         choice_ix = proba.argmax()
     elif strategy == "eps_greedy":
         print(f"choosing between preds {proba}\n")
@@ -420,9 +330,6 @@ def serve_selection(data):
             print(f"choosing greedily: roll {roll} >= eps {eps}")
             choice_ix = proba.argmax()
     elif strategy == "proportional" or strategy == "proportional_winnowed":
-        # note_preds = np.exp(preds)-1
-        # probs = note_preds / sum(note_preds)
-
         if strategy == "proportional_winnowed":
             proba_winnowed = winndow_probabilities(proba)
         else:
@@ -433,35 +340,51 @@ def serve_selection(data):
         choice_ix = np.random.choice(list(range(len(probs))), p=probs)
     elif strategy == "uniform":
         print("choosing randomly with uniform distribution")
-        choice_ix = np.random.choice(list(range(len(continuations_screened))))
+        choice_ix = np.random.choice(list(range(len(retained_continuations))))
     else:
         raise ValueError(f"strategy {strategy}")
 
-    continuation = continuations_screened[choice_ix]
+    continuation = retained_continuations[choice_ix]
     chosen_proba = proba[choice_ix]
     chosen_pos_sent = pos_sent(continuation_sentiments[choice_ix])
-    chosen_mirotarg = retained_mirotarg[choice_ix]
+    chosen_continuation_side_data = retained_continuation_side_data[choice_ix]
+    chosen_autoreview_proba = retained_autoreview_proba[choice_ix]
+
+    chosen_mirotarg = chosen_continuation_side_data.get("mirotarg")
+    chosen_prompt_for_neural = chosen_continuation_side_data.get("prompt_for_neural")
+    chosen_model_info = chosen_continuation_side_data.get("model_info")
+
+    autorev_for_display = None if chosen_autoreview_proba is None else f"{chosen_autoreview_proba:.1%}"
     print(
-        f"\nselecting #{choice_ix} with pred {chosen_proba:.1%}, pos_sent {chosen_pos_sent:.1%}:\n{continuation}, mirotarg {chosen_mirotarg}\n"
+        f"\nselecting #{choice_ix} with pred {chosen_proba:.1%}, pos_sent {chosen_pos_sent:.1%}, autorev {autorev_for_display}, mirotarg {chosen_mirotarg}:\n{continuation}"
     )
 
+    print(f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}")
     if data["type"] == "textpost":
         for i, p in enumerate(selection_proba):
-            if p > RETENTION_CUTOFF and continuations[i] not in RETENTION_STACK:
-                RETENTION_STACK.add(continuations[i])
+            if p > RETENTION_CUTOFF and continuations[i] not in retention_stack:
+                retention_stack.add(continuations[i])
 
-        if continuation in RETENTION_STACK:
-            RETENTION_STACK.remove(continuation)
+        if continuation in retention_stack:
+            retention_stack.remove(continuation)
+
+        retention_stack, retention_stack_proba = apply_retention_cutoff(
+            retention_stack, side_judgment_cache
+        )
 
     parsed = parse_continuation(continuation)
     parsed["proba"] = float(chosen_proba)
     parsed["pos_sentiment"] = float(chosen_pos_sent)
+    parsed["autoreview_proba"] = None if chosen_autoreview_proba is None else float(chosen_autoreview_proba)
     parsed["mirotarg"] = chosen_mirotarg
+    parsed["prompt_for_neural"] = chosen_prompt_for_neural
+    parsed["model_info"] = chosen_model_info
     parsed["all_pos_sentiment"] = [
         float(pos_sent(s)) for s in all_continuation_sentiments
     ]
     parsed["all_proba"] = [float(p) for p in selection_proba]
-    parsed["all_mirotarg"] = mirotarg
+    parsed["all_autoreview_proba"] = [None if p is None else float(p) for p in autoreview_proba]
+    parsed["all_mirotarg"] = [sd.get("mirotarg") for sd in continuation_side_data]
     for k in data.keys():
         if "alt_selection_proba" in k:
             parsed[f"all_{k}"] = [float(p) for p in data[k]]
@@ -475,8 +398,6 @@ def serve_selection(data):
         parsed["all_posts"] = all_posts
         parsed["all_tags"] = all_tags
 
-    parsed["base_id"] = base_id
-
     if "AB_fork" in kwargs:
         fork = kwargs["AB_fork"]
         parsed["AB_fork"] = fork
@@ -489,14 +410,6 @@ def serve_selection(data):
     else:
         print(f"not AB testing, have kwargs {kwargs}")
 
-    if "model_info" in data:
-        parsed["model_info"] = data["model_info"]
-
-    if "prompt_for_neural" in data:
-        parsed["prompt_for_neural"] = data["prompt_for_neural"]
-
-    print(f"sending back: {parsed}")
-
     lost_keys = [k for k in data.keys() if k not in parsed]
     if WARN_ABOUT_LOST_KEYS and len(lost_keys) > 0:
         print(f"traceability warning: the following fields are not being saved")
@@ -504,28 +417,7 @@ def serve_selection(data):
             print(f"\t{k}")
         print("consider modifying selector.py to include them")
 
-    with open("data/retention_stack.pkl.gz", "wb") as f:
-        pickle.dump(RETENTION_STACK, f)
-
-    with open("data/retention_stack_backup.pkl.gz", "wb") as f:
-        pickle.dump(RETENTION_STACK, f)
-
-    side_judgment_cache.save()
-
-    return parsed
-
-
-def select_one(data):
-    global wrapped
-    texts = data["texts"]
-
-    proba = wrapped.predict_proba([s.lstrip("翰") for s in texts])[:, 1]
-
-    selection_proba = [float(p) for p in proba]
-    results = {"selection_proba": selection_proba}
-
-    print(f"sending back: {results}")
-    return results
+    return parsed, retention_stack, retention_stack_proba
 
 
 def do_coldstart(continuations, selection_proba, substring, delta):
@@ -549,117 +441,65 @@ do_image_coldstart = partial(
 )
 
 
-def apply_retention_cutoff():
-    global RETENTION_STACK
-    global RETENTION_STACK_PROBA
+def apply_retention_cutoff(retention_stack, side_judgment_cache, force=False):
+    # TODO: return side_judgment_cache so we don't lose what is learned inside here
+    ts = datetime.now()
+    v10_timestamps = [timestamp_to_v10_format(ts) for _ in retention_stack]
+
+    texts_for_selection = [ORIG_POST_CHAR + t for t in sorted(retention_stack)]
+    if force:
+        to_delete = [t for t in texts_for_selection if t in side_judgment_cache.cache]
+        for t in to_delete:
+            del side_judgment_cache.cache[t]
+
+    retention_stack_side_judgments = side_judgment_cache.query_multi(
+        texts_for_selection,
+        v10_timestamps=v10_timestamps,
+        verbose=True,
+    )
+    retention_stack_proba = [
+        judg["selection_proba"] for judg in retention_stack_side_judgments
+    ]
 
     if FIC_COLDSTART:
-        RETENTION_STACK_PROBA = do_fic_coldstart(
-            sorted(RETENTION_STACK),
-            RETENTION_STACK_PROBA,
+        retention_stack_proba = do_fic_coldstart(
+            sorted(retention_stack),
+            retention_stack_proba,
         )
 
     if REVIEW_COLDSTART:
-        RETENTION_STACK_PROBA = do_review_coldstart(
-            sorted(RETENTION_STACK),
-            RETENTION_STACK_PROBA,
+        retention_stack_proba = do_review_coldstart(
+            sorted(retention_stack),
+            retention_stack_proba,
         )
 
-    n_before_stack, n_before_proba = len(RETENTION_STACK), len(RETENTION_STACK_PROBA)
-    retain = [p > RETENTION_CUTOFF for p in RETENTION_STACK_PROBA]
+    n_before_stack, n_before_proba = len(retention_stack), len(retention_stack_proba)
+    retain = [p > RETENTION_CUTOFF for p in retention_stack_proba]
 
     if False in retain:
-        for s, p, r in zip(sorted(RETENTION_STACK), RETENTION_STACK_PROBA, retain):
+        for s, p, r in zip(sorted(retention_stack), retention_stack_proba, retain):
             if not r:
                 print(f"excluding, p={p:.1%}: {repr(s[:100])} [...]")
             else:
                 print(f"keeping, p={p:.1%}: {repr(s[:100])} [...]")
 
-    new_stack = [s for s, r in zip(sorted(RETENTION_STACK), retain) if r]
-    new_proba = [p for p, r in zip(RETENTION_STACK_PROBA, retain) if r]
+    new_stack = [s for s, r in zip(sorted(retention_stack), retain) if r]
+    new_proba = [p for p, r in zip(retention_stack_proba, retain) if r]
 
-    RETENTION_STACK = set(new_stack)
-    RETENTION_STACK_PROBA = new_proba
+    retention_stack = set(new_stack)
+    retention_stack_proba = new_proba
 
-    n_after_stack, n_after_proba = len(RETENTION_STACK), len(RETENTION_STACK_PROBA)
+    n_after_stack, n_after_proba = len(retention_stack), len(retention_stack_proba)
 
     all_unchanged = (n_before_stack == n_after_stack) and (
         n_before_proba == n_after_proba
     )
     if not all_unchanged:
         print(
-            f"before: {n_before_stack} in RETENTION_STACK, {n_before_proba} in RETENTION_STACK_PROBA"
+            f"before: {n_before_stack} in retention_stack, {n_before_proba} in retention_stack_proba"
         )
         print(
-            f"after: {n_after_stack} in RETENTION_STACK, {n_after_proba} in RETENTION_STACK_PROBA"
+            f"after: {n_after_stack} in retention_stack, {n_after_proba} in retention_stack_proba"
         )
-
-
-def poll():
-    global RESULT_STACK
-    global RETENTION_STACK
-    global RETENTION_STACK_PROBA
-
-    r = requests.post(
-        selector_url,
-        json={
-            "results": RESULT_STACK,
-            "retention_stack": sorted(RETENTION_STACK),
-        },
-    )
-
-    received_data = r.json()
-    PROMPT_STACK = received_data["SELECTION_PROMPT_STACK"]
-    RETENTION_STACK_PROBA = received_data["RETENTION_STACK_PROBA"]
-
-    if ENFORCE_RETENTION_CUTOFF and RETENTION_STACK_PROBA is not None:
-        apply_retention_cutoff()
-
-    RESULT_STACK = {
-        k: v for k, v in RESULT_STACK.items() if k in PROMPT_STACK
-    }  # clean out already used results
-
-    if len(PROMPT_STACK) > 0:
-        print(f"got prompt stack: {PROMPT_STACK}")
-
-    for prompt_id, data in PROMPT_STACK.items():
-        print("selecting...")
-        if data.get("raw_selection_request", False):
-            RESULT_STACK[prompt_id] = select_one(data)
-        else:
-            RESULT_STACK[prompt_id] = serve_selection(data)
-
-    if len(RESULT_STACK) > 0:
-        requests.post(
-            selector_url,
-            json={"results": RESULT_STACK, "n_retention": len(RETENTION_STACK)},
-        )
-
-    if len(PROMPT_STACK) > 0 and not data.get("raw_selection_request", False):
-        r = requests.post(generator_url, json={"results": RESULT_STACK})
-        time.sleep(1)
-
-
-def loop_poll(period=60):
-    while True:
-        try:
-            poll()
-        except Exception as e:
-            print(f"{type(e)}: {e}")
-            time.sleep(period * 10)
-        time.sleep(period)
-
-
-def selector_main_loop():
-    global RESULT_STACK
-    global RETENTION_STACK
-
-    load_retention()
-    if not SELECT_VIA_GENERATOR:
-        raise ValueError("SELECT_VIA_GENERATOR=False is no longer implemented")
-
-    loop_poll(period=5)
-
-
-if __name__ == "__main__":
-    sys.exit(selector_main_loop())
+    print(f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}")
+    return retention_stack, retention_stack_proba

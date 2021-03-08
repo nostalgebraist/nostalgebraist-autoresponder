@@ -239,20 +239,16 @@ def sleep_time(verbose=True, multiplier=1):
 
 
 def next_queued_post_time():
-    queue_current = private_client.queue(blogName)["posts"]
-
-    private_client.create_text(blogName, state="queue", body=REBLOG_BOOTSTRAP_TEXT)
+    probe_response = private_client.create_text(blogName, state="queue", body=REBLOG_BOOTSTRAP_TEXT)
+    probe_id = probe_response['id']
     time.sleep(0.1)
 
-    queue_plus_next = private_client.queue(blogName)["posts"]
-    while len(queue_plus_next) <= len(queue_current):
-        time.sleep(0.1)
-        queue_plus_next = private_client.queue(blogName)["posts"]
-    private_client.delete_post(blogName, queue_plus_next[-1]["id"])
+    probe_post = private_client.posts(blogName, id=probe_id)['posts'][0]
+    time.sleep(0.1)
 
-    next_queued_ts = max(
-        [int(p.get("scheduled_publish_time", 0)) for p in queue_plus_next]
-    )
+    private_client.delete_post(blogName, id=probe_id)
+
+    next_queued_ts = int(probe_post['scheduled_publish_time'])
     next_queued_dt = datetime.fromtimestamp(next_queued_ts)
 
     print(f"inferred next_queued_dt {next_queued_dt}")

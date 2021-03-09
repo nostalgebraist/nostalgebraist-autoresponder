@@ -432,6 +432,12 @@ class NPFContent(TumblrContentBase):
             cur_level = block.base_block.indent_level
 
     def _assign_nonlocal_tags(self):
+        """
+        TODO:
+
+        make this wrap multiple "inside" blocks in one <li></li> when needed
+        as in the "nested in two blockquotes and a list" example in the docs
+        """
         subtype_and_sign_to_tag = {
             ("indented", True): "<blockquote>",
             ("indented", False): "</blockquote>",
@@ -478,18 +484,14 @@ class NPFContent(TumblrContentBase):
             first_ask_block = self.ask_blocks[0]
             last_ask_block = self.ask_blocks[-1]
 
-            # TODO: make this work if there's already a prefix/suffix on the blocks
             # TODO: make the formatting real
             first_ask_block.prefix = f"<p><b>{first_ask_block.asking_name} asked:</b></p>" + first_ask_block.prefix
             last_ask_block.suffix += "<p><b>Ask ends</b></p>"
 
         # blogname / answering name prefix
-        # TODO: make this work if there's already a prefix/suffix on the blocks
         # TODO: make the formatting real
         first_nonask_block = self.blocks[len(self.ask_blocks)]
-        print(f"prefix before: {repr(first_nonask_block.prefix)}")
         first_nonask_block.prefix = f"<p><b>{self.blog_name}:</b></p>" + first_nonask_block.prefix
-        print(f"prefix after: {repr(first_nonask_block.prefix)}")
 
     def to_html(self):
         self._reset_annotations()

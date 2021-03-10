@@ -4,7 +4,8 @@ import re
 import pickle
 from textwrap import wrap, fill
 from datetime import datetime
-from string import whitespace
+from string import whitespace, punctuation
+from itertools import chain, product
 
 import requests
 import numpy as np
@@ -67,6 +68,14 @@ if FORUMLIKE:
     ORIG_POST_CHAR = CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
 else:
     ORIG_POST_CHAR = ORIG_POST_CHAR_CHINESE
+
+SAYS_FRANK_STRINGS = {
+    prefix + "Frank" + suffix
+    for prefix, suffix in chain(
+        product(whitespace, punctuation),
+        product(whitespace, whitespace),
+    )
+}
 
 
 def finalize_prompt_for_neural(
@@ -236,6 +245,7 @@ def basic_n_continuations(
     avoid_initial_blockquote=False,
     continue_if_cut_off=False,
     avoid_if_profane=False,
+    avoid_if_says_frank=False,
     v8_timestamp="",
     v10_timestamp="",
     max_continue_steps=MAX_CONTINUE_STEPS,
@@ -406,6 +416,8 @@ def basic_n_continuations(
                 and avoid_if_profane
             ):
                 print(f"\n\trejecting because profane: {_tabfill(c)}\n")
+            elif avoid_if_says_frank and any([fs in c for fs in SAYS_FRANK_STRINGS]):
+                print(f"\n\trejecting because says 'Frank': {_tabfill(c)}\n")
             elif normalize_for_generator(
                 c.partition(T_CHAR)[0].strip(whitespace)
             ) in normalize_for_generator(pr):
@@ -824,6 +836,7 @@ def old_bridge_call__answer(data):
     kwargs["split_on_control_char"] = True
     kwargs["avoid_initial_blockquote"] = False
     kwargs["avoid_if_profane"] = False
+    kwargs["avoid_if_says_frank"] = True
     if data["asking_name"] == "bukbot":
         kwargs["avoid_if_profane"] = True
     if True:
@@ -878,6 +891,7 @@ def old_bridge_call__textpost(data):
     kwargs["avoid_half_if_under"] = 40
     kwargs["avoid_if_cut_off"] = False
     kwargs["avoid_initial_blockquote"] = False
+    kwargs["avoid_if_says_frank"] = True
     if True:
         fork = "B" if np.random.rand() > 1 else "A"
         # strategy = "proportional_winnowed"
@@ -953,6 +967,7 @@ def serve_answer(data):
     split_on_control_char = kwargs.get("split_on_control_char", False)
     avoid_initial_blockquote = kwargs.get("avoid_initial_blockquote", True)
     avoid_if_profane = kwargs.get("avoid_if_profane", False)
+    avoid_if_says_frank = kwargs.get("avoid_if_says_frank", False)
 
     continue_if_cut_off = kwargs.get("continue_if_cut_off", True)
     if continue_if_cut_off:
@@ -982,6 +997,7 @@ def serve_answer(data):
         avoid_initial_blockquote=avoid_initial_blockquote,
         continue_if_cut_off=continue_if_cut_off,
         avoid_if_profane=avoid_if_profane,
+        avoid_if_says_frank=avoid_if_says_frank,
         v8_timestamp=v8_timestamp,
         v10_timestamp=v10_timestamp,
         forced_tags_string=forced_tags_string,
@@ -1089,6 +1105,7 @@ def serve_textpost(data):
     avoid_if_cut_off = kwargs.get("avoid_if_cut_off", True)
     split_on_control_char = kwargs.get("split_on_control_char", True)
     avoid_initial_blockquote = kwargs.get("avoid_initial_blockquote", False)
+    avoid_if_says_frank = kwargs.get("avoid_if_says_frank", False)
 
     continue_if_cut_off = kwargs.get("continue_if_cut_off", True)
     if continue_if_cut_off:
@@ -1103,6 +1120,7 @@ def serve_textpost(data):
         split_on_control_char=split_on_control_char,
         use_textpost_prompt=True,
         avoid_initial_blockquote=avoid_initial_blockquote,
+        avoid_if_says_frank=avoid_if_says_frank,
         v8_timestamp=data.get("v8_timestamp"),
         v10_timestamp=data.get("v10_timestamp", ""),
         continue_if_cut_off=continue_if_cut_off,

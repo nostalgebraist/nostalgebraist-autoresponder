@@ -280,7 +280,7 @@ else:
 
 if MIRO_ONLY_ON_CONTINUE:
     pre_continue_mirostat = False
-    pre_continue_length = 80  # 50
+    pre_continue_length = 30 # 80  # 50
     pre_continue_temperature = 0.9  # 1
     pre_continue_top_k = 0
     pre_continue_top_p = 0.9  # 0.925

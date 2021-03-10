@@ -836,7 +836,7 @@ def old_bridge_call__answer(data):
     kwargs["split_on_control_char"] = True
     kwargs["avoid_initial_blockquote"] = False
     kwargs["avoid_if_profane"] = False
-    kwargs["avoid_if_says_frank"] = True
+    kwargs["avoid_if_says_frank"] = False
     if data["asking_name"] == "bukbot":
         kwargs["avoid_if_profane"] = True
     if True:
@@ -891,7 +891,7 @@ def old_bridge_call__textpost(data):
     kwargs["avoid_half_if_under"] = 40
     kwargs["avoid_if_cut_off"] = False
     kwargs["avoid_initial_blockquote"] = False
-    kwargs["avoid_if_says_frank"] = True
+    kwargs["avoid_if_says_frank"] = False
     if True:
         fork = "B" if np.random.rand() > 1 else "A"
         # strategy = "proportional_winnowed"

@@ -72,9 +72,7 @@ gs_command_get_selector = (
 gs_command_get_sentiment = (
     f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
 )
-gs_command_get_autoreviewer = (
-    f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10/* /draft_autoreviewer/v10/"
-)
+gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10/* /draft_autoreviewer/v10/"
 
 length_select = 825
 
@@ -136,94 +134,29 @@ else:
 MIRO_V2 = True
 MIRO_TRUNC = 2000  # unused in MIRO_V2
 
-if False: # RANDOM_SAMPLING_PARAMS_ON_STARTUP:
-    import numpy as np
+MIRO = True
+MIRO_ONLY_ON_CONTINUE = True
 
-    miro_prob = 0.5
+temperature = 1
+top_k = 0
+top_p = 0
+middle_p = 0
 
-    sampling_param_bundles_miro = [
-        {
-            "MIRO": True,
-            "MIRO_LR": _mirolr,
-            "T": 1,
-            "p": 0,
-            "chop_lowest": None,
-            "chop_highest": None,
-        }
-        for _mirolr in [0.05, 0.05, 0.1]
-    ]
+# unused
+EXPERIMENTAL_TOP_P = True
+EXPERIMENTAL_TOP_P_2 = True
+EXPERIMENTAL_TOP_P_3 = True
+EXPERIMENTAL_MIDDLE_P_TWEAK = False
+EXPERIMENTAL_MIDDLE_P_ASYM = True
 
-    sampling_param_bundles_no_miro = [
-        {
-            "MIRO": False,
-            "MIRO_LR": 0.05,
-            "T": _T,
-            "p": _p,
-            "chop_lowest": _chop_lowest,
-            "chop_highest": _chop_highest,
-        }
-        for _T, _p, _chop_lowest, _chop_highest in [
-            (1, 0.9, None, None),
-            (1, 0.925, None, None),
-            (0.95, 0.95, None, None),
-            (0.95, 0.9, None, None),
-            (0.9, 0.9, None, None),
-            (0.9, 0.97, None, None),
-            (1, 0, (1 - 0.9), 0.03),  # chop_lowest 1-x = top_p x
-            (0.9, 0, (1 - 0.9), 0.05),  # chop_lowest 1-x = top_p x
-        ]
-    ]
+chop_lowest, chop_highest = None, None
 
-    miro_roll = np.random.rand()
-    if miro_roll < miro_prob:
-        msg = f"\nSAMPLING: using miro (miro_roll {miro_roll} < miro_prob {miro_prob}"
-        choose_from_bundles = sampling_param_bundles_miro
-    else:
-        msg = f"\nSAMPLING: not using miro (miro_roll {miro_roll} >= miro_prob {miro_prob}"
-        choose_from_bundles = sampling_param_bundles_no_miro
-    print(msg)
+# MIRO_TRUNC = 50000
+MIRO_TRUNC = 2000
 
-    bundle_ix = int(np.random.choice(list(range(len(choose_from_bundles)))))
-    chosen_bundle = choose_from_bundles[bundle_ix]
-
-    msg = f"\nSAMPLING: using bundle {bundle_ix}/{len(choose_from_bundles)}\n\t{chosen_bundle}"
-    print(msg)
-
-    MIRO = chosen_bundle["MIRO"]
-    MIRO_LR = chosen_bundle["MIRO_LR"]
-    temperature = chosen_bundle["T"]
-    top_p = chosen_bundle["p"]
-    chop_lowest = chosen_bundle["chop_lowest"]
-    chop_highest = chosen_bundle["chop_highest"]
-
-    top_k = 0
-    middle_p = 0
-
-    MIRO_ONLY_ON_CONTINUE = MIRO
-else:
-    MIRO = True
-    MIRO_ONLY_ON_CONTINUE = True
-
-    temperature = 1
-    top_k = 0
-    top_p = 0
-    middle_p = 0
-
-    # unused
-    EXPERIMENTAL_TOP_P = True
-    EXPERIMENTAL_TOP_P_2 = True
-    EXPERIMENTAL_TOP_P_3 = True
-    EXPERIMENTAL_MIDDLE_P_TWEAK = False
-    EXPERIMENTAL_MIDDLE_P_ASYM = True
-
-    chop_lowest, chop_highest = None, None
-
-    # MIRO_TRUNC = 50000
-    MIRO_TRUNC = 2000
-
-    # MIRO_LR = 0.2
-    # MIRO_LR = 0.1  # ! experimental
-    MIRO_LR = 0.05
+# MIRO_LR = 0.2
+# MIRO_LR = 0.1  # ! experimental
+MIRO_LR = 0.05
 
 if V8_2:
     MIRO_TARGET_LOW = 2.0
@@ -279,6 +212,8 @@ else:
 
 
 if MIRO_ONLY_ON_CONTINUE and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
+    import numpy as np
+
     sampling_param_bundles = [
         {
             "T": _T,
@@ -293,7 +228,7 @@ if MIRO_ONLY_ON_CONTINUE and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
         ]
     ]
 
-    bundle_ix = int(np.random.choice(list(range(len(choose_from_bundles)))))
+    bundle_ix = int(np.random.choice(list(range(len(sampling_param_bundles)))))
     chosen_bundle = choose_from_bundles[bundle_ix]
 
     pre_continue_mirostat = False
@@ -309,7 +244,7 @@ if MIRO_ONLY_ON_CONTINUE and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
     pre_continue_middle_p = 0
 elif MIRO_ONLY_ON_CONTINUE:
     pre_continue_mirostat = False
-    pre_continue_length = 30 # 80  # 50
+    pre_continue_length = 30  # 80  # 50
     pre_continue_temperature = 0.9  # 1
     pre_continue_top_k = 0
     pre_continue_top_p = 0.9  # 0.925

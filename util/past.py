@@ -99,7 +99,7 @@ VERSION_EXPLAINERS = {
 VERSION_METADATA = {
     "v9": {
         "model_size": "774M",
-        "corpus_name": "v0"
+        "corpus_name": "v0",
         "pretrain_tokens": 61820671,
         "transfer_tokens": 5803579,
         "pretrain_batch_size": 8,
@@ -116,7 +116,7 @@ VERSION_METADATA = {
     },
     "v9_1": {
         "model_size": "1558M",
-        "corpus_name": "v1"
+        "corpus_name": "v1",
         "pretrain_tokens": 108773237,
         "transfer_tokens": 5803579,
         "pretrain_batch_size": 128,
@@ -133,7 +133,7 @@ VERSION_METADATA = {
     },
     "v9_1R2": {
         "model_size": "1558M",
-        "corpus_name": "v1"
+        "corpus_name": "v1",
         "pretrain_tokens": 108773237,
         "transfer_tokens": 5803579,
         "pretrain_batch_size": 128,
@@ -150,7 +150,7 @@ VERSION_METADATA = {
     },
     "v9_1R3": {
         "model_size": "1558M",
-        "corpus_name": "v1"
+        "corpus_name": "v1",
         "pretrain_tokens": 108773237,
         "transfer_tokens": 5803579,
         "pretrain_batch_size": 128,
@@ -167,7 +167,7 @@ VERSION_METADATA = {
     },
     "v9_1R4": {
         "model_size": "1558M",
-        "corpus_name": "v1"
+        "corpus_name": "v1",
         "pretrain_tokens": 108773237,
         "transfer_tokens": 5743071,
         "pretrain_batch_size": 128,
@@ -184,7 +184,7 @@ VERSION_METADATA = {
     },
     "v10": {
         "model_size": "1558M",
-        "corpus_name": "v2"
+        "corpus_name": "v2",
         "pretrain_tokens": 133285930,
         "transfer_tokens": 5290881,
         "pretrain_batch_size": 120,

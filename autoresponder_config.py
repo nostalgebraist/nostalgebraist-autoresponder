@@ -229,7 +229,7 @@ if MIRO_ONLY_ON_CONTINUE and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
     ]
 
     bundle_ix = int(np.random.choice(list(range(len(sampling_param_bundles)))))
-    chosen_bundle = choose_from_bundles[bundle_ix]
+    chosen_bundle = sampling_param_bundles[bundle_ix]
 
     pre_continue_mirostat = False
     pre_continue_temperature = chosen_bundle["T"]

@@ -660,6 +660,7 @@ def counterfactual_mood_graph(
         )
 
     golives = {
+        pd.Timestamp("2020-09-30"): "v8_golive_approx",
         pd.Timestamp("2020-11-22"): "v9_golive_approx",
         pd.Timestamp("2020-12-05"): "v9_1_golive_approx",
         pd.Timestamp("2020-12-07"): "v9_1R2_golive_approx",

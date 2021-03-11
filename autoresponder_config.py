@@ -237,7 +237,7 @@ if MIRO_ONLY_ON_CONTINUE and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
     pre_continue_chop_lowest = chosen_bundle["chop_lowest"]
     pre_continue_chop_highest = chosen_bundle["chop_highest"]
 
-    pre_continue_length = np.random.choice([35, 55, 85, 105])
+    pre_continue_length = int(np.random.choice([35, 55, 85, 105]))
 
     # unused
     pre_continue_top_k = 0

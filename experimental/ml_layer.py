@@ -239,6 +239,8 @@ def poll(
                 "pre_continue_length": pre_continue_length,
                 "pre_continue_T": pre_continue_temperature,
                 "pre_continue_p": pre_continue_top_p,
+                "pre_continue_chop_lowest": pre_continue_chop_lowest,
+                "pre_continue_chop_highest": pre_continue_chop_highest,
             }
 
             model_info = {

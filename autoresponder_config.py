@@ -37,7 +37,7 @@ EVEN_BETTER_LENGTH = True
 
 BATCHONE = True
 
-RANDOM_SAMPLING_PARAMS_ON_STARTUP = False  # True = experimental
+RANDOM_SAMPLING_PARAMS_ON_STARTUP = True  # True = experimental
 
 DO_ALT_TIMESTAMPS = False  # True is for analytics
 
@@ -136,7 +136,7 @@ else:
 MIRO_V2 = True
 MIRO_TRUNC = 2000  # unused in MIRO_V2
 
-if RANDOM_SAMPLING_PARAMS_ON_STARTUP:
+if False: # RANDOM_SAMPLING_PARAMS_ON_STARTUP:
     import numpy as np
 
     miro_prob = 0.5
@@ -278,7 +278,36 @@ else:
     ]
 
 
-if MIRO_ONLY_ON_CONTINUE:
+if MIRO_ONLY_ON_CONTINUE and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
+    sampling_param_bundles = [
+        {
+            "T": _T,
+            "p": _p,
+            "chop_lowest": _chop_lowest,
+            "chop_highest": _chop_highest,
+        }
+        for _T, _p, _chop_lowest, _chop_highest in [
+            (1, 0.9, None, None),
+            (0.9, 0, (1 - 0.9), 0.0875),  # chop_lowest 1-x = top_p x
+            (1, 0, (1 - 0.0875), 0.0875),  # chop_lowest 1-x = top_p x
+        ]
+    ]
+
+    bundle_ix = int(np.random.choice(list(range(len(choose_from_bundles)))))
+    chosen_bundle = choose_from_bundles[bundle_ix]
+
+    pre_continue_mirostat = False
+    pre_continue_temperature = chosen_bundle["T"]
+    pre_continue_top_p = chosen_bundle["p"]
+    pre_continue_chop_lowest = chosen_bundle["chop_lowest"]
+    pre_continue_chop_highest = chosen_bundle["chop_highest"]
+
+    pre_continue_length = np.random.choice([35, 55, 85, 105])
+
+    # unused
+    pre_continue_top_k = 0
+    pre_continue_middle_p = 0
+elif MIRO_ONLY_ON_CONTINUE:
     pre_continue_mirostat = False
     pre_continue_length = 30 # 80  # 50
     pre_continue_temperature = 0.9  # 1

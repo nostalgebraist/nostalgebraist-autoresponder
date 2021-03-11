@@ -223,8 +223,8 @@ if MIRO_ONLY_ON_CONTINUE and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
         }
         for _T, _p, _chop_lowest, _chop_highest in [
             (1, 0.9, None, None),
-            (0.9, 0, (1 - 0.9), 0.0875),  # chop_lowest 1-x = top_p x
-            (1, 0, (1 - 0.0875), 0.0875),  # chop_lowest 1-x = top_p x
+            (0.9, 0, (1 - 0.9), 0.075),  # chop_lowest 1-x = top_p x
+            (1, 0, (1 - 0.925), 0.075),  # chop_lowest 1-x = top_p x
         ]
     ]
 

@@ -38,14 +38,18 @@ EVEN_BETTER_LENGTH = True
 
 BATCHONE = True
 
-RANDOM_SAMPLING_PARAMS_ON_STARTUP = True  # True = experimental
+RANDOM_SAMPLING_PARAMS_ON_STARTUP = False  # True = experimental
 
 DO_ALT_TIMESTAMPS = False  # True is for analytics
 
 eot_end_segment = EOT_FULL if EOT_WORKAROUND else "<|"
 
-final_munge_before_neural = final_munge_before_neural_v10
-final_munge_after_neural = final_munge_after_neural_v10
+if V10_1:
+    final_munge_before_neural = final_munge_before_neural_v10_1
+    final_munge_after_neural = final_munge_after_neural_v10_1
+else:
+    final_munge_before_neural = final_munge_before_neural_v10
+    final_munge_after_neural = final_munge_after_neural_v10
 
 model_name = "autoresponder_v10"
 if V10_1:
@@ -53,33 +57,41 @@ if V10_1:
 else:
     model_path = os.path.join("models", model_name, "model-135.hdf5")
 
-dataset = "data/v10/ALL_data_v10_nost_tuning.npz"
-ckpt_select = "selector/v10/v17/.hdf5"
-ckpt_sentiment = "sentiment/v10/v2/.hdf5"
-ckpt_autoreviewer = "draft_autoreviewer/v10/v3/.hdf5"
+if V10_1:
+    ckpt_select = "selector/v10_1/v1/.hdf5"
+    ckpt_sentiment = "sentiment/v10_1/v1/.hdf5"
+    ckpt_autoreviewer = "draft_autoreviewer/v10_1/v1/.hdf5"
+else:
+    ckpt_select = "selector/v10/v17/.hdf5"
+    ckpt_sentiment = "sentiment/v10/v2/.hdf5"
+    ckpt_autoreviewer = "draft_autoreviewer/v10/v3/.hdf5"
 
 TRUNCATE_AT_RIGHT = False
 SELECTOR_EOT_PREPEND = True
-
-gs_command_get_dataset = (
-    f"gsutil -m cp gs://{BUCKET_NAME}/data/v10/ALL_data_v10_nost_tuning.npz /data/v10/"
-)
 
 gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/encoder.json /models/autoresponder_v10/"
 gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/autoresponder_v10/"
 
 if V10_1:
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_1_nost_tuning_f/model-141.hdf5 /models/autoresponder_v10/"
+
+    gs_command_get_selector = (
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_selector/* /selector/v10_1/"
+    )
+    gs_command_get_sentiment = (
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_sentiment/* /sentiment/v10_1/"
+    )
+    gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10_1/* /draft_autoreviewer/v10_1/"
 else:
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/model-135.hdf5 /models/autoresponder_v10/"
 
-gs_command_get_selector = (
-    f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/* /selector/v10/"
-)
-gs_command_get_sentiment = (
-    f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
-)
-gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10/* /draft_autoreviewer/v10/"
+    gs_command_get_selector = (
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/* /selector/v10/"
+    )
+    gs_command_get_sentiment = (
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
+    )
+    gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10/* /draft_autoreviewer/v10/"
 
 length_select = 825
 

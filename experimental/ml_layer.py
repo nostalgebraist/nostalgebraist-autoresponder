@@ -26,7 +26,9 @@ hparams.set_hparam("res_dropout", 0)
 
 start_token = None
 
-if V10:
+if V10_1:
+    CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V10_1"]
+elif V10:
     CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V10"]
 else:
     CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V9"]

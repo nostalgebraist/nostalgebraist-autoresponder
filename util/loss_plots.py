@@ -257,7 +257,7 @@ def noise_scale_load_and_show(path, eplen=None, epcolor='r', alpha=0.99, noise_a
             [ax.axvline(ep, c=epcolor, ls='--', lw=1) for ep in eplens]
 
     if showlr:
-        for ax, col in zip(axes, ["B_simple", "B_simple_inst"]):
+        for ax, col in zip(axes[:1], ["B_simple", "B_simple_inst"][:1]):
             lrscale_max = _compute_lr_scale(df, col)
             ax_lr = ax.twinx()
             lrmin = df.lr.min()

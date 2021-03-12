@@ -379,6 +379,8 @@ def serve_selection(
     parsed["mirotarg"] = chosen_mirotarg
     parsed["prompt_for_neural"] = chosen_prompt_for_neural
     parsed["model_info"] = chosen_model_info
+    parsed["generator_v10_timestamp"] = data.get("generator_v10_timestamp")
+    parsed["selector_v10_timestamp"] = data.get("selector_v10_timestamp")
     parsed["all_pos_sentiment"] = [
         float(pos_sent(s)) for s in all_continuation_sentiments
     ]

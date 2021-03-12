@@ -76,6 +76,7 @@ CONTROL_SEG_CONFIGS = {
         },
         "ASK_CHAR": Q_CHAR,
         "V10": False,
+        "user_name": "Frank",  # TODO: refactor to use this always
     },
     "V10": {
         "ORIG_POST_CHAR_FORUMLIKE": ORIG_POST_CHAR_FORUMLIKE_V10,
@@ -96,6 +97,28 @@ CONTROL_SEG_CONFIGS = {
         },
         "ASK_CHAR": V10_ASK_CHAR,
         "V10": True,
+        "user_name": "Frank",  # TODO: refactor to use this always
+    },
+    "V10_1": {
+        "ORIG_POST_CHAR_FORUMLIKE": ORIG_POST_CHAR_FORUMLIKE_V10_1,
+        "ORIG_FICTION_CHAR_FORUMLIKE": ORIG_FICTION_CHAR_FORUMLIKE_V10_1,
+        "REVIEW_CHAR_FORUMLIKE": REVIEW_CHAR_FORUMLIKE_V10_1,
+        "ORIG_POST_CHAR_NAMED": " {user_name} posted:\n\n",
+        "asked_word": "asked",
+        "replied_word": "responded",
+        "op_word": "posted",
+        "reblogger_word": "commented",
+        "user_tagged_post": "{user_name}'s tags: {ftags}",
+        "series_of_posts": "Posts by{name}",
+        "conversation_between": "Conversation between{comma_names} | {n_names} posts",
+        "posted_at": "Written {time_text}",
+        "flags": {
+            "fic_override_add_remainder": False,
+            "add_control_prefix_to_forced_tag_strings": False,
+        },
+        "ASK_CHAR": V10_ASK_CHAR,
+        "V10": True,
+        "user_name": "nostalgebraist-autoresponder",  # TODO: refactor to use this always
     },
 }
 
@@ -106,7 +129,8 @@ for k in CONTROL_SEG_CONFIGS.keys():
     }
 
 # DEFAULT_CSC = CONTROL_SEG_CONFIGS["V9"]
-DEFAULT_CSC = CONTROL_SEG_CONFIGS["V10"]
+# DEFAULT_CSC = CONTROL_SEG_CONFIGS["V10"]
+DEFAULT_CSC = CONTROL_SEG_CONFIGS["V10_1"]
 
 
 def find_username_tags(text):
@@ -161,7 +185,7 @@ def find_control_chars_forumlike(
         ORIG_FICTION_CHAR_FORUMLIKE_V10,
     ]  # no tchar
     control_chars.extend(
-        list({c.replace("Frank", en) for c in control_chars for en in extra_names})
+        list({c.replace(control_seg_config["user_name"], en) for c in control_chars for en in extra_names})
     )
     for c in control_chars:
         if c in text:
@@ -300,9 +324,10 @@ def substitute_forumlike(
         # trig=False
         if "友 nostalgebraist-autoresponder域" in seg_subbed:
             # print(seg_subbed)
-            seg_subbed = seg_subbed.replace(
-                "友 nostalgebraist-autoresponder域", "友 Frank会"
-            )
+            if user_name != "nostalgebraist-autoresponder":
+                seg_subbed = seg_subbed.replace(
+                    "友 nostalgebraist-autoresponder域", f"友 {user_name}会"
+                )
             if mode == "train":
                 # seg_subbed = seg_subbed.replace("友 nostalgebraist-autoresponder", "友 Frank会")
                 # seg_subbed = seg_subbed.replace("域", "友 nostalgebraist-my-father会")

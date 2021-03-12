@@ -110,6 +110,8 @@ def map_uname(uname: str, uname_config: str = "frank"):
             "nostalgebraist": "nostalgebraist",
             "nostalgebraist-autoresponder": "Frank",
         }
+    elif uname_config == "frank_v10_1_operate":
+        uname_map = {}
 
     return uname_map.get(uname, uname)
 
@@ -459,7 +461,7 @@ def process_post(
     soup,
     debug=False,
     use_article=True,
-    uname_config="frank_v5_operate",
+    uname_config="frank_v10_1_operate",
     do_image_analysis=True,
     get_image_urls=False,
     user_defined_image_analysis=IMAGE_ANALYSIS_FN,

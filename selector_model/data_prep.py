@@ -98,7 +98,7 @@ def get_all_posts(
 
         processed, post_metadata = process_post(
             soup,
-            uname_config="frank_v10_operate",
+            uname_config="frank_v10_1_operate",
             get_image_urls=True,
             image_analysis_cache=image_analysis_cache,
             user_defined_image_analysis=user_defined_image_analysis,

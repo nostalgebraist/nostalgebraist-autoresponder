@@ -20,7 +20,7 @@ from bot_config import BotSpecificConstants
 from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
 from selector import serve_selection
 
-from experimental.year_munging import sample_year_and_substitute_v10
+from experimental.year_munging import sample_and_substitute_year_v10
 
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_url = bot_specific_constants.bridge_service_url

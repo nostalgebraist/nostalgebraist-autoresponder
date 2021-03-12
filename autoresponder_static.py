@@ -179,10 +179,13 @@ def find_control_chars_forumlike(
     control_chars = [
         ORIG_POST_CHAR_FORUMLIKE,
         ORIG_POST_CHAR_FORUMLIKE_V10,
+        ORIG_POST_CHAR_FORUMLIKE_V10_1,
         REVIEW_CHAR_FORUMLIKE,
         REVIEW_CHAR_FORUMLIKE_V10,
+        REVIEW_CHAR_FORUMLIKE_V10_1,
         ORIG_FICTION_CHAR_FORUMLIKE,
         ORIG_FICTION_CHAR_FORUMLIKE_V10,
+        ORIG_FICTION_CHAR_FORUMLIKE_V10_1,
     ]  # no tchar
     control_chars.extend(
         list({c.replace(control_seg_config["user_name"], en) for c in control_chars for en in extra_names})

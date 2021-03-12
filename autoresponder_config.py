@@ -14,6 +14,7 @@ V9_1R2 = True
 V9_1R3 = True
 V9_1R4 = True
 V10 = True
+V10_1 = True  # !!
 
 bot_specific_constants = BotSpecificConstants.load()
 BUCKET_NAME = bot_specific_constants.BUCKET_NAME

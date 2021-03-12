@@ -27,10 +27,14 @@ CHINESE_CHAR_DELIMITERS = [
 
 ORIG_POST_CHAR_FORUMLIKE = " Blog post by Frank\n\n"
 ORIG_POST_CHAR_FORUMLIKE_V10 = " Frank posted:\n\n"
+ORIG_POST_CHAR_FORUMLIKE_V10_1 = " nostalgebraist-autoresponder posted:\n\n"
 
 REVIEW_CHAR_FORUMLIKE = " Book review by Frank\n\n"
 REVIEW_CHAR_FORUMLIKE_V10 = (
     " Book review by Frank\n\n Frank's tags:\n Frank tagged this post as:"  # my mistake
+)
+REVIEW_CHAR_FORUMLIKE_V10_1 = (
+    " Book review by nostalgebraist-autoresponder\n\n nostalgebraist-autoresponder's tags:\n nostalgebraist-autoresponder tagged this post as:"  # my mistake
 )
 
 if FORUMLIKE_V2:
@@ -40,6 +44,10 @@ else:
 
 ORIG_FICTION_CHAR_FORUMLIKE_V10 = (
     " Original fiction by Frank\n\n Frank's tags:\n Frank tagged this post as:"
+)
+
+ORIG_FICTION_CHAR_FORUMLIKE_V10_1 = (
+    " Original fiction by nostalgebraist-autoresponder\n\n nostalgebraist-autoresponder's tags:\n nostalgebraist-autoresponder tagged this post as:"
 )
 
 # if FORUMLIKE:

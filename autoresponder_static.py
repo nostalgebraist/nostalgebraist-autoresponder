@@ -5,7 +5,7 @@ FORUMLIKE = True
 FORUMLIKE_V2 = True
 NORMALIZE = True
 
-GLOBAL_DEBUG = False
+GLOBAL_DEBUG = True
 
 EOT_FULL = "<|endoftext|>"
 T_CHAR = "职"

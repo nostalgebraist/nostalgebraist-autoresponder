@@ -2528,7 +2528,7 @@ def load_retention(side_judgment_cache):
         retention_stack = pickle.load(f)
 
     retention_stack, retention_stack_proba = apply_retention_cutoff(
-        retention_stack, side_judgment_cache
+        retention_stack, side_judgment_cache, force=True
     )
 
     return retention_stack, retention_stack_proba

@@ -51,10 +51,11 @@ else:
     final_munge_before_neural = final_munge_before_neural_v10
     final_munge_after_neural = final_munge_after_neural_v10
 
-model_name = "autoresponder_v10"
 if V10_1:
+    model_name = "autoresponder_v10_1"
     model_path = os.path.join("models", model_name, "model-141.hdf5")
 else:
+    model_name = "autoresponder_v10"
     model_path = os.path.join("models", model_name, "model-135.hdf5")
 
 if V10_1:
@@ -73,7 +74,7 @@ gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/au
 gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/autoresponder_v10/"
 
 if V10_1:
-    gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_1_nost_tuning_f/model-141.hdf5 /models/autoresponder_v10/"
+    gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_1_nost_tuning_f/model-141.hdf5 /models/autoresponder_v10_1/"
 
     gs_command_get_selector = (
         f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_selector/* /selector/v10_1/"

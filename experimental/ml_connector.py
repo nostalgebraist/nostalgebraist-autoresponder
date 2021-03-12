@@ -20,6 +20,8 @@ from bot_config import BotSpecificConstants
 from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
 from selector import serve_selection
 
+from experimental.year_munging import sample_year_and_substitute_v10
+
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_url = bot_specific_constants.bridge_service_url
 
@@ -837,6 +839,7 @@ def old_bridge_call__answer(data):
     kwargs["avoid_initial_blockquote"] = False
     kwargs["avoid_if_profane"] = False
     kwargs["avoid_if_says_frank"] = False
+    kwargs["random_year_for_generator"] = True
     if data["asking_name"] == "bukbot":
         kwargs["avoid_if_profane"] = True
     if True:
@@ -892,6 +895,7 @@ def old_bridge_call__textpost(data):
     kwargs["avoid_if_cut_off"] = False
     kwargs["avoid_initial_blockquote"] = False
     kwargs["avoid_if_says_frank"] = False
+    kwargs["random_year_for_generator"] = True
     if True:
         fork = "B" if np.random.rand() > 1 else "A"
         # strategy = "proportional_winnowed"
@@ -968,6 +972,7 @@ def serve_answer(data):
     avoid_initial_blockquote = kwargs.get("avoid_initial_blockquote", True)
     avoid_if_profane = kwargs.get("avoid_if_profane", False)
     avoid_if_says_frank = kwargs.get("avoid_if_says_frank", False)
+    random_year_for_generator = kwargs.get("random_year_for_generator", False)
 
     continue_if_cut_off = kwargs.get("continue_if_cut_off", True)
     if continue_if_cut_off:
@@ -980,7 +985,16 @@ def serve_answer(data):
 
     v8_timestamp = data.get("v8_timestamp", "")
     v10_timestamp = data.get("v10_timestamp", "")
-    relevant_timestamp = v10_timestamp if V10 else v8_timestamp
+
+    if random_year_for_generator:
+        generator_v10_timestamp = sample_and_substitute_year_v10(v10_timestamp)
+        selector_v10_timestamp = v10_timestamp
+    else:
+        generator_v10_timestamp = v10_timestamp
+        selector_v10_timestamp = v10_timestamp
+
+    print(f"generator_v10_timestamp: {repr(generator_v10_timestamp)}")
+    print(f"selector_v10_timestamp: {repr(selector_v10_timestamp)}")
 
     override_disable_forumlike = False
     if prompt.startswith(CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"]):
@@ -999,7 +1013,7 @@ def serve_answer(data):
         avoid_if_profane=avoid_if_profane,
         avoid_if_says_frank=avoid_if_says_frank,
         v8_timestamp=v8_timestamp,
-        v10_timestamp=v10_timestamp,
+        v10_timestamp=generator_v10_timestamp,
         forced_tags_string=forced_tags_string,
         write_fic_override=write_fic_override,
         override_disable_forumlike=override_disable_forumlike,
@@ -1007,8 +1021,8 @@ def serve_answer(data):
     parsed = data.copy()
     parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
     parsed["continuation_side_data"] = continuation_side_data
-    # parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
-    # parsed["prompt_for_neural"] = [cd.get("prompt_for_neural") for cd in continuation_side_data]
+    parsed["generator_v10_timestamp"] = generator_v10_timestamp
+    parsed["selector_v10_timestamp"] = selector_v10_timestamp
 
     if SELECTOR_CAN_SEE_PROMPTS:
         if selector_cut_to_final_exchange and not override_disable_forumlike:
@@ -1051,7 +1065,7 @@ def serve_answer(data):
             parsed[listkey] = [float(p) for p in entry_selection_results]
 
     selector_inputs = [
-        join_time_sidechannel(s, relevant_timestamp) for s in selector_inputs
+        join_time_sidechannel(s, selector_v10_timestamp) for s in selector_inputs
     ]
     selector_inputs = pd.DataFrame(
         {
@@ -1077,7 +1091,7 @@ def serve_answer(data):
     ]
 
     autoreview_inputs = [
-        join_time_sidechannel(s, relevant_timestamp) for s in autoreview_inputs
+        join_time_sidechannel(s, selector_v10_timestamp) for s in autoreview_inputs
     ]
     autoreview_inputs = pd.DataFrame(
         {
@@ -1106,6 +1120,18 @@ def serve_textpost(data):
     split_on_control_char = kwargs.get("split_on_control_char", True)
     avoid_initial_blockquote = kwargs.get("avoid_initial_blockquote", False)
     avoid_if_says_frank = kwargs.get("avoid_if_says_frank", False)
+    random_year_for_generator = kwargs.get("random_year_for_generator", False)
+
+    v10_timestamp = data.get("v10_timestamp")
+    if random_year_for_generator and v10_timestamp is not None:
+        generator_v10_timestamp = sample_and_substitute_year_v10(v10_timestamp)
+        selector_v10_timestamp = v10_timestamp
+    else:
+        generator_v10_timestamp = ""
+        selector_v10_timestamp = v10_timestamp
+
+    print(f"generator_v10_timestamp: {repr(generator_v10_timestamp)}")
+    print(f"selector_v10_timestamp: {repr(selector_v10_timestamp)}")
 
     continue_if_cut_off = kwargs.get("continue_if_cut_off", True)
     if continue_if_cut_off:
@@ -1122,12 +1148,14 @@ def serve_textpost(data):
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_says_frank=avoid_if_says_frank,
         v8_timestamp=data.get("v8_timestamp"),
-        v10_timestamp=data.get("v10_timestamp", ""),
+        v10_timestamp=generator_v10_timestamp,
         continue_if_cut_off=continue_if_cut_off,
     )
     parsed = data.copy()
     parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
     parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
+    parsed["generator_v10_timestamp"] = generator_v10_timestamp
+    parsed["selector_v10_timestamp"] = selector_v10_timestamp
 
     if FORUMLIKE:
         selector_inputs = [c for c in continuations]
@@ -1141,6 +1169,9 @@ def serve_textpost(data):
             ]
     else:
         selector_inputs = [A_CHAR + c for c in continuations]
+
+    selector_inputs = [s.replace(generator_v10_timestamp, selector_v10_timestamp)
+                       for s in selector_inputs]
     selector_inputs = pd.DataFrame(
         {
             "selector_input": selector_inputs,
@@ -1161,6 +1192,8 @@ def serve_textpost(data):
     selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
     sentiment_results = predict_sentiment(selector_inputs, debug=True)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
+
+    # TODO: autoreview
 
     if GLOBAL_DEBUG:
         print(f"sending back: {parsed}")

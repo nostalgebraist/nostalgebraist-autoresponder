@@ -468,14 +468,16 @@ def final_munge_before_neural_v7(
     return text
 
 
-def cut_to_final_exchange_chinese(to_cut):
+def cut_to_final_exchange_chinese(to_cut, verbose=False):
     cchars = find_all_control_chars_chinese(to_cut)
     if len(cchars) < 2:
-        print(f"not cutting: only found cchars {cchars}")
+        if verbose:
+            print(f"not cutting: only found cchars {cchars}")
         return to_cut
 
     cut_ix = find_all_control_chars_chinese(to_cut)[-2][1]
-    print(f"cutting at {cut_ix}")
+    if verbose:
+        print(f"cutting at {cut_ix}")
     return to_cut[cut_ix:]
 
 

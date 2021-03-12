@@ -48,7 +48,10 @@ final_munge_before_neural = final_munge_before_neural_v10
 final_munge_after_neural = final_munge_after_neural_v10
 
 model_name = "autoresponder_v10"
-model_path = os.path.join("models", model_name, "model-135.hdf5")
+if V10_1:
+    model_path = os.path.join("models", model_name, "model-135.hdf5")
+else:
+    model_path = os.path.join("models", model_name, "model-141.hdf5")
 
 dataset = "data/v10/ALL_data_v10_nost_tuning.npz"
 ckpt_select = "selector/v10/v17/.hdf5"

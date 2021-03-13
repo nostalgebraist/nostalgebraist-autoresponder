@@ -116,6 +116,12 @@ def map_uname(uname: str, uname_config: str = "frank"):
     return uname_map.get(uname, uname)
 
 
+def is_me(name, uname_config):
+    if uname_config == "frank_v10_1_operate":
+        return name == "nostalgebraist-autoresponder"
+    return map_uname(name, uname_config) == "Frank"
+
+
 def make_text_processor_maps(uname_config: str = "frank"):
     if uname_config in ["frank_v5_train", "frank_v10_train"]:
         maps = [("nostalgebraist", "nostalgebraist-autoresponder")]
@@ -360,14 +366,13 @@ def _process_elem(
 
             me_you_char = (
                 A_CHAR
-                if reblog_uname
-                == map_uname("nostalgebraist-autoresponder", uname_config)
+                if is_me(reblog_uname, uname_config)
                 else Q_CHAR
             )
             name_unit = name_unit + me_you_char
             if (
                 ALWAYS_USE_A_CHAR_OPERATIONAL
-                and map_uname(reblog_uname, uname_config) == "Frank"
+                and is_me(reblog_uname, uname_config)
             ):
                 name_unit = A_CHAR
             text_units.append(name_unit)

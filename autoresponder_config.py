@@ -151,7 +151,7 @@ else:
 
 ### Sampling
 
-MIRO_V2 = True
+MIRO_V2 = False
 MIRO_TRUNC = 2000  # unused in MIRO_V2
 
 MIRO = True
@@ -170,9 +170,6 @@ EXPERIMENTAL_MIDDLE_P_TWEAK = False
 EXPERIMENTAL_MIDDLE_P_ASYM = True
 
 chop_lowest, chop_highest = None, None
-
-# MIRO_TRUNC = 50000
-MIRO_TRUNC = 2000
 
 # MIRO_LR = 0.2
 # MIRO_LR = 0.1  # ! experimental

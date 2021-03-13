@@ -337,7 +337,6 @@ def basic_n_continuations(
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()
 
-        # TODO: include model info here
         batches_written = [entry["result"] for entry in batches_written_raw]
         model_infos = [entry["model_info"] for entry in batches_written_raw]
 

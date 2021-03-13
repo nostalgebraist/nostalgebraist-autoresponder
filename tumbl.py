@@ -417,6 +417,9 @@ def autopublish_screener(
 
                 traced_reasons.append({"type": "substring", "substring": sf})
 
+    if len(question) > 10000:
+        sprint("screened because very long")
+        traced_reasons.append({"type": "input_length", "substring": question})
     if asking_name == "nostalgebraist" and screen_robnost:
         sprint("screened because robnost")
         traced_reasons.append({"type": "username", "substring": asking_name})

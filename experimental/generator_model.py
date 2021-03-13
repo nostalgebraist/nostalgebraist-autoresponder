@@ -192,7 +192,7 @@ class GeneratorModel:
         presents = startup_presents
 
         miromu = None
-        mirosurprises, miroks = None, None
+        mirosurprises, miroks, miromus = None, None, None
         mu_init_scale = 1.0 if MIRO_V2 else 2.0
 
         while not done:
@@ -275,12 +275,16 @@ class GeneratorModel:
             ):
                 mirosurprises = sample_output_dict["mirostat_surprises"]
                 miroks = sample_output_dict["mirostat_ks"]
+                miromus = sample_output_dict["mirostat_mus"],
             else:
                 mirosurprises = np.concatenate(
                     [mirosurprises, sample_output_dict["mirostat_surprises"]], axis=1
                 )
                 miroks = np.concatenate(
                     [miroks, sample_output_dict["mirostat_ks"]], axis=1
+                )
+                miromus = np.concatenate(
+                    [miromus, sample_output_dict["mirostat_mus"]], axis=1
                 )
 
             print(f"miromu before setting: {miromu}")
@@ -411,7 +415,7 @@ class GeneratorModel:
             continuations,
             is_repeating,
             mirosurprises,
-            sample_output_dict["mirostat_mus"],
+            miromus,
             miroks
         ):
             text = "".join(subtexts[1:])  # don't return prompt as part of these

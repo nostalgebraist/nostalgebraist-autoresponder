@@ -275,7 +275,7 @@ class GeneratorModel:
             ):
                 mirosurprises = sample_output_dict["mirostat_surprises"]
                 miroks = sample_output_dict["mirostat_ks"]
-                miromus = sample_output_dict["mirostat_mus"],
+                miromus = sample_output_dict["mirostat_mus"]
             else:
                 mirosurprises = np.concatenate(
                     [mirosurprises, sample_output_dict["mirostat_surprises"]], axis=1

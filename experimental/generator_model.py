@@ -402,7 +402,18 @@ class GeneratorModel:
 
         # cleanup
         continuations_ = []
-        for subtexts, rep in zip(continuations, is_repeating):
+        miro_traces = {
+            "surprise": [],
+            "mu": [],
+            "k": []
+        }
+        for subtexts, rep, ms, mmu, mk in zip(
+            continuations,
+            is_repeating,
+            mirosurprises,
+            sample_output_dict["mirostat_mus"],
+            miroks
+        ):
             text = "".join(subtexts[1:])  # don't return prompt as part of these
             if rep:
                 if GLOBAL_DEBUG:
@@ -411,12 +422,16 @@ class GeneratorModel:
             if not text.endswith(eot_end_segment) and eot_end_segment in text:
                 text = text.split(eot_end_segment)[0] + eot_end_segment
             continuations_.append(text)
+            miro_traces["surprise"].append([float(x) for x in ms])
+            miro_traces["mu"].append([float(x) for x in mmu])
+            miro_traces["k"].append([float(x) for x in mk])
 
         return {
             "continuations": continuations_,
             "side_data": {
                 "prompt_for_neural": prompt,
                 "mirotarg": mirotarg,
+                "miro_traces": miro_traces,
             },
         }
 

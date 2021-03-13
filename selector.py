@@ -351,6 +351,7 @@ def serve_selection(
     chosen_autoreview_proba = retained_autoreview_proba[choice_ix]
 
     chosen_mirotarg = chosen_continuation_side_data.get("mirotarg")
+    chosen_miro_traces = chosen_continuation_side_data.get("miro_traces")
     chosen_prompt_for_neural = chosen_continuation_side_data.get("prompt_for_neural")
     chosen_model_info = chosen_continuation_side_data.get("model_info")
 
@@ -377,6 +378,7 @@ def serve_selection(
     parsed["pos_sentiment"] = float(chosen_pos_sent)
     parsed["autoreview_proba"] = None if chosen_autoreview_proba is None else float(chosen_autoreview_proba)
     parsed["mirotarg"] = chosen_mirotarg
+    parsed["miro_traces"] = chosen_miro_traces
     parsed["prompt_for_neural"] = chosen_prompt_for_neural
     parsed["model_info"] = chosen_model_info
     parsed["generator_v10_timestamp"] = data.get("generator_v10_timestamp")

@@ -50,8 +50,21 @@ def on_post_creation_callback(api_response: dict, bridge_response: dict):
     print(f"on_post_creation_callback: took {t2-t1:.3f}s sec")
 
 
-def traceability_logs_to_df(logs, boring_fields=None, make_input_blogname=True):
-    df = pd.DataFrame(logs["data"])
+def traceability_logs_to_df(logs,
+                            boring_fields=None,
+                            make_input_blogname=True,
+                            drop_malformed={"miro_traces",}
+                            ):
+    data = logs["data"]
+
+    # drop_malformed
+    if "miro_traces" in drop_malformed:
+        for entry in data:
+            mt = entry.get('miro_traces')
+            if mt and len(mt['mu'][0]) != len(mt['k'][0]):
+                entry['miro_traces'] = None
+
+    df = pd.DataFrame(data)
     if boring_fields is None:
         boring_fields = ["base_id", "AB_fork"]
         boring_fields += [c for c in df.columns if c.startswith("all_alt_")]

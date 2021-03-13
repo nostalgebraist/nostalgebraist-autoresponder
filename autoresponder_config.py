@@ -174,9 +174,9 @@ chop_lowest, chop_highest = None, None
 # MIRO_TRUNC = 50000
 MIRO_TRUNC = 2000
 
-# MIRO_LR = 0.2
-# MIRO_LR = 0.1  # ! experimental
-MIRO_LR = 0.05
+MIRO_LR = 0.2
+# MIRO_LR = 0.1
+# MIRO_LR = 0.05
 
 if V8_2:
     MIRO_TARGET_LOW = 2.0
@@ -264,7 +264,7 @@ if MIRO_ONLY_ON_CONTINUE and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
     pre_continue_middle_p = 0
 elif MIRO_ONLY_ON_CONTINUE:
     pre_continue_mirostat = False
-    pre_continue_length = 30  # 80  # 50
+    pre_continue_length = 20 # 30  # 80  # 50
     pre_continue_temperature = 0.9  # 1
     pre_continue_top_k = 0
     pre_continue_top_p = 0.9  # 0.925

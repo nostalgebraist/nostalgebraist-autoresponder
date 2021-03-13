@@ -231,6 +231,8 @@ def poll(
 
             sampling_info = {
                 "MIRO": MIRO,
+                "MIRO_V2": MIRO_V2,
+                "MIRO_TRUNC": MIRO_TRUNC,  # unused in miro v2
                 "MIRO_LR": MIRO_LR,
                 "MIRO_ONLY_ON_CONTINUE": MIRO_ONLY_ON_CONTINUE,
                 "length": length,

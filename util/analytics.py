@@ -41,7 +41,7 @@ def mtlen(mt):
     return len(mt['k'][0])
 
 def mtresult(mt):
-    k, u, s = loadmt(mt)
+    k, u, s, _ = loadmt(mt, True)
     return s.mean()
 
 def mt_target_vs_result(df_, buffer=20):
@@ -86,15 +86,17 @@ def annotated_load_traceability_logs(*args, **kwargs):
     df = mt_annotate(df)
     return df
 
-def loadmt(mt):
+def loadmt(mt, v2):
     k = np.array(mt['k'][0])[1:]
     mu = np.array(mt['mu'][0])[1:]
     s = np.array(mt['surprise'][0])[1:]
-    return k, mu, s
+    mirotarg = mt['mu'][0][0]
+    if not v2:
+        mirotarg = mirotarg/2
+    return k, mu, s, mirotarg
 
-def mtshow(mt, v2=True, mtstart=30):
-    k, u, s = loadmt(mt)
-    mirotarg = u[0] if v2 else u[0]/2
+def mtshow(mt, v2, mtstart):
+    k, u, s, mirotarg = loadmt(mt, v2)
 
     fix, axes = plt.subplots(3, 1)
 
@@ -119,8 +121,10 @@ def mtshow(mt, v2=True, mtstart=30):
     plt.tight_layout()
     plt.show()
 
-def mtphaseshow(mt):
-    k, u, s = loadmt(mt)
+def mtphaseshow(mt, v2, mtstart):
+    k, u, s, _ = loadmt(mt, v2)
+
+    k, u, s = k[mtstart:], u[mtstart:], s[mtstart:]
 
     fix, axes = plt.subplots(2, 1)
     plt.sca(axes[0])
@@ -128,7 +132,6 @@ def mtphaseshow(mt):
     plt.scatter(s_avg, u, s=1)
     plt.xlabel('surprise running_avg')
     plt.ylabel('mu')
-
 
     for ix, w in zip([1,], [11,]):
         plt.sca(axes[ix])

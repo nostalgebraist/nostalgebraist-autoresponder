@@ -276,7 +276,7 @@ class GeneratorModel:
                 mirosurprises = sample_output_dict["mirostat_surprises"]
                 miroks = sample_output_dict["mirostat_ks"]
                 miromus = sample_output_dict["mirostat_mus"]
-                mirotoks = sample_output_dict["mirostat_tokens"]
+                mirotoks = sample_output_dict["tokens"]
             else:
                 mirosurprises = np.concatenate(
                     [mirosurprises, sample_output_dict["mirostat_surprises"]], axis=1
@@ -288,7 +288,7 @@ class GeneratorModel:
                     [miromus, sample_output_dict["mirostat_mus"]], axis=1
                 )
                 mirotoks = np.concatenate(
-                    [mirotoks, sample_output_dict["mirostat_tokens"]], axis=1
+                    [mirotoks, sample_output_dict["tokens"]], axis=1
                 )
 
             print(f"miromu before setting: {miromu}")

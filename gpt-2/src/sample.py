@@ -381,15 +381,17 @@ def sample_sequence(
                 with tf.control_dependencies([print_op]):
                     next_outputs = step(hparams, prev[:, tf.newaxis], past=past)
 
-            if mirostat:
-                logits = next_outputs["logits"][:, -1, :]
-            else:
-                logits = next_outputs["logits"][:, -1, :] / tf.to_float(temperature)
+            # if mirostat:
+            #     logits = next_outputs["logits"][:, -1, :]
+            # else:
+            #     logits = next_outputs["logits"][:, -1, :] / tf.to_float(temperature)
+            #
+            #     probs_orig = tf.nn.softmax(logits)
+            #     next_mirostat_mu = mirostat_mus[:, -1]
+            #     k_ms = mirostat_ks[:, -1]
+            #     s_ms = mirostat_ss[:, -1]
 
-                probs_orig = tf.nn.softmax(logits)
-                next_mirostat_mu = mirostat_mus[:, -1]
-                k_ms = mirostat_ks[:, -1]
-                s_ms = mirostat_ss[:, -1]
+            logits = next_outputs["logits"][:, -1, :] / tf.to_float(temperature)
 
             if avoid_tag_only_posts:
                 logits = apply_avoid_tag_only_posts(
@@ -400,21 +402,23 @@ def sample_sequence(
                     newline_token=NEWLINE_TOKEN,
                     space_token=SPACE_TOKEN)
 
-            if mirostat:
-                ixs = np.arange(1, mirostat_trunc + 2, 1, dtype=float)
-                mirostat_t = np.log(ixs[1:] / ixs[:-1])
-                mirostat_t_sq_sum = (mirostat_t ** 2).sum()
-                mirostat_harmonic = 1.0 / ixs[:-1]
+            # if mirostat:
+            ixs = np.arange(1, mirostat_trunc + 2, 1, dtype=float)
+            mirostat_t = np.log(ixs[1:] / ixs[:-1])
+            mirostat_t_sq_sum = (mirostat_t ** 2).sum()
+            mirostat_harmonic = 1.0 / ixs[:-1]
 
-                logits, probs_orig, k_ms, s_ms = mirostat_logits_fn(
-                    logits,
-                    mirostat_surprise_target,
-                    mirostat_mu,
-                    mirostat_t,
-                    mirostat_t_sq_sum,
-                    mirostat_harmonic,
-                    mirostat_trunc,
-                )
+            logits_mirostat, probs_orig, k_ms, s_ms = mirostat_logits_fn(
+                logits,
+                mirostat_surprise_target,
+                mirostat_mu,
+                mirostat_t,
+                mirostat_t_sq_sum,
+                mirostat_harmonic,
+                mirostat_trunc,
+            )
+            if mirostat:
+                logits = logits_mirostat
             elif middle_p > 0.0:
                 logits = midde_p_logits(logits, p_base=middle_p)
             elif chop_lowest is not None and chop_highest is not None:

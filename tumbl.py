@@ -1826,11 +1826,19 @@ def do_reblog_reply_handling(
                     if any([post['id'] == mention_post_id for post in posts]):
                         continue
 
-                    if response_cache.is_handled(PostIdentifier(mention_blogname, mention_post_id)):
+                    pi = PostIdentifier(mention_blogname, mention_post_id)
+
+                    if response_cache.is_handled(pi):
                         continue
 
                     new_entry = {"blog_name": mention_blogname, "id": mention_post_id}
-                    print(f"reblogging from mentions: {new_entry}")
+                    print(f"reblogging from mentions: {pi}")
+
+                    # fill it into rc
+                    response_cache.record_response_to_cache(
+                        private_client.posts(mention_blogname, id=mention_post_id), care_about_notes=False
+                    )
+
                     posts.append(new_entry)
 
             # update last_seen_ts_notifications

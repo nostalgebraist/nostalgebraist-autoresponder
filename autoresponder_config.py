@@ -261,8 +261,8 @@ if MIRO_ONLY_ON_CONTINUE and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
     pre_continue_middle_p = 0
 elif MIRO_ONLY_ON_CONTINUE:
     pre_continue_mirostat = False
-    pre_continue_length = 20 # 30  # 80  # 50
-    pre_continue_temperature = 0.9  # 1
+    pre_continue_length = 60  # 20  # 30  # 80  # 50
+    pre_continue_temperature = 1  # 0.9
     pre_continue_top_k = 0
     pre_continue_top_p = 0.9  # 0.925
     pre_continue_middle_p = 0

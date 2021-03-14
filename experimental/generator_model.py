@@ -192,7 +192,7 @@ class GeneratorModel:
         presents = startup_presents
 
         miromu = None
-        mirosurprises, miroks, miromus = None, None, None
+        mirosurprises, miroks, miromus, mirotoks = None, None, None, None
         mu_init_scale = 1.0 if MIRO_V2 else 2.0
 
         while not done:
@@ -276,6 +276,7 @@ class GeneratorModel:
                 mirosurprises = sample_output_dict["mirostat_surprises"]
                 miroks = sample_output_dict["mirostat_ks"]
                 miromus = sample_output_dict["mirostat_mus"]
+                mirotoks = sample_output_dict["tokens"]
             else:
                 mirosurprises = np.concatenate(
                     [mirosurprises, sample_output_dict["mirostat_surprises"]], axis=1
@@ -285,6 +286,9 @@ class GeneratorModel:
                 )
                 miromus = np.concatenate(
                     [miromus, sample_output_dict["mirostat_mus"]], axis=1
+                )
+                mirotoks = np.concatenate(
+                    [mirotoks, sample_output_dict["tokens"]], axis=1
                 )
 
             print(f"miromu before setting: {miromu}")
@@ -409,14 +413,16 @@ class GeneratorModel:
         miro_traces = {
             "surprise": [],
             "mu": [],
-            "k": []
+            "k": [],
+            'tok': [],
         }
-        for subtexts, rep, ms, mmu, mk in zip(
+        for subtexts, rep, ms, mmu, mk, mtk in zip(
             continuations,
             is_repeating,
             mirosurprises,
             miromus,
-            miroks
+            miroks,
+            mirotoks
         ):
             text = "".join(subtexts[1:])  # don't return prompt as part of these
             if rep:
@@ -429,6 +435,7 @@ class GeneratorModel:
             miro_traces["surprise"].append([float(x) for x in ms])
             miro_traces["mu"].append([float(x) for x in mmu])
             miro_traces["k"].append([float(x) for x in mk])
+            miro_traces["tok"].append([int(x) for x in mtk])
 
         return {
             "continuations": continuations_,

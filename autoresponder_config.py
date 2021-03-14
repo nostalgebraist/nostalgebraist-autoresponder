@@ -171,9 +171,9 @@ EXPERIMENTAL_MIDDLE_P_ASYM = True
 
 chop_lowest, chop_highest = None, None
 
-MIRO_LR = 0.2
+# MIRO_LR = 0.2
 # MIRO_LR = 0.1
-# MIRO_LR = 0.05
+MIRO_LR = 0.05
 
 if V8_2:
     MIRO_TARGET_LOW = 2.0

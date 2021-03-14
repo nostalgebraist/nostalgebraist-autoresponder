@@ -138,17 +138,17 @@ def mtshow(mt, v2, mtstart):
     plt.plot(s_smoothed, alpha=1, label="smoothed")
     plt.plot(s, alpha=0.75, marker="o", markersize=2, lw=0)
     plt.axhline(mirotarg, ls="--", lw=1, c="k", label=f"targ={mirotarg:.2f}")
-    axes[0].axvline(mtstart, ls="--", c="r", alpha=0.75)
+    # axes[0].axvline(mtstart, ls="--", c="r", alpha=0.75)
     axes[0].set_ylim(np.percentile(s_smoothed, 2), np.percentile(s_smoothed, 98))
     axes[0].set_title("surprise")
     plt.legend()
 
     axes[1].plot(u)
-    axes[1].axvline(mtstart, ls="--", c="r", alpha=0.75)
+    # axes[1].axvline(mtstart, ls="--", c="r", alpha=0.75)
     axes[1].set_title("mu")
 
     axes[2].plot(k + 1, marker="o", markersize=3, lw=1, ls="--")
-    axes[2].axvline(mtstart, ls="--", c="r", alpha=0.75)
+    # axes[2].axvline(mtstart, ls="--", c="r", alpha=0.75)
     axes[2].set_yscale("log")
     axes[2].set_title("k")
 

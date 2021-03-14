@@ -1,4 +1,5 @@
 """dynamic user-input-responsive part of mood, and mood graphs"""
+from copy import deepcopy
 from datetime import datetime
 
 import numpy as np
@@ -26,6 +27,8 @@ from mood import (
     logit_diff_to_pos_sent,
     pos_sent_to_logit_diff,
 )
+
+from util.past import MILESTONE_TIMES
 
 MOOD_IMAGE_DIR = "data/mood_images/"
 
@@ -659,13 +662,7 @@ def counterfactual_mood_graph(
             c=colors[k],
         )
 
-    golives = {
-        pd.Timestamp("2020-09-30"): "v8_golive_approx",
-        pd.Timestamp("2020-11-22"): "v9_golive_approx",
-        pd.Timestamp("2020-12-05"): "v9_1_golive_approx",
-        pd.Timestamp("2020-12-07"): "v9_1R2_golive_approx",
-        pd.Timestamp("2021-01-15"): "v10_golive_approx",
-    }
+    golives = deepcopy(MILESTONE_TIMES)
     golives.update(
         {ts: f"dc -> {dc:.2f}" for ts, dc in DETERMINER_CENTER_UPDATES.items()}
     )

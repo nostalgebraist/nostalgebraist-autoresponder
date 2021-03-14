@@ -4,6 +4,7 @@ from functools import wraps
 import numpy as np
 import scipy as sci
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from traceability import load_traceability_logs_to_df
 
@@ -67,16 +68,16 @@ def mt_target_vs_result(df_, buffer=20):
     ymin, ymax = df.mtresult.min() - 0.1, df.mtresult.max() + 0.1
 
     plt.sca(axes[0])
-    plt.scatter(
-        df[filt == False].mirotarg, df[filt == False].mtresult, c="g", label="v1"
-    )
-    # plt.axhline(0, ls='--', c='k', alpha=0.75)
+    sns.regplot(data=df[filt == False], x='mirotarg', y='mtresult',
+                # hue='mlr', palette=['g', 'r'],
+                )
     plt.ylim(ymin, ymax)
     plt.title("v1")
 
     plt.sca(axes[1])
-    plt.scatter(df[filt].mirotarg, df[filt].mtresult, c="r", label="v2")
-    # plt.axhline(0, ls='--', c='k', alpha=0.75)
+    sns.regplot(data=df[filt], x='mirotarg', y='mtresult',
+                # hue='mlr', palette=['g', 'r'],
+                )
     plt.title("v2")
     plt.ylim(ymin, ymax)
     plt.show()
@@ -138,7 +139,7 @@ def mtshow(mt, v2, mtstart):
     plt.plot(s, alpha=0.75, marker="o", markersize=2, lw=0)
     plt.axhline(mirotarg, ls="--", lw=1, c="k", label=f"targ={mirotarg:.2f}")
     axes[0].axvline(mtstart, ls="--", c="r", alpha=0.75)
-    axes[0].set_ylim(np.percentile(s_smoothed, 15), np.percentile(s_smoothed, 85))
+    axes[0].set_ylim(np.percentile(s_smoothed, 2), np.percentile(s_smoothed, 98))
     axes[0].set_title("surprise")
     plt.legend()
 

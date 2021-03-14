@@ -71,6 +71,7 @@ def mt_annotate(df):
     df['mtresult'] = df.miro_traces.apply(nancall(mtresult))
     df['mtdelta'] = df.mtresult - df.mirotarg
     df['is_miro_v2'] = df.model_info.apply(nancall(lambda d: d.get('sampling_info', {}).get('MIRO_V2', True)))
+    df['mlr'] = df.model_info.apply(nancall(lambda d: d.get('sampling_info', {}).get('MIRO_LR')))
     df['pre_continue_length'] = df.model_info.apply(nancall(lambda d: d.get('sampling_info', {}).get('pre_continue_length', True)))
     df['ntok_miro'] = None
     df.loc[df.mtlen.notnull(), 'ntok_miro'] = df.loc[df.mtlen.notnull(), "mtlen"]- df.loc[df.mtlen.notnull(), "pre_continue_length"]
@@ -101,21 +102,24 @@ def mtshow(mt, v2, mtstart):
     fix, axes = plt.subplots(3, 1)
 
     plt.sca(axes[0])
-    plt.plot(running_avg(s), label='running_avg')
-    plt.plot(rollavg_convolve_edges(s, 11), alpha=1, label='smoothed')
+    s_avg = running_avg(s)
+    plt.plot(s_avg, label='running_avg')
+    s_smoothed = rollavg_convolve_edges(s, 5)
+    plt.plot(s_smoothed, alpha=1, label='smoothed')
     plt.plot(s, alpha=0.75, marker='o', markersize=2, lw=0)
     plt.axhline(mirotarg, ls='--', lw=1, c='k', label=f'targ={mirotarg:.2f}')
     axes[0].axvline(mtstart, ls='--', c='r', alpha=0.75)
+    axes[0].set_ylim(np.percentile(s_smoothed, 5), np.percentile(s_smoothed, 95))
+    axes[0].set_title('surprise')
     plt.legend()
 
-    axes[0].set_ylim(np.percentile(s, 15), np.percentile(s, 85))
-    axes[0].set_title('surprise')
     axes[1].plot(u)
     axes[1].axvline(mtstart, ls='--', c='r', alpha=0.75)
     axes[1].set_title('mu')
 
-    axes[2].plot(k, marker='o', markersize=3, lw=1, ls='--')
+    axes[2].plot(k+1, marker='o', markersize=3, lw=1, ls='--')
     axes[2].axvline(mtstart, ls='--', c='r', alpha=0.75)
+    axes[2].set_yscale('log')
     axes[2].set_title('k')
 
     plt.tight_layout()

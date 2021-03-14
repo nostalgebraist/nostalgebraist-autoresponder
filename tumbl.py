@@ -1837,7 +1837,7 @@ def do_reblog_reply_handling(
             updated_last_seen_ts_notifications = max([item['timestamp'] for item in notifications])
 
             print(
-                f"updating last_seen_ts_notifications: {loop_persistent_data.updated_last_seen_ts_notifications} --> {updated_last_seen_ts_notifications} (+{updated_last_seen_ts-loop_persistent_data.updated_last_seen_ts_notifications})"
+                f"updating last_seen_ts_notifications: {loop_persistent_data.last_seen_ts_notifications} --> {updated_last_seen_ts_notifications} (+{updated_last_seen_ts-loop_persistent_data.last_seen_ts_notifications})"
             )
             loop_persistent_data.last_seen_ts_notifications = updated_last_seen_ts_notifications
 

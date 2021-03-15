@@ -151,13 +151,16 @@ else:
 
 ### Sampling
 
+BREAKRUNS=True
+BREAKRUNS_TAU=0.05
+
 MIRO_V2 = False
 MIRO_TRUNC = 2000  # unused in MIRO_V2
 
-MIRO = True
-MIRO_ONLY_ON_CONTINUE = True
+MIRO = False
+MIRO_ONLY_ON_CONTINUE = False
 
-temperature = 1
+temperature = 0.6
 top_k = 0
 top_p = 0
 middle_p = 0

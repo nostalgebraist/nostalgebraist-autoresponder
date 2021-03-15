@@ -85,6 +85,8 @@ class GeneratorModel:
                 mirostat_trunc=MIRO_TRUNC,
                 mirostat_v2=MIRO_V2,
                 disable_prints=True,
+                breakruns=BREAKRUNS,
+                breakruns_tau=BREAKRUNS_TAU,
             )
 
             # TODO: DRY

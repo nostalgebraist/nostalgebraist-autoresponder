@@ -254,8 +254,8 @@ def sample_sequence(
     breakruns=False,
     breakruns_tau=0.05,
 ):
-    if mirostat_mu_init is None:
-        mu_init_scale = 1.0 if breakruns else (1.0 if mirostat_v2 else 2.0)
+    if breakruns or mirostat_mu_init is None:
+        mu_init_scale = 0. if breakruns else (1.0 if mirostat_v2 else 2.0)
         mirostat_mu_init = tf.tile(
             [mu_init_scale * mirostat_surprise_target], [batch_size]
         )

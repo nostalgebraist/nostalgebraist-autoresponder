@@ -243,10 +243,12 @@ def selector(
         return_activations_at=layer_nums,
         return_activations_only=True,
     )["activations"]
+    act_names = [f'h{i}' for i in layer_nums]
 
     hs_select = []
     with tf.variable_scope(select_scope, reuse=reuse, dtype=hparams_select.dtype):
-        for act_name, act in activations:
+        for act_name in act_names:
+            act = activations[act_name]
             h_select, _ = attn_only_block(
                 act,
                 f"h_select_{act_name}",

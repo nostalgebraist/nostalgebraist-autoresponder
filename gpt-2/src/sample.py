@@ -251,9 +251,11 @@ def sample_sequence(
     mirostat_v2=False,
     disable_prints=False,
     avoid_tag_only_posts=True,
+    breakruns=False,
+    breakruns_tau=0.05,
 ):
     if mirostat_mu_init is None:
-        mu_init_scale = 1.0 if mirostat_v2 else 2.0
+        mu_init_scale = 1.0 if breakruns else (1.0 if mirostat_v2 else 2.0)
         mirostat_mu_init = tf.tile(
             [mu_init_scale * mirostat_surprise_target], [batch_size]
         )
@@ -391,7 +393,12 @@ def sample_sequence(
             #     k_ms = mirostat_ks[:, -1]
             #     s_ms = mirostat_ss[:, -1]
 
-            logits = next_outputs["logits"][:, -1, :] / tf.to_float(temperature)
+            if breakruns:
+              eff_temperature = temperature + breakruns_tau * mirostat_mu
+            else:
+              eff_temperature = temperature
+
+            logits = next_outputs["logits"][:, -1, :] / tf.to_float(eff_temperature)
 
             if avoid_tag_only_posts:
                 logits = apply_avoid_tag_only_posts(
@@ -436,8 +443,13 @@ def sample_sequence(
             )
             surprise_of_selected = tf.log(1.0 / probs_of_selected) / np.log(2)
             error_surprise = surprise_of_selected - mirostat_surprise_target
-            next_mirostat_mu = mirostat_mu - mirostat_lr * error_surprise
-            next_mirostat_mu = tf.maximum(next_mirostat_mu, mirostat_mu_lower_clip)
+            if breakruns:
+              bump = tf.reduce_all(probs_orig <= probs_of_selected[:, tf.newaxis], axis=-1)
+              bump_fl = tf.cast(bump, tf.float32)
+              next_mirostat_mu = bump_fl*(mirostat_mu+1)
+            else:
+              next_mirostat_mu = mirostat_mu - mirostat_lr * error_surprise
+              next_mirostat_mu = tf.maximum(next_mirostat_mu, mirostat_mu_lower_clip)
 
             return [
                 tf.concat([past, next_outputs["presents"]], axis=-2),

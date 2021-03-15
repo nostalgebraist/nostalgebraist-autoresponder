@@ -745,8 +745,10 @@ class LoopPersistentData:
         timestamps={},
         reblog_keys={},
         last_seen_ts=0,
+        last_seen_ts_notifications=0,
         n_posts_to_check_base=240,
         n_posts_to_check_dash=640,
+        n_notifications_to_check=1000,
         offset_=0,
         requests_per_check_history=[],
         apriori_requests_per_check=25,
@@ -762,8 +764,10 @@ class LoopPersistentData:
         self.timestamps = timestamps
         self.reblog_keys = reblog_keys
         self.last_seen_ts = last_seen_ts
+        self.last_seen_ts_notifications = last_seen_ts_notifications
         self.n_posts_to_check_base = n_posts_to_check_base
         self.n_posts_to_check_dash = n_posts_to_check_dash
+        self.n_notifications_to_check = n_notifications_to_check
         self.offset_ = offset_
         self.requests_per_check_history = requests_per_check_history
         self.apriori_requests_per_check = apriori_requests_per_check
@@ -1641,6 +1645,29 @@ def get_relevant_replies_from_notes(
     return replies_to_handle, loop_persistent_data, response_cache
 
 
+def check_notifications(n_to_check=250, after_ts=0):
+    base_url = private_client.request.host + f'/v2/blog/{blogName}/notifications'
+    request_kwargs = dict(allow_redirects=False, headers=private_client.request.headers, auth=private_client.request.oauth)
+
+    getter = lambda url: requests.get(url, **request_kwargs).json()['response']
+    updater = lambda page: [item for item in page['notifications'] if item['timestamp'] > after_ts]
+    n = []
+
+    with LogExceptionAndSkip('check notifications'):
+        page = getter(base_url)
+        delta = updater(page)
+
+        while len(n) < n_to_check and len(delta) > 0:
+            n += delta
+            print(f"{len(n)}/{n_to_check}")
+            time.sleep(0.1)
+            url = private_client.request.host + page['_links']['next']['href']
+            page = getter(url)
+            delta = updater(page)
+
+    return n
+
+
 def do_reblog_reply_handling(
     loop_persistent_data: LoopPersistentData,
     response_cache: ResponseCache,
@@ -1779,6 +1806,45 @@ def do_reblog_reply_handling(
         print(f"got {len(next_)}, starting with {next_[0]['id']}, min_ts={min_ts}")
 
     print(f"{len(posts)} posts retrieved")
+
+    if not is_dashboard:
+        print("checking mentions...")
+        notifications = check_notifications(
+            n_to_check=loop_persistent_data.n_notifications_to_check,
+            after_ts=loop_persistent_data.last_seen_ts_notifications
+        )
+
+        if len(notifications) > 0:
+            mentions = [item for item in notifications if item['type'] == 'user_mention']
+
+            for item in mentions:
+                with LogExceptionAndSkip(f'handle mention {repr(item)}'):
+                    mention_blogname = item['target_tumblelog_name']
+                    mention_post_id = int(item['target_post_id'])
+
+                    # don't add if duplicate
+                    if any([post['id'] == mention_post_id for post in posts]):
+                        continue
+
+                    pi = PostIdentifier(mention_blogname, mention_post_id)
+
+                    if response_cache.is_handled(pi):
+                        continue
+
+                    print(f"reblogging from mentions: {pi}")
+
+                    loop_persistent_data.reblogs_from_me.add(pi)
+                    loop_persistent_data.timestamps[pi] = item['timestamp']
+                    mp = private_client.posts(mention_blogname, id=mention_post_id)['posts'][0]
+                    loop_persistent_data.reblog_keys[pi] = mp["reblog_key"]
+
+            # update last_seen_ts_notifications
+            updated_last_seen_ts_notifications = max([item['timestamp'] for item in notifications])
+
+            print(
+                f"updating last_seen_ts_notifications: {loop_persistent_data.last_seen_ts_notifications} --> {updated_last_seen_ts_notifications} (+{updated_last_seen_ts_notifications-loop_persistent_data.last_seen_ts_notifications})"
+            )
+            loop_persistent_data.last_seen_ts_notifications = updated_last_seen_ts_notifications
 
     if is_dashboard:
         # batch up dash posts for side judgment computation

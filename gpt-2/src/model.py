@@ -503,5 +503,5 @@ def model(
             logits = tf.reshape(logits, [batch, sequence, hparams.n_vocab])
             results["logits"] = logits
 
-        results["activations"] = list(zip(h_names, activations))
+        results["activations"] = dict(zip(h_names, activations))
         return results

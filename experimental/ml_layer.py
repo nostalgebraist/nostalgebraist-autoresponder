@@ -235,6 +235,8 @@ def poll(
                 "MIRO_TRUNC": MIRO_TRUNC,  # unused in miro v2
                 "MIRO_LR": MIRO_LR,
                 "MIRO_ONLY_ON_CONTINUE": MIRO_ONLY_ON_CONTINUE,
+                "BREAKRUNS": BREAKRUNS,
+                "BREAKRUNS_TAU": BREAKRUNS_TAU,
                 "length": length,
                 "T": temperature,
                 "p": top_p,

@@ -1820,7 +1820,7 @@ def do_reblog_reply_handling(
             for item in mentions:
                 with LogExceptionAndSkip(f'handle mention {repr(item)}'):
                     mention_blogname = item['target_tumblelog_name']
-                    mention_post_id = item['target_post_id']
+                    mention_post_id = int(item['target_post_id'])
 
                     # don't add if duplicate
                     if any([post['id'] == mention_post_id for post in posts]):
@@ -1831,21 +1831,18 @@ def do_reblog_reply_handling(
                     if response_cache.is_handled(pi):
                         continue
 
-                    new_entry = {"blog_name": mention_blogname, "id": mention_post_id}
                     print(f"reblogging from mentions: {pi}")
 
-                    # fill it into rc
-                    response_cache.record_response_to_cache(
-                        private_client.posts(mention_blogname, id=mention_post_id), care_about_notes=False
-                    )
-
-                    posts.append(new_entry)
+                    loop_persistent_data.reblogs_from_me.add(pi)
+                    loop_persistent_data.timestamps[pi] = item['timestamp']
+                    mp = private_client.posts(mention_blogname, id=mention_post_id)['posts'][0]
+                    loop_persistent_data.reblog_keys[pi] = mp["reblog_key"]
 
             # update last_seen_ts_notifications
             updated_last_seen_ts_notifications = max([item['timestamp'] for item in notifications])
 
             print(
-                f"updating last_seen_ts_notifications: {loop_persistent_data.last_seen_ts_notifications} --> {updated_last_seen_ts_notifications} (+{updated_last_seen_ts-loop_persistent_data.last_seen_ts_notifications})"
+                f"updating last_seen_ts_notifications: {loop_persistent_data.last_seen_ts_notifications} --> {updated_last_seen_ts_notifications} (+{updated_last_seen_ts_notifications-loop_persistent_data.last_seen_ts_notifications})"
             )
             loop_persistent_data.last_seen_ts_notifications = updated_last_seen_ts_notifications
 

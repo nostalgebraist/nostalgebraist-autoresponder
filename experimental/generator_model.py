@@ -528,6 +528,7 @@ class GeneratorModel:
     def cleanup(self):
         if self.session is not None:
             self.session.close()
+            self.session = None
         self.startup_presents_for_prompt = {}
 
     def set_sampling_config(self, sampling_config: SamplingConfig):

@@ -7,26 +7,22 @@ import tflex
 import model
 import sample
 
-from autoresponder_config import *  # TODO: turn these into class constructor args/kwargs
+from autoresponder_config import *  # TODO: move elsewhere?
 
 
 def is_repeating_criterion(unique_token_frac):
     return unique_token_frac < 0.2
 
 
-# TODO: use these
 SamplingParams = NamedTuple(
     'SamplingParams',
-    T=float,
+    temperature=float,
     top_k=int,
     top_p=float,
     middle_p=float,
     chop_lowest=float,
     chop_highest=float,
     mirostat=bool,
-    mirostat_v2=bool,
-    mirostat_trunc=int,
-    mirostat_lr=float,
     breakruns=bool,
     breakruns_tau=float,
     breakruns_decay=float
@@ -36,12 +32,55 @@ SamplingParams = NamedTuple(
 SamplingConfig = NamedTuple(
     'SamplingConfig',
     pre_continue_length=int,
+    post_window_length=int,
     pre_continue_params=SamplingParams,
     params=SamplingParams,
+    disable_prints=bool,
     max_ctx_fits_on_gpu=int,
     max_continue_steps=int,
     max_continue_tokens=int,
+    mirostat_lr=float,
+    mirostat_v2=bool,
+    mirostat_trunc=int,
     miro_only_on_continue=bool,
+)
+
+
+DEFAULT_SAMPLING_CONFIG = SamplingConfig(
+    pre_continue_params=SamplingParams(
+        temperature=pre_continue_T,
+        top_k=pre_continue_top_k,
+        top_p=pre_continue_top_p,
+        middle_p=pre_continue_middle_p,
+        chop_lowest=pre_continue_chop_lowest,
+        chop_highest=pre_continue_chop_highest,
+        mirostat=pre_continue_mirostat,
+        breakruns=BREAKRUNS,
+        breakruns_tau=BREAKRUNS_TAU,
+        breakruns_decay=BREAKRUNS_DECAY
+    ),
+    params=SamplingParams(
+        temperature=temperature,
+        top_k=top_k,
+        top_p=top_p,
+        middle_p=middle_p,
+        chop_lowest=chop_lowest,
+        chop_highest=chop_highest,
+        mirostat=MIRO,
+        breakruns=BREAKRUNS,
+        breakruns_tau=BREAKRUNS_TAU,
+        breakruns_decay=BREAKRUNS_DECAY
+    ),
+    disable_prints=True,
+    pre_continue_length=pre_continue_length,
+    post_window_length=length,
+    max_ctx_fits_on_gpu=max_ctx_fits_on_gpu,
+    max_continue_steps=MAX_CONTINUE_STEPS,
+    max_continue_tokens=MAX_CONTINUE_TOKENS,
+    mirostat_lr=MIRO_LR,
+    mirostat_v2=MIRO_V2,
+    mirostat_trunc=MIRO_TRUNC,
+    miro_only_on_continue=MIRO_ONLY_ON_CONTINUE,
 )
 
 
@@ -51,12 +90,14 @@ class GeneratorModel:
         enc,
         batch_size,
         sample_done_criterion,
+        sampling_config: SamplingConfig=DEFAULT_SAMPLING_CONFIG,
         hparams=model.hparams_1558M(),
         session=None,
     ):
         self.enc = enc
         self.batch_size = batch_size
         self.sample_done_criterion = sample_done_criterion
+        self.sampling_config = sampling_config
         self.hparams = hparams
 
         self.session = session
@@ -78,7 +119,7 @@ class GeneratorModel:
         # cache
         self.startup_presents_for_prompt = {}
 
-    def _setup(self, reset=True):
+    def _setup(self, reset=False):
         if reset:
             tf.reset_default_graph()
 
@@ -103,8 +144,7 @@ class GeneratorModel:
 
             sampling_args = dict(
                 stop_at_EOT=True,
-                # better_length=better_length,
-                eot_workaround=EOT_WORKAROUND,
+                eot_workaround=True,
                 enc=self.enc,
                 hparams=self.hparams,
                 start_token=None,
@@ -114,51 +154,29 @@ class GeneratorModel:
                 pasts=self.sample_pasts,
                 mirostat_surprise_target=self.mirostat_target,
                 mirostat_lr=self.mirostat_lr,
-                mirostat_trunc=MIRO_TRUNC,
-                mirostat_v2=MIRO_V2,
-                disable_prints=True,
-                breakruns=BREAKRUNS,
-                breakruns_tau=BREAKRUNS_TAU,
-                breakruns_decay=BREAKRUNS_DECAY,
+                mirostat_v2=self.sampling_config.mirostat_v2,
+                mirostat_trunc=self.sampling_config.mirostat_trunc,
+                disable_prints=self.sampling_config.disable_prints,
             )
 
-            # TODO: DRY
             self.first_sample_op = sample.sample_sequence(
                 length=pre_continue_length,
                 better_length=False,
-                temperature=pre_continue_temperature,
-                top_k=pre_continue_top_k,
-                top_p=pre_continue_top_p,
-                middle_p=pre_continue_middle_p,
-                chop_lowest=pre_continue_chop_lowest,
-                chop_highest=pre_continue_chop_highest,
-                mirostat=pre_continue_mirostat,
+                **self.sampling_config.pre_continue_params,
                 **sampling_args,
             )
             # TODO: DRY
             self.sample_op_fill_window = sample.sample_sequence(
                 length=max_ctx_fits_on_gpu,
                 better_length=True,
-                temperature=temperature,
-                top_k=top_k,
-                top_p=top_p,
-                middle_p=middle_p,
-                chop_lowest=chop_lowest,
-                chop_highest=chop_highest,
-                mirostat=MIRO,
+                **self.sampling_config.params,
                 **sampling_args,
             )
             # TODO: DRY
             self.sample_op_beyond_window = sample.sample_sequence(
-                length=length,
+                length=self.sampling_config.post_window_length,
                 better_length=False,
-                temperature=temperature,
-                top_k=top_k,
-                top_p=top_p,
-                middle_p=middle_p,
-                chop_lowest=chop_lowest,
-                chop_highest=chop_highest,
-                mirostat=MIRO,
+                **self.sampling_config.params,
                 **sampling_args,
             )
             self.presents_op = model.model(hparams=self.hparams, X=self.context)[
@@ -213,7 +231,7 @@ class GeneratorModel:
         tokens_generated = 0
         this_batch_continue_steps = 0
 
-        first_step_with_miro = 1 if MIRO_ONLY_ON_CONTINUE else 0
+        first_step_with_miro = 1 if self.sampling_config.mirostat_v2 else 0
 
         done = False
         recompute_presents = False
@@ -228,7 +246,7 @@ class GeneratorModel:
 
         miromu = None
         mirosurprises, miroks, miromus, mirotoks = None, None, None, None
-        mu_init_scale = 1.0 if MIRO_V2 else 2.0
+        mu_init_scale = 1.0 if self.sampling_config.mirostat_v2 else 2.0
 
         while not done:
             recompute_presents = (token_start_ix >= max_context_size) or (
@@ -254,7 +272,7 @@ class GeneratorModel:
                             feed_dict={
                                 self.context: batch_context_tokens,
                                 self.mirostat_target: mirotarg,
-                                self.mirostat_lr: MIRO_LR,
+                                self.mirostat_lr: self.sampling_config.mirostat_lr,
                                 self.mirostat_mu_from_past: miromu,
                                 self.sample_pasts: presents,
                             },
@@ -265,7 +283,7 @@ class GeneratorModel:
                             feed_dict={
                                 self.context: batch_context_tokens,
                                 self.mirostat_target: mirotarg,
-                                self.mirostat_lr: MIRO_LR,
+                                self.mirostat_lr: self.sampling_config.mirostat_lr,
                                 self.sample_pasts: presents,
                             },
                         )
@@ -283,7 +301,7 @@ class GeneratorModel:
                                 self.context: batch_context_tokens,
                                 self.sample_pasts: presents,
                                 self.mirostat_target: mirotarg,
-                                self.mirostat_lr: MIRO_LR,
+                                self.mirostat_lr: self.sampling_config.mirostat_lr,
                                 self.mirostat_mu_from_past: miromu,
                             },
                         )
@@ -294,7 +312,7 @@ class GeneratorModel:
                                 self.context: batch_context_tokens,
                                 self.sample_pasts: presents,
                                 self.mirostat_target: mirotarg,
-                                self.mirostat_lr: MIRO_LR,
+                                self.mirostat_lr: self.sampling_config.mirostat_lr,
                             },
                         )
             sample_output_dict["tokens"] = sample_output_dict["tokens"][
@@ -379,12 +397,12 @@ class GeneratorModel:
             ]
             n_not_finished = len(not_finished)
             more_needed = n_not_finished > 0
-            more_permitted = (this_batch_continue_steps < MAX_CONTINUE_STEPS) and (
-                tokens_generated < MAX_CONTINUE_TOKENS
+            more_permitted = (this_batch_continue_steps < self.sampling_config.max_continue_steps) and (
+                tokens_generated < self.sampling_config.max_continue_tokens
             )
 
-            show_miro_logs = MIRO and (
-                (not MIRO_ONLY_ON_CONTINUE)
+            show_miro_logs = self.sampling_config.params.mirostat and (
+                (not self.sampling_config.params.miro_only_on_continue)
                 or this_batch_continue_steps >= first_step_with_miro
             )
 
@@ -427,10 +445,10 @@ class GeneratorModel:
                 print("continuing within batch:")
                 print(f"\t{n_not_finished}/{len(next_prompts)} unfinished")
                 print(
-                    f"\t{this_batch_continue_steps}/{MAX_CONTINUE_STEPS} continue steps used"
+                    f"\t{this_batch_continue_steps}/{self.sampling_config.max_continue_steps} continue steps used"
                 )
                 print(
-                    f"\t{tokens_generated}/{MAX_CONTINUE_TOKENS} continue tokens generated"
+                    f"\t{tokens_generated}/{self.sampling_config.max_continue_tokens} continue tokens generated"
                 )
                 print(
                     f"\tcontext tokens sizes: {[len(ct) for ct in batch_context_tokens]}"
@@ -506,12 +524,17 @@ class GeneratorModel:
             self.session.close()
         self.startup_presents_for_prompt = {}
 
+    def set_sampling_config(sampling_config: SamplingConfig):
+        self.sampling_config = sampling_config
+        self._setup(reset=False)
+
     @staticmethod
     def load(
         path,
         enc,
         batch_size,
         sample_done_criterion,
+        sampling_config: SamplingConfig=DEFAULT_SAMPLING_CONFIG,
         hparams=model.hparams_1558M(),
         retries=False,
     ) -> "GeneratorModel":
@@ -519,11 +542,12 @@ class GeneratorModel:
         model = GeneratorModel(
             enc=enc,
             batch_size=batch_size,
+            sampling_config=sampling_config,
             sample_done_criterion=sample_done_criterion,
             hparams=hparams,
         )
         try:
-            model._setup()
+            model._setup(reset=True)
 
             model.restore_checkpoint(path, retries=retries)
         except (Exception, KeyboardInterrupt) as e:

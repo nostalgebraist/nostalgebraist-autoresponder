@@ -170,14 +170,14 @@ class GeneratorModel:
             )
 
             self.first_sample_op = sample.sample_sequence(
-                length=pre_continue_length,
+                length=self.sampling_config.pre_continue_length,
                 better_length=False,
                 **typed_namedtuple_to_dict(self.sampling_config.pre_continue_params),
                 **sampling_args,
             )
             # TODO: DRY
             self.sample_op_fill_window = sample.sample_sequence(
-                length=max_ctx_fits_on_gpu,
+                length=self.sampling_config.max_ctx_fits_on_gpu,
                 better_length=True,
                 **typed_namedtuple_to_dict(self.sampling_config.params),
                 **sampling_args,
@@ -214,11 +214,7 @@ class GeneratorModel:
 
         startup_presents = self.startup_presents_for_prompt.get(prompt, None)
 
-        max_context_size = max_ctx_fits_on_gpu - length
-        # if better_length:
-        #     max_context_size = length - required_continuation_room
-        # else:
-        #     max_context_size = max_ctx_fits_on_gpu - length
+        max_context_size = self.sampling_config.max_ctx_fits_on_gpu - self.sampling_config.post_window_length
         if len(context_tokens) > max_context_size:
             orig_len = len(context_tokens)
             context_tokens = context_tokens[-(max_context_size):]

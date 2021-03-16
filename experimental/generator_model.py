@@ -87,6 +87,7 @@ class GeneratorModel:
                 disable_prints=True,
                 breakruns=BREAKRUNS,
                 breakruns_tau=BREAKRUNS_TAU,
+                breakruns_decay=BREAKRUNS_DECAY,
             )
 
             # TODO: DRY

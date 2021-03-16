@@ -14,6 +14,12 @@ def typed_namedtuple_to_dict(tup: NamedTuple) -> dict:
   return {name: getattr(tup, name) for name in tup._fields}
 
 
+def copy_and_update_config(cls, config, **kwargs):
+    old_d = typed_namedtuple_to_dict(config)
+    new_d = {k: kwargs.get(k) if k in kwargs else v for k, v in old_d.items()}
+    return cls(**new_d)
+
+
 def is_repeating_criterion(unique_token_frac):
     return unique_token_frac < 0.2
 
@@ -528,7 +534,7 @@ class GeneratorModel:
             self.session.close()
         self.startup_presents_for_prompt = {}
 
-    def set_sampling_config(sampling_config: SamplingConfig):
+    def set_sampling_config(self, sampling_config: SamplingConfig):
         self.sampling_config = sampling_config
         self._setup(reset=False)
 

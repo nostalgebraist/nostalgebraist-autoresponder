@@ -332,19 +332,19 @@ class GeneratorModel:
             if mirosurprises is None or (
                 this_batch_continue_steps == first_step_with_miro
             ):
-                mirosurprises = sample_output_dict["mirostat_surprises"]
-                miroks = sample_output_dict["mirostat_ks"]
-                miromus = sample_output_dict["mirostat_mus"]
+                mirosurprises = sample_output_dict["mirostat_surprises"][:, 1:]
+                miroks = sample_output_dict["mirostat_ks"][:, 1:]
+                miromus = sample_output_dict["mirostat_mus"][:, 1:]
                 mirotoks = sample_output_dict["tokens"]
             else:
                 mirosurprises = np.concatenate(
-                    [mirosurprises, sample_output_dict["mirostat_surprises"]], axis=1
+                    [mirosurprises, sample_output_dict["mirostat_surprises"][:, 1:]], axis=1
                 )
                 miroks = np.concatenate(
-                    [miroks, sample_output_dict["mirostat_ks"]], axis=1
+                    [miroks, sample_output_dict["mirostat_ks"][:, 1:]], axis=1
                 )
                 miromus = np.concatenate(
-                    [miromus, sample_output_dict["mirostat_mus"]], axis=1
+                    [miromus, sample_output_dict["mirostat_mus"][:, 1:]], axis=1
                 )
                 mirotoks = np.concatenate(
                     [mirotoks, sample_output_dict["tokens"]], axis=1

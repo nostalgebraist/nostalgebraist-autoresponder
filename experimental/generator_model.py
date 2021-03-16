@@ -162,21 +162,21 @@ class GeneratorModel:
             self.first_sample_op = sample.sample_sequence(
                 length=pre_continue_length,
                 better_length=False,
-                **self.sampling_config.pre_continue_params,
+                **self.sampling_config.pre_continue_params._as_dict(),
                 **sampling_args,
             )
             # TODO: DRY
             self.sample_op_fill_window = sample.sample_sequence(
                 length=max_ctx_fits_on_gpu,
                 better_length=True,
-                **self.sampling_config.params,
+                **self.sampling_config.params._as_dict(),
                 **sampling_args,
             )
             # TODO: DRY
             self.sample_op_beyond_window = sample.sample_sequence(
                 length=self.sampling_config.post_window_length,
                 better_length=False,
-                **self.sampling_config.params,
+                **self.sampling_config.params._as_dict(),
                 **sampling_args,
             )
             self.presents_op = model.model(hparams=self.hparams, X=self.context)[

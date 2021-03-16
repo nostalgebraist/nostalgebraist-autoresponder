@@ -1,3 +1,4 @@
+from typing import NamedTuple
 from textwrap import wrap
 
 import tensorflow as tf
@@ -11,6 +12,37 @@ from autoresponder_config import *  # TODO: turn these into class constructor ar
 
 def is_repeating_criterion(unique_token_frac):
     return unique_token_frac < 0.2
+
+
+# TODO: use these
+SamplingParams = NamedTuple(
+    'SamplingParams',
+    T=float,
+    top_k=int,
+    top_p=float,
+    middle_p=float,
+    chop_lowest=float,
+    chop_highest=float,
+    mirostat=bool,
+    mirostat_v2=bool,
+    mirostat_trunc=int,
+    mirostat_lr=float,
+    breakruns=bool,
+    breakruns_tau=float,
+    breakruns_decay=float
+)
+
+
+SamplingConfig = NamedTuple(
+    'SamplingConfig',
+    pre_continue_length=int,
+    pre_continue_params=SamplingParams,
+    params=SamplingParams,
+    max_ctx_fits_on_gpu=int,
+    max_continue_steps=int,
+    max_continue_tokens=int,
+    miro_only_on_continue=bool,
+)
 
 
 class GeneratorModel:

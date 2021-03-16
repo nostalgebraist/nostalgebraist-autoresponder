@@ -155,10 +155,10 @@ BREAKRUNS=True
 
 temperature = 0.7
 top_k = 0
-top_p = 0.9
+top_p = 0.97
 middle_p = 0
 
-BREAKRUNS_TAU=(1-temperature)/15
+BREAKRUNS_TAU=(1-temperature)/10
 
 MIRO_V2 = False
 MIRO_TRUNC = 2000  # unused in MIRO_V2

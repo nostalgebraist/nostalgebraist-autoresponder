@@ -48,7 +48,7 @@ SamplingConfig = NamedTuple(
 
 DEFAULT_SAMPLING_CONFIG = SamplingConfig(
     pre_continue_params=SamplingParams(
-        temperature=pre_continue_T,
+        temperature=pre_continue_temperature,
         top_k=pre_continue_top_k,
         top_p=pre_continue_top_p,
         middle_p=pre_continue_middle_p,

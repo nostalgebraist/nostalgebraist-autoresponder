@@ -153,7 +153,7 @@ else:
 
 BREAKRUNS=True
 
-temperature = 0.8
+temperature = 0.85
 top_k = 0
 top_p = 0.97
 middle_p = 0

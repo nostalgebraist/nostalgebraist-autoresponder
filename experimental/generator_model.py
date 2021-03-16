@@ -10,6 +10,10 @@ import sample
 from autoresponder_config import *  # TODO: move elsewhere?
 
 
+def typed_namedtuple_to_dict(tup: NamedTuple) -> dict:
+  return {name: getattr(tup, name) for name in tup._fields}
+
+
 def is_repeating_criterion(unique_token_frac):
     return unique_token_frac < 0.2
 
@@ -162,21 +166,21 @@ class GeneratorModel:
             self.first_sample_op = sample.sample_sequence(
                 length=pre_continue_length,
                 better_length=False,
-                **self.sampling_config.pre_continue_params._as_dict(),
+                **typed_namedtuple_to_dict(self.sampling_config.pre_continue_params),
                 **sampling_args,
             )
             # TODO: DRY
             self.sample_op_fill_window = sample.sample_sequence(
                 length=max_ctx_fits_on_gpu,
                 better_length=True,
-                **self.sampling_config.params._as_dict(),
+                **typed_namedtuple_to_dict(self.sampling_config.params),
                 **sampling_args,
             )
             # TODO: DRY
             self.sample_op_beyond_window = sample.sample_sequence(
                 length=self.sampling_config.post_window_length,
                 better_length=False,
-                **self.sampling_config.params._as_dict(),
+                **typed_namedtuple_to_dict(self.sampling_config.params),
                 **sampling_args,
             )
             self.presents_op = model.model(hparams=self.hparams, X=self.context)[

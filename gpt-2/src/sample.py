@@ -253,6 +253,7 @@ def sample_sequence(
     avoid_tag_only_posts=True,
     breakruns=False,
     breakruns_tau=0.05,
+    breakruns_decay=0.,
 ):
     if breakruns or mirostat_mu_init is None:
         mu_init_scale = 0. if breakruns else (1.0 if mirostat_v2 else 2.0)
@@ -446,7 +447,7 @@ def sample_sequence(
             if breakruns:
               bump = tf.reduce_all(probs_orig <= probs_of_selected[:, tf.newaxis], axis=-1)
               bump_fl = tf.cast(bump, tf.float32)
-              next_mirostat_mu = bump_fl*(mirostat_mu+1)
+              next_mirostat_mu = bump_fl*(mirostat_mu+1) + (1-bump_fl)*mirostat_mu*breakruns_decay
             else:
               next_mirostat_mu = mirostat_mu - mirostat_lr * error_surprise
               next_mirostat_mu = tf.maximum(next_mirostat_mu, mirostat_mu_lower_clip)

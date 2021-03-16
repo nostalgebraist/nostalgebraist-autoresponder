@@ -237,6 +237,7 @@ def poll(
                 "MIRO_ONLY_ON_CONTINUE": MIRO_ONLY_ON_CONTINUE,
                 "BREAKRUNS": BREAKRUNS,
                 "BREAKRUNS_TAU": BREAKRUNS_TAU,
+                "BREAKRUNS_DECAY": BREAKRUNS_DECAY,
                 "length": length,
                 "T": temperature,
                 "p": top_p,

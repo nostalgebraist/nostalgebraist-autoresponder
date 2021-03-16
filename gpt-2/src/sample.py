@@ -447,7 +447,7 @@ def sample_sequence(
             if breakruns:
               bump = tf.reduce_all(probs_orig <= probs_of_selected[:, tf.newaxis], axis=-1)
               bump_fl = tf.cast(bump, tf.float32)
-              next_mirostat_mu = bump_fl*(mirostat_mu+1) + (1-bump_fl)*breakruns_decay*mirostat_mu
+              next_mirostat_mu = bump_fl*(mirostat_mu+1) + (1-bump_fl)*mirostat_mu/breakruns_decay
             else:
               next_mirostat_mu = mirostat_mu - mirostat_lr * error_surprise
               next_mirostat_mu = tf.maximum(next_mirostat_mu, mirostat_mu_lower_clip)

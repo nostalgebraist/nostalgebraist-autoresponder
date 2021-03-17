@@ -169,20 +169,19 @@ class GeneratorModel:
                 disable_prints=self.sampling_config.disable_prints,
             )
 
-            self.first_sample_op = sample.sample_sequence(
-                length=self.sampling_config.first_step_length,
-                better_length=False,
-                **typed_namedtuple_to_dict(self.sampling_config.first_step_params),
-                **sampling_args,
-            )
-            # TODO: DRY
+            if self.sampling_config.use_first_step:
+                self.first_sample_op = sample.sample_sequence(
+                    length=self.sampling_config.first_step_length,
+                    better_length=False,
+                    **typed_namedtuple_to_dict(self.sampling_config.first_step_params),
+                    **sampling_args,
+                )
             self.sample_op_fill_window = sample.sample_sequence(
                 length=self.sampling_config.max_ctx_fits_on_gpu,
                 better_length=True,
                 **typed_namedtuple_to_dict(self.sampling_config.params),
                 **sampling_args,
             )
-            # TODO: DRY
             self.sample_op_beyond_window = sample.sample_sequence(
                 length=self.sampling_config.post_window_length,
                 better_length=False,

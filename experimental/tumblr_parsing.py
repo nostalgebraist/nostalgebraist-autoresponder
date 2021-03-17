@@ -400,6 +400,7 @@ class NPFContent(TumblrContentBase):
     def _reset_annotations(self):
         for bl in self.blocks:
             bl.reset_annotations()
+        self.blocks = self._make_blocks()
 
     def _assign_indents(self):
         #  i think the below comment is out of date and this works now?  TODO: verify
@@ -485,19 +486,24 @@ class NPFContent(TumblrContentBase):
             last_ask_block = self.ask_blocks[-1]
 
             # TODO: make the formatting real
-            first_ask_block.prefix = f"<p><b>{first_ask_block.asking_name} asked:</b></p>" + first_ask_block.prefix
-            last_ask_block.suffix += "<p><b>Ask ends</b></p>"
+            first_ask_block.prefix = f"<p><h2>{first_ask_block.asking_name} asked:</h2></p>" + first_ask_block.prefix
+            # last_ask_block.suffix += "<p><b>Ask ends</b></p>"
 
         # blogname / answering name prefix
         # TODO: make the formatting real
         first_nonask_block = self.blocks[len(self.ask_blocks)]
-        first_nonask_block.prefix = f"<p><b>{self.blog_name}:</b></p>" + first_nonask_block.prefix
+        first_nonask_block.prefix = f"<p><a class=\"tumblr_blog\">{self.blog_name}:</a></p>" + first_nonask_block.prefix
 
-    def to_html(self):
+    def to_html(self, split_ask=False):
         self._reset_annotations()
         self._assign_indents()
         self._assign_nonlocal_tags()
         self._assign_ask_tags()
+
+        if split_ask:
+            first = "".join([block.to_html() for block in self.ask_blocks])
+            second = "".join([block.to_html() for block in self.blocks[len(self.ask_blocks):]])
+            return first, second
 
         return "".join([block.to_html() for block in self.blocks])
 
@@ -551,7 +557,14 @@ class TumblrThread:
     def to_html(self) -> str:
         result = ""
 
-        for post in self.posts[:-1]:
+        if len(self.posts[0].ask_blocks) > 0:
+            ask_part, post_part = self.posts[0].to_html(split_ask=True)
+            result += ask_part
+            result = f"<blockquote>{result}{post_part}</blockquote>"
+        else:
+            result = f"<blockquote>{result}{self.posts[0].to_html()}</blockquote>"
+
+        for post in self.posts[1:-1]:
             result = f"<blockquote>{result}{post.to_html()}</blockquote>"
 
         result += self.posts[-1].to_html()

@@ -237,7 +237,7 @@ class GeneratorModel:
         tokens_generated = 0
         this_batch_continue_steps = 0
 
-        first_step_with_miro = 1 if self.sampling_config.mirostat_v2 else 0
+        first_step_with_miro = 1 if self.sampling_config.miro_only_on_continue else 0
 
         done = False
         recompute_presents = False

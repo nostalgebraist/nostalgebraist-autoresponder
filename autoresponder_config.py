@@ -159,7 +159,7 @@ top_p = 0.97
 middle_p = 0
 
 BREAKRUNS_TAU=0.03
-BREAKRUNS_DECAY=0.5
+BREAKRUNS_DECAY=0.2
 
 MIRO_V2 = False
 MIRO_TRUNC = 2000  # unused in MIRO_V2

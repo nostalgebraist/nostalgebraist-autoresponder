@@ -206,7 +206,7 @@ class GeneratorModel:
         prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))
         return self.write(prompt=prompt, mirotarg=mirotarg, verbose=verbose)
 
-    def write(self, prompt: str, mirotarg: float = None, verbose=False):
+    def write(self, prompt: str, mirotarg: float = None, stop_repeats=True, verbose=False):
         if mirotarg is None:
             mirotarg = np.random.choice(MIRO_TARGET_ALL)
 
@@ -373,7 +373,7 @@ class GeneratorModel:
                 unique_token_frac = len(set(out[i])) / len(out[i])
                 unique_token_fracs.append(unique_token_frac)
 
-                is_repeating_this_time = is_repeating_criterion(unique_token_frac)
+                is_repeating_this_time = is_repeating_criterion(unique_token_frac) if stop_repeats else False
 
                 if (not is_repeating_this_time) and not is_repeating[i]:
                     is_repeating[i] = False

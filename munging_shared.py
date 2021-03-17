@@ -24,7 +24,7 @@ VERBOSE_LOGS = False
 MAY_2020_TRAIL_HACK = True
 JUNE_2020_TRAIL_HACK_UPDATE = True
 AUGUST_2020_TRAIL_HACK_ADDON = True
-FORCE_TRAIL_HACK_IDS = {621279018200760320, 624899848589688832}
+FORCE_TRAIL_HACK_IDS = {621279018200760320, 624899848589688832, 645400204942704640, 645854610131714048, 645861728145555456}
 JUNE_2020_LINKPOST_HACK = True
 
 Q_CHAR = "会"
@@ -148,6 +148,7 @@ def get_body(post: dict):
             for item in post.get("trail", [])
         ]
     ):
+        print('activated body_via_trail_hack')
         body = body_via_trail_hack(post)
 
     body = sanitize_user_input_outer_shell(body)

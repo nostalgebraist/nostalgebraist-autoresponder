@@ -893,6 +893,7 @@ def respond_to_reblogs_replies(
                 "mood": determine_mood(response_cache),
                 "return_all_conts": 1,  # int(halloweenize),
                 "selector_cut_to_final_exchange": 1,  # int(is_reply),
+                "avoid_initial_blockquote": int(is_reply),
             },
             loop_persistent_data=loop_persistent_data,
             BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,

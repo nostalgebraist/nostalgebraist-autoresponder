@@ -783,6 +783,7 @@ def old_bridge_call__answer(data):
     selector_cut_to_final_exchange = bool(
         int(data.get("selector_cut_to_final_exchange", False))
     )
+    avoid_initial_blockquote = bool(int(data.get("avoid_initial_blockquote", False)))
 
     if not exact_prompt:
         prompt = (
@@ -805,6 +806,7 @@ def old_bridge_call__answer(data):
         "selector_cut_to_final_exchange": selector_cut_to_final_exchange,
         "forced_tags_string": forced_tags_string,
         "write_fic_override": write_fic_override,
+        "avoid_initial_blockquote": avoid_initial_blockquote
     }
 
     if kwargs["write_fic_override"] or write_review_override:
@@ -837,7 +839,6 @@ def old_bridge_call__answer(data):
     kwargs["avoid_half_if_under"] = 10
     kwargs["avoid_if_cut_off"] = False
     kwargs["split_on_control_char"] = True
-    kwargs["avoid_initial_blockquote"] = False
     kwargs["avoid_if_profane"] = False
     kwargs["avoid_if_says_frank"] = False
     kwargs["random_year_for_generator"] = True

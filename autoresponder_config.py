@@ -158,7 +158,7 @@ top_k = 0
 top_p = 0.97
 middle_p = 0
 
-BREAKRUNS_TAU=(1-temperature)/10
+BREAKRUNS_TAU=0.03
 BREAKRUNS_DECAY=0.
 
 MIRO_V2 = False

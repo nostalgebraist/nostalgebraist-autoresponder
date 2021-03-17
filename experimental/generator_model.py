@@ -408,7 +408,7 @@ class GeneratorModel:
             )
 
             show_miro_logs = self.sampling_config.params.mirostat and (
-                (not self.sampling_config.params.miro_only_on_continue)
+                (not self.sampling_config.miro_only_on_continue)
                 or this_batch_continue_steps >= first_step_with_miro
             )
 

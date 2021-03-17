@@ -235,7 +235,7 @@ def poll(
                 "MIRO_V2": MIRO_V2,
                 "MIRO_TRUNC": MIRO_TRUNC,  # unused in miro v2
                 "MIRO_LR": MIRO_LR,
-                "MIRO_ONLY_ON_CONTINUE": MIRO_ONLY_ON_CONTINUE,
+                "USE_FIRST_STEP": USE_FIRST_STEP,
                 "BREAKRUNS": BREAKRUNS,
                 "BREAKRUNS_TAU": BREAKRUNS_TAU,
                 "BREAKRUNS_DECAY": BREAKRUNS_DECAY,
@@ -244,11 +244,11 @@ def poll(
                 "p": top_p,
                 "chop_lowest": chop_lowest,
                 "chop_highest": chop_highest,
-                "pre_continue_length": pre_continue_length,
-                "pre_continue_T": pre_continue_temperature,
-                "pre_continue_p": pre_continue_top_p,
-                "pre_continue_chop_lowest": pre_continue_chop_lowest,
-                "pre_continue_chop_highest": pre_continue_chop_highest,
+                "first_step_length": first_step_length,
+                "first_step_T": first_step_temperature,
+                "first_step_p": first_step_top_p,
+                "first_step_chop_lowest": first_step_chop_lowest,
+                "first_step_chop_highest": first_step_chop_highest,
             }
 
             model_info = {

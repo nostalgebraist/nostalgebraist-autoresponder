@@ -152,20 +152,23 @@ else:
 ### Sampling
 
 BREAKRUNS=True
+BREAKRUNS_TAU=0.03
+BREAKRUNS_DECAY=0.
 
 temperature = 0.85
 top_k = 0
 top_p = 0.97
 middle_p = 0
 
-BREAKRUNS_TAU=0.015
-BREAKRUNS_DECAY=0.2
+FIRST_STEP_BREAKRUNS=True  # disable via tau=0
+FIRST_STEP_BREAKRUNS_TAU=0.
+FIRST_STEP_BREAKRUNS_DECAY=0.
 
 MIRO_V2 = False
 MIRO_TRUNC = 2000  # unused in MIRO_V2
 
 MIRO = False
-MIRO_ONLY_ON_CONTINUE = False
+USE_FIRST_STEP = True
 
 # unused
 EXPERIMENTAL_TOP_P = True
@@ -233,7 +236,7 @@ else:
     ]
 
 
-if MIRO_ONLY_ON_CONTINUE and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
+if USE_FIRST_STEP and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
     import numpy as np
 
     sampling_param_bundles = [
@@ -253,46 +256,46 @@ if MIRO_ONLY_ON_CONTINUE and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
     bundle_ix = int(np.random.choice(list(range(len(sampling_param_bundles)))))
     chosen_bundle = sampling_param_bundles[bundle_ix]
 
-    pre_continue_mirostat = False
-    pre_continue_temperature = chosen_bundle["T"]
-    pre_continue_top_p = chosen_bundle["p"]
-    pre_continue_chop_lowest = chosen_bundle["chop_lowest"]
-    pre_continue_chop_highest = chosen_bundle["chop_highest"]
+    first_step_mirostat = False
+    first_step_temperature = chosen_bundle["T"]
+    first_step_top_p = chosen_bundle["p"]
+    first_step_chop_lowest = chosen_bundle["chop_lowest"]
+    first_step_chop_highest = chosen_bundle["chop_highest"]
 
-    pre_continue_length = int(np.random.choice([35, 55, 85, 105]))
+    first_step_length = int(np.random.choice([35, 55, 85, 105]))
 
     # unused
-    pre_continue_top_k = 0
-    pre_continue_middle_p = 0
-elif MIRO_ONLY_ON_CONTINUE:
-    pre_continue_mirostat = False
-    pre_continue_length = 60  # 20  # 30  # 80  # 50
-    pre_continue_temperature = 1  # 0.9
-    pre_continue_top_k = 0
-    pre_continue_top_p = 0.9  # 0.925
-    pre_continue_middle_p = 0
-    pre_continue_chop_lowest = None
-    pre_continue_chop_highest = None
+    first_step_top_k = 0
+    first_step_middle_p = 0
+elif USE_FIRST_STEP:
+    first_step_mirostat = False
+    first_step_length = 50  # 20  # 30  # 80  # 50
+    first_step_temperature = 1  # 0.9
+    first_step_top_k = 0
+    first_step_top_p = 0.9  # 0.925
+    first_step_middle_p = 0
+    first_step_chop_lowest = None
+    first_step_chop_highest = None
 else:
-    pre_continue_mirostat = MIRO
-    pre_continue_length = length
-    pre_continue_temperature = temperature
-    pre_continue_top_k = top_k
-    pre_continue_top_p = top_p
-    pre_continue_middle_p = middle_p
-    pre_continue_chop_lowest = chop_lowest
-    pre_continue_chop_highest = chop_highest
+    first_step_mirostat = MIRO
+    first_step_length = length
+    first_step_temperature = temperature
+    first_step_top_k = top_k
+    first_step_top_p = top_p
+    first_step_middle_p = middle_p
+    first_step_chop_lowest = chop_lowest
+    first_step_chop_highest = chop_highest
 
 print((MIRO, length, temperature, top_p, middle_p, chop_lowest, chop_highest))
 print(
     (
-        pre_continue_mirostat,
-        pre_continue_length,
-        pre_continue_temperature,
-        pre_continue_top_p,
-        pre_continue_middle_p,
-        pre_continue_chop_lowest,
-        pre_continue_chop_highest,
+        first_step_mirostat,
+        first_step_length,
+        first_step_temperature,
+        first_step_top_p,
+        first_step_middle_p,
+        first_step_chop_lowest,
+        first_step_chop_highest,
     )
 )
 

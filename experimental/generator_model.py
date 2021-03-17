@@ -41,9 +41,10 @@ SamplingParams = NamedTuple(
 
 SamplingConfig = NamedTuple(
     'SamplingConfig',
-    pre_continue_length=int,
+    use_first_step=bool,
+    first_step_length=int,
     post_window_length=int,
-    pre_continue_params=SamplingParams,
+    first_step_params=SamplingParams,
     params=SamplingParams,
     disable_prints=bool,
     max_ctx_fits_on_gpu=int,
@@ -52,22 +53,21 @@ SamplingConfig = NamedTuple(
     mirostat_lr=float,
     mirostat_v2=bool,
     mirostat_trunc=int,
-    miro_only_on_continue=bool,
 )
 
 
 DEFAULT_SAMPLING_CONFIG = SamplingConfig(
-    pre_continue_params=SamplingParams(
-        temperature=pre_continue_temperature,
-        top_k=pre_continue_top_k,
-        top_p=pre_continue_top_p,
-        middle_p=pre_continue_middle_p,
-        chop_lowest=pre_continue_chop_lowest,
-        chop_highest=pre_continue_chop_highest,
-        mirostat=pre_continue_mirostat,
+    first_step_params=SamplingParams(
+        temperature=first_step_temperature,
+        top_k=first_step_top_k,
+        top_p=first_step_top_p,
+        middle_p=first_step_middle_p,
+        chop_lowest=first_step_chop_lowest,
+        chop_highest=first_step_chop_highest,
+        mirostat=first_step_mirostat,
         breakruns=BREAKRUNS,
-        breakruns_tau=BREAKRUNS_TAU,
-        breakruns_decay=BREAKRUNS_DECAY
+        breakruns_tau=FIRST_STEP_BREAKRUNS_TAU,
+        breakruns_decay=FIRST_STEP_BREAKRUNS_DECAY,
     ),
     params=SamplingParams(
         temperature=temperature,
@@ -82,7 +82,7 @@ DEFAULT_SAMPLING_CONFIG = SamplingConfig(
         breakruns_decay=BREAKRUNS_DECAY
     ),
     disable_prints=True,
-    pre_continue_length=pre_continue_length,
+    first_step_length=first_step_length,
     post_window_length=length,
     max_ctx_fits_on_gpu=max_ctx_fits_on_gpu,
     max_continue_steps=MAX_CONTINUE_STEPS,
@@ -90,7 +90,7 @@ DEFAULT_SAMPLING_CONFIG = SamplingConfig(
     mirostat_lr=MIRO_LR,
     mirostat_v2=MIRO_V2,
     mirostat_trunc=MIRO_TRUNC,
-    miro_only_on_continue=MIRO_ONLY_ON_CONTINUE,
+    use_first_step=USE_FIRST_STEP,
 )
 
 
@@ -170,9 +170,9 @@ class GeneratorModel:
             )
 
             self.first_sample_op = sample.sample_sequence(
-                length=self.sampling_config.pre_continue_length,
+                length=self.sampling_config.first_step_length,
                 better_length=False,
-                **typed_namedtuple_to_dict(self.sampling_config.pre_continue_params),
+                **typed_namedtuple_to_dict(self.sampling_config.first_step_params),
                 **sampling_args,
             )
             # TODO: DRY
@@ -192,6 +192,11 @@ class GeneratorModel:
             self.presents_op = model.model(hparams=self.hparams, X=self.context)[
                 "present"
             ]
+
+    def is_first_step(self, step_index):
+        if self.sampling_config.use_first_step:
+            return step_index == 0
+        return False
 
     def done_writing(self, prompt: str):
         if prompt in self.startup_presents_for_prompt:
@@ -237,8 +242,6 @@ class GeneratorModel:
         tokens_generated = 0
         this_batch_continue_steps = 0
 
-        first_step_with_miro = 1 if self.sampling_config.miro_only_on_continue else 0
-
         done = False
         recompute_presents = False
         if startup_presents is None:
@@ -252,12 +255,22 @@ class GeneratorModel:
 
         miromu = None
         mirosurprises, miroks, miromus, mirotoks = None, None, None, None
-        mu_init_scale = 1.0 if self.sampling_config.mirostat_v2 else 2.0
+        if self.sampling_config.params.breakruns:
+            mu_init_scale = 0
+        elif self.sampling_config.mirostat_v2:
+            mu_init_scale = 1.0
+        else:
+            mu_init_scale = 2.0
 
         while not done:
-            recompute_presents = (token_start_ix >= max_context_size) or (
-                presents is None
-            )
+            beyond_window = token_start_ix >= max_context_size
+            recompute_presents = beyond_window or beyond_window
+
+            if miromu is None:
+                miromu = (
+                    mu_init_scale * mirotarg * np.ones((self.batch_size,))
+                )
+
             with self.session.as_default():
                 if recompute_presents:
                     print("recomputing presents")
@@ -267,60 +280,44 @@ class GeneratorModel:
                             self.context: [bct[:-1] for bct in batch_context_tokens]
                         },
                     )
-                    if this_batch_continue_steps >= first_step_with_miro:
-                        if miromu is None:
-                            miromu = (
-                                mu_init_scale * mirotarg * np.ones((self.batch_size,))
-                            )
-                        print(f"miromu on entry: {miromu}")
-                        sample_output_dict = self.session.run(
-                            self.sample_op_beyond_window,
-                            feed_dict={
-                                self.context: batch_context_tokens,
-                                self.mirostat_target: mirotarg,
-                                self.mirostat_lr: self.sampling_config.mirostat_lr,
-                                self.mirostat_mu_from_past: miromu,
-                                self.sample_pasts: presents,
-                            },
-                        )
-                    else:
-                        sample_output_dict = self.session.run(
-                            self.first_sample_op,  # output,
-                            feed_dict={
-                                self.context: batch_context_tokens,
-                                self.mirostat_target: mirotarg,
-                                self.mirostat_lr: self.sampling_config.mirostat_lr,
-                                self.sample_pasts: presents,
-                            },
-                        )
                 else:
                     print("using saved presents")
-                    if this_batch_continue_steps >= first_step_with_miro:
-                        if miromu is None:
-                            miromu = (
-                                mu_init_scale * mirotarg * np.ones((self.batch_size,))
-                            )
-                        print(f"miromu on entry: {miromu}")
-                        sample_output_dict = self.session.run(
-                            self.sample_op_fill_window,
-                            feed_dict={
-                                self.context: batch_context_tokens,
-                                self.sample_pasts: presents,
-                                self.mirostat_target: mirotarg,
-                                self.mirostat_lr: self.sampling_config.mirostat_lr,
-                                self.mirostat_mu_from_past: miromu,
-                            },
-                        )
-                    else:
-                        sample_output_dict = self.session.run(
-                            self.first_sample_op,
-                            feed_dict={
-                                self.context: batch_context_tokens,
-                                self.sample_pasts: presents,
-                                self.mirostat_target: mirotarg,
-                                self.mirostat_lr: self.sampling_config.mirostat_lr,
-                            },
-                        )
+
+                print(f"miromu on entry: {miromu}")
+
+                if beyond_window:
+                    sample_output_dict = self.session.run(
+                        self.sample_op_beyond_window,
+                        feed_dict={
+                            self.context: batch_context_tokens,
+                            self.mirostat_target: mirotarg,
+                            self.mirostat_lr: self.sampling_config.mirostat_lr,
+                            self.mirostat_mu_from_past: miromu,
+                            self.sample_pasts: presents,
+                        },
+                    )
+                elif is_first_step(this_batch_continue_steps):
+                    sample_output_dict = self.session.run(
+                        self.first_sample_op,
+                        feed_dict={
+                            self.context: batch_context_tokens,
+                            self.mirostat_target: mirotarg,
+                            self.mirostat_lr: self.sampling_config.mirostat_lr,
+                            self.sample_pasts: presents,
+                        },
+                    )
+                else:
+                    sample_output_dict = self.session.run(
+                        self.sample_op_fill_window,
+                        feed_dict={
+                            self.context: batch_context_tokens,
+                            self.sample_pasts: presents,
+                            self.mirostat_target: mirotarg,
+                            self.mirostat_lr: self.sampling_config.mirostat_lr,
+                            self.mirostat_mu_from_past: miromu,
+                        },
+                    )
+
             sample_output_dict["tokens"] = sample_output_dict["tokens"][
                 :, token_start_ix:
             ]
@@ -329,9 +326,7 @@ class GeneratorModel:
             ]
             out, presents = sample_output_dict["tokens"], sample_output_dict["presents"]
 
-            if mirosurprises is None or (
-                this_batch_continue_steps == first_step_with_miro
-            ):
+            if mirosurprises is None:
                 mirosurprises = sample_output_dict["mirostat_surprises"][:, 1:]
                 miroks = sample_output_dict["mirostat_ks"][:, 1:]
                 miromus = sample_output_dict["mirostat_mus"][:, 1:]
@@ -351,7 +346,7 @@ class GeneratorModel:
                 )
 
             print(f"miromu before setting: {miromu}")
-            if this_batch_continue_steps >= first_step_with_miro:
+            if not is_first_step(this_batch_continue_steps):
                 miromu = sample_output_dict["mirostat_mus"][:, -1]
                 print(f"miromu after setting: {miromu}")
 
@@ -408,8 +403,7 @@ class GeneratorModel:
             )
 
             show_miro_logs = self.sampling_config.params.mirostat and (
-                (not self.sampling_config.miro_only_on_continue)
-                or this_batch_continue_steps >= first_step_with_miro
+                not is_first_step(this_batch_continue_steps)
             )
 
             if show_miro_logs:
@@ -421,28 +415,6 @@ class GeneratorModel:
                         f"{finished_mark} {i}: targeting surprise {mirotarg:.3f}, avg surprise {miro_avg_surprises[i]:.3f}, median k {miro_median_ks[i]:.1f}, mean k {miro_mean_ks[i]:.1f}"
                     )
 
-                    if this_batch_continue_steps == first_step_with_miro:
-                        print(
-                            [
-                                (
-                                    j,
-                                    self.enc.decode([tok]),
-                                    mk,
-                                    f"{ms:.3f}",
-                                    f"{mmu:.3f}",
-                                )
-                                for j, (tok, mk, ms, mmu) in enumerate(
-                                    zip(
-                                        out[i],
-                                        miroks[i, 1:],
-                                        mirosurprises[i].tolist()[1:],
-                                        sample_output_dict["mirostat_mus"][i].tolist()[
-                                            1:
-                                        ],
-                                    )
-                                )
-                            ]
-                        )
                     if i == self.batch_size - 1:
                         print()
 

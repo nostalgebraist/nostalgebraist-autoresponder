@@ -269,7 +269,7 @@ if USE_FIRST_STEP and RANDOM_SAMPLING_PARAMS_ON_STARTUP:
     first_step_middle_p = 0
 elif USE_FIRST_STEP:
     first_step_mirostat = False
-    first_step_length = 50  # 20  # 30  # 80  # 50
+    first_step_length = 25  # 20  # 30  # 80  # 50
     first_step_temperature = 1  # 0.9
     first_step_top_k = 0
     first_step_top_p = 0.9  # 0.925

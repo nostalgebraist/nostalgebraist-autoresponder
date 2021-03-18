@@ -295,7 +295,7 @@ class GeneratorModel:
                             self.sample_pasts: presents,
                         },
                     )
-                elif is_first_step(this_batch_continue_steps):
+                elif self.is_first_step(this_batch_continue_steps):
                     sample_output_dict = self.session.run(
                         self.first_sample_op,
                         feed_dict={
@@ -345,7 +345,7 @@ class GeneratorModel:
                 )
 
             print(f"miromu before setting: {miromu}")
-            if not is_first_step(this_batch_continue_steps):
+            if not self.is_first_step(this_batch_continue_steps):
                 miromu = sample_output_dict["mirostat_mus"][:, -1]
                 print(f"miromu after setting: {miromu}")
 
@@ -402,7 +402,7 @@ class GeneratorModel:
             )
 
             show_miro_logs = self.sampling_config.params.mirostat and (
-                not is_first_step(this_batch_continue_steps)
+                not self.is_first_step(this_batch_continue_steps)
             )
 
             if show_miro_logs:

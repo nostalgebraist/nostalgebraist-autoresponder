@@ -40,7 +40,7 @@ class Session(tf.Session):
       sess.run(tpu.initialize_system())
     return sess
 
-def split_by_params(vs, n=200e6, f=None):
+def split_by_params(vs, n=50e6, f=None):
   if f is None:
     f = lambda x: np.prod(x.shape.as_list())
   i = 0
@@ -287,7 +287,7 @@ class Commands(object):
           action()
     if not ran:
       raise Exception('Commands.execute failed: no such command: {}'.format(op))
-  
+
   def run_with_args(self, op, *args, **keys):
     with CommandArgs(*args, **keys):
       return self.run(op)
@@ -465,4 +465,3 @@ def save_and_quit():
     print("Saving...")
     run_command('save')
   quit()
-

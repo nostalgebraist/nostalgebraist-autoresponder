@@ -7,6 +7,12 @@ from experimental.ml_layer import handle_request
 
 
 def lambda_handler(data, lambda_context):
+    print(f"got request: {repr(data)}")
+
+    if 'body' in data:
+        data_ = data['body']
+        data = data_
+
     if data.get("hi"):
         return {}
 

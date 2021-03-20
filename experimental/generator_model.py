@@ -1,3 +1,4 @@
+import gc
 from typing import NamedTuple
 from textwrap import wrap
 
@@ -267,6 +268,8 @@ class GeneratorModel:
             mu_init_scale = 2.0
 
         while not done:
+            gc.collect()
+
             beyond_window = token_start_ix >= max_context_size
             recompute_presents = beyond_window and self.sampling_config.precompute_and_feed_presents
 

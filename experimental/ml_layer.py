@@ -112,12 +112,13 @@ sentiment_est.length = length_sentiment
 lr_calib_sentiment = selector_est.lr_calib_
 
 autoreviewer_est = SelectorEstimatorFromCkpt.load(
-    path="/draft_autoreviewer"
+    path="/draft_autoreviewer",
     session=generator_model.session,
     base_hparams=hparams,
     enc=enc,
     batch_size=batch_size,
 )
+
 
 def handle_request(data):
     requested_model = None
@@ -148,9 +149,6 @@ def handle_request(data):
 
     if isinstance(result, np.ndarray):
         result = result.tolist()
-
-    if requested_method in {"done_writing"}:
-        continue
 
     response_data = {"result": result}
 

@@ -11,7 +11,7 @@ from autoresponder_config import *  # TODO: move elsewhere?
 
 
 def typed_namedtuple_to_dict(tup: NamedTuple) -> dict:
-  return {name: getattr(tup, name) for name in tup._fields}
+    return {name: getattr(tup, name) for name in tup._fields}
 
 
 def copy_and_update_config(cls, config, **kwargs):
@@ -164,7 +164,7 @@ class GeneratorModel:
                 start_token=None,
                 context=self.context,
                 batch_size=self.batch_size,
-                return_presents=True,
+                return_presents=self.sampling_config.precompute_and_feed_presents,
                 pasts=pasts,
                 mirostat_surprise_target=self.mirostat_target,
                 mirostat_lr=self.mirostat_lr,
@@ -192,9 +192,10 @@ class GeneratorModel:
                 **typed_namedtuple_to_dict(self.sampling_config.params),
                 **sampling_args,
             )
-            self.presents_op = model.model(hparams=self.hparams, X=self.context)[
-                "present"
-            ]
+            if self.sampling_config.precompute_and_feed_presents:
+                self.presents_op = model.model(hparams=self.hparams, X=self.context)[
+                    "present"
+                ]
 
     def is_first_step(self, step_index):
         if self.sampling_config.use_first_step:
@@ -255,7 +256,6 @@ class GeneratorModel:
             )
             self.startup_presents_for_prompt[prompt] = startup_presents
         presents = startup_presents
-
 
         miromu = None
         mirosurprises, miroks, miromus, mirotoks = None, None, None, None
@@ -321,10 +321,13 @@ class GeneratorModel:
             sample_output_dict["tokens"] = sample_output_dict["tokens"][
                 :, token_start_ix:
             ]
-            sample_output_dict["presents"] = sample_output_dict["presents"][
-                ..., -(max_context_size - 1) :, :
-            ]
-            out, presents = sample_output_dict["tokens"], sample_output_dict["presents"]
+            out = sample_output_dict["tokens"]
+
+            if self.sampling_config.precompute_and_feed_presents:
+                sample_output_dict["presents"] = sample_output_dict["presents"][
+                    ..., -(max_context_size - 1) :, :
+                ]
+                presents = sample_output_dict["presents"]
 
             if mirosurprises is None:
                 mirosurprises = sample_output_dict["mirostat_surprises"][:, 1:]

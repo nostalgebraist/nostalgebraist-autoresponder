@@ -119,7 +119,7 @@ if EVEN_BETTER_LENGTH:
     better_length = False
     length = required_continuation_room
     # MAX_CONTINUE_TOKENS=2210 if _gpu_type() == "big" else 1600
-    MAX_CONTINUE_TOKENS = 1600
+    MAX_CONTINUE_TOKENS = 1150
 
     # MAX_CONTINUE_STEPS = 100  # disable via huge
     MAX_CONTINUE_STEPS = (

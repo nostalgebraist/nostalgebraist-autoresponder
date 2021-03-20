@@ -305,4 +305,6 @@ if SELECT_VIA_GENERATOR_LONGLENGTH:
 if SENTIMENT_VIA_GENERATOR_LONGLENGTH:
     length_sentiment = max_ctx_fits_on_gpu
 
+PRECOMPUTE_AND_FEED_PRESENTS = False  # lambda doesn't have enough memory (?)
+
 os.chdir(startdir)

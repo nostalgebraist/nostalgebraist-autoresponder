@@ -102,32 +102,14 @@ SENTIMENT_VIA_GENERATOR_LONGLENGTH = True
 length_sentiment = 204
 
 
-def _gpu_type():
-    try:
-        gpu_info = subprocess.check_output("nvidia-smi").decode("utf-8")
-    except:
-        return "small"
-    if "P100" in gpu_info:
-        return "big"
-    else:
-        return "small"
-
-
 if BATCHONE:
     batch_size = 1
 
-    if _gpu_type() == "big":
-        max_ctx_fits_on_gpu = 1020
-    else:
-        max_ctx_fits_on_gpu = 1020
-
+    max_ctx_fits_on_gpu = 900
 else:
     batch_size = 2
 
-    if _gpu_type() == "big":
-        max_ctx_fits_on_gpu = 940  # 825
-    else:
-        max_ctx_fits_on_gpu = 840  # 1020  #800
+    max_ctx_fits_on_gpu = 900  # probably too large, need to verify
 
 
 # sets max context size, for long prompts we want to cut off to allow bot to write at least this many tokens
@@ -305,6 +287,7 @@ if SELECT_VIA_GENERATOR_LONGLENGTH:
 if SENTIMENT_VIA_GENERATOR_LONGLENGTH:
     length_sentiment = max_ctx_fits_on_gpu
 
-PRECOMPUTE_AND_FEED_PRESENTS = False  # lambda doesn't have enough memory (?)
+# may need to set this to False if lambda doesn't have enough memory (?)
+PRECOMPUTE_AND_FEED_PRESENTS = True
 
 os.chdir(startdir)

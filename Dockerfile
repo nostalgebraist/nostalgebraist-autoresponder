@@ -22,6 +22,9 @@ ADD draft_autoreviewer /draft_autoreviewer
 
 COPY gpt-2 gpt-2/
 COPY ./*.py ./
+COPY experimental experimental/
+COPY selector_model selector_model/
+COPY util util/
 COPY config_remote.json ./config.json
 
 # Make sure app.py is up to date

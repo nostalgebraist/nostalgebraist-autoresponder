@@ -14,9 +14,6 @@ RUN pip3 install --no-cache-dir  --force-reinstall -Iv grpcio
 # Install the python requirements from requirements.txt
 RUN python3.6 -m pip install -r requirements.txt
 
-# Copy the earlier created app.py file to the container
-COPY app.py ./
-
 # Model files
 ADD models /models
 ADD selector /selector
@@ -27,10 +24,7 @@ COPY gpt-2 gpt-2/
 COPY ./*.py ./
 COPY config_remote.json ./config.json
 
-RUN pip3 install pytumblr
-
 # Make sure app.py is up to date
-RUN rm ./app.py
 COPY app_latest.py ./app.py
 
 # Set the CMD to your handler

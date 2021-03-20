@@ -287,39 +287,35 @@ class GeneratorModel:
                 elif self.sampling_config.precompute_and_feed_presents:
                     print("using saved presents")
 
-                feed_optionals = {}
-                if self.sampling_config.precompute_and_feed_presents:
-                    feed_optionals[self.sample_pasts] = presents
                 print(f"miromu on entry: {miromu}")
 
+                feed_dict = {
+                    self.context: batch_context_tokens,
+                    self.mirostat_target: mirotarg,
+                    self.mirostat_lr: self.sampling_config.mirostat_lr,
+                }
+
+                if self.sampling_config.precompute_and_feed_presents:
+                    feed_dict[self.sample_pasts] = presents
+
                 if beyond_window:
+                    feed_dict[self.mirostat_mu_from_past] = miromu
+
                     sample_output_dict = self.session.run(
                         self.sample_op_beyond_window,
-                        feed_dict=feed_optionals.update({
-                            self.context: batch_context_tokens,
-                            self.mirostat_target: mirotarg,
-                            self.mirostat_lr: self.sampling_config.mirostat_lr,
-                            self.mirostat_mu_from_past: miromu,
-                        }),
+                        feed_dict=feed_dict
                     )
                 elif self.is_first_step(this_batch_continue_steps):
                     sample_output_dict = self.session.run(
                         self.first_sample_op,
-                        feed_dict=feed_optionals.update({
-                            self.context: batch_context_tokens,
-                            self.mirostat_target: mirotarg,
-                            self.mirostat_lr: self.sampling_config.mirostat_lr,
-                        }),
+                        feed_dict=feed_dict
                     )
                 else:
+                    feed_dict[self.mirostat_mu_from_past] = miromu
+
                     sample_output_dict = self.session.run(
                         self.sample_op_fill_window,
-                        feed_dict=feed_optionals.update({
-                            self.context: batch_context_tokens,
-                            self.mirostat_target: mirotarg,
-                            self.mirostat_lr: self.sampling_config.mirostat_lr,
-                            self.mirostat_mu_from_past: miromu,
-                        }),
+                        feed_dict=feed_dict
                     )
 
             sample_output_dict["tokens"] = sample_output_dict["tokens"][

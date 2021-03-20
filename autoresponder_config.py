@@ -105,7 +105,7 @@ length_sentiment = 204
 if BATCHONE:
     batch_size = 1
 
-    max_ctx_fits_on_gpu = 800
+    max_ctx_fits_on_gpu = 900
 else:
     batch_size = 2
 

@@ -82,7 +82,7 @@ DEFAULT_SAMPLING_CONFIG = SamplingConfig(
         breakruns_tau=BREAKRUNS_TAU,
         breakruns_decay=BREAKRUNS_DECAY
     ),
-    disable_prints=True,
+    disable_prints=False,
     first_step_length=first_step_length,
     post_window_length=length,
     max_ctx_fits_on_gpu=max_ctx_fits_on_gpu,

@@ -14,9 +14,6 @@ RUN pip3 install --no-cache-dir  --force-reinstall -Iv grpcio
 # Install the python requirements from requirements.txt
 RUN python3.6 -m pip install -r requirements.txt
 
-# RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && sudo ./aws/install
-# RUN printf "%s\n%s\nus-west-2\njson" "AKIAWIVTQQ5OMBAZVYVH" "Uetqaxu92m24sNApnURBLpRaERqp+I60pAtEtimW" | aws configure --profile my-profile
-
 # Copy the earlier created app.py file to the container
 COPY app.py ./
 

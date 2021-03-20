@@ -105,11 +105,11 @@ length_sentiment = 204
 if BATCHONE:
     batch_size = 1
 
-    max_ctx_fits_on_gpu = 900
+    max_ctx_fits_on_gpu = 800
 else:
     batch_size = 2
 
-    max_ctx_fits_on_gpu = 900  # probably too large, need to verify
+    max_ctx_fits_on_gpu = 800  # probably too large, need to verify
 
 
 # sets max context size, for long prompts we want to cut off to allow bot to write at least this many tokens

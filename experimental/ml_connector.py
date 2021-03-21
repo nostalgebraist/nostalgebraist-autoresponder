@@ -579,13 +579,14 @@ def predict_sentiment(data, debug=False):
     return logit_diffs
 
 
-def predict_autoreview(data, debug=False,):
+def predict_autoreview(data, debug=False, override_disable_forumlike=False):
     selector_input = []
     for text in data.selector_input:
         if text.endswith(eot_end_segment):
             text = text[: -len(eot_end_segment)]
 
-        text = final_munge_before_neural(text)
+        text = final_munge_before_neural(text,
+                                         override_disable_forumlike=override_disable_forumlike)
 
         if EOT_PREPEND:
             if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
@@ -1205,6 +1206,7 @@ def serve_textpost(data):
     autoreview_inputs = selector_inputs
     autoreview_results = predict_autoreview(
         autoreview_inputs,
+        override_disable_forumlike=True,
         debug=True,
     )
     parsed["autoreview_proba"] = [float(p) for p in autoreview_results]

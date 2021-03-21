@@ -9,7 +9,7 @@ ml_lambda_function_name = bot_specific_constants.ml_lambda_function_name
 lambda_client = boto3.client("lambda")
 
 
-def request_ml_from_lambda(data: dict, n_concurrent: int = 3):
+def request_ml_from_lambda(data: dict, n_concurrent: int = 10):
     resps = [
         lambda_client.invoke(
             FunctionName=ml_lambda_function_name,
@@ -21,6 +21,12 @@ def request_ml_from_lambda(data: dict, n_concurrent: int = 3):
     return resps
 
 
+def warm_lambda(n_concurrent: int = 10):
+    data = {'id': '', 'hi': True}
+    request_ml_from_lambda(data=data, n_concurrent=n_concurrent)
+
+
 def parse_sns_request(request):
-    data = json.loads(request.get_data(as_text=True))
+    data = json.loads(json.loads(request.get_data(as_text=True))['Message'])
+    print(data.keys())
     return data["responsePayload"]

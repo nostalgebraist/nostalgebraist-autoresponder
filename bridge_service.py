@@ -29,7 +29,7 @@ def sns():
     if id_ not in RESULT_STACK:
         RESULT_STACK[id_] = []
 
-    RESULT_STACK[id_].append(data[id_])
+    RESULT_STACK[id_].append(data)
 
     return jsonify({})
 

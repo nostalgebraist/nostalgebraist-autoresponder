@@ -57,6 +57,8 @@ from traceability import on_post_creation_callback
 
 from util.error_handling import LogExceptionAndSkip
 
+from experimental.lambda_helpers import warm_lambda
+
 EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
@@ -2476,6 +2478,7 @@ def do_rts(response_cache):
 
 
 def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseCache):
+    warm_lambda()
     response_cache = do_rts(response_cache)
 
     ### decide whether we'll do the reblog/reply check
@@ -2518,6 +2521,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         loop_persistent_data, response_cache
     )
 
+    warm_lambda()
     ### do reblog/reply check
     if n_posts_to_check > 0:
         # reblogs, replies
@@ -2561,6 +2565,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             #         pseudo_dashboard=True
             #     )
 
+        warm_lambda()
         ### do another asks check
         loop_persistent_data, response_cache = _mainloop_asks_block(
             loop_persistent_data, response_cache, save_after=False
@@ -2580,6 +2585,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         print(f"{len(drafts)} waiting for review")
 
         ### do queue check
+        warm_lambda()
         loop_persistent_data, response_cache = do_queue_handling(loop_persistent_data, response_cache)
     else:
         print("skipping asks, queue, drafts until we're no longer rate limited")
@@ -2589,6 +2595,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         print("current mood:")
         determine_mood(response_cache)
 
+    warm_lambda()
     print()
     return loop_persistent_data, response_cache
 

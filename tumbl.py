@@ -2591,7 +2591,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         print("current mood:")
         determine_mood(response_cache)
 
-    warm_lambda()
+    # warm_lambda()
     print()
     return loop_persistent_data, response_cache
 

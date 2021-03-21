@@ -71,7 +71,7 @@ def requestml():
     global REQUESTS
 
     data = request.json
-    n_concurrent = 10 if data.get('model') == 'generator' else 1
+    n_concurrent = 3 if data.get('model') == 'generator' else 1
     request_ml_from_lambda(data, n_concurrent=n_concurrent)
 
     REQUESTS[data['id']] = data

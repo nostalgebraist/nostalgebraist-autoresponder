@@ -21,7 +21,7 @@ def request_ml_from_lambda(data: dict, n_concurrent: int = 1):
     return resps
 
 
-def warm_lambda(n_concurrent: int = 5):
+def warm_lambda(n_concurrent: int = 1):
     data = {'id': '', 'hi': True}
     request_ml_from_lambda(data=data, n_concurrent=n_concurrent)
 

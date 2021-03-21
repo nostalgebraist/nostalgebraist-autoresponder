@@ -343,5 +343,6 @@ def final_munge_after_neural_v10_1(text):
 
     post = post.replace(EOT_FULL, "")
     tag_text = tag_text.replace(EOT_FULL, "") + EOT_FULL
+    tag_text = tag_text.replace(",", "")
 
     return post + T_CHAR + tag_text

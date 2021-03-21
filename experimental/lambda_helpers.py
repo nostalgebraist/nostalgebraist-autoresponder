@@ -28,5 +28,4 @@ def warm_lambda(n_concurrent: int = 10):
 
 def parse_sns_request(request):
     data = json.loads(json.loads(request.get_data(as_text=True))['Message'])
-    print(data.keys())
     return data["responsePayload"]

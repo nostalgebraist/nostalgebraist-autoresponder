@@ -12,8 +12,8 @@ bot_specific_constants = BotSpecificConstants.load()
 bridge_service_port = bot_specific_constants.bridge_service_port
 bridge_service_url = bot_specific_constants.bridge_service_url
 
-PROMPT_STACK = {}
-RESULT_STACK = {}
+REQUESTS = {}
+RESULTS = {}
 
 ### FLASK
 app = Flask(__name__)
@@ -21,7 +21,8 @@ app = Flask(__name__)
 
 @app.route("/sns", methods=["POST"])
 def sns():
-    global RESULT_STACK
+    global REQUESTS
+    global RESULTS
 
     data = parse_sns_request(request)
     if 'id' not in data:
@@ -30,79 +31,92 @@ def sns():
 
     id_ = data['id']
 
-    if id_ not in RESULT_STACK:
-        RESULT_STACK[id_] = []
+    if id_ not in RESULTS:
+        RESULTS[id_] = []
 
-    RESULT_STACK[id_].append(data)
+    RESULTS[id_].append(data)
+
+    if id_ not in REQUESTS:
+        print(f"unknown id {id_} have ids_ {sorted(REQUESTS.keys())}")
+        repeat_until_done_signal = False
+    else:
+        repeat_until_done_signal = REQUESTS[id_].get('repeat_until_done_signal', False)
+        print(f"repeat_until_done_signal: {repeat_until_done_signal} for {id_}")
+
+    if repeat_until_done_signal:
+        request_ml_from_lambda(REQUESTS[id_])
 
     return jsonify({})
 
 
 @app.route("/pollml", methods=["GET", "POST"])
 def pollml():
-    global PROMPT_STACK
-    global RESULT_STACK
+    global REQUESTS
+    global RESULTS
 
     if request.method == "POST":
         data = request.json
         for id_ in data.keys():
-            if id_ not in RESULT_STACK:
-                RESULT_STACK[id_] = []
-            RESULT_STACK[id_].append(data[id_])
+            if id_ not in RESULTS:
+                RESULTS[id_] = []
+            RESULTS[id_].append(data[id_])
 
         return jsonify({})
     elif request.method == "GET":
-        return jsonify(PROMPT_STACK)
+        return jsonify(REQUESTS)
 
 
 @app.route("/requestml", methods=["POST"])
 def requestml():
+    global REQUESTS
+
     data = request.json
-    resps = request_ml_from_lambda(data)
-    print(resps)
+    request_ml_from_lambda(data)
+
+    REQUESTS[data['id']] = data
 
     return jsonify({})
 
 
 @app.route("/done", methods=["POST"])
 def done():
-    global PROMPT_STACK
-    global RESULT_STACK
+    global REQUESTS
+    global RESULTS
 
     cleared_from = []
 
     data = request.json
-    if data["id"] in PROMPT_STACK:
-        del PROMPT_STACK[data["id"]]
-        cleared_from.append("PROMPT_STACK")
-    if data["id"] in RESULT_STACK:
-        del RESULT_STACK[data["id"]]
-        cleared_from.append("RESULT_STACK")
+    if data["id"] in REQUESTS:
+        del REQUESTS[data["id"]]
+        cleared_from.append("REQUESTS")
+    if data["id"] in RESULTS:
+        del RESULTS[data["id"]]
+        cleared_from.append("RESULTS")
 
     return jsonify({"cleared_from": cleared_from})
 
 
 @app.route("/alldone", methods=["POST"])
 def alldone():
-    global PROMPT_STACK
-    global RESULT_STACK
+    global REQUESTS
+    global RESULTS
 
-    PROMPT_STACK = {}
-    RESULT_STACK = {}
+    REQUESTS = {}
+    RESULTS = {}
 
     return jsonify({})
 
 
 @app.route("/getresult", methods=["POST"])
 def getresult():
-    global RESULT_STACK
+    global RESULTS
 
     desired_id = request.form["id"]
 
-    if desired_id in RESULT_STACK:
-        response = RESULT_STACK[desired_id]
+    if desired_id in RESULTS:
+        response = RESULTS[desired_id]
     else:
-        # print(f"desired_id: {desired_id} not available, have ids {list(RESULT_STACK.keys())}")
+        # print(f"desired_id: {desired_id} not available, have ids {list(RESULTS.keys())}")
         response = []
 
     return jsonify(response)

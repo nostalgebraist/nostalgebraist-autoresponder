@@ -6,6 +6,7 @@ import json
 from flask import Flask, request, jsonify
 
 from bot_config import BotSpecificConstants
+from experimental.lambda_helpers import request_ml_from_lambda, parse_sns_request
 
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_port = bot_specific_constants.bridge_service_port
@@ -20,7 +21,17 @@ app = Flask(__name__)
 
 @app.route("/sns", methods=["POST"])
 def sns():
-    print(json.loads(request.get_data(as_text=True)))
+    global RESULT_STACK
+
+    data = parse_sns_request(request)
+    id_ = data['id']
+
+    if id_ not in RESULT_STACK:
+        RESULT_STACK[id_] = []
+
+    RESULT_STACK[id_].append(data[id_])
+
+    return jsonify({})
 
 
 @app.route("/pollml", methods=["GET", "POST"])
@@ -33,11 +44,7 @@ def pollml():
         for id_ in data.keys():
             if id_ not in RESULT_STACK:
                 RESULT_STACK[id_] = []
-            # print(f"for {id_}, length before: {len(RESULT_STACK[id_])}")
             RESULT_STACK[id_].append(data[id_])
-
-        # for id_ in data.keys():
-        #     print(f"for {id_}, length after: {len(RESULT_STACK[id_])}")
 
         return jsonify({})
     elif request.method == "GET":
@@ -46,10 +53,9 @@ def pollml():
 
 @app.route("/requestml", methods=["POST"])
 def requestml():
-    global PROMPT_STACK
-
     data = request.json
-    PROMPT_STACK[data["id"]] = data
+    resp = request_ml_from_lambda(data)
+    print(resp)
 
     return jsonify({})
 

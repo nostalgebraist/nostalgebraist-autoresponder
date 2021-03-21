@@ -54,8 +54,8 @@ def pollml():
 @app.route("/requestml", methods=["POST"])
 def requestml():
     data = request.json
-    resp = request_ml_from_lambda(data)
-    print(resp)
+    resps = request_ml_from_lambda(data)
+    print(resps)
 
     return jsonify({})
 

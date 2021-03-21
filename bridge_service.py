@@ -44,7 +44,7 @@ def sns():
         print(f"repeat_until_done_signal: {repeat_until_done_signal} for {id_}")
 
     if repeat_until_done_signal:
-        request_ml_from_lambda(REQUESTS[id_])
+        request_ml_from_lambda(REQUESTS[id_], n_concurrent=1)
 
     return jsonify({})
 

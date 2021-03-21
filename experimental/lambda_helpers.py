@@ -9,7 +9,7 @@ ml_lambda_function_name = bot_specific_constants.ml_lambda_function_name
 lambda_client = boto3.client("lambda")
 
 
-def request_ml_from_lambda(data: dict, n_concurrent: int = 10):
+def request_ml_from_lambda(data: dict, n_concurrent: int = 1):
     resps = [
         lambda_client.invoke(
             FunctionName=ml_lambda_function_name,
@@ -21,7 +21,7 @@ def request_ml_from_lambda(data: dict, n_concurrent: int = 10):
     return resps
 
 
-def warm_lambda(n_concurrent: int = 10):
+def warm_lambda(n_concurrent: int = 5):
     data = {'id': '', 'hi': True}
     request_ml_from_lambda(data=data, n_concurrent=n_concurrent)
 

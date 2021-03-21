@@ -2,6 +2,7 @@
 Coordinating switchboard that handles communication between the generator, selector, and
 tumblr API compontents.
 """
+import json
 from flask import Flask, request, jsonify
 
 from bot_config import BotSpecificConstants
@@ -15,6 +16,11 @@ RESULT_STACK = {}
 
 ### FLASK
 app = Flask(__name__)
+
+
+@app.route("/sns", methods=["POST"])
+def sns():
+    print(json.loads(request.get_data(as_text=True)))
 
 
 @app.route("/pollml", methods=["GET", "POST"])

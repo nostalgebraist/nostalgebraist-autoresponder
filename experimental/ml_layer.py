@@ -122,6 +122,11 @@ autoreviewer_est = SelectorEstimatorFromCkpt.load(
 
 def handle_request(data):
     requested_model = None
+
+    if 'id' not in data:
+        raise ValueError('no request id')
+    request_id = data['id']
+
     if data["model"] == "generator":
         requested_model = generator_model
     elif data["model"] == "selector":
@@ -150,7 +155,7 @@ def handle_request(data):
     if isinstance(result, np.ndarray):
         result = result.tolist()
 
-    response_data = {"result": result}
+    response_data = {"result": result, 'id': request_id}
 
     sampling_info = {
         "MIRO": MIRO,

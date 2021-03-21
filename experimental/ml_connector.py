@@ -579,7 +579,7 @@ def predict_sentiment(data, debug=False):
     return logit_diffs
 
 
-def predict_autoreview(data, debug=True,):
+def predict_autoreview(data, debug=False,):
     selector_input = []
     for text in data.selector_input:
         if text.endswith(eot_end_segment):
@@ -594,6 +594,11 @@ def predict_autoreview(data, debug=True,):
                 text = EOT_FULL + text
 
         selector_input.append(text)
+    if debug:
+        print("autoreviewer model will see exactly the following:\n")
+        for s in selector_input:
+            print(repr(s))
+        print()
     data.loc[:, "selector_input"] = selector_input
 
     data = data.to_dict(orient="records")
@@ -1095,6 +1100,7 @@ def serve_answer(data):
     autoreview_inputs = [
         join_time_sidechannel(s, selector_v10_timestamp) for s in autoreview_inputs
     ]
+
     autoreview_inputs = pd.DataFrame(
         {
             "selector_input": autoreview_inputs,
@@ -1196,25 +1202,25 @@ def serve_textpost(data):
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
 
     # TODO: make this work properly
-    autoreview_inputs = [
-        cut_to_new_since_last_frank_post(prompt + final_munge_after_neural(c))
-        for c in continuations
-    ]
-
-    autoreview_inputs = [
-        join_time_sidechannel(s, selector_v10_timestamp) for s in autoreview_inputs
-    ]
-    autoreview_inputs = pd.DataFrame(
-        {
-            "selector_input": autoreview_inputs,
-            "prompt_finalchar": ["" for _ in range(len(autoreview_inputs))],
-        }
-    )
-    autoreview_results = predict_autoreview(
-        autoreview_inputs,
-        debug=True,
-    )
-    parsed["autoreview_proba"] = [float(p) for p in autoreview_results]
+    # autoreview_inputs = [
+    #     cut_to_new_since_last_frank_post(prompt + final_munge_after_neural(c))
+    #     for c in continuations
+    # ]
+    #
+    # autoreview_inputs = [
+    #     join_time_sidechannel(s, selector_v10_timestamp) for s in autoreview_inputs
+    # ]
+    # autoreview_inputs = pd.DataFrame(
+    #     {
+    #         "selector_input": autoreview_inputs,
+    #         "prompt_finalchar": ["" for _ in range(len(autoreview_inputs))],
+    #     }
+    # )
+    # autoreview_results = predict_autoreview(
+    #     autoreview_inputs,
+    #     debug=True,
+    # )
+    # parsed["autoreview_proba"] = [float(p) for p in autoreview_results]
     # end TODO block
 
     if GLOBAL_DEBUG:

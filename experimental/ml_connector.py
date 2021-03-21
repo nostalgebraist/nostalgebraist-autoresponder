@@ -441,8 +441,8 @@ def basic_n_continuations(
 
     requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
-    for pr in set(all_prompts):
-        bridge_id = generator_model.done_writing(pr)
+    # for pr in set(all_prompts):
+    #     bridge_id = generator_model.done_writing(pr)
 
     continuations_ = []
     for continuation, pr in zip(continuations, all_prompts):

@@ -1109,7 +1109,7 @@ def serve_answer(data):
     )
     autoreview_results = predict_autoreview(
         autoreview_inputs,
-        debug=True,
+        debug=False,
     )
     parsed["autoreview_proba"] = [float(p) for p in autoreview_results]
 

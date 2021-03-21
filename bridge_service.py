@@ -24,6 +24,10 @@ def sns():
     global RESULT_STACK
 
     data = parse_sns_request(request)
+    if 'id' not in data:
+        # for warmups
+        return jsonify({})
+
     id_ = data['id']
 
     if id_ not in RESULT_STACK:

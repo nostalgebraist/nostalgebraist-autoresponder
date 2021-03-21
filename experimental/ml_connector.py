@@ -1197,30 +1197,17 @@ def serve_textpost(data):
     )
     parsed["selection_proba"] = [float(p) for p in selection_results]
 
-    selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
-    sentiment_results = predict_sentiment(selector_inputs, debug=True)
+    sentiment_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
+    sentiment_results = predict_sentiment(sentiment_inputs, debug=True)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
 
-    # TODO: make this work properly
-    # autoreview_inputs = [
-    #     cut_to_new_since_last_frank_post(prompt + final_munge_after_neural(c))
-    #     for c in continuations
-    # ]
-    #
-    # autoreview_inputs = [
-    #     join_time_sidechannel(s, selector_v10_timestamp) for s in autoreview_inputs
-    # ]
-    # autoreview_inputs = pd.DataFrame(
-    #     {
-    #         "selector_input": autoreview_inputs,
-    #         "prompt_finalchar": ["" for _ in range(len(autoreview_inputs))],
-    #     }
-    # )
-    # autoreview_results = predict_autoreview(
-    #     autoreview_inputs,
-    #     debug=True,
-    # )
-    # parsed["autoreview_proba"] = [float(p) for p in autoreview_results]
+    # TODO: verify this works properly
+    autoreview_inputs = selector_inputs
+    autoreview_results = predict_autoreview(
+        autoreview_inputs,
+        debug=True,
+    )
+    parsed["autoreview_proba"] = [float(p) for p in autoreview_results]
     # end TODO block
 
     if GLOBAL_DEBUG:

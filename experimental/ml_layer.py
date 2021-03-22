@@ -120,7 +120,7 @@ autoreviewer_est = SelectorEstimatorFromCkpt.load(
 )
 
 
-def handle_request(data):
+def handle_request(data, lambda_uid: str=None):
     requested_model = None
 
     if 'id' not in data:
@@ -196,5 +196,7 @@ def handle_request(data):
         "sampling_info": sampling_info,
     }
     response_data["model_info"] = model_info
+
+    response_data["lambda_uid"] = lambda_uid
 
     return response_data

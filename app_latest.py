@@ -1,9 +1,12 @@
 import json
 import sys
+import uuid
 sys.path.append(".")
 sys.path.append("gpt-2/")
 sys.path.append("gpt-2/src/")
 from experimental.ml_layer import handle_request
+
+lambda_uid = str(uuid.uuid4())
 
 
 def lambda_handler(data, lambda_context):
@@ -14,6 +17,6 @@ def lambda_handler(data, lambda_context):
         data = data_
 
     if data.get("hi"):
-        return {}
+        return {"lambda_uid": lambda_uid}
 
-    return handle_request(data)
+    return handle_request(data, lambda_uid=lambda_uid)

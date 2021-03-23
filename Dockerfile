@@ -3,6 +3,7 @@ FROM public.ecr.aws/lambda/python:3.6
 
 # Install OS packages for Pillow-SIMD
 RUN yum -y install sudo gcc gcc-c++
+RUN sudo yum -y update
 
 # Copy the earlier created requirements.txt file to the container
 COPY gpt-2/requirements.txt ./

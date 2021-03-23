@@ -24,27 +24,24 @@ def sns():
     global RESULTS
 
     data = parse_sns_request(request)
-    if 'id' not in data:
-        # for warmups
-        return jsonify({})
 
-    id_ = data['id']
+    bridge_id = data['bridge_id']
 
-    if id_ not in RESULTS:
-        RESULTS[id_] = []
+    if bridge_id not in RESULTS:
+        RESULTS[bridge_id] = []
 
-    RESULTS[id_].append(data)
+    RESULTS[bridge_id].append(data)
 
-    if id_ not in LAMBDA_POOL.bridge_ids_to_request_data:
-        print(f"unknown id {id_} have ids_ {sorted(LAMBDA_POOL.bridge_ids_to_request_data.keys())}")
+    if bridge_id not in LAMBDA_POOL.bridge_ids_to_request_data:
+        print(f"unknown id {bridge_id} have ids_ {sorted(LAMBDA_POOL.bridge_ids_to_request_data.keys())}")
         repeat_until_done_signal = False
     else:
-        repeat_until_done_signal = LAMBDA_POOL.bridge_ids_to_request_data[id_].get('repeat_until_done_signal', False)
-        print(f"repeat_until_done_signal: {repeat_until_done_signal} for {id_}")
+        repeat_until_done_signal = LAMBDA_POOL.bridge_ids_to_request_data[bridge_id].get('repeat_until_done_signal', False)
+        print(f"repeat_until_done_signal: {repeat_until_done_signal} for bridge_id {bridge_id}")
 
     if repeat_until_done_signal:
         # stopping the world in service!  i *think* it's okay...
-        LAMBDA_POOL.request(data=LAMBDA_POOL.bridge_ids_to_request_data[id_])
+        LAMBDA_POOL.request(data=LAMBDA_POOL.bridge_ids_to_request_data[bridge_id])
 
     return jsonify({})
 

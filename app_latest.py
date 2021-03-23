@@ -20,9 +20,16 @@ def lambda_handler(data, lambda_context):
         data_ = json.loads(data['body'])
         data = data_
 
+    if 'request_id' not in data:
+        raise ValueError('no request id')
+    request_id = data['request_id']
+
     if data.get("hi"):
         if 'time_before_responding_sec' in data:
             time.sleep(data['time_before_responding_sec'])
-        return {"lambda_uid": lambda_uid, "id": data.get('id')}
+        return {
+            "lambda_uid": lambda_uid,
+            "request_id": request_id
+        }
 
     return handle_request(data, lambda_uid=lambda_uid)

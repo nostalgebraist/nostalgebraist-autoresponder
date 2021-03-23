@@ -5,6 +5,7 @@ import time
 import concurrent.futures as cf
 from datetime import datetime
 from functools import partial
+from collections import defaultdict
 
 from bot_config import BotSpecificConstants
 from bridge_shared import wait_for_result
@@ -32,16 +33,18 @@ lambda_client = boto3.client("lambda")
 
 def _send_one_lambda_request(data: dict):
     time.sleep(STAGGER_LAMBDA_REQUESTS_SEC)
-    return lambda_client.invoke(
+    data['request_id'] = str(uuid.uuid4())
+    lambda_client.invoke(
         FunctionName=ml_lambda_function_name,
         InvocationType="Event",
         Payload=json.dumps(data).encode("utf-8"),
     )
+    return data['request_id']
 
 
 def request_ml_from_lambda(data: dict, n_concurrent: int = 1):
-    resps = [_send_one_lambda_request(data) for i in range(n_concurrent)]
-    return resps
+    request_ids = [_send_one_lambda_request(data) for i in range(n_concurrent)]
+    return request_ids
 
 
 def parse_sns_request(request):
@@ -63,11 +66,16 @@ class TrackedLambda:
 
 def secure_n_warm_lambdas(n: int = 1):
     bridge_ids = [str(uuid.uuid4()) for i in range(n)]
+    request_ids = []
 
     for bridge_id in bridge_ids:
-        data = {"hi": True, "id": bridge_id, "time_before_responding_sec": STAGGER_LAMBDAS_WAIT_SEC}
+        data = {
+            "hi": True,
+            "bridge_id": bridge_id,
+            "time_before_responding_sec": STAGGER_LAMBDAS_WAIT_SEC
+        }
         print(f"sending startup signal, bridge_id={bridge_id}")
-        _send_one_lambda_request(data=data)
+        request_ids.append(_send_one_lambda_request(data=data))
 
     futures = []
     executor = cf.ProcessPoolExecutor(max_workers=n)
@@ -101,7 +109,7 @@ class LambdaPool:
     def __init__(self, n_workers: int):
         self.n_workers = n_workers
         self.lambdas = {}
-        self.calls_in_flight = {}
+        self.calls_in_flight = defaultdict(list)
         self.bridge_ids_to_request_data = {}
 
         self.executor = cf.ProcessPoolExecutor(max_workers=self.n_workers)
@@ -111,7 +119,6 @@ class LambdaPool:
         return len([l.trusted_as_warm for l in self.lambdas.values()])
 
     def _prune_old(self):
-        pass
         lambdas = {}
         for lambda_uid, l in self.lambdas.items():
             delta = datetime.now() - l.last_response_time
@@ -145,7 +152,7 @@ class LambdaPool:
 
     @property
     def lambdas_occupied(self) -> int:
-        return sum([f.running() for f in self.calls_in_flight.values()])
+        return sum([f.running() for id_futures in self.calls_in_flight.values() for f in id_futures])
 
     @property
     def n_requests_allowed(self) -> int:
@@ -174,11 +181,11 @@ class LambdaPool:
 
         print(f"repeat_until_done_signal: {repeat_until_done_signal}")
         if repeat_until_done_signal:
-            request_ml_from_lambda(data=data, n_concurrent=self.n_requests_allowed)
+            request_ids = request_ml_from_lambda(data=data, n_concurrent=self.n_requests_allowed)
         else:
-            _send_one_lambda_request(data=data)
+            request_ids = [_send_one_lambda_request(data=data)]
         future = self.executor.submit(wait_for_lambda_result, new_id=bridge_id)
-        self.calls_in_flight[bridge_id] = future
+        self.calls_in_flight[bridge_id].append(future)
         self.bridge_ids_to_request_data[bridge_id] = data
 
     def check(self, bridge_id: str):
@@ -186,19 +193,23 @@ class LambdaPool:
             print(f"{bridge_id} unknown, have {list(self.calls_in_flight.keys())}")
             return []
 
-        future = self.calls_in_flight[bridge_id]
-        if future.running():
-            return []
+        futures = self.calls_in_flight[bridge_id]
 
-        results, done_ts, time_sec = future.result()
-        print(f"bridge_id {bridge_id} done in {time_sec:.2f}s")
-        for result in results:
-            self._record_tracking_data(result, done_ts)
+        new_results = []
 
-        repeat_until_done_signal = self.bridge_ids_to_request_data[bridge_id].get('repeat_until_done_signal', False)
-        if not repeat_until_done_signal:
-            # not in flight anymore
-            del self.calls_in_flight[bridge_id]
+        for future in futures:
+            if future.running():
+                return []
+
+            results, done_ts, time_sec = future.result()
+            print(f"bridge_id {bridge_id} done in {time_sec:.2f}s")
+            for result in results:
+                self._record_tracking_data(result, done_ts)
+
+            repeat_until_done_signal = self.bridge_ids_to_request_data[bridge_id].get('repeat_until_done_signal', False)
+            if not repeat_until_done_signal:
+                # not in flight anymore
+                del self.calls_in_flight[bridge_id]
 
         return results
 

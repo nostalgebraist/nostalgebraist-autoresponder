@@ -123,9 +123,12 @@ autoreviewer_est = SelectorEstimatorFromCkpt.load(
 def handle_request(data, lambda_uid: str=None):
     requested_model = None
 
-    if 'id' not in data:
+    if 'request_id' not in data:
         raise ValueError('no request id')
-    request_id = data['id']
+    if 'bridge_id' not in data:
+        raise ValueError('no bridge id')
+    request_id = data['request_id']
+    bridge_id = data['bridge_id']
 
     if data["model"] == "generator":
         requested_model = generator_model
@@ -155,7 +158,7 @@ def handle_request(data, lambda_uid: str=None):
     if isinstance(result, np.ndarray):
         result = result.tolist()
 
-    response_data = {"result": result, 'id': request_id}
+    response_data = {"result": result, 'request_id': request_id, 'bridge_id': bridge_id}
 
     sampling_info = {
         "MIRO": MIRO,

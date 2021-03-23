@@ -14,6 +14,7 @@ lambda_uid = str(uuid.uuid4())
 
 def lambda_handler(data, lambda_context):
     print(f"got request: {repr(data)}")
+    print(f"my lambda_uid is {lambda_uid}")
 
     if 'body' in data:
         data_ = json.loads(data['body'])

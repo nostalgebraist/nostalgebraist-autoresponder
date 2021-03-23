@@ -17,7 +17,7 @@ def bridge_service_unique_id(url, data):
 
 def wait_for_result(new_id,
                     n_expected=1,
-                    wait_first_time=40, wait_recheck_time=5, verbose=True, return_turnaround_time=False):
+                    wait_first_time=40, wait_recheck_time=5, verbose=True, return_times=False):
     def vprint(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)
@@ -40,8 +40,8 @@ def wait_for_result(new_id,
     dt = done_waiting_ts - started_waiting_ts
     vprint(f"Turnaround time: {dt//60:.0f} min {dt%60:.0f}s")
 
-    if return_turnaround_time:
-        return result, dt
+    if return_times:
+        return result, done_waiting_ts, dt
     return result
 
 

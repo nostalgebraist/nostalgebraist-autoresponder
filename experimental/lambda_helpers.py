@@ -23,7 +23,7 @@ wait_for_lambda_result = partial(
     wait_first_time=RECHECK_SECONDS,
     wait_recheck_time=RECHECK_SECONDS,
     verbose=True,
-    return_turnaround_time=True,
+    return_times=True,
 )
 
 lambda_client = boto3.client("lambda")
@@ -75,7 +75,7 @@ def secure_n_warm_lambdas(n: int = 1):
     lambdas = {}
 
     for future in cf.as_completed(futures):
-        results, time_sec = future.result()
+        results, done_ts, time_sec = future.result()
         result = results[0]
         if "lambda_uid" in result:
             t = datetime.now()
@@ -117,15 +117,14 @@ class LambdaPool:
                 print(f"pruning old {lambda_uid}")
         self.lambdas = lambdas
 
-    def _record_tracking_data(self, result):
+    def _record_tracking_data(self, result, done_ts):
         if "lambda_uid" in result:
-            t = datetime.now()
             lambda_uid = result["lambda_uid"]
             if lambda_uid in self.lambdas:
-                self.lambdas[lambda_uid].last_response_time = t
+                self.lambdas[lambda_uid].last_response_time = done_ts
             else:
                 self.lambdas[lambda_uid] = TrackedLambda(
-                    lambda_uid=lambda_uid, last_response_time=t
+                    lambda_uid=lambda_uid, last_response_time=done_ts
                 )
         else:
             print(f"weirdness: didn't find lambda_uid, have data {result}")
@@ -172,10 +171,14 @@ class LambdaPool:
         if future.running():
             return False
 
-        results, time_sec = future.result()
+        results, done_ts, time_sec = future.result()
         print(f"bridge_id {bridge_id} done in {time_sec:.2f}s")
         for result in results:
-            self._record_tracking_data(result)
+            self._record_tracking_data(result, done_ts)
+
+        # not in flight anymore
+        del self.calls_in_flight[bridge_id]
+
         return result
 
     def shutdown(self):

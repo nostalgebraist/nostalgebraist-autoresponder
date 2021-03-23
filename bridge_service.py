@@ -2,11 +2,11 @@
 Coordinating switchboard that handles communication between the generator, selector, and
 tumblr API compontents.
 """
-import json
 from flask import Flask, request, jsonify
 
 from bot_config import BotSpecificConstants
 from experimental.lambda_helpers import request_ml_from_lambda, parse_sns_request
+from experimental.lambda_pool_singleton import LAMBDA_POOL
 
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_port = bot_specific_constants.bridge_service_port
@@ -21,7 +21,6 @@ app = Flask(__name__)
 
 @app.route("/sns", methods=["POST"])
 def sns():
-    global REQUESTS
     global RESULTS
 
     data = parse_sns_request(request)
@@ -36,15 +35,16 @@ def sns():
 
     RESULTS[id_].append(data)
 
-    if id_ not in REQUESTS:
-        print(f"unknown id {id_} have ids_ {sorted(REQUESTS.keys())}")
+    if id_ not in LAMBDA_POOL.bridge_ids_to_request_data:
+        print(f"unknown id {id_} have ids_ {sorted(LAMBDA_POOL.bridge_ids_to_request_data.keys())}")
         repeat_until_done_signal = False
     else:
-        repeat_until_done_signal = REQUESTS[id_].get('repeat_until_done_signal', False)
+        repeat_until_done_signal = LAMBDA_POOL.bridge_ids_to_request_data[id_].get('repeat_until_done_signal', False)
         print(f"repeat_until_done_signal: {repeat_until_done_signal} for {id_}")
 
     if repeat_until_done_signal:
-        request_ml_from_lambda(REQUESTS[id_], n_concurrent=1)
+        # stopping the world in service!  i *think* it's okay...
+        LAMBDA_POOL.request(data=LAMBDA_POOL.bridge_ids_to_request_data[id_])
 
     return jsonify({})
 

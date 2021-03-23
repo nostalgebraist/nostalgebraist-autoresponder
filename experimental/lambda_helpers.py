@@ -102,6 +102,7 @@ class LambdaPool:
         self.n_workers = n_workers
         self.lambdas = {}
         self.calls_in_flight = {}
+        self.bridge_ids_to_request_data = {}
 
         self.executor = cf.ProcessPoolExecutor(max_workers=self.n_workers)
 
@@ -178,6 +179,7 @@ class LambdaPool:
             _send_one_lambda_request(data=data)
         future = self.executor.submit(wait_for_lambda_result, new_id=bridge_id)
         self.calls_in_flight[bridge_id] = future
+        self.bridge_ids_to_request_data[bridge_id] = data
 
     def check(self, bridge_id: str):
         if bridge_id not in self.calls_in_flight:

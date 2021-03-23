@@ -22,7 +22,7 @@ from selector import serve_selection
 
 from experimental.year_munging import sample_and_substitute_year_v10
 
-from experimental.lambda_helpers import LambdaPool
+from experimental.lambda_pool_singleton import LAMBDA_POOL
 
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_url = bot_specific_constants.bridge_service_url
@@ -31,10 +31,6 @@ TRADE_QUALITY_FOR_SPEED = False
 
 logit_diff_sample_series = load_logit_diff_sample()
 EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
-
-N_CONCURRENT_LAMBDAS = 2
-
-LAMBDA_POOL = LambdaPool(n_workers=N_CONCURRENT_LAMBDAS)
 
 # note to self: trying to be more random about textposts / use retention_stack less
 # to give the selector more training signal

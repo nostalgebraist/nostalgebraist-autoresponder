@@ -16,10 +16,10 @@ RUN pip3 install --no-cache-dir  --force-reinstall -Iv grpcio
 RUN python3.6 -m pip install -r requirements.txt
 
 # Model files
-ADD models /models
-ADD selector /selector
-ADD sentiment /sentiment
-ADD draft_autoreviewer /draft_autoreviewer
+# ADD models /models
+# ADD selector /selector
+# ADD sentiment /sentiment
+# ADD draft_autoreviewer /draft_autoreviewer
 
 COPY gpt-2 gpt-2/
 COPY ./*.py ./

@@ -71,7 +71,7 @@ sample_done_criterion = make_sample_done_criterion(
 
 
 generator_model = GeneratorModel.load(
-    path='/models/autoresponder_v10_1/model-141.hdf5',
+    path='/mnt/nost_ar_data/models/autoresponder_v10_1/model-141.hdf5',
     enc=enc,
     batch_size=batch_size,
     sampling_config=DEFAULT_SAMPLING_CONFIG,
@@ -88,7 +88,7 @@ def load_selector(path, session, base_hparams, enc, retries=False, **kwargs):
 
 
 selector_est = SelectorEstimatorFromCkpt.load(
-    path="/selector",
+    path="/mnt/nost_ar_data/selector",
     session=generator_model.session,
     base_hparams=hparams,
     enc=enc,
@@ -101,7 +101,7 @@ lr_calib_orig = selector_est.lr_calib_orig_
 
 
 sentiment_est = SelectorEstimatorFromCkpt.load(
-    path="/sentiment",
+    path="/mnt/nost_ar_data/sentiment",
     session=generator_model.session,
     base_hparams=hparams,
     enc=enc,
@@ -112,7 +112,7 @@ sentiment_est.length = length_sentiment
 lr_calib_sentiment = selector_est.lr_calib_
 
 autoreviewer_est = SelectorEstimatorFromCkpt.load(
-    path="/draft_autoreviewer",
+    path="/mnt/nost_ar_data/draft_autoreviewer",
     session=generator_model.session,
     base_hparams=hparams,
     enc=enc,

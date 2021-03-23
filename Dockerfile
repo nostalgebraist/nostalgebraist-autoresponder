@@ -25,7 +25,7 @@ COPY ./*.py ./
 COPY experimental experimental/
 COPY selector_model selector_model/
 COPY util util/
-COPY config_lambda.json ./config.json
+COPY config_lambda.json ./config_lambda.json
 
 # Make sure app.py is up to date
 COPY app_latest.py ./app.py

@@ -37,7 +37,7 @@ class BotSpecificConstants:
         LIMITED_USERS: Dict[str, float] = dict(),
         LIMITED_SUBSTRINGS: Dict[str, float] = dict(),
         SCREENED_USERS: Set[str] = set(),
-        ml_lambda_function_name: Optional[str] = None,
+        ml_lambda_function_name: str
     ):
         # TODO: standardize case in names
         self.blogName = blogName
@@ -119,7 +119,7 @@ class BotSpecificConstants:
         self.ml_lambda_function_name = ml_lambda_function_name
 
     @staticmethod
-    def load(path: str = "config.json") -> "BotSpecificConstants":
+    def load(path: str = "config_lambda.json") -> "BotSpecificConstants":
         with open(path, "r", encoding="utf-8") as f:
             constants = json.load(f)
 

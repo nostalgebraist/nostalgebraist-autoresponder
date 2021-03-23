@@ -103,10 +103,11 @@ class LambdaPool:
         return len([l.trusted_as_warm for l in self.lambdas.values()])
 
     def _prune_old(self):
+        pass
         lambdas = {}
-        for lambda_uid, lambda in self.lambdas.items():
-            if lambda.last_response_time < ASSUME_COLD_WITHIN_SECONDS:
-                lambdas[lambda_uid] = lambda
+        for lambda_uid, l in self.lambdas.items():
+            if l.last_response_time < ASSUME_COLD_WITHIN_SECONDS:
+                lambdas[lambda_uid] = l
             else:
                 print(f"pruning old {lambda_uid}")
         self.lambdas = lambdas
@@ -121,6 +122,8 @@ class LambdaPool:
                 self.lambdas[lambda_uid] = TrackedLambda(lambda_uid=lambda_uid, last_response_time=t)
         else:
             print(f"weirdness: didn't find lambda_uid, have data {result}")
+
+        self._prune_old()
 
         last_response_times = sorted([l.last_response_time for l in self.lambdas.values()])
         print(f"{len(self.lambdas)} lambdas, {self.n_trusted} trusted, last response times {last_response_times}")
@@ -154,7 +157,8 @@ class LambdaPool:
             print(f"{bridge_id} unknown, have {list(self.calls_in_flight.keys())}")
             return False
 
-        if self.calls_in_flight[bridge_id].running():
+        future = self.calls_in_flight[bridge_id]
+        if future.running():
             return False
 
         result, time_sec = future.result()

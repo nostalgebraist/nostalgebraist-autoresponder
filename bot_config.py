@@ -119,7 +119,7 @@ class BotSpecificConstants:
         self.SCREENED_USERS = SCREENED_USERS
 
     @staticmethod
-    def load(path: str = "config_lambda.json") -> "BotSpecificConstants":
+    def load(path: str = "config.json") -> "BotSpecificConstants":
         with open(path, "r", encoding="utf-8") as f:
             constants = json.load(f)
 

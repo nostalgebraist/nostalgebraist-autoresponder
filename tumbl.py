@@ -57,8 +57,6 @@ from traceability import on_post_creation_callback
 
 from util.error_handling import LogExceptionAndSkip
 
-from experimental.lambda_helpers import warm_lambda
-
 EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
@@ -2591,7 +2589,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         print("current mood:")
         determine_mood(response_cache)
 
-    # warm_lambda()
     print()
     return loop_persistent_data, response_cache
 

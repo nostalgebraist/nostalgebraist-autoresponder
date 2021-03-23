@@ -153,6 +153,9 @@ class LambdaPool:
         if "id" not in data:
             raise ValueError(f"no id in {repr(data)}")
 
+        if len(self.lambdas) == 0:
+            self.initialize()
+
         bridge_id = data["id"]
 
         while self.all_occupied:

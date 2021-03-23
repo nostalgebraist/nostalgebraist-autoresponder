@@ -22,6 +22,8 @@ from selector import serve_selection
 
 from experimental.year_munging import sample_and_substitute_year_v10
 
+from experimental.lambda_helpers import LambdaPool
+
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_url = bot_specific_constants.bridge_service_url
 
@@ -29,6 +31,10 @@ TRADE_QUALITY_FOR_SPEED = False
 
 logit_diff_sample_series = load_logit_diff_sample()
 EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
+
+N_CONCURRENT_LAMBDAS = 3
+
+LAMBDA_POOL = LambdaPool(n_workers=N_CONCURRENT_LAMBDAS)
 
 # note to self: trying to be more random about textposts / use retention_stack less
 # to give the selector more training signal
@@ -123,7 +129,7 @@ class MLModelInterface:
         data_to_send.update(data)
         data_to_send["id"] = new_id
 
-        requests.post(bridge_service_url + "/requestml", json=data_to_send)
+        LAMBDA_POOL.request(data=data_to_send)
 
         return new_id
 
@@ -333,9 +339,7 @@ def basic_n_continuations(
 
     while len(continuations) < N:
         time.sleep(5)
-        batches_written_raw = requests.post(
-            bridge_service_url + "/getresult", data={"id": bridge_id}
-        ).json()
+        batches_written_raw = LAMBDA_POOL.check(bridge_id)
 
         batches_written = [entry["result"] for entry in batches_written_raw]
         model_infos = [entry["model_info"] for entry in batches_written_raw]
@@ -439,7 +443,7 @@ def basic_n_continuations(
         if len(this_batch_continuations) > 0:
             print(f"have {len(continuations)} of {N}... ", end="", flush=True)
 
-    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+    # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     # for pr in set(all_prompts):
     #     bridge_id = generator_model.done_writing(pr)
@@ -519,11 +523,9 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
     response_data = []
     while len(response_data) == 0:
         time.sleep(1)
-        response_data = requests.post(
-            bridge_service_url + "/getresult", data={"id": bridge_id}
-        ).json()
+        response_data = LAMBDA_POOL.check(bridge_id)
 
-    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+    # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     result = np.array(response_data[0]["result"])
     probs = result[:, 1]
@@ -566,9 +568,7 @@ def predict_sentiment(data, debug=False):
     response_data = []
     while len(response_data) == 0:
         time.sleep(1)
-        response_data = requests.post(
-            bridge_service_url + "/getresult", data={"id": bridge_id}
-        ).json()
+        response_data = LAMBDA_POOL.check(bridge_id)
 
     requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
@@ -603,9 +603,7 @@ def predict_autoreview(data, debug=True,):
     response_data = []
     while len(response_data) == 0:
         time.sleep(1)
-        response_data = requests.post(
-            bridge_service_url + "/getresult", data={"id": bridge_id}
-        ).json()
+        response_data = LAMBDA_POOL.check(bridge_id)
 
     requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 

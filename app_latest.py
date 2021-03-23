@@ -20,7 +20,7 @@ def lambda_handler(data, lambda_context):
         data = data_
 
     if data.get("hi"):
-        if 'sleep_before_responding_sec' in data:
+        if 'time_before_responding_sec' in data:
             time.sleep(data['time_before_responding_sec'])
         return {"lambda_uid": lambda_uid, "id": data.get('id')}
 

@@ -147,6 +147,10 @@ class LambdaPool:
         return sum([f.running() for f in self.calls_in_flight.values()])
 
     @property
+    def n_requests_allowed(self) -> int:
+        return self.n_workers - self.lambdas_occupied
+
+    @property
     def all_occupied(self) -> bool:
         return self.lambdas_occupied >= self.n_workers
 
@@ -165,7 +169,13 @@ class LambdaPool:
         while self.all_occupied:
             time.sleep(1)
 
-        _send_one_lambda_request(data=data)
+        repeat_until_done_signal = data.get('repeat_until_done_signal', False)
+
+        print(f"repeat_until_done_signal: {repeat_until_done_signal}")
+        if repeat_until_done_signal:
+            request_ml_from_lambda(data=data, n_concurrent=self.n_requests_allowed)
+        else:
+            _send_one_lambda_request(data=data)
         future = self.executor.submit(wait_for_lambda_result, new_id=bridge_id)
         self.calls_in_flight[bridge_id] = future
 

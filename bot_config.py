@@ -1,4 +1,4 @@
-from typing import List, Set, Dict
+from typing import List, Set, Dict, Optional
 import json
 
 import pytumblr
@@ -22,7 +22,6 @@ class BotSpecificConstants:
         bridge_service_port: int,
         BRIDGE_SERVICE_REMOTE_HOST: str,
         BUCKET_NAME: str,
-        ml_lambda_function_name: str,
         NO_REBLOG_IDS: Set[int] = set(),
         DEF_REBLOG_IDS: Set[int] = set(),
         FORCE_TRAIL_HACK_IDS: Set[int] = set(),
@@ -38,6 +37,7 @@ class BotSpecificConstants:
         LIMITED_USERS: Dict[str, float] = dict(),
         LIMITED_SUBSTRINGS: Dict[str, float] = dict(),
         SCREENED_USERS: Set[str] = set(),
+        ml_lambda_function_name: Optional[str] = None,
     ):
         # TODO: standardize case in names
         self.blogName = blogName
@@ -71,8 +71,6 @@ class BotSpecificConstants:
 
         # name of Google Cloud Storage bucket used to store models and data
         self.BUCKET_NAME = BUCKET_NAME
-
-        self.ml_lambda_function_name = ml_lambda_function_name
 
         # host name of the bridge service used in ML code
         # if the ML code is running remotely, this will differ from `bridge_service_host`
@@ -117,6 +115,8 @@ class BotSpecificConstants:
 
         # write draft instead of auto-publish when responding to these users
         self.SCREENED_USERS = SCREENED_USERS
+
+        self.ml_lambda_function_name = ml_lambda_function_name
 
     @staticmethod
     def load(path: str = "config.json") -> "BotSpecificConstants":

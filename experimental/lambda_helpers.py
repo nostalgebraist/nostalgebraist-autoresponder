@@ -16,6 +16,7 @@ WARM_MAX_HEALTHCHECK_SECONDS = 5
 ASSUME_WARM_WITHIN_SECONDS = 60
 ASSUME_COLD_WITHIN_SECONDS = 60 * 10
 RECHECK_SECONDS = 1
+STAGGER_LAMBDAS_WAIT_SEC = 5
 
 wait_for_lambda_result = partial(
     wait_for_result,
@@ -62,7 +63,7 @@ def secure_n_warm_lambdas(n: int = 1):
     bridge_ids = [str(uuid.uuid4()) for i in range(n)]
 
     for bridge_id in bridge_ids:
-        data = {"hi": True, "id": bridge_id}
+        data = {"hi": True, "id": bridge_id, "time_before_responding_sec": STAGGER_LAMBDAS_WAIT_SEC}
         print(f"sending startup signal, bridge_id={bridge_id}")
         _send_one_lambda_request(data=data)
 
@@ -74,7 +75,8 @@ def secure_n_warm_lambdas(n: int = 1):
     lambdas = {}
 
     for future in cf.as_completed(futures):
-        result, time_sec = future.result()
+        results, time_sec = future.result()
+        result = results[0]
         if "lambda_uid" in result:
             t = datetime.now()
             lambda_uid = result["lambda_uid"]
@@ -107,7 +109,9 @@ class LambdaPool:
         pass
         lambdas = {}
         for lambda_uid, l in self.lambdas.items():
-            if l.last_response_time < ASSUME_COLD_WITHIN_SECONDS:
+            delta = datetime.now() - l.last_response_time
+            secs = delta.total_seconds()
+            if secs < ASSUME_COLD_WITHIN_SECONDS:
                 lambdas[lambda_uid] = l
             else:
                 print(f"pruning old {lambda_uid}")
@@ -168,9 +172,10 @@ class LambdaPool:
         if future.running():
             return False
 
-        result, time_sec = future.result()
+        results, time_sec = future.result()
         print(f"bridge_id {bridge_id} done in {time_sec:.2f}s")
-        self._record_tracking_data(result)
+        for result in results:
+            self._record_tracking_data(result)
         return result
 
     def shutdown(self):

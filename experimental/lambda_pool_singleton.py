@@ -1,5 +1,5 @@
 from experimental.lambda_helpers import LambdaPool
 
-N_CONCURRENT_LAMBDAS = 2
+N_CONCURRENT_LAMBDAS = 1
 
 LAMBDA_POOL = LambdaPool(n_workers=N_CONCURRENT_LAMBDAS)

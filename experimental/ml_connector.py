@@ -32,7 +32,7 @@ TRADE_QUALITY_FOR_SPEED = False
 logit_diff_sample_series = load_logit_diff_sample()
 EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
 
-N_CONCURRENT_LAMBDAS = 3
+N_CONCURRENT_LAMBDAS = 2
 
 LAMBDA_POOL = LambdaPool(n_workers=N_CONCURRENT_LAMBDAS)
 

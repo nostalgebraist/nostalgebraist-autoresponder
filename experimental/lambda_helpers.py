@@ -17,6 +17,7 @@ ASSUME_WARM_WITHIN_SECONDS = 60
 ASSUME_COLD_WITHIN_SECONDS = 60 * 10
 RECHECK_SECONDS = 1
 STAGGER_LAMBDAS_WAIT_SEC = 5
+STAGGER_LAMBDA_REQUESTS_SEC = 0.05
 
 wait_for_lambda_result = partial(
     wait_for_result,
@@ -30,6 +31,7 @@ lambda_client = boto3.client("lambda")
 
 
 def _send_one_lambda_request(data: dict):
+    time.sleep(STAGGER_LAMBDA_REQUESTS_SEC)
     return lambda_client.invoke(
         FunctionName=ml_lambda_function_name,
         InvocationType="Event",
@@ -75,6 +77,8 @@ def secure_n_warm_lambdas(n: int = 1):
     lambdas = {}
 
     for future in cf.as_completed(futures):
+        # TODO: send a warming request to existing entries of `lambdas` in each round of this loop
+
         results, done_ts, time_sec = future.result()
         result = results[0]
         if "lambda_uid" in result:
@@ -182,7 +186,7 @@ class LambdaPool:
         # not in flight anymore
         del self.calls_in_flight[bridge_id]
 
-        return result
+        return results
 
     def shutdown(self):
         self.executor.shutdown()

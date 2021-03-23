@@ -196,7 +196,7 @@ class LambdaPool:
             self._record_tracking_data(result, done_ts)
 
         repeat_until_done_signal = self.bridge_ids_to_request_data[bridge_id].get('repeat_until_done_signal', False)
-        if repeat_until_done_signal:
+        if not repeat_until_done_signal:
             # not in flight anymore
             del self.calls_in_flight[bridge_id]
 

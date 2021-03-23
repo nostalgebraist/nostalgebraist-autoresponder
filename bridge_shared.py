@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 import hashlib
 import requests
 
@@ -38,10 +39,11 @@ def wait_for_result(new_id,
 
     done_waiting_ts = time.time()
     dt = done_waiting_ts - started_waiting_ts
+    done_waiting_datetime = datetime.now()
     vprint(f"Turnaround time: {dt//60:.0f} min {dt%60:.0f}s")
 
     if return_times:
-        return result, done_waiting_ts, dt
+        return result, done_waiting_datetime, dt
     return result
 
 

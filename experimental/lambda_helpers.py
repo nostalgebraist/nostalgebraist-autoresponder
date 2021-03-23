@@ -168,11 +168,11 @@ class LambdaPool:
     def check(self, bridge_id: str):
         if bridge_id not in self.calls_in_flight:
             print(f"{bridge_id} unknown, have {list(self.calls_in_flight.keys())}")
-            return False
+            return []
 
         future = self.calls_in_flight[bridge_id]
         if future.running():
-            return False
+            return []
 
         results, done_ts, time_sec = future.result()
         print(f"bridge_id {bridge_id} done in {time_sec:.2f}s")

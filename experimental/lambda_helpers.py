@@ -17,12 +17,13 @@ ASSUME_WARM_WITHIN_SECONDS = 60
 ASSUME_COLD_WITHIN_SECONDS = 60 * 10
 RECHECK_SECONDS = 1
 
-wait_for_lambda_result = partial(wait_for_result,
-                                 wait_first_time=RECHECK_SECONDS,
-                                 wait_recheck_time=RECHECK_SECONDS,
-                                 verbose=False,
-                                 return_turnaround_time=True,
-                                 )
+wait_for_lambda_result = partial(
+    wait_for_result,
+    wait_first_time=RECHECK_SECONDS,
+    wait_recheck_time=RECHECK_SECONDS,
+    verbose=True,
+    return_turnaround_time=True,
+)
 
 lambda_client = boto3.client("lambda")
 
@@ -36,15 +37,12 @@ def _send_one_lambda_request(data: dict):
 
 
 def request_ml_from_lambda(data: dict, n_concurrent: int = 1):
-    resps = [
-        _send_one_lambda_request(data)
-        for i in range(n_concurrent)
-    ]
+    resps = [_send_one_lambda_request(data) for i in range(n_concurrent)]
     return resps
 
 
 def parse_sns_request(request):
-    data = json.loads(json.loads(request.get_data(as_text=True))['Message'])
+    data = json.loads(json.loads(request.get_data(as_text=True))["Message"])
     return data["responsePayload"]
 
 
@@ -64,7 +62,8 @@ def secure_n_warm_lambdas(n: int = 1):
     bridge_ids = [str(uuid.uuid4()) for i in range(n)]
 
     for bridge_id in bridge_ids:
-        data = {'hi': True, 'id': bridge_id}
+        data = {"hi": True, "id": bridge_id}
+        print(f"sending startup signal, bridge_id={bridge_id}")
         _send_one_lambda_request(data=data)
 
     futures = []
@@ -76,10 +75,12 @@ def secure_n_warm_lambdas(n: int = 1):
 
     for future in cf.as_completed(futures):
         result, time_sec = future.result()
-        if 'lambda_uid' in result:
+        if "lambda_uid" in result:
             t = datetime.now()
-            lambda_uid = result['lambda_uid']
-            lambdas[lambda_uid] = TrackedLambda(lambda_uid=lambda_uid, last_response_time=t)
+            lambda_uid = result["lambda_uid"]
+            lambdas[lambda_uid] = TrackedLambda(
+                lambda_uid=lambda_uid, last_response_time=t
+            )
 
             print(f"lambda {result['lambda_uid']} up in {time_sec:.2f}s")
         else:
@@ -113,20 +114,26 @@ class LambdaPool:
         self.lambdas = lambdas
 
     def _record_tracking_data(self, result):
-        if 'lambda_uid' in result:
+        if "lambda_uid" in result:
             t = datetime.now()
-            lambda_uid = result['lambda_uid']
+            lambda_uid = result["lambda_uid"]
             if lambda_uid in self.lambdas:
                 self.lambdas[lambda_uid].last_response_time = t
             else:
-                self.lambdas[lambda_uid] = TrackedLambda(lambda_uid=lambda_uid, last_response_time=t)
+                self.lambdas[lambda_uid] = TrackedLambda(
+                    lambda_uid=lambda_uid, last_response_time=t
+                )
         else:
             print(f"weirdness: didn't find lambda_uid, have data {result}")
 
         self._prune_old()
 
-        last_response_times = sorted([l.last_response_time for l in self.lambdas.values()])
-        print(f"{len(self.lambdas)} lambdas, {self.n_trusted} trusted, last response times {last_response_times}")
+        last_response_times = sorted(
+            [l.last_response_time for l in self.lambdas.values()]
+        )
+        print(
+            f"{len(self.lambdas)} lambdas, {self.n_trusted} trusted, last response times {last_response_times}"
+        )
 
     @property
     def lambdas_occupied(self) -> int:
@@ -140,10 +147,10 @@ class LambdaPool:
         self.lambdas = secure_n_warm_lambdas(n=self.n_workers)
 
     def request(self, data: dict):
-        if 'id' not in data:
+        if "id" not in data:
             raise ValueError(f"no id in {repr(data)}")
 
-        bridge_id = data['id']
+        bridge_id = data["id"]
 
         while self.all_occupied:
             time.sleep(1)

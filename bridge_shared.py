@@ -15,7 +15,9 @@ def bridge_service_unique_id(url, data):
     return hashed
 
 
-def wait_for_result(new_id, wait_first_time=40, wait_recheck_time=5, verbose=True, return_turnaround_time=False):
+def wait_for_result(new_id,
+                    n_expected=1,
+                    wait_first_time=40, wait_recheck_time=5, verbose=True, return_turnaround_time=False):
     def vprint(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)
@@ -27,7 +29,7 @@ def wait_for_result(new_id, wait_first_time=40, wait_recheck_time=5, verbose=Tru
     result = requests.post(bridge_service_url + "/getresult", data=data).json()
     n_tries = 0
 
-    while not result["done"]:
+    while len(result) < n_expected:
         time_to_wait = wait_recheck_time if n_tries < 100 else wait_recheck_time * 10
         n_tries += 1
         vprint(n_tries, end="... ")
@@ -39,8 +41,8 @@ def wait_for_result(new_id, wait_first_time=40, wait_recheck_time=5, verbose=Tru
     vprint(f"Turnaround time: {dt//60:.0f} min {dt%60:.0f}s")
 
     if return_turnaround_time:
-        return result["result"], dt
-    return result["result"]
+        return result, dt
+    return result
 
 
 def send_alldone():

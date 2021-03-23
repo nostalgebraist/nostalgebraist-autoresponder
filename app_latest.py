@@ -17,6 +17,6 @@ def lambda_handler(data, lambda_context):
         data = data_
 
     if data.get("hi"):
-        return {"lambda_uid": lambda_uid}
+        return {"lambda_uid": lambda_uid, "id": data.get('id')}
 
     return handle_request(data, lambda_uid=lambda_uid)

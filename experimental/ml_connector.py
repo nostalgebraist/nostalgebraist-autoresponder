@@ -119,11 +119,11 @@ class MLModelInterface:
             "kwargs": kwargs,
             "repeat_until_done_signal": repeat_until_done_signal,
         }
-        new_id = bridge_service_unique_id(bridge_service_url, data)
+        ml_operation_id = bridge_service_unique_id(bridge_service_url, data)
 
         data_to_send = dict()
         data_to_send.update(data)
-        data_to_send["id"] = new_id
+        data_to_send["ml_operation_id"] = ml_operation_id
 
         LAMBDA_POOL.request(data=data_to_send)
 
@@ -322,7 +322,7 @@ def basic_n_continuations(
 
         print(f"neural model will see:\n\n{repr(prompt)}")
 
-        bridge_id = generator_model.write(
+        ml_operation_id = generator_model.write(
             prompt,
             repeat_until_done_signal=True,
             verbose=verbose,
@@ -335,7 +335,7 @@ def basic_n_continuations(
 
     while len(continuations) < N:
         time.sleep(5)
-        batches_written_raw = LAMBDA_POOL.check(bridge_id)
+        batches_written_raw = LAMBDA_POOL.check(ml_operation_id)
 
         batches_written = [entry["result"] for entry in batches_written_raw]
         model_infos = [entry["model_info"] for entry in batches_written_raw]
@@ -439,6 +439,7 @@ def basic_n_continuations(
         if len(this_batch_continuations) > 0:
             print(f"have {len(continuations)} of {N}... ", end="", flush=True)
 
+    LAMBDA_POOL.done(ml_operation_id)
     # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     # for pr in set(all_prompts):
@@ -514,13 +515,14 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
 
     data = data.to_dict(orient="records")
 
-    bridge_id = selector_est.predict_proba(data)
+    ml_operation_id = selector_est.predict_proba(data)
 
     response_data = []
     while len(response_data) == 0:
         time.sleep(1)
-        response_data = LAMBDA_POOL.check(bridge_id)
+        response_data = LAMBDA_POOL.check(ml_operation_id)
 
+    LAMBDA_POOL.done(ml_operation_id)
     # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     result = np.array(response_data[0]["result"])
@@ -559,14 +561,15 @@ def predict_sentiment(data, debug=False):
 
     data = data.to_dict(orient="records")
 
-    bridge_id = sentiment_est._predict(data, key="logits")
+    ml_operation_id = sentiment_est._predict(data, key="logits")
 
     response_data = []
     while len(response_data) == 0:
         time.sleep(1)
-        response_data = LAMBDA_POOL.check(bridge_id)
+        response_data = LAMBDA_POOL.check(ml_operation_id)
 
-    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+    LAMBDA_POOL.done(ml_operation_id)
+    # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     logits = np.array(response_data[0]["result"])
 
@@ -594,14 +597,15 @@ def predict_autoreview(data, debug=True,):
 
     data = data.to_dict(orient="records")
 
-    bridge_id = autoreviewer_est.predict_proba(data)
+    ml_operation_id = autoreviewer_est.predict_proba(data)
 
     response_data = []
     while len(response_data) == 0:
         time.sleep(1)
-        response_data = LAMBDA_POOL.check(bridge_id)
+        response_data = LAMBDA_POOL.check(ml_operation_id)
 
-    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+    LAMBDA_POOL.done(ml_operation_id)
+    # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     result = np.array(response_data[0]["result"])
     probs = result[:, 1]

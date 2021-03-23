@@ -24,7 +24,7 @@ wait_for_lambda_result = partial(
     wait_for_result,
     wait_first_time=RECHECK_SECONDS,
     wait_recheck_time=RECHECK_SECONDS,
-    verbose=True,
+    verbose=False,
     return_times=True,
 )
 
@@ -109,8 +109,9 @@ class LambdaPool:
     def __init__(self, n_workers: int):
         self.n_workers = n_workers
         self.lambdas = {}
-        self.calls_in_flight = defaultdict(list)
-        self.bridge_ids_to_request_data = {}
+        self.calls_in_flight = {}  # request_id --> future
+        self.ml_operation_ids_to_request_ids = defaultdict(set)  # ml_operation_id --> set[request_id]
+        self.request_ids_to_request_data = {}  # request_id --> dict
 
         self.executor = cf.ProcessPoolExecutor(max_workers=self.n_workers)
 
@@ -166,13 +167,13 @@ class LambdaPool:
         self.lambdas = secure_n_warm_lambdas(n=self.n_workers)
 
     def request(self, data: dict):
-        if "id" not in data:
-            raise ValueError(f"no id in {repr(data)}")
+        if "ml_operation_id" not in data:
+            raise ValueError(f"no ml_operation_id in {repr(data)}")
 
         if len(self.lambdas) == 0:
             self.initialize()
 
-        bridge_id = data["id"]
+        ml_operation_id = data["ml_operation_id"]
 
         while self.all_occupied:
             time.sleep(1)
@@ -184,34 +185,68 @@ class LambdaPool:
             request_ids = request_ml_from_lambda(data=data, n_concurrent=self.n_requests_allowed)
         else:
             request_ids = [_send_one_lambda_request(data=data)]
-        future = self.executor.submit(wait_for_lambda_result, new_id=bridge_id)
-        self.calls_in_flight[bridge_id].append(future)
-        self.bridge_ids_to_request_data[bridge_id] = data
 
-    def check(self, bridge_id: str):
-        if bridge_id not in self.calls_in_flight:
-            print(f"{bridge_id} unknown, have {list(self.calls_in_flight.keys())}")
+        for request_id in request_ids:
+            future = self.executor.submit(wait_for_lambda_result, request_id=request_id)
+            self.calls_in_flight[request_id] = future
+            self.ml_operation_ids_to_request_ids[ml_operation_id].add(request_id)
+            self.request_ids_to_request_data[request_id] = data
+
+    def check(self, ml_operation_id: str):
+        request_ids = self.ml_operation_ids_to_request_ids[ml_operation_id]
+
+        if len(request_ids) == 0:
+            print(f"{ml_operation_id} unknown, have {list(self.ml_operation_ids_to_request_ids.keys())}")
             return []
 
-        futures = self.calls_in_flight[bridge_id]
+        futures = {request_id: self.calls_in_flight[request_id]
+                   for request_id in request_ids
+                   if request_id in self.calls_in_flight}
 
-        new_results = []
+        if len(futures) == 0:
+            print(f"ml_operation_id {ml_operation_id} happened, but results are missing (possibly deleted earlier)")
+            return []
 
-        for future in futures:
+        collected_results = []
+
+        for request_id, future in futures.items():
             if future.running():
-                return []
+                continue
 
-            results, done_ts, time_sec = future.result()
-            print(f"bridge_id {bridge_id} done in {time_sec:.2f}s")
-            for result in results:
-                self._record_tracking_data(result, done_ts)
+            result, done_ts, time_sec = future.result()
+            print(f"request_id {request_id} done in {time_sec:.2f}s")
+            self._record_tracking_data(result, done_ts)
+            collected_results.append(result)
 
-            repeat_until_done_signal = self.bridge_ids_to_request_data[bridge_id].get('repeat_until_done_signal', False)
-            if not repeat_until_done_signal:
-                # not in flight anymore
-                del self.calls_in_flight[bridge_id]
+            request_data = self.request_ids_to_request_data[request_id]
 
-        return results
+            repeat_until_done_signal = request_data.get('repeat_until_done_signal', False)
+            if repeat_until_done_signal:
+                print(f"repeat_until_done_signal --> re-requesting ml_operation_id {ml_operation_id}")
+                self.request(request_data)
+            # else:
+            #     # not in flight anymore
+            #     del self.calls_in_flight[request_id]
+
+        return collected_results
+
+    def done(self, ml_operation_id: str):
+        to_remove = self.ml_operation_ids_to_request_ids[ml_operation_id]
+        updated_calls_in_flight = {
+            request_id: future
+            for request_id, future in self.calls_in_flight
+            if request_id not in to_remove
+        }
+        self.calls_in_flight = updated_calls_in_flight
+
+    def alldone(self):
+        for future in self.calls_in_flight.values():
+            try:
+                future.cancel()
+            except:
+                pass
+        self.calls_in_flight = {}
+        self.shutdown()
 
     def shutdown(self):
         self.executor.shutdown()

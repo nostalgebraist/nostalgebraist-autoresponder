@@ -1,12 +1,12 @@
 """
-Coordinating switchboard that handles communication between the generator, selector, and
+Coordinating switchboard that handles communication between the machine learning and
 tumblr API compontents.
 """
 from flask import Flask, request, jsonify
 
 from bot_config import BotSpecificConstants
 from experimental.lambda_helpers import request_ml_from_lambda, parse_sns_request
-from experimental.lambda_pool_singleton import LAMBDA_POOL
+# from experimental.lambda_pool_singleton import LAMBDA_POOL
 
 bot_specific_constants = BotSpecificConstants.load()
 bridge_service_port = bot_specific_constants.bridge_service_port
@@ -25,23 +25,20 @@ def sns():
 
     data = parse_sns_request(request)
 
-    bridge_id = data['bridge_id']
+    request_id = data['request_id']
 
-    if bridge_id not in RESULTS:
-        RESULTS[bridge_id] = []
+    RESULTS[request_id] = data
 
-    RESULTS[bridge_id].append(data)
-
-    if bridge_id not in LAMBDA_POOL.bridge_ids_to_request_data:
-        print(f"unknown id {bridge_id} have ids_ {sorted(LAMBDA_POOL.bridge_ids_to_request_data.keys())}")
-        repeat_until_done_signal = False
-    else:
-        repeat_until_done_signal = LAMBDA_POOL.bridge_ids_to_request_data[bridge_id].get('repeat_until_done_signal', False)
-        print(f"repeat_until_done_signal: {repeat_until_done_signal} for bridge_id {bridge_id}")
-
-    if repeat_until_done_signal:
-        # stopping the world in service!  i *think* it's okay...
-        LAMBDA_POOL.request(data=LAMBDA_POOL.bridge_ids_to_request_data[bridge_id])
+    # if bridge_id not in LAMBDA_POOL.bridge_ids_to_request_data:
+    #     print(f"unknown id {bridge_id} have ids_ {sorted(LAMBDA_POOL.bridge_ids_to_request_data.keys())}")
+    #     repeat_until_done_signal = False
+    # else:
+    #     repeat_until_done_signal = LAMBDA_POOL.bridge_ids_to_request_data[bridge_id].get('repeat_until_done_signal', False)
+    #     print(f"repeat_until_done_signal: {repeat_until_done_signal} for bridge_id {bridge_id}")
+    #
+    # if repeat_until_done_signal:
+    #     # stopping the world in service!  i *think* it's okay...
+    #     LAMBDA_POOL.request(data=LAMBDA_POOL.bridge_ids_to_request_data[bridge_id])
 
     return jsonify({})
 
@@ -109,13 +106,13 @@ def alldone():
 def getresult():
     global RESULTS
 
-    desired_id = request.form["id"]
+    desired_id = request.form["request_id"]
 
     if desired_id in RESULTS:
-        response = RESULTS[desired_id]
+        response = {"result": RESULTS[desired_id]}
     else:
-        print(f"desired_id: {desired_id} not available, have ids {list(RESULTS.keys())}")
-        response = []
+        # print(f"desired_id: {desired_id} not available, have ids {list(RESULTS.keys())}")
+        response = {"result": None}
 
     return jsonify(response)
 

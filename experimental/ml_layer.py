@@ -37,7 +37,7 @@ else:
 CLOSED_REQUESTS = {}
 
 
-enc = encoder.get_encoder_from_path("/models/autoresponder_v10_1/", eot_workaround=EOT_WORKAROUND)
+enc = encoder.get_encoder_from_path("/mnt/nost_ar_data/models/autoresponder_v10_1/", eot_workaround=EOT_WORKAROUND)
 
 
 def load_generator_model(

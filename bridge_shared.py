@@ -8,7 +8,6 @@ from bot_config import BotSpecificConstants
 bot_specific_constants = BotSpecificConstants.load()
 
 bridge_service_url = bot_specific_constants.bridge_service_url
-from experimental.lambda_pool_singleton import LAMBDA_POOL
 
 
 def bridge_service_unique_id(url, data):

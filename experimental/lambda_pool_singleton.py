@@ -1,4 +1,4 @@
-from experimental.lambda_helpers import LambdaPool
+from .lambda_helpers import LambdaPool
 
 N_CONCURRENT_LAMBDAS = 1
 

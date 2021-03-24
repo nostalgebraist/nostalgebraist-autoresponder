@@ -65,30 +65,28 @@ class TrackedLambda:
 
 
 def secure_n_warm_lambdas(n: int = 1):
-    bridge_ids = [str(uuid.uuid4()) for i in range(n)]
     request_ids = []
 
-    for bridge_id in bridge_ids:
+    for _ in range(n):
         data = {
             "hi": True,
-            "bridge_id": bridge_id,
             "time_before_responding_sec": STAGGER_LAMBDAS_WAIT_SEC
         }
-        print(f"sending startup signal, bridge_id={bridge_id}")
+        print(f"sending startup signal")
         request_ids.append(_send_one_lambda_request(data=data))
 
     futures = []
     executor = cf.ProcessPoolExecutor(max_workers=n)
-    for bridge_id in bridge_ids:
-        futures.append(executor.submit(wait_for_lambda_result, new_id=bridge_id))
+    for request_id in request_ids:
+        futures.append(executor.submit(wait_for_lambda_result, request_id=request_id))
 
     lambdas = {}
 
     for future in cf.as_completed(futures):
         # TODO: send a warming request to existing entries of `lambdas` in each round of this loop
 
-        results, done_ts, time_sec = future.result()
-        result = results[0]
+        result, done_ts, time_sec = future.result()
+
         if "lambda_uid" in result:
             t = datetime.now()
             lambda_uid = result["lambda_uid"]

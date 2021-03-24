@@ -16,9 +16,9 @@ ml_lambda_function_name = bot_specific_constants.ml_lambda_function_name
 WARM_MAX_HEALTHCHECK_SECONDS = 5
 ASSUME_WARM_WITHIN_SECONDS = 60
 ASSUME_COLD_WITHIN_SECONDS = 60 * 10
-RECHECK_SECONDS = 1
+RECHECK_SECONDS = 5
 STAGGER_LAMBDAS_WAIT_SEC = 5
-STAGGER_LAMBDA_REQUESTS_SEC = 0.05
+STAGGER_LAMBDA_REQUESTS_SEC = 0.33
 
 wait_for_lambda_result = partial(
     wait_for_result,
@@ -78,6 +78,7 @@ def secure_n_warm_lambdas(n: int = 1):
     futures = []
     executor = cf.ProcessPoolExecutor(max_workers=n)
     for request_id in request_ids:
+        time.sleep(STAGGER_LAMBDA_REQUESTS_SEC)
         futures.append(executor.submit(wait_for_lambda_result, request_id=request_id))
 
     lambdas = {}
@@ -142,16 +143,16 @@ class LambdaPool:
 
         self._prune_old()
 
-        last_response_times = sorted(
-            [l.last_response_time for l in self.lambdas.values()]
-        )
-        print(
-            f"{len(self.lambdas)} lambdas, {self.n_trusted} trusted, last response times {last_response_times}"
-        )
+        # last_response_times = sorted(
+        #     [l.last_response_time for l in self.lambdas.values()]
+        # )
+        # print(
+        #     f"{len(self.lambdas)} lambdas, {self.n_trusted} trusted, last response times {last_response_times}"
+        # )
 
     @property
     def lambdas_occupied(self) -> int:
-        return sum([f.running() for id_futures in self.calls_in_flight.values() for f in id_futures])
+        return sum([f.running() for f in self.calls_in_flight.values()])
 
     @property
     def n_requests_allowed(self) -> int:
@@ -165,20 +166,17 @@ class LambdaPool:
         self.lambdas = secure_n_warm_lambdas(n=self.n_workers)
 
     def request(self, data: dict):
-        if "ml_operation_id" not in data:
-            raise ValueError(f"no ml_operation_id in {repr(data)}")
+        ml_operation_id = str(uuid.uuid4())
+        data['ml_operation_id'] = ml_operation_id
 
         if len(self.lambdas) == 0:
             self.initialize()
-
-        ml_operation_id = data["ml_operation_id"]
 
         while self.all_occupied:
             time.sleep(1)
 
         repeat_until_done_signal = data.get('repeat_until_done_signal', False)
 
-        print(f"repeat_until_done_signal: {repeat_until_done_signal}")
         if repeat_until_done_signal:
             request_ids = request_ml_from_lambda(data=data, n_concurrent=self.n_requests_allowed)
         else:
@@ -186,9 +184,12 @@ class LambdaPool:
 
         for request_id in request_ids:
             future = self.executor.submit(wait_for_lambda_result, request_id=request_id)
+            future.recorded = False
             self.calls_in_flight[request_id] = future
             self.ml_operation_ids_to_request_ids[ml_operation_id].add(request_id)
             self.request_ids_to_request_data[request_id] = data
+
+        return ml_operation_id
 
     def check(self, ml_operation_id: str):
         request_ids = self.ml_operation_ids_to_request_ids[ml_operation_id]
@@ -212,15 +213,18 @@ class LambdaPool:
                 continue
 
             result, done_ts, time_sec = future.result()
-            print(f"request_id {request_id} done in {time_sec:.2f}s")
-            self._record_tracking_data(result, done_ts)
+            if not future.recorded:
+                print(f"request_id {request_id} done in {time_sec:.2f}s")
+                self._record_tracking_data(result, done_ts)
+                future.recorded = True
+
             collected_results.append(result)
 
             request_data = self.request_ids_to_request_data[request_id]
 
             repeat_until_done_signal = request_data.get('repeat_until_done_signal', False)
             if repeat_until_done_signal:
-                print(f"repeat_until_done_signal --> re-requesting ml_operation_id {ml_operation_id}")
+                # print(f"repeat_until_done_signal --> re-requesting ml_operation_id {ml_operation_id}")
                 self.request(request_data)
             # else:
             #     # not in flight anymore
@@ -232,7 +236,7 @@ class LambdaPool:
         to_remove = self.ml_operation_ids_to_request_ids[ml_operation_id]
         updated_calls_in_flight = {
             request_id: future
-            for request_id, future in self.calls_in_flight
+            for request_id, future in self.calls_in_flight.items()
             if request_id not in to_remove
         }
         self.calls_in_flight = updated_calls_in_flight

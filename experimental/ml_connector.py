@@ -125,9 +125,9 @@ class MLModelInterface:
         data_to_send.update(data)
         data_to_send["ml_operation_id"] = ml_operation_id
 
-        LAMBDA_POOL.request(data=data_to_send)
+        ml_operation_id = LAMBDA_POOL.request(data=data_to_send)
 
-        return new_id
+        return ml_operation_id
 
 
 class GeneratorModelInterface(MLModelInterface):
@@ -334,7 +334,7 @@ def basic_n_continuations(
     n_batches_so_far = 0
 
     while len(continuations) < N:
-        time.sleep(5)
+        time.sleep(1)
         batches_written_raw = LAMBDA_POOL.check(ml_operation_id)
 
         batches_written = [entry["result"] for entry in batches_written_raw]

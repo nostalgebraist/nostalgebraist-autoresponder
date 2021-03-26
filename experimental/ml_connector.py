@@ -516,7 +516,6 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
             if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
                 text = EOT_FULL + text
 
-        print(f"predict_select: using text: {repr(text)}")
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
 
@@ -555,7 +554,6 @@ def predict_sentiment(data, debug=False):
             if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
                 text = EOT_FULL + text
 
-        print(f"predict_sentiment: using text: {repr(text)}")
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
 
@@ -585,7 +583,6 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
             if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
                 text = EOT_FULL + text
 
-        print(f"predict_autoreview: using text: {repr(text)}")
         selector_input.append(text)
     if debug:
         print("autoreviewer model will see exactly the following:\n")

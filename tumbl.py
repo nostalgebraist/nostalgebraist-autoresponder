@@ -1260,7 +1260,7 @@ def is_dynamically_reblog_worthy_on_dash(
     post_identifier = PostIdentifier(post_payload["blog_name"], str(post_payload["id"]))
 
     pos_sentiment, neg_sentiment = None, None
-    timestamp = timestamp_to_v8_format(datetime.now())
+    timestamp = timestamp_to_v10_format(datetime.now())
 
     text = write_text_for_side_judgment(post_payload)
     prob = selection_proba_from_gpt2_service([text], timestamp=timestamp)[0]

@@ -151,11 +151,11 @@ else:
 
 ### Sampling
 
-BREAKRUNS=True
-BREAKRUNS_TAU=0.03
-BREAKRUNS_DECAY=0.
+BREAKRUNS = True
+BREAKRUNS_TAU = 0.01  # 0.03
+BREAKRUNS_DECAY = 0.
 
-temperature = 0.85
+temperature = 0.9  # 0.85
 top_k = 0
 top_p = 0.97
 middle_p = 0

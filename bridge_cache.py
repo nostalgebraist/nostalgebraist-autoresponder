@@ -40,9 +40,30 @@ class BridgeCache:
 
         if key not in self.cache:
             response_data = self.call_bridge(data, bridge_id=key.bridge_id)
+
+            true_key = key_from_response_data(bridge_id=key.bridge_id, response_data=response_data)
+            key = true_key
+            
             self.cache[key] = response_data
 
         return self.cache[key]
+
+    @staticmethod
+    def key_from_response_data(response_data: dict, bridge_id: str):
+        entry = response_data[0]
+        model_info = entry['model_info']
+
+        model_versions = (
+            ModelVersion('model_name', model_info.get('model_name', '')),
+            ModelVersion('ckpt_select', model_info.get('ckpt_select', '')),
+            ModelVersion('ckpt_sentiment', model_info.get('ckpt_sentiment', '')),
+            ModelVersion('ckpt_autoreviewer', model_info.get('ckpt_autoreviewer', '')),
+        )
+
+        return BridgeCacheKey(
+            bridge_id=bridge_id,
+            model_versions=model_versions
+        )
 
     @staticmethod
     def call_bridge(self, data: dict, bridge_id: str):

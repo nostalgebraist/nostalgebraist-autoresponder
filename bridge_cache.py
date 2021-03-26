@@ -1,3 +1,4 @@
+import os
 import json
 import time
 from typing import Tuple, NamedTuple
@@ -6,7 +7,7 @@ import requests
 
 from bridge_shared import bridge_service_unique_id, bridge_service_url
 from util.util import typed_namedtuple_to_dict
-from autoresponder_config import model_version, ckpt_select, ckpt_sentiment, ckpt_autoreviewer
+from autoresponder_config import model_name, ckpt_select, ckpt_sentiment, ckpt_autoreviewer
 
 
 ModelVersion = NamedTuple("ModelVersion",
@@ -26,8 +27,8 @@ BridgeCacheKey = NamedTuple("BridgeCacheKey",
                             )
 
 
-def make_bridge_cache_key(data: dict) -> BridgeCache:
-    bridge_id = bridge_service_unique_id(data)
+def make_bridge_cache_key(data: dict) -> BridgeCacheKey:
+    bridge_id = bridge_service_unique_id(bridge_service_url, data)
     return BridgeCacheKey(bridge_id=bridge_id, model_versions=LATEST_MODEL_VERSIONS)
 
 
@@ -43,7 +44,7 @@ class BridgeCache:
 
             true_key = key_from_response_data(bridge_id=key.bridge_id, response_data=response_data)
             key = true_key
-            
+
             self.cache[key] = response_data
 
         return self.cache[key]
@@ -66,7 +67,7 @@ class BridgeCache:
         )
 
     @staticmethod
-    def call_bridge(self, data: dict, bridge_id: str):
+    def call_bridge(data: dict, bridge_id: str):
         response_data = []
         while len(response_data) == 0:
             time.sleep(1)

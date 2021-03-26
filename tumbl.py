@@ -1264,6 +1264,8 @@ def is_dynamically_reblog_worthy_on_dash(
     timestamp = timestamp_to_v10_format(datetime.now())
 
     text = write_text_for_side_judgment(post_payload)
+    if not text:
+        return False
     prob = selection_proba_from_gpt2_service([text], timestamp=timestamp)[0]
     sentiment = sentiment_logit_diffs_from_gpt2_service([text])[0]
 

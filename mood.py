@@ -17,6 +17,20 @@ def pos_sent_to_logit_diff(x, eps=1e-4):
     return -np.log(1 / min(max(x, eps), 1 - eps) - 1)
 
 
+def logit_diff_to_allen_schema(logit_diff: float):
+    label = "1" if logit_diff > 0 else "0"
+
+    pos_logit = logit_diff / 2
+    neg_logit = -1 * logit_diff / 2
+    logits = [pos_logit, neg_logit]
+
+    prob_pos = logit_diff_to_pos_sent(logit_diff)
+    prob = prob_pos if logit_diff > 0 else (1.0 - prob_pos)
+
+    entry = {"label": label, "prob": prob, "logits": logits}
+    return entry
+
+
 def load_logit_diff_sample():
     with open("data/logit_diff_sample.pkl.gz", "rb") as f:
         logit_diff_sample = pickle.load(f)

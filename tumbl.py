@@ -33,7 +33,7 @@ from response_cache import (
 )
 
 from side_judgments import SideJudgmentCache
-from mood import DEFAULT_MOOD, random_mood_at_pst_datetime
+from mood import DEFAULT_MOOD, random_mood_at_pst_datetime, logit_diff_to_allen_schema
 from mood_dynamic import (
     compute_dynamic_moodspec_at_time,
     create_mood_graph,
@@ -46,7 +46,9 @@ from mood_dynamic import (
 from munging_shared import *
 from bridge_shared import send_alldone
 from selector import apply_retention_cutoff
-from experimental.ml_connector import answer_from_gpt2_service, text_post_from_gpt2_service
+from experimental.ml_connector import answer_from_gpt2_service, text_post_from_gpt2_service, \
+selection_proba_from_gpt2_service, sentiment_logit_diffs_from_gpt2_service, \
+autoreview_proba_from_gpt2_service
 
 from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 
@@ -1144,13 +1146,6 @@ def text_for_side_judgments(
     return text
 
 
-def side_judgements_for_text(text, loop_persistent_data):
-    side_judgements = loop_persistent_data.side_judgment_cache.query(text)
-    prob = side_judgements["selection_proba"]
-    sentiment = side_judgements["sentiment"]["allen_schema"]
-    return prob, sentiment
-
-
 def am_i_tagged_in_reblog(post_payload):
     comment_ = post_payload.get("reblog", {}).get("comment", "")
     return f"@{blogName}" in comment_
@@ -1267,12 +1262,11 @@ def is_dynamically_reblog_worthy_on_dash(
     post_identifier = PostIdentifier(post_payload["blog_name"], str(post_payload["id"]))
 
     pos_sentiment, neg_sentiment = None, None
-    text = text_for_side_judgments(
-        post_identifier, post_payload, response_cache, loop_persistent_data
-    )
-    if not text:
-        return False
-    prob, sentiment = side_judgements_for_text(text, loop_persistent_data)
+    timestamp = timestamp_to_v8_format(datetime.now())
+
+    text = write_text_for_side_judgment(post_payload)
+    prob = selection_proba_from_gpt2_service([text], timestamp=timestamp)[0]
+    sentiment = sentiment_logit_diffs_from_gpt2_service([text])[0]
 
     if len(text) < 10:
         if verbose:
@@ -1283,9 +1277,10 @@ def is_dynamically_reblog_worthy_on_dash(
         reblog_worthy_neg_sentiment = True  # don't depend on allen too heavily
         print(f"warning: couldn't get sentiment")
     else:
-        pos_sentiment = (
-            sentiment["prob"] if sentiment["label"] == "1" else 1.0 - sentiment["prob"]
-        )
+        # pos_sentiment = (
+        #     sentiment["prob"] if sentiment["label"] == "1" else 1.0 - sentiment["prob"]
+        # )
+        pos_sentiment = logit_diff_to_pos_sent(sentiment)
         neg_sentiment = 1.0 - pos_sentiment
         reblog_worthy_neg_sentiment = neg_sentiment < DASH_REBLOG_MAX_NEG_SENTIMENT
 
@@ -1449,42 +1444,23 @@ def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
                 id_=r["post_id"],
                 timestamp=r["timestamp"],
             )
-            do_get_sentiment = False
-            if (
-                response_cache.get_cached_user_input_sentiment(user_input_identifier)
-                is None
-            ):
-                do_get_sentiment = True
-            elif (
-                "text_for_sentiment"
-                not in response_cache.get_cached_user_input_sentiment(
-                    user_input_identifier
-                )
-            ):
-                print(
-                    f"re-doing sentiment for {user_input_identifier} since 'text_for_sentiment' not found"
-                )
-                do_get_sentiment = True
-            if do_get_sentiment:
-
-                text_for_sentiment = r.get("added_text")
-                if text_for_sentiment is None:
-                    if VERBOSE_LOGS:
-                        print(
-                            f"couldn't find text for sentiment (added_text) in {user_input_identifier}"
-                        )
-                        print(f"have note payload {r}")
-                else:
-                    sent = loop_persistent_data.side_judgment_cache.query(
-                        text_for_sentiment
-                    )["sentiment"]["allen_schema"]
-                    sent["text_for_sentiment"] = text_for_sentiment
-                    response_cache.mark_user_input_sentiment(
-                        user_input_identifier, sent
-                    )
+            text_for_sentiment = r.get("added_text")
+            if text_for_sentiment is None:
+                if VERBOSE_LOGS:
                     print(
-                        f"for {reblog_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
+                        f"couldn't find text for sentiment (added_text) in {user_input_identifier}"
                     )
+                    print(f"have note payload {r}")
+            else:
+                logit_diff = sentiment_logit_diffs_from_gpt2_service([text_for_sentiment])[0]
+                sent = logit_diff_to_allen_schema(logit_diff)
+                sent["text_for_sentiment"] = text_for_sentiment
+                response_cache.mark_user_input_sentiment(
+                    user_input_identifier, sent
+                )
+                print(
+                    f"for {reblog_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
+                )
     return loop_persistent_data, response_cache
 
 
@@ -1623,9 +1599,8 @@ def get_relevant_replies_from_notes(
                     )
                     print(f"have note payload {n}")
             else:
-                sent = loop_persistent_data.side_judgment_cache.query(
-                    text_for_sentiment
-                )["sentiment"]["allen_schema"]
+                logit_diff = sentiment_logit_diffs_from_gpt2_service([text_for_sentiment])[0]
+                sent = logit_diff_to_allen_schema(logit_diff)
                 sent["text_for_sentiment"] = text_for_sentiment
                 response_cache.mark_user_input_sentiment(user_input_identifier, sent)
                 print(
@@ -1859,27 +1834,13 @@ def do_reblog_reply_handling(
 
     if is_dashboard:
         # batch up dash posts for side judgment computation
-        texts_for_side_judgments = []
         statically_worthy_posts = []
         for post_ix, post in enumerate(tqdm(posts)):  # posts[:n_posts_to_check]
             if is_statically_reblog_worthy_on_dash(
                 post, response_cache, loop_persistent_data, verbose=VERBOSE_LOGS
             ):
-                post_identifier = PostIdentifier(post["blog_name"], post["id"])
-                text = text_for_side_judgments(
-                    post_identifier, post, response_cache, loop_persistent_data
-                )
-                if text:
-                    texts_for_side_judgments.append(text)
-                    statically_worthy_posts.append(post)
-        print(f"{len(texts_for_side_judgments)}/{len(posts)} statically reblog worthy")
-        ts = datetime.now()
-        v10_timestamps = [timestamp_to_v10_format(ts) for _ in texts_for_side_judgments]
-        loop_persistent_data.side_judgment_cache.query_multi(
-            texts_for_side_judgments,
-            v10_timestamps=v10_timestamps,
-            verbose=VERBOSE_LOGS,
-        )
+                statically_worthy_posts.append(post)
+        print(f"{len(statically_worthy_posts)}/{len(posts)} statically reblog worthy")
     else:
         statically_worthy_posts = posts  # posts[:n_posts_to_check]
 
@@ -2308,9 +2269,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         )
                         print(f"have submission payload {x}")
                 else:
-                    sent = loop_persistent_data.side_judgment_cache.query(
-                        text_for_sentiment
-                    )["sentiment"]["allen_schema"]
+                    logit_diff = sentiment_logit_diffs_from_gpt2_service([text_for_sentiment])[0]
+                    sent = logit_diff_to_allen_schema(logit_diff)
                     sent["text_for_sentiment"] = text_for_sentiment
                     response_cache.mark_user_input_sentiment(
                         user_input_identifier, sent

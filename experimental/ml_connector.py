@@ -6,6 +6,7 @@ from textwrap import wrap, fill
 from datetime import datetime
 from string import whitespace, punctuation
 from itertools import chain, product
+from typing import List
 
 import requests
 import numpy as np
@@ -515,6 +516,7 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
             if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
                 text = EOT_FULL + text
 
+        print(f"predict_select: using text: {repr(text)}")
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
 
@@ -563,6 +565,7 @@ def predict_sentiment(data, debug=False):
             if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
                 text = EOT_FULL + text
 
+        print(f"predict_sentiment: using text: {repr(text)}")
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
 
@@ -602,6 +605,7 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
             if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
                 text = EOT_FULL + text
 
+        print(f"predict_autoreview: using text: {repr(text)}")
         selector_input.append(text)
     if debug:
         print("autoreviewer model will see exactly the following:\n")
@@ -1285,4 +1289,63 @@ def serve_raw_select(data):
 
     # print(f"texts: {texts}\nresults: {results}\n")
 
+    return results
+
+
+def selection_proba_from_gpt2_service(texts: List[str], timestamp: str=None):
+    if timestamp is None:
+        timestamp = ""
+
+    texts = [join_time_sidechannel(s, timestamp) for s in texts]
+    texts = [final_munge_before_neural(s) for s in texts]
+
+    selector_inputs = pd.DataFrame(
+        {
+            "selector_input": texts,
+            "prompt_finalchar": [
+                "" for _ in range(len(texts))  # unused but necessary
+            ],
+        }
+    )
+    selection_results = predict_select(
+        selector_inputs, debug=True, override_disable_forumlike=True
+    )
+    results = [float(p) for p in selection_results]
+    return results
+
+
+def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
+    sentiment_inputs = pd.DataFrame(
+        {"selector_input": [texts]}
+    )
+    sentiment_results = predict_sentiment(sentiment_inputs, debug=True)
+    results = [float(p) for p in sentiment_results]
+
+    return results
+
+
+def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str=None):
+    if timestamp is None:
+        timestamp = ""
+
+    autoreview_inputs = [
+        cut_to_new_since_last_frank_post(s)
+        for s in texts
+    ]
+
+    autoreview_inputs = [
+        join_time_sidechannel(s, timestamp) for s in autoreview_inputs
+    ]
+
+    autoreview_inputs = pd.DataFrame(
+        {
+            "selector_input": autoreview_inputs,
+            "prompt_finalchar": ["" for _ in range(len(autoreview_inputs))],
+        }
+    )
+    autoreview_results = predict_autoreview(
+        autoreview_inputs,
+        debug=False,
+    )
+    results = [float(p) for p in autoreview_results]
     return results

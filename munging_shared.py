@@ -451,10 +451,10 @@ def load_wash_lists():
 def write_text_for_side_judgment(
     post_payload,
     image_analysis_cache=None,
-    chop_on_a_char=True,
-    add_tags=True,
-    swap_in_frank=True,
-    add_empty_response=False,
+    chop_on_a_char=False,
+    add_tags=False,
+    swap_in_frank=False,
+    add_empty_response=True,
 ):
     processed = process_post_from_post_payload(
         post_payload, image_analysis_cache=image_analysis_cache

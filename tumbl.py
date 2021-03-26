@@ -130,6 +130,7 @@ DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
 DASH_REBLOG_CONTINUATION_CUTOFF = 0.5  # "roll" # 0.5
 
 DASH_REBLOG_REQUIRE_COMMENT = False
+DASH_REBLOG_NO_BOT = True
 
 MOOD = True
 MOOD_DYN = True
@@ -1170,6 +1171,15 @@ def is_statically_reblog_worthy_on_dash(
 
     comment_ = post_payload.get("reblog", {}).get("comment", "")
     has_comment = len(comment_) > 0
+
+    if DASH_REBLOG_NO_BOT:
+        trail = post_payload.get("trail", [])
+        trail_blognames_are_me = [
+            entry.get("blog", {}).get("name", "") == blogName
+            for entry in trail
+        ]
+        if any(trail_blognames_are_me):
+            return False
 
     if not has_comment:
         if DASH_REBLOG_REQUIRE_COMMENT:

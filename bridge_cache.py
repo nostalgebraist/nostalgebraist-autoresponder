@@ -6,7 +6,6 @@ from typing import Tuple, NamedTuple
 import requests
 
 from bridge_shared import bridge_service_unique_id, bridge_service_url
-from util.util import typed_namedtuple_to_dict
 from autoresponder_config import model_name, ckpt_select, ckpt_sentiment, ckpt_autoreviewer
 
 
@@ -42,7 +41,7 @@ class BridgeCache:
         if key not in self.cache:
             response_data = self.call_bridge(data, bridge_id=key.bridge_id)
 
-            true_key = key_from_response_data(bridge_id=key.bridge_id, response_data=response_data)
+            true_key = self.key_from_response_data(bridge_id=key.bridge_id, response_data=response_data)
             key = true_key
 
             self.cache[key] = response_data
@@ -68,6 +67,12 @@ class BridgeCache:
 
     @staticmethod
     def call_bridge(data: dict, bridge_id: str):
+        data_to_send = dict()
+        data_to_send.update(data)
+        data_to_send["id"] = bridge_id
+
+        requests.post(bridge_service_url + "/requestml", json=data_to_send)
+
         response_data = []
         while len(response_data) == 0:
             time.sleep(1)
@@ -78,9 +83,17 @@ class BridgeCache:
         requests.post(bridge_service_url + "/done", json={"id": bridge_id})
         return response_data
 
+    def to_json(self):
+        return [{"key": k, "value": v} for k, v in self.cache.items()]
+
+    @staticmethod
+    def from_json(entries: list) -> 'BridgeCache':
+        cache = {entry["key"]: entry["value"] for entry in entries}
+        return BridgeCache(cache=cache)
+
     def save(self, path="data/bridge_cache.json"):
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(self.cache, f)
+            json.dump(self.to_json(), f)
 
     @staticmethod
     def load(path="data/bridge_cache.json") -> 'BridgeCache':
@@ -89,5 +102,5 @@ class BridgeCache:
             return BridgeCache(cache=dict())
 
         with open(path, "r", encoding="utf-8") as f:
-            cache = json.load(f)
-        return BridgeCache(cache=cache)
+            entries = json.load(f)
+        return BridgeCache.from_json(entries)

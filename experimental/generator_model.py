@@ -8,10 +8,7 @@ import model
 import sample
 
 from autoresponder_config import *  # TODO: move elsewhere?
-
-
-def typed_namedtuple_to_dict(tup: NamedTuple) -> dict:
-  return {name: getattr(tup, name) for name in tup._fields}
+from util.util import typed_namedtuple_to_dict
 
 
 def copy_and_update_config(cls, config, **kwargs):

@@ -523,16 +523,6 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
     data = data.to_dict(orient="records")
 
     response_data = selector_est.predict_proba(data)
-    # bridge_id = selector_est.predict_proba(data)
-    #
-    # response_data = []
-    # while len(response_data) == 0:
-    #     time.sleep(1)
-    #     response_data = requests.post(
-    #         bridge_service_url + "/getresult", data={"id": bridge_id}
-    #     ).json()
-    #
-    # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     result = np.array(response_data[0]["result"])
     probs = result[:, 1]
@@ -572,16 +562,6 @@ def predict_sentiment(data, debug=False):
     data = data.to_dict(orient="records")
 
     response_data = sentiment_est._predict(data, key="logits")
-    # bridge_id = sentiment_est._predict(data, key="logits")
-    #
-    # response_data = []
-    # while len(response_data) == 0:
-    #     time.sleep(1)
-    #     response_data = requests.post(
-    #         bridge_service_url + "/getresult", data={"id": bridge_id}
-    #     ).json()
-    #
-    # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     logits = np.array(response_data[0]["result"])
 
@@ -617,16 +597,6 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
     data = data.to_dict(orient="records")
 
     response_data = autoreviewer_est.predict_proba(data)
-    # bridge_id = autoreviewer_est.predict_proba(data)
-    #
-    # response_data = []
-    # while len(response_data) == 0:
-    #     time.sleep(1)
-    #     response_data = requests.post(
-    #         bridge_service_url + "/getresult", data={"id": bridge_id}
-    #     ).json()
-    #
-    # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     result = np.array(response_data[0]["result"])
     probs = result[:, 1]
@@ -685,9 +655,8 @@ def answer_from_gpt2_service(
 
     result_generator = old_bridge_call__answer(data=data)
 
-    result, _, _ = serve_selection(
+    result, _ = serve_selection(
         data=result_generator,
-        side_judgment_cache=loop_persistent_data.side_judgment_cache,
     )
 
     # for logging, add any input fields that didn't make the round trip
@@ -728,17 +697,14 @@ def text_post_from_gpt2_service(
 
     result_generator = old_bridge_call__textpost(data=data)
 
-    result, retention_stack, retention_stack_proba = serve_selection(
+    result, retention_stack = serve_selection(
         data=result_generator,
-        side_judgment_cache=loop_persistent_data.side_judgment_cache,
         retention_stack=loop_persistent_data.retention_stack,
-        retention_stack_proba=loop_persistent_data.retention_stack_proba,
     )
 
     save_retention(retention_stack)
 
     loop_persistent_data.retention_stack = retention_stack
-    loop_persistent_data.retention_stack_proba = retention_stack_proba
 
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
@@ -769,8 +735,6 @@ def side_judgments_from_gpt2_service(
         print(f"side_judgments_from_gpt2_service: data={data}")
 
     result = old_bridge_call__raw_select(data=data)
-    # requests.post(url, json=data_to_send)
-    # result = wait_for_result(new_id, wait_first_time=wait_first_time, wait_recheck_time=wait_recheck_time)
     return result
 
 
@@ -1234,7 +1198,6 @@ def serve_textpost(data):
 def serve_raw_select(data):
     texts = data["texts"]
 
-    # texts = [s.lstrip("翰") for s in texts]
     if V8:
         vX_timestamp = (
             data.get("v10_timestamp", "") if V10 else data.get("v8_timestamp", "")
@@ -1281,13 +1244,6 @@ def serve_raw_select(data):
     )
     sentiment_results = predict_sentiment(selector_inputs, debug=True)
     results["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
-    # show_note_probas(
-    #     texts,
-    #     probas=results["selection_proba"],
-    #     sentiment_logit_diffs=results["sentiment_logit_diffs"],
-    # )
-
-    # print(f"texts: {texts}\nresults: {results}\n")
 
     return results
 
@@ -1316,7 +1272,7 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str=None):
 
 def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
     sentiment_inputs = pd.DataFrame(
-        {"selector_input": [texts]}
+        {"selector_input": texts}
     )
     sentiment_results = predict_sentiment(sentiment_inputs, debug=True)
     results = [float(p) for p in sentiment_results]

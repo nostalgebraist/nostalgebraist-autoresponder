@@ -14,6 +14,7 @@ from image_analysis import IMAGE_DELIMITER_WHITESPACED
 from autoresponder_static_v8 import timestamp_to_v10_format
 
 from munging_shared import T_CHAR, ORIG_POST_CHAR
+from mood import logit_diff_to_allen_schema
 
 bot_specific_constants = BotSpecificConstants.load()
 selector_url = bot_specific_constants.bridge_service_url + "/pollselector"
@@ -124,16 +125,12 @@ def winndow_probabilities(proba, lower=0.333, upper=0.667):
     return proba_
 
 
-def get_continuation_sentiments(side_judgment_cache, continuations, sleep_time=0.2):
-    continuation_sentiments = [
-        side_judgment_cache.query(c, sleep_time=sleep_time)["sentiment"]["allen_schema"]
-        for c in tqdm(continuations)
-    ]
-    return continuation_sentiments
+def get_continuation_sentiments(sentiment_logit_diffs):
+    return [logit_diff_to_allen_schema(sld) for sld in sentiment_logit_diffs]
 
 
 def sentiment_screen(
-    side_judgment_cache, continuations, mood,
+    continuations, sentiment_logit_diffs, mood,
     selection_proba=None,
     continuation_side_data=None,
     autoreview_proba=None
@@ -146,7 +143,7 @@ def sentiment_screen(
         autoreview_proba = [None for _ in continuations]
 
     all_continuation_sentiments = get_continuation_sentiments(
-        side_judgment_cache, continuations
+        sentiment_logit_diffs
     )
 
     score_fn = mood["score_fn"]
@@ -221,17 +218,8 @@ def sentiment_screen(
     )
 
 
-def record_side_judgements(
-    side_judgment_cache, continuations, selection_proba, sentiment_logit_diffs
-):
-    for c, sp, sld in zip(continuations, selection_proba, sentiment_logit_diffs):
-        side_judgment_cache.record(
-            c, {"selection_proba": [sp], "sentiment_logit_diffs": [sld]}
-        )
-
-
 def serve_selection(
-    data, side_judgment_cache, retention_stack=None, retention_stack_proba=None
+    data, retention_stack=None,
 ):
     continuations = data["continuations"]
     selection_proba = data.get("selection_proba")
@@ -258,11 +246,6 @@ def serve_selection(
 
     autoreview_proba = data.get("autoreview_proba", [None for _ in continuations])
 
-    if selection_proba is not None and sentiment_logit_diffs is not None:
-        record_side_judgements(
-            side_judgment_cache, continuations, selection_proba, sentiment_logit_diffs
-        )
-
     kwargs = data["kwargs"]
     mood = kwargs.get("mood")
     return_all_conts = kwargs.get("return_all_conts", False)
@@ -277,12 +260,13 @@ def serve_selection(
     if (data["type"] == "textpost") and (strategy != "uniform"):
         continuations += sorted(retention_stack)
         if selection_proba is not None:
+            retention_stack_proba, retention_stack_logit_diffs = get_retention_stack_judgments(retention_stack)
             if retention_stack_proba is not None:
                 print(f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}")
                 selection_proba += retention_stack_proba
+                sentiment_logit_diffs += retention_stack_logit_diffs
             else:
                 selection_proba += [None for _ in retention_stack]
-            # TODO: store retention_stack mirotarg
             continuation_side_data += [{} for _ in retention_stack]
             autoreview_proba += [None for _ in retention_stack]
 
@@ -300,8 +284,8 @@ def serve_selection(
             retained_continuation_side_data,
             retained_autoreview_proba,
         ) = sentiment_screen(
-            side_judgment_cache,
             continuations,
+            sentiment_logit_diffs,
             mood,
             selection_proba,
             continuation_side_data,
@@ -309,7 +293,7 @@ def serve_selection(
         )
     else:
         continuation_sentiments = get_continuation_sentiments(
-            side_judgment_cache, continuations
+            sentiment_logit_diffs
         )
         retained_continuations = continuations
         all_continuation_sentiments = continuation_sentiments
@@ -369,8 +353,8 @@ def serve_selection(
         if continuation in retention_stack:
             retention_stack.remove(continuation)
 
-        retention_stack, retention_stack_proba = apply_retention_cutoff(
-            retention_stack, side_judgment_cache
+        retention_stack = apply_retention_cutoff(
+            retention_stack
         )
 
     parsed = parse_continuation(continuation)
@@ -422,7 +406,7 @@ def serve_selection(
             print(f"\t{k}")
         print("consider modifying selector.py to include them")
 
-    return parsed, retention_stack, retention_stack_proba
+    return parsed, retention_stack
 
 
 def do_coldstart(continuations, selection_proba, substring, delta):
@@ -446,25 +430,22 @@ do_image_coldstart = partial(
 )
 
 
-def apply_retention_cutoff(retention_stack, side_judgment_cache, force=False):
-    # TODO: return side_judgment_cache so we don't lose what is learned inside here
-    ts = datetime.now()
-    v10_timestamps = [timestamp_to_v10_format(ts) for _ in retention_stack]
+def get_retention_stack_judgments(retention_stack):
+    from experimental.ml_connector import selection_proba_from_gpt2_service, sentiment_logit_diffs_from_gpt2_service
 
     texts_for_selection = [ORIG_POST_CHAR + t for t in sorted(retention_stack)]
-    if force:
-        to_delete = [t for t in texts_for_selection if t in side_judgment_cache.cache]
-        for t in to_delete:
-            del side_judgment_cache.cache[t]
 
-    retention_stack_side_judgments = side_judgment_cache.query_multi(
-        texts_for_selection,
-        v10_timestamps=v10_timestamps,
-        verbose=True,
-    )
-    retention_stack_proba = [
-        judg["selection_proba"] for judg in retention_stack_side_judgments
-    ]
+    timestamp = timestamp_to_v10_format(datetime.now())
+    proba = selection_proba_from_gpt2_service(texts_for_selection, timestamp=timestamp)
+
+    logit_diffs = sentiment_logit_diffs_from_gpt2_service(sorted(retention_stack))
+
+    return proba, logit_diffs
+
+
+
+def apply_retention_cutoff(retention_stack):
+    retention_stack_proba, _ = get_retention_stack_judgments(retention_stack)
 
     if FIC_COLDSTART:
         retention_stack_proba = do_fic_coldstart(
@@ -507,4 +488,4 @@ def apply_retention_cutoff(retention_stack, side_judgment_cache, force=False):
             f"after: {n_after_stack} in retention_stack, {n_after_proba} in retention_stack_proba"
         )
     print(f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}")
-    return retention_stack, retention_stack_proba
+    return retention_stack

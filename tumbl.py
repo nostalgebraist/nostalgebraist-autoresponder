@@ -759,7 +759,6 @@ class LoopPersistentData:
         follower_names=None,
         image_analysis_cache: ImageAnalysisCache = ImageAnalysisCache(),
         retention_stack: set = set(),
-        retention_stack_proba: list = [],
     ):
         self.reblogs_from_me = reblogs_from_me
         self.reblog_worthy_dash_posts = reblog_worthy_dash_posts
@@ -778,7 +777,6 @@ class LoopPersistentData:
         self.follower_names = follower_names
         self.image_analysis_cache = image_analysis_cache
         self.retention_stack = retention_stack
-        self.retention_stack_proba = retention_stack_proba
 
         if len(self.requests_per_check_history) == 0:
             self.requests_per_check_history.extend(
@@ -2567,11 +2565,11 @@ def load_retention(side_judgment_cache):
     with open("data/retention_stack.pkl.gz", "rb") as f:
         retention_stack = pickle.load(f)
 
-    retention_stack, retention_stack_proba = apply_retention_cutoff(
-        retention_stack, side_judgment_cache,
+    retention_stack = apply_retention_cutoff(
+        retention_stack
     )
 
-    return retention_stack, retention_stack_proba
+    return retention_stack
 
 
 if __name__ == "__main__":
@@ -2579,13 +2577,12 @@ if __name__ == "__main__":
     side_judgment_cache = SideJudgmentCache.load()
     image_analysis_cache = ImageAnalysisCache.load()
 
-    retention_stack, retention_stack_proba = load_retention(side_judgment_cache)
+    retention_stack = load_retention(side_judgment_cache)
 
     loop_persistent_data = LoopPersistentData(
         side_judgment_cache=side_judgment_cache,
         image_analysis_cache=image_analysis_cache,
         retention_stack=retention_stack,
-        retention_stack_proba=retention_stack_proba,
     )
 
     while True:

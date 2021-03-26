@@ -15,15 +15,14 @@ from autoresponder_config import *
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
-from bridge_shared import bridge_service_unique_id
+from bridge_shared import bridge_service_unique_id, bridge_service_url
 from bot_config import BotSpecificConstants
 from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
 from selector import serve_selection
 
 from experimental.year_munging import sample_and_substitute_year_v10
 
-bot_specific_constants = BotSpecificConstants.load()
-bridge_service_url = bot_specific_constants.bridge_service_url
+from bridge_cache_singleton import BRIDGE_CACHE
 
 TRADE_QUALITY_FOR_SPEED = False
 
@@ -117,6 +116,11 @@ class MLModelInterface:
             "kwargs": kwargs,
             "repeat_until_done_signal": repeat_until_done_signal,
         }
+        if self.uses_bridge_cache:
+            response = BRIDGE_CACHE.query(data)
+            BRIDGE_CACHE.save()
+            return response
+
         new_id = bridge_service_unique_id(bridge_service_url, data)
 
         data_to_send = dict()
@@ -131,6 +135,7 @@ class MLModelInterface:
 class GeneratorModelInterface(MLModelInterface):
     def __init__(self):
         self.name = "generator"
+        self.uses_bridge_cache = False
 
     def write(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do(
@@ -157,6 +162,7 @@ class GeneratorModelInterface(MLModelInterface):
 class SideJudgmentModelInterface(MLModelInterface):
     def __init__(self, name):
         self.name = name
+        self.uses_bridge_cache = True
 
     def predict_proba(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do(
@@ -514,16 +520,17 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
 
     data = data.to_dict(orient="records")
 
-    bridge_id = selector_est.predict_proba(data)
-
-    response_data = []
-    while len(response_data) == 0:
-        time.sleep(1)
-        response_data = requests.post(
-            bridge_service_url + "/getresult", data={"id": bridge_id}
-        ).json()
-
-    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+    response_data = selector_est.predict_proba(data)
+    # bridge_id = selector_est.predict_proba(data)
+    #
+    # response_data = []
+    # while len(response_data) == 0:
+    #     time.sleep(1)
+    #     response_data = requests.post(
+    #         bridge_service_url + "/getresult", data={"id": bridge_id}
+    #     ).json()
+    #
+    # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     result = np.array(response_data[0]["result"])
     probs = result[:, 1]
@@ -561,16 +568,17 @@ def predict_sentiment(data, debug=False):
 
     data = data.to_dict(orient="records")
 
-    bridge_id = sentiment_est._predict(data, key="logits")
-
-    response_data = []
-    while len(response_data) == 0:
-        time.sleep(1)
-        response_data = requests.post(
-            bridge_service_url + "/getresult", data={"id": bridge_id}
-        ).json()
-
-    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+    response_data = sentiment_est._predict(data, key="logits")
+    # bridge_id = sentiment_est._predict(data, key="logits")
+    #
+    # response_data = []
+    # while len(response_data) == 0:
+    #     time.sleep(1)
+    #     response_data = requests.post(
+    #         bridge_service_url + "/getresult", data={"id": bridge_id}
+    #     ).json()
+    #
+    # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     logits = np.array(response_data[0]["result"])
 
@@ -604,16 +612,17 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
 
     data = data.to_dict(orient="records")
 
-    bridge_id = autoreviewer_est.predict_proba(data)
-
-    response_data = []
-    while len(response_data) == 0:
-        time.sleep(1)
-        response_data = requests.post(
-            bridge_service_url + "/getresult", data={"id": bridge_id}
-        ).json()
-
-    requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+    response_data = autoreviewer_est.predict_proba(data)
+    # bridge_id = autoreviewer_est.predict_proba(data)
+    #
+    # response_data = []
+    # while len(response_data) == 0:
+    #     time.sleep(1)
+    #     response_data = requests.post(
+    #         bridge_service_url + "/getresult", data={"id": bridge_id}
+    #     ).json()
+    #
+    # requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
     result = np.array(response_data[0]["result"])
     probs = result[:, 1]

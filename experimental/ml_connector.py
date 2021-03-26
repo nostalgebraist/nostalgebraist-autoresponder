@@ -38,7 +38,6 @@ EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
 #   - higher eps in eps_greedy
 #   - higher retention_stack proba cutoff (to the point that the stack is usu. small)
 TEXTPOST_N_CANDIDATES_TARGET = 15 if (not TRADE_QUALITY_FOR_SPEED) else 12
-# TEXTPOST_N_CANDIDATES_TARGET = 20 if (not TRADE_QUALITY_FOR_SPEED) else 18
 
 Q_CHAR = "会"
 A_CHAR = "域"

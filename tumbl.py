@@ -2515,19 +2515,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             )
         else:
             print("skipping dash check this time")
-            #
-            #
-            # psd_checkprob = checkprob * (requests_needed_to_check / 80)  # quick estimate
-            # check_roll = np.random.rand()
-            # if check_roll >= psd_checkprob:
-            #     print(f"skipping pseudo-dash check this time ({check_roll:.2f} >= {psd_checkprob})...")
-            # else:
-            #     print("checking pseudo-dash...")
-            #     _, mood_value = determine_mood(response_cache, return_mood_value=True)
-            #     loop_persistent_data, response_cache = do_reblog_reply_handling(
-            #         loop_persistent_data, response_cache, n_posts_to_check_dash, is_dashboard=True, mood_value=mood_value,
-            #         pseudo_dashboard=True
-            #     )
 
         ### do another asks check
         loop_persistent_data, response_cache = _mainloop_asks_block(

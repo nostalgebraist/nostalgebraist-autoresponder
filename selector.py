@@ -260,15 +260,16 @@ def serve_selection(
     if (data["type"] == "textpost") and (strategy != "uniform"):
         continuations += sorted(retention_stack)
         if selection_proba is not None:
-            retention_stack_proba, retention_stack_logit_diffs = get_retention_stack_judgments(retention_stack)
+            retention_stack_proba, retention_stack_logit_diffs, retention_stack_autoreview_proba  = \
+            get_retention_stack_judgments(retention_stack)
             if retention_stack_proba is not None:
                 print(f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}")
                 selection_proba += retention_stack_proba
                 sentiment_logit_diffs += retention_stack_logit_diffs
+                autoreview_proba += retention_stack_autoreview_proba
             else:
                 selection_proba += [None for _ in retention_stack]
             continuation_side_data += [{} for _ in retention_stack]
-            autoreview_proba += [None for _ in retention_stack]
 
     print(f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}")
     do_mood_screen = False
@@ -431,7 +432,8 @@ do_image_coldstart = partial(
 
 
 def get_retention_stack_judgments(retention_stack):
-    from experimental.ml_connector import selection_proba_from_gpt2_service, sentiment_logit_diffs_from_gpt2_service
+    from experimental.ml_connector import selection_proba_from_gpt2_service, sentiment_logit_diffs_from_gpt2_service, \
+    autoreview_proba_from_gpt2_service
 
     texts_for_selection = [ORIG_POST_CHAR + t for t in sorted(retention_stack)]
 
@@ -440,12 +442,14 @@ def get_retention_stack_judgments(retention_stack):
 
     logit_diffs = sentiment_logit_diffs_from_gpt2_service(sorted(retention_stack))
 
-    return proba, logit_diffs
+    autoreview_proba = autoreview_proba_from_gpt2_service(texts_for_selection, timestamp=timestamp)
+
+    return proba, logit_diffs, autoreview_proba
 
 
 
 def apply_retention_cutoff(retention_stack):
-    retention_stack_proba, _ = get_retention_stack_judgments(retention_stack)
+    retention_stack_proba, _, _ = get_retention_stack_judgments(retention_stack)
 
     if FIC_COLDSTART:
         retention_stack_proba = do_fic_coldstart(

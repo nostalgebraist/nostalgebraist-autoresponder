@@ -1,6 +1,7 @@
 import os
 import json
 import time
+from datetime import datetime
 from typing import Tuple, NamedTuple
 
 import requests
@@ -88,7 +89,18 @@ class BridgeCache:
 
     @staticmethod
     def from_json(entries: list) -> 'BridgeCache':
-        cache = {entry["key"]: entry["value"] for entry in entries}
+        def _parse_key(key_json: list) -> BridgeCacheKey:
+            bridge_id = key_json[0]
+            model_versions = tuple([
+                ModelVersion(model_identifier=mv[0], version_identifier=mv[1])
+                for mv in key_json[1]
+            ])
+            return BridgeCacheKey(bridge_id=bridge_id, model_versions=model_versions)
+
+        cache = {
+            _parse_key(entry["key"]): entry["value"]
+            for entry in entries
+        }
         return BridgeCache(cache=cache)
 
     def save(self, path="data/bridge_cache.json"):

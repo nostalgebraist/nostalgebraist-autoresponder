@@ -117,6 +117,7 @@ class MLModelInterface:
             "repeat_until_done_signal": repeat_until_done_signal,
         }
         if self.uses_bridge_cache:
+            global BRIDGE_CACHE
             response = BRIDGE_CACHE.query(data)
             BRIDGE_CACHE.save()
             return response

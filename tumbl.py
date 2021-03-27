@@ -1261,14 +1261,13 @@ def is_dynamically_reblog_worthy_on_dash(
     post_identifier = PostIdentifier(post_payload["blog_name"], str(post_payload["id"]))
 
     pos_sentiment, neg_sentiment = None, None
-    timestamp = timestamp_to_v10_format(datetime.now())
 
     text = write_text_for_side_judgment(post_payload)
     if not text:
         return False
-    prob = selection_proba_from_gpt2_service([text], timestamp=timestamp)[0]
+    prob = selection_proba_from_gpt2_service([text])[0]
     sentiment = sentiment_logit_diffs_from_gpt2_service([text])[0]
-    autoreview_prob = autoreview_proba_from_gpt2_service([text], timestamp=timestamp)[0]
+    autoreview_prob = autoreview_proba_from_gpt2_service([text])[0]
 
     if len(text) < 10:
         if verbose:

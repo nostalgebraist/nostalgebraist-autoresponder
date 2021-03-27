@@ -58,6 +58,7 @@ from experimental.ml_connector import (
 from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 
 from autoresponder_static import DEFAULT_CSC
+from autoresponder_static_v8 import timestamp_to_v10_format
 
 from traceability import on_post_creation_callback
 
@@ -1277,9 +1278,11 @@ def batch_judge_dash_posts(post_payloads, loop_persistent_data):
         post_identifiers.append(pi)
         texts.append(text)
 
-    probs = selection_proba_from_gpt2_service(texts)
+    timestamp = timestamp_to_v10_format(datetime.now())
+
+    probs = selection_proba_from_gpt2_service(texts, timestamp=timestamp)
     sentiments = sentiment_logit_diffs_from_gpt2_service(texts)
-    autoreview_probs = autoreview_proba_from_gpt2_service(texts)
+    autoreview_probs = autoreview_proba_from_gpt2_service(texts, timestamp=timestamp)
 
     for pi, text, prob, sentiment, autoreview_prob in zip(
         post_identifiers, texts, probs, sentiments, autoreview_probs

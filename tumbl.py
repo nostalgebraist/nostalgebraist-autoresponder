@@ -1268,6 +1268,7 @@ def is_dynamically_reblog_worthy_on_dash(
         return False
     prob = selection_proba_from_gpt2_service([text], timestamp=timestamp)[0]
     sentiment = sentiment_logit_diffs_from_gpt2_service([text])[0]
+    autoreview_prob = autoreview_proba_from_gpt2_service([text], timestamp=timestamp)[0]
 
     if len(text) < 10:
         if verbose:
@@ -1348,6 +1349,7 @@ def is_dynamically_reblog_worthy_on_dash(
             explanation += f"\n\toverriding prob: i'm tagged in comment"
         if neg_sentiment is not None:
             explanation += f"\n\tneg_sentiment: {neg_sentiment:.0%} vs. {DASH_REBLOG_MAX_NEG_SENTIMENT:.0%}"
+        explanation += f"\n\tautoreview_prob: {autoreview_prob:.0%}"
         print(explanation)
     return reblog_worthy
 

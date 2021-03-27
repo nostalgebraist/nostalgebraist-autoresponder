@@ -59,7 +59,7 @@ else:
     model_path = os.path.join("models", model_name, "model-135.hdf5")
 
 if V10_1:
-    ckpt_select = "selector/v10_1/v3/.hdf5"
+    ckpt_select = "selector/v10_1/v4/.hdf5"
     ckpt_sentiment = "sentiment/v10_1/v1/.hdf5"
     ckpt_autoreviewer = "draft_autoreviewer/v10_1/v3/.hdf5"
 else:

@@ -1278,22 +1278,23 @@ def batch_judge_dash_posts(post_payloads, loop_persistent_data):
         post_identifiers.append(pi)
         texts.append(text)
 
-    timestamp = timestamp_to_v10_format(datetime.now())
+    if len(texts) > 0:
+        timestamp = timestamp_to_v10_format(datetime.now())
 
-    probs = selection_proba_from_gpt2_service(texts, timestamp=timestamp)
-    sentiments = sentiment_logit_diffs_from_gpt2_service(texts)
-    autoreview_probs = autoreview_proba_from_gpt2_service(texts, timestamp=timestamp)
+        probs = selection_proba_from_gpt2_service(texts, timestamp=timestamp)
+        sentiments = sentiment_logit_diffs_from_gpt2_service(texts)
+        autoreview_probs = autoreview_proba_from_gpt2_service(texts, timestamp=timestamp)
 
-    for pi, text, prob, sentiment, autoreview_prob in zip(
-        post_identifiers, texts, probs, sentiments, autoreview_probs
-    ):
-        entry = {
-            "text": text,
-            "prob": prob,
-            "sentiment": sentiment,
-            "autoreview_prob": autoreview_prob,
-        }
-        loop_persistent_data.dash_post_judgments[pi] = entry
+        for pi, text, prob, sentiment, autoreview_prob in zip(
+            post_identifiers, texts, probs, sentiments, autoreview_probs
+        ):
+            entry = {
+                "text": text,
+                "prob": prob,
+                "sentiment": sentiment,
+                "autoreview_prob": autoreview_prob,
+            }
+            loop_persistent_data.dash_post_judgments[pi] = entry
     return loop_persistent_data
 
 

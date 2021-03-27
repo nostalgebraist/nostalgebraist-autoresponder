@@ -346,7 +346,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             he_init=self.he_init,
             init_default_gain=self.init_default_gain,
             init_lreg_gain=self.init_lreg_gain,
-            additional_full_blocks=self.additional_full_blocks,
             selector_style_attn=self.selector_style_attn,
             classic_init=self.classic_init,
         )
@@ -368,7 +367,6 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             he_init=self.he_init,
             init_default_gain=self.init_default_gain,
             init_lreg_gain=self.init_lreg_gain,
-            additional_full_blocks=self.additional_full_blocks,
             selector_style_attn=self.selector_style_attn,
             classic_init=self.classic_init,
         )
@@ -407,6 +405,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 use_only_logit_diff=self.use_only_logit_diff,
                 batch_size=self.batch_size,
                 selection_tok=self.selection_tok,
+                additional_full_blocks=self.additional_full_blocks,
             )
 
             self.selection_step_eval_ = selector(
@@ -422,6 +421,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 use_only_logit_diff=self.use_only_logit_diff,
                 batch_size=self.batch_size,
                 selection_tok=self.selection_tok,
+                additional_full_blocks=self.additional_full_blocks,
             )
             self.select_logits_train_ = self.selection_step_train_["logits_select"]
             self.select_logits_eval_ = self.selection_step_eval_["logits_select"]

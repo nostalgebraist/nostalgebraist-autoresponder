@@ -232,6 +232,7 @@ def selector(
     mlp_ratio=1,
     use_only_logit_diff=False,
     use_logit_diff_basis=False,
+    additional_full_blocks=0,
 ):
     results = {}
 
@@ -245,10 +246,23 @@ def selector(
     )["activations"]
     act_names = [f'h{i}' for i in layer_nums]
 
+    hparams_fullblocks = model.hparams_1558M()
+    for train_hparam in ['acti_dropout', 'attn_dropout', 'res_dropout',
+                         'orth_init', 'he_init', 'init_default_gain']:
+        hparams_fullblocks.set_hparam(train_hparam, getattr(hparams_select, train_hparam))
+
     hs_select = []
     with tf.variable_scope(select_scope, reuse=reuse, dtype=hparams_select.dtype):
         for act_name in act_names:
             act = activations[act_name]
+            for fullblock_ix in range(additional_full_blocks):
+                act, _, _, = model.block(
+                    act,
+                    f"h_fullblock{fullblock_ix}_{act_name}",
+                    hparams=hparams_fullblocks,
+                    past=None,
+                    past_adapt=None,
+                )
             h_select, _ = attn_only_block(
                 act,
                 f"h_select_{act_name}",

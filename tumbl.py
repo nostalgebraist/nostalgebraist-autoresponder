@@ -48,13 +48,12 @@ from munging_shared import *
 from bridge_shared import send_alldone
 from selector import apply_retention_cutoff
 from experimental.ml_connector import answer_from_gpt2_service, text_post_from_gpt2_service, \
-selection_proba_from_gpt2_service, sentiment_logit_diffs_from_gpt2_service, \
-autoreview_proba_from_gpt2_service
+    selection_proba_from_gpt2_service, sentiment_logit_diffs_from_gpt2_service, \
+    autoreview_proba_from_gpt2_service
 
 from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 
 from autoresponder_static import DEFAULT_CSC
-from autoresponder_static_v8 import timestamp_to_v10_format
 
 from traceability import on_post_creation_callback
 
@@ -760,6 +759,7 @@ class LoopPersistentData:
         follower_names=None,
         image_analysis_cache: ImageAnalysisCache = ImageAnalysisCache(),
         retention_stack: set = set(),
+        dash_post_judgments: dict = dict(),
     ):
         self.reblogs_from_me = reblogs_from_me
         self.reblog_worthy_dash_posts = reblog_worthy_dash_posts
@@ -778,6 +778,7 @@ class LoopPersistentData:
         self.follower_names = follower_names
         self.image_analysis_cache = image_analysis_cache
         self.retention_stack = retention_stack
+        self.dash_post_judgments = dash_post_judgments
 
         if len(self.requests_per_check_history) == 0:
             self.requests_per_check_history.extend(
@@ -1250,6 +1251,34 @@ def is_statically_reblog_worthy_on_dash(
     return True
 
 
+def batch_judge_dash_posts(post_payloads, loop_persistent_data):
+    post_identifiers, texts = [], []
+    for pp in post_payloads:
+        pi = PostIdentifier(pp["blog_name"], str(pp["id"]))
+        text = write_text_for_side_judgment(pp)
+        if not text:
+            print(f"skipping judgments for {pi}: bad parse?")
+            continue
+
+        post_identifiers.append(pi)
+        texts.append(text)
+
+    probs = selection_proba_from_gpt2_service(texts)
+    sentiments = sentiment_logit_diffs_from_gpt2_service(texts)
+    autoreview_probs = autoreview_proba_from_gpt2_service(texts)
+
+    for pi, text, prob, sentiment, autoreview_prob in zip(
+        post_identifiers,
+        texts,
+        probs,
+        sentiments,
+        autoreview_probs
+    ):
+        entry = {"text": text, "prob": prob, "sentiment": sentiment, "autoreview_prob": autoreview_prob}
+        loop_persistent_data.dash_post_judgments[pi] = entry
+    return loop_persistent_data
+
+
 def is_dynamically_reblog_worthy_on_dash(
     post_payload,
     response_cache,
@@ -1262,12 +1291,12 @@ def is_dynamically_reblog_worthy_on_dash(
 
     pos_sentiment, neg_sentiment = None, None
 
-    text = write_text_for_side_judgment(post_payload)
-    if not text:
+    if post_identifier not in loop_persistent_data.dash_post_judgments:
+        print(f"couldn't find judgments for {pi}: bad parse?")
         return False
-    prob = selection_proba_from_gpt2_service([text])[0]
-    sentiment = sentiment_logit_diffs_from_gpt2_service([text])[0]
-    autoreview_prob = autoreview_proba_from_gpt2_service([text])[0]
+
+    judg = loop_persistent_data.dash_post_judgments[post_identifier]
+    text, prob, sentiment, autoreview_prob = judg['text'], judg['prob'], judg['sentiment'], judg['autoreview_prob']
 
     if len(text) < 10:
         if verbose:
@@ -1380,6 +1409,34 @@ def is_reblog_worthy_on_dash(
     return dynamically_reblog_worthy
 
 
+def review_statically_worthy_dashboard_post(
+    post_payload,
+    loop_persistent_data,
+    response_cache,
+    updated_last_seen_ts,
+    mood_value,
+    follower_multipliers=None,
+):
+    post_identifier = PostIdentifier(post_payload["blog_name"], str(post_payload["id"]))
+    loop_persistent_data.reblog_keys[post_identifier] = post_payload["reblog_key"]
+
+    is_reblog_worthy = is_dynamically_reblog_worthy_on_dash(
+        post_payload=post_payload,
+        response_cache=response_cache,
+        loop_persistent_data=loop_persistent_data,
+        mood_value=mood_value,
+        follower_multipliers=follower_multipliers,
+        verbose=VERBOSE_LOGS,
+    )
+
+    if is_reblog_worthy:
+        loop_persistent_data.reblog_worthy_dash_posts.add(post_identifier)
+        loop_persistent_data.timestamps[post_identifier] = post_payload["timestamp"]
+
+    updated_last_seen_ts = max(updated_last_seen_ts, post_payload["timestamp"])
+    return loop_persistent_data, response_cache, updated_last_seen_ts
+
+
 def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
     note_payload_iter = (
         tqdm(note_payloads[::-1]) if len(note_payloads) > 5 else note_payloads[::-1]
@@ -1464,34 +1521,6 @@ def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
                     f"for {reblog_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
                 )
     return loop_persistent_data, response_cache
-
-
-def review_dashboard_post(
-    post_payload,
-    loop_persistent_data,
-    response_cache,
-    updated_last_seen_ts,
-    mood_value,
-    follower_multipliers=None,
-):
-    post_identifier = PostIdentifier(post_payload["blog_name"], str(post_payload["id"]))
-    loop_persistent_data.reblog_keys[post_identifier] = post_payload["reblog_key"]
-
-    is_reblog_worthy = is_reblog_worthy_on_dash(
-        post_payload=post_payload,
-        response_cache=response_cache,
-        loop_persistent_data=loop_persistent_data,
-        mood_value=mood_value,
-        follower_multipliers=follower_multipliers,
-        verbose=VERBOSE_LOGS,
-    )
-
-    if is_reblog_worthy:
-        loop_persistent_data.reblog_worthy_dash_posts.add(post_identifier)
-        loop_persistent_data.timestamps[post_identifier] = post_payload["timestamp"]
-
-    updated_last_seen_ts = max(updated_last_seen_ts, post_payload["timestamp"])
-    return loop_persistent_data, response_cache, updated_last_seen_ts
 
 
 def get_relevant_replies_from_notes(
@@ -1843,6 +1872,8 @@ def do_reblog_reply_handling(
             ):
                 statically_worthy_posts.append(post)
         print(f"{len(statically_worthy_posts)}/{len(posts)} statically reblog worthy")
+
+        loop_persistent_data = batch_judge_dash_posts(statically_worthy_posts, loop_persistent_data)
     else:
         statically_worthy_posts = posts  # posts[:n_posts_to_check]
 
@@ -1856,7 +1887,7 @@ def do_reblog_reply_handling(
                 loop_persistent_data,
                 response_cache,
                 updated_last_seen_ts,
-            ) = review_dashboard_post(
+            ) = review_statically_worthy_dashboard_post(
                 post,
                 loop_persistent_data,
                 response_cache,

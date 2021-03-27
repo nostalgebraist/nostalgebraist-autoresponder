@@ -34,6 +34,7 @@ def default_hparams():
         adapt_layers=[0],
         selector_style_attn=True,
         classic_init=True,
+        mlp_ratio=4,
     )
 
 
@@ -66,6 +67,7 @@ def hparams_1558M():
         adapt_layers=[0],
         selector_style_attn=False,
         classic_init=True,
+        mlp_ratio=4,
     )
 
 
@@ -332,7 +334,7 @@ def block(
 
     with tf.variable_scope(scope, dtype=dtype):
         x_ln2 = norm(x, "ln_2", hparams=hparams)
-        m = mlp(x_ln2, "mlp", nx * 4, hparams=hparams)
+        m = mlp(x_ln2, "mlp", nx * hparams.mlp_ratio, hparams=hparams)
         x = x + m
 
     if adapt and hparams.mlp_adapters:

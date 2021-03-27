@@ -162,6 +162,8 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         calibrate_logits_separately=False,
         n_head=40,
         additional_full_blocks=0,
+        fullblock_n_head=40,
+        fullblock_mlp_ratio=3,
         show_batch_stats=False,
         stop_early=False,
         stopping_metric="ap",
@@ -232,6 +234,9 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.n_head = n_head
 
         self.additional_full_blocks = additional_full_blocks
+        self.fullblock_n_head = fullblock_n_head
+        self.fullblock_mlp_ratio = fullblock_mlp_ratio
+
         self.show_batch_stats = show_batch_stats
         self.stop_early = stop_early
         self.evaluate_during_training = evaluate_during_training
@@ -255,6 +260,8 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.select_scope_ = None
         self.hparams_select_train_ = None
         self.hparams_select_eval_ = None
+        self.hparams_fullblocks_train_ = None
+        self.hparams_fullblocks_eval_ = None
         self.train_vars_ = None
         self.decay_vars_ = None
         self.selection_step_train_ = None
@@ -371,6 +378,22 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             classic_init=self.classic_init,
         )
 
+        fullblock_transfer_hparams = [
+            'acti_dropout', 'attn_dropout', 'res_dropout', 'orth_init', 'he_init', 'init_default_gain'
+        ]
+
+        self.hparams_fullblocks_train_ = hparams_1558M()
+        self.hparams_fullblocks_train_.set_hparam("n_head", self.fullblock_n_head)
+        self.hparams_fullblocks_train_.set_hparam("mlp_ratio", self.fullblock_mlp_ratio)
+        for train_hparam in fullblock_transfer_hparams:
+            self.hparams_fullblocks_train_.set_hparam(train_hparam, getattr(self.hparams_select_train_, train_hparam))
+
+        self.hparams_fullblocks_eval_ = hparams_1558M()
+        self.hparams_fullblocks_eval_.set_hparam("n_head", self.fullblock_n_head)
+        self.hparams_fullblocks_eval_.set_hparam("mlp_ratio", self.fullblock_mlp_ratio)
+        for train_hparam in fullblock_transfer_hparams:
+            self.hparams_fullblocks_eval_.set_hparam(train_hparam, getattr(self.hparams_select_eval_, train_hparam))
+
         if self.session_override is not None:
             self.session_ = self.session_override
             with self.session_.as_default():
@@ -397,6 +420,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 hparams=self.base_hparams,
                 select_scope=self.select_scope_,
                 hparams_select=self.hparams_select_train_,
+                hparams_fullblocks=self.hparams_fullblocks_train_,
                 layer_nums=self.layer_nums,
                 use_mlp=self.use_mlp,
                 resid_mlp=self.resid_mlp,
@@ -413,6 +437,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 hparams=self.base_hparams,
                 select_scope=self.select_scope_,
                 hparams_select=self.hparams_select_eval_,
+                hparams_fullblocks=self.hparams_fullblocks_eval_,
                 layer_nums=self.layer_nums,
                 use_mlp=self.use_mlp,
                 resid_mlp=self.resid_mlp,

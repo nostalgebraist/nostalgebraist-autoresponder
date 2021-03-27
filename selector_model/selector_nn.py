@@ -221,6 +221,7 @@ def selector(
     hparams,
     X,
     hparams_select,
+    hparams_fullblocks,
     layer_nums: list,
     batch_size,
     selection_tok,
@@ -245,11 +246,6 @@ def selector(
         return_activations_only=True,
     )["activations"]
     act_names = [f'h{i}' for i in layer_nums]
-
-    hparams_fullblocks = model.hparams_1558M()
-    for train_hparam in ['acti_dropout', 'attn_dropout', 'res_dropout',
-                         'orth_init', 'he_init', 'init_default_gain']:
-        hparams_fullblocks.set_hparam(train_hparam, getattr(hparams_select, train_hparam))
 
     hs_select = []
     with tf.variable_scope(select_scope, reuse=reuse, dtype=hparams_select.dtype):

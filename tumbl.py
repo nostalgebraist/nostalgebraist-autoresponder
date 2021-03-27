@@ -1267,7 +1267,7 @@ def is_statically_reblog_worthy_on_dash(
 
 def batch_judge_dash_posts(post_payloads, loop_persistent_data):
     post_identifiers, texts = [], []
-    for pp in post_payloads:
+    for pp in tqdm(post_payloads):
         pi = PostIdentifier(pp["blog_name"], str(pp["id"]))
         text = write_text_for_side_judgment(pp)
         if not text:

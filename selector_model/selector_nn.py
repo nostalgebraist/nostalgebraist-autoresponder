@@ -279,8 +279,9 @@ def selector(
                     X, h_select_in, batch_size=batch_size, selection_tok=selection_tok
                 )["extracted"]
 
+        nx = h_select_in_at_selection_ix.shape[-1].value
+
         if use_mlp:
-            nx = h_select_in_at_selection_ix.shape[-1].value
             m = mlp_acti_dropout(
                 h_select_in_at_selection_ix,
                 "select_mlp",

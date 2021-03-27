@@ -17,7 +17,6 @@ from autoresponder_static import *
 from autoresponder_static_v8 import *
 
 from bridge_shared import bridge_service_unique_id, bridge_service_url
-from bot_config import BotSpecificConstants
 from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
 from selector import serve_selection
 
@@ -574,8 +573,9 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
         if text.endswith(eot_end_segment):
             text = text[: -len(eot_end_segment)]
 
-        text = final_munge_before_neural(text,
-                                         override_disable_forumlike=override_disable_forumlike)
+        text = final_munge_before_neural(
+            text, override_disable_forumlike=override_disable_forumlike
+        )
 
         if EOT_PREPEND:
             if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
@@ -786,7 +786,7 @@ def old_bridge_call__answer(data):
         "selector_cut_to_final_exchange": selector_cut_to_final_exchange,
         "forced_tags_string": forced_tags_string,
         "write_fic_override": write_fic_override,
-        "avoid_initial_blockquote": avoid_initial_blockquote
+        "avoid_initial_blockquote": avoid_initial_blockquote,
     }
 
     if kwargs["write_fic_override"] or write_review_override:
@@ -1153,8 +1153,10 @@ def serve_textpost(data):
     else:
         selector_inputs = [A_CHAR + c for c in continuations]
 
-    selector_inputs = [s.replace(generator_v10_timestamp, selector_v10_timestamp)
-                       for s in selector_inputs]
+    selector_inputs = [
+        s.replace(generator_v10_timestamp, selector_v10_timestamp)
+        for s in selector_inputs
+    ]
     selector_inputs = pd.DataFrame(
         {
             "selector_input": selector_inputs,
@@ -1245,7 +1247,7 @@ def serve_raw_select(data):
     return results
 
 
-def selection_proba_from_gpt2_service(texts: List[str], timestamp: str=None):
+def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
     if timestamp is None:
         timestamp = ""
 
@@ -1255,9 +1257,7 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str=None):
     selector_inputs = pd.DataFrame(
         {
             "selector_input": texts,
-            "prompt_finalchar": [
-                "" for _ in range(len(texts))  # unused but necessary
-            ],
+            "prompt_finalchar": ["" for _ in range(len(texts))],  # unused but necessary
         }
     )
     selection_results = predict_select(
@@ -1268,27 +1268,20 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str=None):
 
 
 def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
-    sentiment_inputs = pd.DataFrame(
-        {"selector_input": texts}
-    )
+    sentiment_inputs = pd.DataFrame({"selector_input": texts})
     sentiment_results = predict_sentiment(sentiment_inputs, debug=True)
     results = [float(p) for p in sentiment_results]
 
     return results
 
 
-def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str=None):
+def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
     if timestamp is None:
         timestamp = ""
 
-    autoreview_inputs = [
-        cut_to_new_since_last_frank_post(s)
-        for s in texts
-    ]
+    autoreview_inputs = [cut_to_new_since_last_frank_post(s) for s in texts]
 
-    autoreview_inputs = [
-        join_time_sidechannel(s, timestamp) for s in autoreview_inputs
-    ]
+    autoreview_inputs = [join_time_sidechannel(s, timestamp) for s in autoreview_inputs]
 
     autoreview_inputs = pd.DataFrame(
         {

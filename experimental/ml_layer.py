@@ -12,7 +12,11 @@ from autoresponder_config import *
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
-from experimental.generator_model import SamplingParams, SamplingConfig, DEFAULT_SAMPLING_CONFIG, GeneratorModel, is_repeating_criterion
+from experimental.generator_model import (
+    DEFAULT_SAMPLING_CONFIG,
+    GeneratorModel,
+    is_repeating_criterion,
+)
 from selector_model.selector_estimator import SelectorEstimatorFromCkpt
 
 # TODO: move this over later
@@ -85,10 +89,22 @@ enc = load_from_gdrive_with_gs_fallback(
 
 
 def load_generator_model(
-    path, enc, batch_size, sampling_config, sample_done_criterion, hparams, retries=False
+    path,
+    enc,
+    batch_size,
+    sampling_config,
+    sample_done_criterion,
+    hparams,
+    retries=False,
 ):
     return GeneratorModel.load(
-        path, enc, batch_size, sample_done_criterion, sampling_config, hparams, retries=retries
+        path,
+        enc,
+        batch_size,
+        sample_done_criterion,
+        sampling_config,
+        hparams,
+        retries=retries,
     )
 
 

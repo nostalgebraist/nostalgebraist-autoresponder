@@ -243,7 +243,7 @@ def selector(
         return_activations_at=layer_nums,
         return_activations_only=True,
     )["activations"]
-    act_names = [f'h{i}' for i in layer_nums if i != -1 else 'h_in']
+    act_names = [f'h{i}' if i != -1 else 'h_in' for i in layer_nums]
 
     hs_select = []
     with tf.variable_scope(select_scope, reuse=reuse, dtype=hparams_select.dtype):

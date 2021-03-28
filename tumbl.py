@@ -1311,7 +1311,7 @@ def is_dynamically_reblog_worthy_on_dash(
     pos_sentiment, neg_sentiment = None, None
 
     if post_identifier not in loop_persistent_data.dash_post_judgments:
-        print(f"couldn't find judgments for {pi}: bad parse?")
+        print(f"couldn't find judgments for {post_identifier}: bad parse?")
         return False
 
     judg = loop_persistent_data.dash_post_judgments[post_identifier]

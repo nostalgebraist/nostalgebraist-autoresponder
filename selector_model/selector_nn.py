@@ -142,6 +142,7 @@ def attn_only_block(
     X=None,
     batch_size=None,
     selection_tok=None,
+    n_head=None,
 ):
     dtype = hparams.dtype if hparams else tf.float32
     do_resid = hparams.do_resid if hparams else True
@@ -165,9 +166,10 @@ def attn_only_block(
                 X=X,
                 batch_size=batch_size,
                 selection_tok=selection_tok,
+                n_head=n_head,
             )
         else:
-            a, present = model.attn(x_attn_in, "attn", nx, past=past, hparams=hparams)
+            a, present = model.attn(x_attn_in, "attn", nx, past=past, hparams=hparams, n_head=n_head)
         if do_resid:
             x = x + a
         else:
@@ -245,9 +247,14 @@ def selector(
     )["activations"]
     act_names = [f'h{i}' if i != -1 else 'h_in' for i in layer_nums]
 
+    if isinstance(hparams_select.n_head, int):
+        n_head_by_layer = [hparams_select.n_head for _ in layer_nums]
+    else:
+        n_head_by_layer = hparams_select.n_head
+
     hs_select = []
     with tf.variable_scope(select_scope, reuse=reuse, dtype=hparams_select.dtype):
-        for act_name in act_names:
+        for act_name, n_head in zip(act_names, n_head_by_layer):
             act = activations[act_name]
             h_select, _ = attn_only_block(
                 act,
@@ -258,6 +265,7 @@ def selector(
                 X=X,
                 batch_size=batch_size,
                 selection_tok=selection_tok,
+                n_head=n_head,
             )
             hs_select.append(h_select)
 

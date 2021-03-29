@@ -4,7 +4,7 @@ from glob import glob
 import os
 import re
 from tensorflow.python import pywrap_tensorflow
-import tqdm
+from tqdm.autonotebook import tqdm
 import h5py
 import shutil
 import tempfile

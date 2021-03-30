@@ -135,6 +135,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         use_mlp=True,
         resid_mlp=True,
         mlp_ratio=3,
+        mlp_n_layer=1,
         use_logit_diff_basis=False,
         use_only_logit_diff=False,
         weight_decay=0.025,
@@ -192,6 +193,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.use_mlp = use_mlp
         self.resid_mlp = resid_mlp
         self.mlp_ratio = mlp_ratio
+        self.mlp_n_layer = mlp_n_layer
         self.use_logit_diff_basis = use_logit_diff_basis
         self.use_only_logit_diff = use_only_logit_diff
 
@@ -403,6 +405,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 use_mlp=self.use_mlp,
                 resid_mlp=self.resid_mlp,
                 mlp_ratio=self.mlp_ratio,
+                mlp_n_layer=self.mlp_n_layer,
                 use_logit_diff_basis=self.use_logit_diff_basis,
                 use_only_logit_diff=self.use_only_logit_diff,
                 batch_size=self.batch_size,
@@ -418,6 +421,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
                 use_mlp=self.use_mlp,
                 resid_mlp=self.resid_mlp,
                 mlp_ratio=self.mlp_ratio,
+                mlp_n_layer=self.mlp_n_layer,
                 use_logit_diff_basis=self.use_logit_diff_basis,
                 use_only_logit_diff=self.use_only_logit_diff,
                 batch_size=self.batch_size,

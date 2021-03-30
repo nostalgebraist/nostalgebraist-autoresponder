@@ -232,6 +232,7 @@ def selector(
     use_mlp: bool = True,
     resid_mlp: bool = True,
     mlp_ratio=1,
+    mlp_n_layer=1,
     use_only_logit_diff=False,
     use_logit_diff_basis=False,
 ):
@@ -277,11 +278,14 @@ def selector(
                     X, h_select_in, batch_size=batch_size, selection_tok=selection_tok
                 )["extracted"]
 
-        if use_mlp:
+        if not use_mlp:
+            mlp_n_layer = 0
+
+        for mlp_layer_ix in range(mlp_n_layer):
             nx = h_select_in_at_selection_ix.shape[-1].value
             m = mlp_acti_dropout(
                 h_select_in_at_selection_ix,
-                "select_mlp",
+                f"select_mlp{mlp_layer_ix}",
                 int(mlp_ratio * nx),
                 hparams=hparams_select,
                 n_final=None,

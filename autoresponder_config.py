@@ -157,7 +157,7 @@ BREAKRUNS_DECAY = 0.
 
 temperature = 0.9  # 0.85
 top_k = 0
-top_p = 0.925
+top_p = 0.95
 middle_p = 0
 
 FIRST_STEP_BREAKRUNS=True  # disable via tau=0

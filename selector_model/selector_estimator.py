@@ -131,6 +131,8 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         orth_init=True,
         he_init=False,
         init_default_gain=1.0,
+        init_attn_gain=1.0,
+        init_mlp_gain=1.0,
         init_lreg_gain=0.02,
         use_mlp=True,
         resid_mlp=True,
@@ -186,10 +188,14 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.attn_dropout = attn_dropout
         self.attn_dropout_before_softmax = attn_dropout_before_softmax
         self.acti_dropout = acti_dropout
+
         self.orth_init = orth_init
         self.he_init = he_init
         self.init_default_gain = init_default_gain
+        self.init_attn_gain = init_attn_gain
+        self.init_mlp_gain = init_mlp_gain
         self.init_lreg_gain = init_lreg_gain
+
         self.use_mlp = use_mlp
         self.resid_mlp = resid_mlp
         self.mlp_ratio = mlp_ratio
@@ -347,6 +353,8 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             orth_init=self.orth_init,
             he_init=self.he_init,
             init_default_gain=self.init_default_gain,
+            init_attn_gain=self.init_attn_gain,
+            init_mlp_gain=self.init_mlp_gain,
             init_lreg_gain=self.init_lreg_gain,
             additional_full_blocks=self.additional_full_blocks,
             selector_style_attn=self.selector_style_attn,
@@ -369,6 +377,8 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             orth_init=self.orth_init,
             he_init=self.he_init,
             init_default_gain=self.init_default_gain,
+            init_attn_gain=self.init_attn_gain,
+            init_mlp_gain=self.init_mlp_gain,
             init_lreg_gain=self.init_lreg_gain,
             additional_full_blocks=self.additional_full_blocks,
             selector_style_attn=self.selector_style_attn,

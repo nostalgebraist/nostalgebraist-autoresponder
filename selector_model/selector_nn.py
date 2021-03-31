@@ -89,7 +89,7 @@ def selector_attn(
         if classic_init:
             with tf.variable_scope("c_attn", dtype=dtype):
                 nx, nf = n_state, 3 * n_state
-                initializer = model.get_initializer(hparams, "c_attn", nx)
+                initializer = model.get_initializer(hparams, "c_attn", nx, gain=hparams.get("init_attn_gain", 1.))
                 c_attn_w = model.get_variable("w") or tf.get_variable(
                     "w", [1, nx, nf], initializer=initializer(dtype=dtype)
                 )
@@ -290,6 +290,7 @@ def selector(
                 hparams=hparams_select,
                 n_final=None,
                 dropout_final=True,
+                gain=hparams_select.get("init_mlp_gain", 1.)
             )
             if resid_mlp:
                 h_select_in_at_selection_ix = m + h_select_in_at_selection_ix
@@ -304,9 +305,7 @@ def selector(
                 hparams_select,
                 select_scope,
                 fan_in=nx,
-                gain=None
-                if hparams_select.get("he_init")
-                else hparams_select.get("init_lreg_gain", 0.02),
+                gain=hparams_select.get("init_lreg_gain", 0.02),
             )
             w_select = tf.get_variable(
                 "w_select",

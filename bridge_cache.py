@@ -108,10 +108,13 @@ class BridgeCache:
 
     @staticmethod
     def load(path="data/bridge_cache.json") -> "BridgeCache":
-        if not os.path.exists(path):
-            print("initializing bridge cache")
-            return BridgeCache(cache=dict())
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    entries = json.load(f)
+                return BridgeCache.from_json(entries)
+            except json.decoder.JSONDecodeError:
+                print("cache file found, but could not load it")
 
-        with open(path, "r", encoding="utf-8") as f:
-            entries = json.load(f)
-        return BridgeCache.from_json(entries)
+        print("initializing bridge cache")
+        return BridgeCache(cache=dict())

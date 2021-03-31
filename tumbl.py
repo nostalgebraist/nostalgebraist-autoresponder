@@ -1,6 +1,7 @@
 """
 Tumblr API layer and main loop of the bot during operation.
 """
+import cProfile
 import os
 import pickle
 from datetime import datetime
@@ -2658,6 +2659,9 @@ def load_retention():
 
 
 if __name__ == "__main__":
+    pr_boot = cProfile.Profile()
+    pr_boot.enable()
+
     response_cache = ResponseCache.load(tank_client)
     image_analysis_cache = ImageAnalysisCache.load()
 
@@ -2668,6 +2672,13 @@ if __name__ == "__main__":
         retention_stack=retention_stack,
     )
 
+    _pr_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    pr_boot.dump_stats(f"profiling_data/boot/{_pr_name}")
+    pr_boot.disable()
+
+    pr_main = cProfile.Profile()
+    pr_main.enable()
+
     while True:
         try:
             loop_persistent_data, response_cache = mainloop(
@@ -2675,10 +2686,14 @@ if __name__ == "__main__":
             )
             time.sleep(sleep_time())
             send_alldone()
+            _pr_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            pr_main.dump_stats(f"profiling_data/main/{_pr_name}")
+            pr_main.enable()
         except (requests.exceptions.ConnectionError, KeyError, ValueError):
             print("hit an error, waiting for a little while...")
             time.sleep(sleep_time(multiplier=5))
             send_alldone()
         except KeyboardInterrupt:
             send_alldone()
+            pr_main.disable()
             raise KeyboardInterrupt

@@ -1539,7 +1539,7 @@ def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
                         f"couldn't find text for sentiment (added_text) in {user_input_identifier}"
                     )
                     print(f"have note payload {r}")
-            else:
+            elif response_cache.get_cached_user_input_sentiment(user_input_identifier) is None:
                 logit_diff = sentiment_logit_diffs_from_gpt2_service(
                     [text_for_sentiment]
                 )[0]
@@ -1658,7 +1658,7 @@ def get_relevant_replies_from_notes(
                         f"couldn't find text for sentiment (reply_text) in {reply_identifier}"
                     )
                     print(f"have note payload {n}")
-            else:
+            elif response_cache.get_cached_user_input_sentiment(user_input_identifier) is None:
                 logit_diff = sentiment_logit_diffs_from_gpt2_service(
                     [text_for_sentiment]
                 )[0]
@@ -1929,6 +1929,7 @@ def do_reblog_reply_handling(
     ### loop through posts
     for post_ix, post in enumerate(tqdm(statically_worthy_posts)):
         post_identifier = PostIdentifier(post["blog_name"], post["id"])
+
         ### get reblogs to deal with
 
         if is_dashboard:
@@ -2358,7 +2359,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                             f"couldn't find text for sentiment (question) in {user_input_identifier}"
                         )
                         print(f"have submission payload {x}")
-                else:
+                elif response_cache.get_cached_user_input_sentiment(user_input_identifier) is None:
                     logit_diff = sentiment_logit_diffs_from_gpt2_service(
                         [text_for_sentiment]
                     )[0]

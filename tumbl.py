@@ -32,7 +32,6 @@ from response_cache import (
     UserInputType,
 )
 
-from side_judgments import SideJudgmentCache
 from mood import DEFAULT_MOOD, random_mood_at_pst_datetime, logit_diff_to_allen_schema
 from mood_dynamic import (
     compute_dynamic_moodspec_at_time,
@@ -767,7 +766,6 @@ class LoopPersistentData:
         offset_=0,
         requests_per_check_history=[],
         apriori_requests_per_check=25,
-        side_judgment_cache: SideJudgmentCache = SideJudgmentCache(),
         follower_names=None,
         image_analysis_cache: ImageAnalysisCache = ImageAnalysisCache(),
         retention_stack: set = set(),
@@ -786,7 +784,6 @@ class LoopPersistentData:
         self.offset_ = offset_
         self.requests_per_check_history = requests_per_check_history
         self.apriori_requests_per_check = apriori_requests_per_check
-        self.side_judgment_cache = side_judgment_cache
         self.follower_names = follower_names
         self.image_analysis_cache = image_analysis_cache
         self.retention_stack = retention_stack
@@ -2575,7 +2572,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                 loop_persistent_data, response_cache
             )
             if (n_asks > 0) and save_after:
-                loop_persistent_data.side_judgment_cache.save()
                 response_cache.save()
                 loop_persistent_data.image_analysis_cache.save()
         return loop_persistent_data, response_cache
@@ -2592,7 +2588,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             loop_persistent_data, response_cache, n_posts_to_check
         )
         response_cache.save()
-        loop_persistent_data.side_judgment_cache.save()
         loop_persistent_data.image_analysis_cache.save()
 
         ### do another asks check
@@ -2623,7 +2618,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     relevant_ratelimit_data = private_client.get_ratelimit_data()
     if relevant_ratelimit_data["effective_remaining"] > 0:
         response_cache.save()
-        loop_persistent_data.side_judgment_cache.save()
         loop_persistent_data.image_analysis_cache.save()
 
         ### do rts
@@ -2649,7 +2643,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     return loop_persistent_data, response_cache
 
 
-def load_retention(side_judgment_cache):
+def load_retention():
     with open("data/retention_stack.pkl.gz", "rb") as f:
         retention_stack = pickle.load(f)
 
@@ -2660,13 +2654,11 @@ def load_retention(side_judgment_cache):
 
 if __name__ == "__main__":
     response_cache = ResponseCache.load(tank_client)
-    side_judgment_cache = SideJudgmentCache.load()
     image_analysis_cache = ImageAnalysisCache.load()
 
-    retention_stack = load_retention(side_judgment_cache)
+    retention_stack = load_retention()
 
     loop_persistent_data = LoopPersistentData(
-        side_judgment_cache=side_judgment_cache,
         image_analysis_cache=image_analysis_cache,
         retention_stack=retention_stack,
     )

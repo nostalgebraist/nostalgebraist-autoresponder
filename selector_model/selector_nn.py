@@ -285,7 +285,7 @@ def selector(
             nx = h_select_in_at_selection_ix.shape[-1].value
             m = mlp_acti_dropout(
                 h_select_in_at_selection_ix,
-                f"select_mlp{mlp_layer_ix}",
+                f"select_mlp{mlp_layer_ix}" if mlp_n_layer > 1 else "select_mlp",
                 int(mlp_ratio * nx),
                 hparams=hparams_select,
                 n_final=None,

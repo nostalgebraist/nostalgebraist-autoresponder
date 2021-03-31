@@ -42,11 +42,19 @@ class TraceabilityLogs:
 
     def save(self):
         print(f'saving traceability logs: lengths {self.lengths}')
+        t1 = time.time()
+
         with open(self.path, "wb") as f:
             pickle.dump(self.logs, f)
 
+        _tsave = time.time()
+        print(f"trace save 1: {_tsave-t1:.3f}s sec")
+
         with open(self.path[: -len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
             pickle.dump(self.logs, f)
+
+        _tsave2 = time.time()
+        print(f"trace save 2: {_tsave2-_tsave:.3f}s sec")
 
     def on_post_creation_callback(self, api_response: dict, bridge_response: dict):
         t1 = time.time()

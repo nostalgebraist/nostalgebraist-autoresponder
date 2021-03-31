@@ -130,10 +130,12 @@ def get_continuation_sentiments(sentiment_logit_diffs):
 
 
 def sentiment_screen(
-    continuations, sentiment_logit_diffs, mood,
+    continuations,
+    sentiment_logit_diffs,
+    mood,
     selection_proba=None,
     continuation_side_data=None,
-    autoreview_proba=None
+    autoreview_proba=None,
 ):
     if selection_proba is None:
         selection_proba = [None for _ in continuations]
@@ -142,9 +144,7 @@ def sentiment_screen(
     if autoreview_proba is None:
         autoreview_proba = [None for _ in continuations]
 
-    all_continuation_sentiments = get_continuation_sentiments(
-        sentiment_logit_diffs
-    )
+    all_continuation_sentiments = get_continuation_sentiments(sentiment_logit_diffs)
 
     score_fn = mood["score_fn"]
     if score_fn == "logit_diff":
@@ -204,9 +204,13 @@ def sentiment_screen(
     retained_selection_proba = [
         p for mask, p in zip(exclusion_mask, selection_proba) if not mask
     ]
-    retained_continuation_side_data = [m for mask, m in zip(exclusion_mask, continuation_side_data) if not mask]
+    retained_continuation_side_data = [
+        m for mask, m in zip(exclusion_mask, continuation_side_data) if not mask
+    ]
 
-    retained_autoreview_proba = [m for mask, m in zip(exclusion_mask, autoreview_proba) if not mask]
+    retained_autoreview_proba = [
+        m for mask, m in zip(exclusion_mask, autoreview_proba) if not mask
+    ]
 
     return (
         retained_continuations,
@@ -219,7 +223,8 @@ def sentiment_screen(
 
 
 def serve_selection(
-    data, retention_stack=None,
+    data,
+    retention_stack=None,
 ):
     continuations = data["continuations"]
     selection_proba = data.get("selection_proba")
@@ -260,10 +265,15 @@ def serve_selection(
     if (data["type"] == "textpost") and (strategy != "uniform"):
         continuations += sorted(retention_stack)
         if selection_proba is not None:
-            retention_stack_proba, retention_stack_logit_diffs, retention_stack_autoreview_proba  = \
-            get_retention_stack_judgments(retention_stack)
+            (
+                retention_stack_proba,
+                retention_stack_logit_diffs,
+                retention_stack_autoreview_proba,
+            ) = get_retention_stack_judgments(retention_stack)
             if retention_stack_proba is not None:
-                print(f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}")
+                print(
+                    f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}"
+                )
                 selection_proba += retention_stack_proba
                 sentiment_logit_diffs += retention_stack_logit_diffs
                 autoreview_proba += retention_stack_autoreview_proba
@@ -271,7 +281,9 @@ def serve_selection(
                 selection_proba += [None for _ in retention_stack]
             continuation_side_data += [{} for _ in retention_stack]
 
-    print(f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}")
+    print(
+        f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}"
+    )
     do_mood_screen = False
     if mood is not None:
         do_mood_screen = mood.get("name") != "unrestricted"
@@ -293,9 +305,7 @@ def serve_selection(
             autoreview_proba,
         )
     else:
-        continuation_sentiments = get_continuation_sentiments(
-            sentiment_logit_diffs
-        )
+        continuation_sentiments = get_continuation_sentiments(sentiment_logit_diffs)
         retained_continuations = continuations
         all_continuation_sentiments = continuation_sentiments
         retained_selection_proba = selection_proba
@@ -340,12 +350,16 @@ def serve_selection(
     chosen_prompt_for_neural = chosen_continuation_side_data.get("prompt_for_neural")
     chosen_model_info = chosen_continuation_side_data.get("model_info")
 
-    autorev_for_display = None if chosen_autoreview_proba is None else f"{chosen_autoreview_proba:.1%}"
+    autorev_for_display = (
+        None if chosen_autoreview_proba is None else f"{chosen_autoreview_proba:.1%}"
+    )
     print(
         f"\nselecting #{choice_ix} with pred {chosen_proba:.1%}, pos_sent {chosen_pos_sent:.1%}, autorev {autorev_for_display}, mirotarg {chosen_mirotarg}:\n{continuation}"
     )
 
-    print(f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}")
+    print(
+        f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}"
+    )
     if data["type"] == "textpost":
         for i, p in enumerate(selection_proba):
             if p > RETENTION_CUTOFF and continuations[i] not in retention_stack:
@@ -354,14 +368,14 @@ def serve_selection(
         if continuation in retention_stack:
             retention_stack.remove(continuation)
 
-        retention_stack = apply_retention_cutoff(
-            retention_stack
-        )
+        retention_stack = apply_retention_cutoff(retention_stack)
 
     parsed = parse_continuation(continuation)
     parsed["proba"] = float(chosen_proba)
     parsed["pos_sentiment"] = float(chosen_pos_sent)
-    parsed["autoreview_proba"] = None if chosen_autoreview_proba is None else float(chosen_autoreview_proba)
+    parsed["autoreview_proba"] = (
+        None if chosen_autoreview_proba is None else float(chosen_autoreview_proba)
+    )
     parsed["mirotarg"] = chosen_mirotarg
     parsed["miro_traces"] = chosen_miro_traces
     parsed["prompt_for_neural"] = chosen_prompt_for_neural
@@ -372,7 +386,9 @@ def serve_selection(
         float(pos_sent(s)) for s in all_continuation_sentiments
     ]
     parsed["all_proba"] = [float(p) for p in selection_proba]
-    parsed["all_autoreview_proba"] = [None if p is None else float(p) for p in autoreview_proba]
+    parsed["all_autoreview_proba"] = [
+        None if p is None else float(p) for p in autoreview_proba
+    ]
     parsed["all_mirotarg"] = [sd.get("mirotarg") for sd in continuation_side_data]
     for k in data.keys():
         if "alt_selection_proba" in k:
@@ -432,8 +448,11 @@ do_image_coldstart = partial(
 
 
 def get_retention_stack_judgments(retention_stack):
-    from experimental.ml_connector import selection_proba_from_gpt2_service, sentiment_logit_diffs_from_gpt2_service, \
-    autoreview_proba_from_gpt2_service
+    from experimental.ml_connector import (
+        selection_proba_from_gpt2_service,
+        sentiment_logit_diffs_from_gpt2_service,
+        autoreview_proba_from_gpt2_service,
+    )
 
     texts_for_selection = [ORIG_POST_CHAR + t for t in sorted(retention_stack)]
 
@@ -442,10 +461,11 @@ def get_retention_stack_judgments(retention_stack):
 
     logit_diffs = sentiment_logit_diffs_from_gpt2_service(sorted(retention_stack))
 
-    autoreview_proba = autoreview_proba_from_gpt2_service(texts_for_selection, timestamp=timestamp)
+    autoreview_proba = autoreview_proba_from_gpt2_service(
+        texts_for_selection, timestamp=timestamp
+    )
 
     return proba, logit_diffs, autoreview_proba
-
 
 
 def apply_retention_cutoff(retention_stack):
@@ -491,5 +511,7 @@ def apply_retention_cutoff(retention_stack):
         print(
             f"after: {n_after_stack} in retention_stack, {n_after_proba} in retention_stack_proba"
         )
-    print(f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}")
+    print(
+        f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}"
+    )
     return retention_stack

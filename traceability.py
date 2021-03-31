@@ -27,6 +27,8 @@ def on_post_creation_callback(api_response: dict, bridge_response: dict):
     else:
         with open(TRACEABILITY_FN, "rb") as f:  # TODO: make this less slow
             logs = pickle.load(f)
+    _tload = time.time()
+    print(f"on_post_creation_callback LOAD: {_tload-t1:.3f}s sec")
 
     entry = {"api__" + k: v for k, v in api_response.items()}
     entry.update(bridge_response)
@@ -39,12 +41,20 @@ def on_post_creation_callback(api_response: dict, bridge_response: dict):
             logs = _add_field(logs, k)
 
     logs["data"].append(entry)
+    _tadd = time.time()
+    print(f"on_post_creation_callback ADD: {_tadd-_tload:.3f}s sec")
 
     with open(TRACEABILITY_FN, "wb") as f:
         pickle.dump(logs, f)
 
+    _tsave = time.time()
+    print(f"on_post_creation_callback SAVE: {_tsave-_tadd:.3f}s sec")
+
     with open(TRACEABILITY_FN[: -len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
         pickle.dump(logs, f)
+
+    _tsave2 = time.time()
+    print(f"on_post_creation_callback SAVE 2: {_tsave2-_tsave:.3f}s sec")
 
     t2 = time.time()
     print(f"on_post_creation_callback: took {t2-t1:.3f}s sec")

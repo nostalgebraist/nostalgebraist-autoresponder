@@ -23,6 +23,11 @@ class TraceabilityLogs:
     def __init__(self, logs: dict, path: str):
         self.logs = logs
         self.path = path
+        print(f"traceability logs init: lengths {self.lengths}")
+
+    @property
+    def lengths(self):
+        return {k: len(v) for k, v in self.logs.items()}
 
     @staticmethod
     def load(path=TRACEABILITY_FN) -> 'TraceabilityLogs':
@@ -36,7 +41,7 @@ class TraceabilityLogs:
             return TraceabilityLogs(logs=logs, path=path)
 
     def save(self):
-        print('saving traceability logs')
+        print(f'saving traceability logs: lengths {self.lengths}')
         with open(self.path, "wb") as f:
             pickle.dump(self.logs, f)
 

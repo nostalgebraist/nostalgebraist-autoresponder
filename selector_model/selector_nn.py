@@ -100,7 +100,7 @@ def selector_attn(
                 x, "c_attn_kv", n_state * 2, hparams=hparams, w=c_attn_kv_w
             )
         else:
-            c_kv = model.conv1d(x, "c_attn_kv", n_state * 2, hparams=hparams)
+            c_kv = model.conv1d(x, "c_attn_kv", n_state * 2, hparams=hparams, gain=hparams.get("init_attn_gain", 1.))
         k, v = tf.split(c_kv, 2, axis=2)
 
         x_at_selection_ix = extract_selection_ix(X, x, batch_size, selection_tok)[
@@ -112,7 +112,7 @@ def selector_attn(
                 x_at_selection_ix, "c_attn_q", n_state, hparams=hparams, w=c_attn_q_w
             )
         else:
-            q = model.conv1d(x_at_selection_ix, "c_attn_q", n_state, hparams=hparams)
+            q = model.conv1d(x_at_selection_ix, "c_attn_q", n_state, hparams=hparams, gain=hparams.get("init_attn_gain", 1.))
 
         q, k, v = map(split_heads, [q, k, v])
         present = tf.stack([k, v], axis=1)

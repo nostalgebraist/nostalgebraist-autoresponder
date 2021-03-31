@@ -19,51 +19,60 @@ def _add_field(logs, fieldname):
     return new_logs
 
 
-def on_post_creation_callback(api_response: dict, bridge_response: dict):
-    t1 = time.time()
+class TraceabilityLogs:
+    def __init__(self, logs: dict, path: str):
+        self.logs = logs
+        self.path = path
 
-    if not os.path.exists(TRACEABILITY_FN):
-        logs = {"fields": [], "data": []}
-    else:
-        with open(TRACEABILITY_FN, "rb") as f:  # TODO: make this less slow
-            logs = pickle.load(f)
-    _tload = time.time()
-    print(f"on_post_creation_callback LOAD: {_tload-t1:.3f}s sec")
+    @staticmethod
+    def load(path=TRACEABILITY_FN) -> 'TraceabilityLogs':
+        if not os.path.exists(TRACEABILITY_FN):
+            print('initializing fresh traceability logs')
+            logs = {"fields": [], "data": []}
+        else:
+            print('loading traceability logs')
+            with open(TRACEABILITY_FN, "rb") as f:
+                logs = pickle.load(f)
+            return TraceabilityLogs(logs=logs, path=path)
 
-    entry = {"api__" + k: v for k, v in api_response.items()}
-    entry.update(bridge_response)
+    def save(self):
+        print('saving traceability logs')
+        with open(self.path, "wb") as f:
+            pickle.dump(self.logs, f)
 
-    entry['timestamp_manual'] = datetime.now().timestamp()
+        with open(self.path[: -len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
+            pickle.dump(self.logs, f)
 
-    for k in sorted(entry.keys()):
-        if k not in logs["fields"]:
-            print(f"on_post_creation_callback: adding field named {repr(k)}")
-            logs = _add_field(logs, k)
+    def on_post_creation_callback(self, api_response: dict, bridge_response: dict):
+        t1 = time.time()
 
-    logs["data"].append(entry)
-    _tadd = time.time()
-    print(f"on_post_creation_callback ADD: {_tadd-_tload:.3f}s sec")
+        _tload = time.time()
+        print(f"on_post_creation_callback LOAD: {_tload-t1:.3f}s sec")
 
-    with open(TRACEABILITY_FN, "wb") as f:
-        pickle.dump(logs, f)
+        entry = {"api__" + k: v for k, v in api_response.items()}
+        entry.update(bridge_response)
 
-    _tsave = time.time()
-    print(f"on_post_creation_callback SAVE: {_tsave-_tadd:.3f}s sec")
+        entry['timestamp_manual'] = datetime.now().timestamp()
 
-    with open(TRACEABILITY_FN[: -len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
-        pickle.dump(logs, f)
+        for k in sorted(entry.keys()):
+            if k not in self.logs["fields"]:
+                print(f"on_post_creation_callback: adding field named {repr(k)}")
+                self.logs = _add_field(self.logs, k)
 
-    _tsave2 = time.time()
-    print(f"on_post_creation_callback SAVE 2: {_tsave2-_tsave:.3f}s sec")
+        self.logs["data"].append(entry)
+        _tadd = time.time()
+        print(f"on_post_creation_callback ADD: {_tadd-_tload:.3f}s sec")
 
-    t2 = time.time()
-    print(f"on_post_creation_callback: took {t2-t1:.3f}s sec")
+        self.save()
+
+        t2 = time.time()
+        print(f"on_post_creation_callback: took {t2-t1:.3f}s sec")
 
 
 def traceability_logs_to_df(logs,
                             boring_fields=None,
                             make_input_blogname=True,
-                            drop_malformed={"miro_traces",}
+                            drop_malformed={"miro_traces", }
                             ):
     data = logs["data"]
 

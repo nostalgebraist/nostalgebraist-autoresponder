@@ -59,7 +59,8 @@ from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 from autoresponder_static import DEFAULT_CSC
 from autoresponder_static_v8 import timestamp_to_v10_format
 
-from traceability import on_post_creation_callback
+# from traceability import on_post_creation_callback
+from traceability_singleton import TRACE_LOGS
 
 from util.error_handling import LogExceptionAndSkip
 
@@ -464,6 +465,8 @@ def make_text_post(
     question="",
     log_data=None,
 ):
+    global TRACE_LOGS
+
     if to_queue:
         if QUEUE_SAFETY:
             if autopublish_screener("", "", post, tags):
@@ -513,7 +516,7 @@ def make_text_post(
     api_response = private_client.create_text(blogname, **kwargs)
     if log_data is not None:
         log_data["requested__state"] = state
-        on_post_creation_callback(api_response, log_data)
+        TRACE_LOGS.on_post_creation_callback(api_response, log_data)
     return api_response
 
 
@@ -529,6 +532,8 @@ def answer_ask(
     reblog_key=None,
     log_data=None,
 ):
+    global TRACE_LOGS
+
     if is_reblog:
         url = "/v2/blog/{}/post/reblog".format(blogname)
         valid_options = [
@@ -632,7 +637,7 @@ def answer_ask(
     api_response = private_client.send_api_request("post", url, data, valid_options)
     if log_data is not None:
         log_data["requested__state"] = state
-        on_post_creation_callback(api_response, log_data)
+        TRACE_LOGS.on_post_creation_callback(api_response, log_data)
     return api_response
 
 

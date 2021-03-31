@@ -1214,6 +1214,10 @@ def is_statically_reblog_worthy_on_dash(
 
     # tag avoid list
     tags = post_payload.get("tags", [])
+    trail = post_payload.get("trail", [])
+    if len(trail) > 0:
+        # OP's tags
+        tags.extend(trail[0].get("tags", []))
     if any([substring in t.lower() for t in tags for substring in DASH_TAG_AVOID_LIST]):
         if verbose:
             print("\trejecting: tag avoid list")

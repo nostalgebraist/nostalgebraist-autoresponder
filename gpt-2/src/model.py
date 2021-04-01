@@ -131,9 +131,9 @@ def merge_states(x):
 
 
 def get_initializer(hparams, scope, fan_in, gain=None):
-    if gain is None:
+    if gain is None or hparams.get("he_init", False):
         gain = hparams.init_default_gain
-        if hparams.he_init:
+        if hparams.get("he_init", False):
             gain = np.sqrt(2.0 / fan_in)
             if not hparams.get("silent", True):
                 print(f"he init in scope {scope}: fan_in {fan_in}, gain {gain:.4f}")

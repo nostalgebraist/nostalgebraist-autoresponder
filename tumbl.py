@@ -1,6 +1,7 @@
 """
 Tumblr API layer and main loop of the bot during operation.
 """
+import cProfile
 import os
 import pickle
 from datetime import datetime
@@ -32,7 +33,6 @@ from response_cache import (
     UserInputType,
 )
 
-from side_judgments import SideJudgmentCache
 from mood import DEFAULT_MOOD, random_mood_at_pst_datetime, logit_diff_to_allen_schema
 from mood_dynamic import (
     compute_dynamic_moodspec_at_time,
@@ -60,7 +60,8 @@ from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 from autoresponder_static import DEFAULT_CSC
 from autoresponder_static_v8 import timestamp_to_v10_format
 
-from traceability import on_post_creation_callback
+# from traceability import on_post_creation_callback
+from traceability_singleton import TRACE_LOGS
 
 from util.error_handling import LogExceptionAndSkip
 
@@ -465,6 +466,8 @@ def make_text_post(
     question="",
     log_data=None,
 ):
+    global TRACE_LOGS
+
     if to_queue:
         if QUEUE_SAFETY:
             if autopublish_screener("", "", post, tags):
@@ -514,7 +517,7 @@ def make_text_post(
     api_response = private_client.create_text(blogname, **kwargs)
     if log_data is not None:
         log_data["requested__state"] = state
-        on_post_creation_callback(api_response, log_data)
+        TRACE_LOGS.on_post_creation_callback(api_response, log_data)
     return api_response
 
 
@@ -530,6 +533,8 @@ def answer_ask(
     reblog_key=None,
     log_data=None,
 ):
+    global TRACE_LOGS
+
     if is_reblog:
         url = "/v2/blog/{}/post/reblog".format(blogname)
         valid_options = [
@@ -633,7 +638,7 @@ def answer_ask(
     api_response = private_client.send_api_request("post", url, data, valid_options)
     if log_data is not None:
         log_data["requested__state"] = state
-        on_post_creation_callback(api_response, log_data)
+        TRACE_LOGS.on_post_creation_callback(api_response, log_data)
     return api_response
 
 
@@ -767,7 +772,6 @@ class LoopPersistentData:
         offset_=0,
         requests_per_check_history=[],
         apriori_requests_per_check=25,
-        side_judgment_cache: SideJudgmentCache = SideJudgmentCache(),
         follower_names=None,
         image_analysis_cache: ImageAnalysisCache = ImageAnalysisCache(),
         retention_stack: set = set(),
@@ -786,7 +790,6 @@ class LoopPersistentData:
         self.offset_ = offset_
         self.requests_per_check_history = requests_per_check_history
         self.apriori_requests_per_check = apriori_requests_per_check
-        self.side_judgment_cache = side_judgment_cache
         self.follower_names = follower_names
         self.image_analysis_cache = image_analysis_cache
         self.retention_stack = retention_stack
@@ -1214,6 +1217,11 @@ def is_statically_reblog_worthy_on_dash(
 
     # tag avoid list
     tags = post_payload.get("tags", [])
+    trail = post_payload.get("trail", [])
+    if len(trail) > 0:
+        # OP's tags
+        # TODO -- make this work properly.  we need to do /posts again on OP, their tags aren't in this payload
+        tags.extend(trail[0].get("tags", []))
     if any([substring in t.lower() for t in tags for substring in DASH_TAG_AVOID_LIST]):
         if verbose:
             print("\trejecting: tag avoid list")
@@ -1311,7 +1319,7 @@ def is_dynamically_reblog_worthy_on_dash(
     pos_sentiment, neg_sentiment = None, None
 
     if post_identifier not in loop_persistent_data.dash_post_judgments:
-        print(f"couldn't find judgments for {pi}: bad parse?")
+        print(f"couldn't find judgments for {post_identifier}: bad parse?")
         return False
 
     judg = loop_persistent_data.dash_post_judgments[post_identifier]
@@ -1534,7 +1542,7 @@ def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
                         f"couldn't find text for sentiment (added_text) in {user_input_identifier}"
                     )
                     print(f"have note payload {r}")
-            else:
+            elif response_cache.get_cached_user_input_sentiment(user_input_identifier) is None:
                 logit_diff = sentiment_logit_diffs_from_gpt2_service(
                     [text_for_sentiment]
                 )[0]
@@ -1653,7 +1661,7 @@ def get_relevant_replies_from_notes(
                         f"couldn't find text for sentiment (reply_text) in {reply_identifier}"
                     )
                     print(f"have note payload {n}")
-            else:
+            elif response_cache.get_cached_user_input_sentiment(user_input_identifier) is None:
                 logit_diff = sentiment_logit_diffs_from_gpt2_service(
                     [text_for_sentiment]
                 )[0]
@@ -1924,6 +1932,7 @@ def do_reblog_reply_handling(
     ### loop through posts
     for post_ix, post in enumerate(tqdm(statically_worthy_posts)):
         post_identifier = PostIdentifier(post["blog_name"], post["id"])
+
         ### get reblogs to deal with
 
         if is_dashboard:
@@ -2353,7 +2362,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                             f"couldn't find text for sentiment (question) in {user_input_identifier}"
                         )
                         print(f"have submission payload {x}")
-                else:
+                elif response_cache.get_cached_user_input_sentiment(user_input_identifier) is None:
                     logit_diff = sentiment_logit_diffs_from_gpt2_service(
                         [text_for_sentiment]
                     )[0]
@@ -2569,7 +2578,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                 loop_persistent_data, response_cache
             )
             if (n_asks > 0) and save_after:
-                loop_persistent_data.side_judgment_cache.save()
                 response_cache.save()
                 loop_persistent_data.image_analysis_cache.save()
         return loop_persistent_data, response_cache
@@ -2586,7 +2594,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             loop_persistent_data, response_cache, n_posts_to_check
         )
         response_cache.save()
-        loop_persistent_data.side_judgment_cache.save()
         loop_persistent_data.image_analysis_cache.save()
 
         ### do another asks check
@@ -2617,7 +2624,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     relevant_ratelimit_data = private_client.get_ratelimit_data()
     if relevant_ratelimit_data["effective_remaining"] > 0:
         response_cache.save()
-        loop_persistent_data.side_judgment_cache.save()
         loop_persistent_data.image_analysis_cache.save()
 
         ### do rts
@@ -2643,7 +2649,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     return loop_persistent_data, response_cache
 
 
-def load_retention(side_judgment_cache):
+def load_retention():
     with open("data/retention_stack.pkl.gz", "rb") as f:
         retention_stack = pickle.load(f)
 
@@ -2653,17 +2659,25 @@ def load_retention(side_judgment_cache):
 
 
 if __name__ == "__main__":
+    pr_boot = cProfile.Profile()
+    pr_boot.enable()
+
     response_cache = ResponseCache.load(tank_client)
-    side_judgment_cache = SideJudgmentCache.load()
     image_analysis_cache = ImageAnalysisCache.load()
 
-    retention_stack = load_retention(side_judgment_cache)
+    retention_stack = load_retention()
 
     loop_persistent_data = LoopPersistentData(
-        side_judgment_cache=side_judgment_cache,
         image_analysis_cache=image_analysis_cache,
         retention_stack=retention_stack,
     )
+
+    _pr_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    pr_boot.dump_stats(f"profiling_data/boot/{_pr_name}")
+    pr_boot.disable()
+
+    pr_main = cProfile.Profile()
+    pr_main.enable()
 
     while True:
         try:
@@ -2672,10 +2686,14 @@ if __name__ == "__main__":
             )
             time.sleep(sleep_time())
             send_alldone()
+            _pr_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            pr_main.dump_stats(f"profiling_data/main/{_pr_name}")
+            pr_main.enable()
         except (requests.exceptions.ConnectionError, KeyError, ValueError):
             print("hit an error, waiting for a little while...")
             time.sleep(sleep_time(multiplier=5))
             send_alldone()
         except KeyboardInterrupt:
             send_alldone()
+            pr_main.disable()
             raise KeyboardInterrupt

@@ -4,7 +4,7 @@ from glob import glob
 import os
 import re
 from tensorflow.python import pywrap_tensorflow
-import tqdm
+from tqdm.autonotebook import tqdm
 import h5py
 import shutil
 import tempfile
@@ -98,7 +98,7 @@ def load_snapshot(ckpt, session=None, var_list=None, reshape=False):
   session = session or tf.get_default_session()
   reader = pywrap_tensorflow.NewCheckpointReader(ckpt)
   vs = var_list or tf.trainable_variables()
-  for variables in tqdm.tqdm(list(split_by_params(vs))):
+  for variables in tqdm(list(split_by_params(vs))):
     values = [value for variable, value in grab_values(variables, reader, reshape=reshape)]
     assign_values(variables, values, session=session)
 
@@ -115,7 +115,7 @@ def load_weights(ckpt, session=None, var_list=None, reshape=False):
   session = session or tf.get_default_session()
   vs = var_list or tf.trainable_variables()
   files = list(sorted(glob(ckpt + '-*.npy')))
-  for out in tqdm.tqdm(files):
+  for out in tqdm(files):
     for name, value in np.load(out, allow_pickle=True):
       variable = get_variable(name)
       if variable is None:
@@ -128,7 +128,7 @@ def load_variables(ckpt, session=None, var_list=None, reshape=False):
   session = session or tf.get_default_session()
   vs = var_list or tf.trainable_variables()
   with h5py.File(ckpt, "r") as f:
-    for variables in tqdm.tqdm(list(split_by_params(vs))):
+    for variables in tqdm(list(split_by_params(vs))):
       values = [truncate_value(x, f[x.name], reshape=reshape)  for x in variables]
       assign_values(variables, values, session=session)
 
@@ -144,7 +144,7 @@ def save_variables(ckpt, session=None, var_list=None):
     maketree(os.path.dirname(ckpt))
     fname = ckpt+'.tmp'
     with h5py.File(fname, "w") as f:
-      for variables in tqdm.tqdm(list(split_by_params(vs))):
+      for variables in tqdm(list(split_by_params(vs))):
         values = session.run(variables)
         for value, variable in zip(values, variables):
           name = variable.name

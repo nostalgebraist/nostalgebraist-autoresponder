@@ -712,42 +712,6 @@ def text_post_from_gpt2_service(
     return result, loop_persistent_data
 
 
-def side_judgments_from_gpt2_service(
-    texts,
-    v8_timestamps=None,
-    v10_timestamps=None,
-    wait_first_time=3,
-    wait_recheck_time=1.5,
-    verbose=False,
-):
-    if verbose:
-        print(f"side_judgements_from_gpt2_service: v10_timestamps={v10_timestamps}")
-    data = {"texts": texts}
-    if v8_timestamps is not None:
-        data["v8_timestamps"] = v8_timestamps
-    if v10_timestamps is not None:
-        data["v10_timestamps"] = v10_timestamps
-
-    if verbose:
-        print(f"side_judgments_from_gpt2_service: data={data}")
-
-    result = old_bridge_call__raw_select(data=data)
-    return result
-
-
-def old_bridge_call__raw_select(data):
-    texts = data["texts"]
-    v8_timestamps = data.get("v8_timestamps", None)
-    v10_timestamps = data.get("v10_timestamps", None)
-
-    data_to_pass_on = {"texts": texts, "type": "raw_select"}
-    if v8_timestamps is not None:
-        data_to_pass_on["v8_timestamp"] = v8_timestamps[0]  # TODO: make not weird
-    if v10_timestamps is not None:
-        data_to_pass_on["v10_timestamp"] = v10_timestamps[0]  # TODO: make not weird
-    return serve_raw_select(data_to_pass_on)
-
-
 def old_bridge_call__answer(data):
     global PROMPT_STACK
 
@@ -1192,59 +1156,6 @@ def serve_textpost(data):
         print(f"sending back: {parsed}")
 
     return parsed
-
-
-def serve_raw_select(data):
-    texts = data["texts"]
-
-    if V8:
-        vX_timestamp = (
-            data.get("v10_timestamp", "") if V10 else data.get("v8_timestamp", "")
-        )
-        texts = [join_time_sidechannel(s, vX_timestamp) for s in texts]
-        texts = [
-            s
-            if len(find_all_control_chars_chinese(s)) > 0
-            else ORIG_POST_CHAR_CHINESE + s
-            for s in texts
-        ]
-        texts = [final_munge_before_neural(s) for s in texts]
-    else:
-        if FORUMLIKE:
-            for alt_char in [
-                CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"],
-                CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"],
-            ]:
-                texts = [
-                    s.replace(alt_char, CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"])
-                    for s in texts
-                ]
-        texts = [s if ORIG_POST_CHAR in s else ORIG_POST_CHAR + s for s in texts]
-    results = {}
-
-    selector_inputs = texts
-    if GLOBAL_DEBUG:
-        print(f"passing to predict_select: {selector_inputs}")
-    selector_inputs = pd.DataFrame(
-        {
-            "selector_input": selector_inputs,
-            "prompt_finalchar": [
-                ORIG_POST_CHAR_CHINESE for _ in range(len(selector_inputs))
-            ],
-        }
-    )
-    selection_results = predict_select(
-        selector_inputs, debug=True, override_disable_forumlike=True
-    )
-    results["selection_proba"] = [float(p) for p in selection_results]
-
-    selector_inputs = pd.DataFrame(
-        {"selector_input": [final_munge_after_neural(s) for s in texts]}
-    )
-    sentiment_results = predict_sentiment(selector_inputs, debug=True)
-    results["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
-
-    return results
 
 
 def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):

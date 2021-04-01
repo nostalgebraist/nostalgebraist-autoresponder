@@ -89,7 +89,7 @@ def selector_attn(
         if classic_init:
             with tf.variable_scope("c_attn", dtype=dtype):
                 nx, nf = n_state, 3 * n_state
-                initializer = model.get_initializer(hparams, "c_attn", nx)
+                initializer = model.get_initializer(hparams, "c_attn", nx, gain=hparams.get("init_attn_gain", 1.))
                 c_attn_w = model.get_variable("w") or tf.get_variable(
                     "w", [1, nx, nf], initializer=initializer(dtype=dtype)
                 )
@@ -100,7 +100,7 @@ def selector_attn(
                 x, "c_attn_kv", n_state * 2, hparams=hparams, w=c_attn_kv_w
             )
         else:
-            c_kv = model.conv1d(x, "c_attn_kv", n_state * 2, hparams=hparams)
+            c_kv = model.conv1d(x, "c_attn_kv", n_state * 2, hparams=hparams, gain=hparams.get("init_attn_gain", 1.))
         k, v = tf.split(c_kv, 2, axis=2)
 
         x_at_selection_ix = extract_selection_ix(X, x, batch_size, selection_tok)[
@@ -112,7 +112,7 @@ def selector_attn(
                 x_at_selection_ix, "c_attn_q", n_state, hparams=hparams, w=c_attn_q_w
             )
         else:
-            q = model.conv1d(x_at_selection_ix, "c_attn_q", n_state, hparams=hparams)
+            q = model.conv1d(x_at_selection_ix, "c_attn_q", n_state, hparams=hparams, gain=hparams.get("init_attn_gain", 1.))
 
         q, k, v = map(split_heads, [q, k, v])
         present = tf.stack([k, v], axis=1)
@@ -142,6 +142,7 @@ def attn_only_block(
     X=None,
     batch_size=None,
     selection_tok=None,
+    n_head=None,
 ):
     dtype = hparams.dtype if hparams else tf.float32
     do_resid = hparams.do_resid if hparams else True
@@ -165,9 +166,10 @@ def attn_only_block(
                 X=X,
                 batch_size=batch_size,
                 selection_tok=selection_tok,
+                n_head=n_head,
             )
         else:
-            a, present = model.attn(x_attn_in, "attn", nx, past=past, hparams=hparams)
+            a, present = model.attn(x_attn_in, "attn", nx, past=past, hparams=hparams, n_head=n_head)
         if do_resid:
             x = x + a
         else:
@@ -231,6 +233,7 @@ def selector(
     use_mlp: bool = True,
     resid_mlp: bool = True,
     mlp_ratio=1,
+    mlp_n_layer=1,
     use_only_logit_diff=False,
     use_logit_diff_basis=False,
     additional_full_blocks=0,
@@ -245,11 +248,16 @@ def selector(
         return_activations_at=layer_nums,
         return_activations_only=True,
     )["activations"]
-    act_names = [f'h{i}' for i in layer_nums]
+    act_names = [f'h{i}' if i != -1 else 'h_in' for i in layer_nums]
+
+    if isinstance(hparams_select.n_head, int):
+        n_head_by_layer = [hparams_select.n_head for _ in layer_nums]
+    else:
+        n_head_by_layer = hparams_select.n_head
 
     hs_select = []
     with tf.variable_scope(select_scope, reuse=reuse, dtype=hparams_select.dtype):
-        for act_name in act_names:
+        for act_name, n_head in zip(act_names, n_head_by_layer):
             act = activations[act_name]
             for fullblock_ix in range(additional_full_blocks):
                 act, _, _, = model.block(
@@ -268,6 +276,7 @@ def selector(
                 X=X,
                 batch_size=batch_size,
                 selection_tok=selection_tok,
+                n_head=n_head,
             )
             hs_select.append(h_select)
 
@@ -279,16 +288,19 @@ def selector(
                     X, h_select_in, batch_size=batch_size, selection_tok=selection_tok
                 )["extracted"]
 
-        nx = h_select_in_at_selection_ix.shape[-1].value
+        if not use_mlp:
+            mlp_n_layer = 0
 
-        if use_mlp:
+        for mlp_layer_ix in range(mlp_n_layer):
+            nx = h_select_in_at_selection_ix.shape[-1].value
             m = mlp_acti_dropout(
                 h_select_in_at_selection_ix,
-                "select_mlp",
+                f"select_mlp{mlp_layer_ix}" if mlp_n_layer > 1 else "select_mlp",
                 int(mlp_ratio * nx),
                 hparams=hparams_select,
                 n_final=None,
                 dropout_final=True,
+                gain=hparams_select.get("init_mlp_gain", 1.)
             )
             if resid_mlp:
                 h_select_in_at_selection_ix = m + h_select_in_at_selection_ix
@@ -303,9 +315,7 @@ def selector(
                 hparams_select,
                 select_scope,
                 fan_in=nx,
-                gain=None
-                if hparams_select.get("he_init")
-                else hparams_select.get("init_lreg_gain", 0.02),
+                gain=hparams_select.get("init_lreg_gain", 0.02),
             )
             w_select = tf.get_variable(
                 "w_select",

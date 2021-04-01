@@ -61,7 +61,7 @@ else:
 if V10_1:
     ckpt_select = "selector/v10_1/v4/.hdf5"
     ckpt_sentiment = "sentiment/v10_1/v1/.hdf5"
-    ckpt_autoreviewer = "draft_autoreviewer/v10_1/v3/.hdf5"
+    ckpt_autoreviewer = "draft_autoreviewer/v10_1/v4/.hdf5"
 else:
     ckpt_select = "selector/v10/v17/.hdf5"
     ckpt_sentiment = "sentiment/v10/v2/.hdf5"
@@ -157,7 +157,7 @@ BREAKRUNS_DECAY = 0.
 
 temperature = 0.9  # 0.85
 top_k = 0
-top_p = 0.97
+top_p = 0.95
 middle_p = 0
 
 FIRST_STEP_BREAKRUNS=True  # disable via tau=0

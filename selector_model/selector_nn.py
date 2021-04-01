@@ -288,11 +288,12 @@ def selector(
                     X, h_select_in, batch_size=batch_size, selection_tok=selection_tok
                 )["extracted"]
 
+        nx = h_select_in_at_selection_ix.shape[-1].value
+
         if not use_mlp:
             mlp_n_layer = 0
 
         for mlp_layer_ix in range(mlp_n_layer):
-            nx = h_select_in_at_selection_ix.shape[-1].value
             m = mlp_acti_dropout(
                 h_select_in_at_selection_ix,
                 f"select_mlp{mlp_layer_ix}" if mlp_n_layer > 1 else "select_mlp",

@@ -662,7 +662,8 @@ def answer_ask(
         "reject_action": reject_action,
         "do_not_post": do_not_post,
         "USE_AUTOREVIEWER": USE_AUTOREVIEWER,
-        "AUTOREVIEWER_CUTOFFS": AUTOREVIEWER_CUTOFFS
+        "AUTOREVIEWER_CUTOFFS": AUTOREVIEWER_CUTOFFS,
+        "traced_reasons": traced_reasons
     }
 
     # Take a list of tags and make them acceptable for upload

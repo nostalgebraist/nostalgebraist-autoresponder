@@ -16,6 +16,12 @@ V9_1R4 = True
 V10 = True
 V10_1 = True  # !!
 
+USE_AUTOREVIEWER = True
+AUTOREVIEWER_CUTOFFS = {
+    "accept_below": 0.095,  # v10_1/v5: predict true accept rate: ~14%, false accept rate ~2%
+    "reject_above": 0.69,  # v10_1/v5: predict true reject rate: ~32%, false reject rate ~2.5%
+}
+
 bot_specific_constants = BotSpecificConstants.load()
 BUCKET_NAME = bot_specific_constants.BUCKET_NAME
 BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
@@ -61,7 +67,7 @@ else:
 if V10_1:
     ckpt_select = "selector/v10_1/v4/.hdf5"
     ckpt_sentiment = "sentiment/v10_1/v1/.hdf5"
-    ckpt_autoreviewer = "draft_autoreviewer/v10_1/v4/.hdf5"
+    ckpt_autoreviewer = "draft_autoreviewer/v10_1/v5/.hdf5"
 else:
     ckpt_select = "selector/v10/v17/.hdf5"
     ckpt_sentiment = "sentiment/v10/v2/.hdf5"

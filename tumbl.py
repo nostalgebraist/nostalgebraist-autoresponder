@@ -16,6 +16,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from bot_config import BotSpecificConstants
+from autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS
 
 from reply_munging import (
     mockup_xkit_reply,
@@ -178,6 +179,7 @@ except Exception as e:
     print(f"in getting scraped_usernames, encountered {e}, {getattr(e, '__dict__')}")
 
 RTS_COMMAND = "rts"
+ACCEPT_COMMAND = "a"
 
 GLOBAL_TESTING_FLAG = False
 BEAMSPLIT_TESTING_FLAG = False
@@ -348,6 +350,7 @@ def strip_avoid_listed_strings_from_tags(tags):
         )
         and not any([substring in tag.lower() for substring in TAG_AVOID_LIST])
         and tag != RTS_COMMAND
+        and tag != ACCEPT_COMMAND
     ]
 
 
@@ -532,6 +535,8 @@ def answer_ask(
     is_reblog=False,
     reblog_key=None,
     log_data=None,
+    autoreview_proba=None,
+    reject_action=None,
 ):
     global TRACE_LOGS
 
@@ -563,21 +568,54 @@ def answer_ask(
     screener_question = (
         question  # TODO: remember why i wanted to do the thing in the previous line...
     )
+    screener_result, traced_reasons = autopublish_screener(
+        asking_name, screener_question, answer, tags, screen_robnost=True, trace=True
+    )
     print(
-        f"autopublish_screener says: {autopublish_screener(asking_name, screener_question, answer, tags, screen_robnost=True)}"
+        f"autopublish_screener says: {screener_result}"
     )
-    state = (
-        "draft"
-        if (
-            to_drafts
-            or (
-                not autopublish_screener(
-                    asking_name, screener_question, answer, tags, screen_robnost=True
-                )
-            )
-        )
-        else "published"
-    )
+    should_publish = True
+    must_be_draft = False
+    ml_accepted = False
+    ml_rejected = False
+    do_not_post = False
+
+    if to_drafts:
+        print(f"forcing draft due to to_drafts kwarg")
+        must_be_draft = True
+        should_publish = False
+
+    if not screener_result:
+        should_publish = False
+        for d in traced_reasons:
+            if d.get("type") != "substring":
+                print(f"forcing draft due to screener reason: {repr(d)}")
+                must_be_draft = True
+
+    if USE_AUTOREVIEWER:
+        if autoreview_proba is not None:
+            print("draft_autoreviewer activated!")
+            if (not should_publish) and (not must_be_draft):
+                # should we change reject --> accept ?
+                cut = AUTOREVIEWER_CUTOFFS["accept_below"]
+                if autoreview_proba < cut:
+                    print(f"draft_autoreviewer accepts post: autoreview_proba {autoreview_proba:.1%} < cutoff {cut:.1%}")
+                    should_publish = True
+                    ml_accepted = True
+                else:
+                    print(f"draft_autoreviewer: autoreview_proba {autoreview_proba:.1%} >= cutoff {cut:.1%}")
+            elif should_publish and (not must_be_draft):
+                # should we change accept --> reject ?
+                cut = AUTOREVIEWER_CUTOFFS["reject_above"]
+                if autoreview_proba > cut:
+                    print(f"draft_autoreviewer rejects post: autoreview_proba {autoreview_proba:.1%} > cutoff {cut:.1%}")
+                    should_publish = False
+                    ml_rejected = True
+                else:
+                    print(f"draft_autoreviewer: autoreview_proba {autoreview_proba:.1%} <= cutoff {cut:.1%}")
+
+        else:
+            print("can't use draft_autoreviewer: no autoreview_proba was supplied")
 
     if IMAGE_CREATION:
         presub_answer = answer
@@ -589,6 +627,7 @@ def answer_ask(
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state = "draft"
+            must_be_draft = True
             print(
                 f"IMAGE_CREATION: for\n{repr(presub_answer)}\n, subbed\n{repr(answer)}\n"
             )
@@ -596,13 +635,36 @@ def answer_ask(
     if IMAGE_DELIMITER in answer:
         print("image delimiter still in post")
         state = "draft"
+        must_be_draft = True
 
     if GLOBAL_TESTING_FLAG:
         print(f"GLOBAL_TESTING_FLAG --> draft")
         orig_state = state
         state = "draft"
+        must_be_draft = True
         if BEAMSPLIT_TESTING_FLAG:
             tags = ["BEAMSPLIT dummy branch", f"intended state: {orig_state}"] + tags
+
+    # finalize state
+    should_publish = should_publish and (not must_be_draft)
+    state = "published" if should_publish else "draft"
+    if ml_rejected:
+        if reject_action == "rts":
+            tags.append("rts")
+        elif reject_action == "do_not_post":
+            do_not_post = True
+
+    state_reasons = {
+        "should_publish": should_publish,
+        "must_be_draft": must_be_draft,
+        "ml_accepted": ml_accepted,
+        "ml_rejected": ml_rejected,
+        "reject_action": reject_action,
+        "do_not_post": do_not_post,
+        "USE_AUTOREVIEWER": USE_AUTOREVIEWER,
+        "AUTOREVIEWER_CUTOFFS": AUTOREVIEWER_CUTOFFS,
+        "traced_reasons": traced_reasons
+    }
 
     # Take a list of tags and make them acceptable for upload
     tags = ",".join(tags)
@@ -636,8 +698,11 @@ def answer_ask(
             data = {"id": ask_id, "answer": answer, "tags": tags, "state": state}
 
     api_response = private_client.send_api_request("post", url, data, valid_options)
+    if do_not_post:
+        private_client.delete_post(blogName, id=api_response['id'])
     if log_data is not None:
         log_data["requested__state"] = state
+        log_data["state_reasons"] = state_reasons
         TRACE_LOGS.on_post_creation_callback(api_response, log_data)
     return api_response
 
@@ -1093,6 +1158,8 @@ def respond_to_reblogs_replies(
                     reblog_key=loop_persistent_data.reblog_keys[reblog_identifier],
                     log_data=log_data,
                     to_drafts=to_drafts,
+                    autoreview_proba=post_specifier["autoreview_proba"],
+                    reject_action="rts" if is_user_input else "do_not_post",
                 )
 
         time.sleep(0.5)
@@ -2084,6 +2151,9 @@ def do_reblog_reply_handling(
         is_user_input=(not is_dashboard),
     )
 
+    if len(reblogs_to_handle + list(replies_to_handle)) > 0:
+        do_rts(response_cache)
+
     ### post-check stuff
 
     count_check_requests_end = relevant_client.get_ratelimit_data()["day"]["remaining"]
@@ -2418,6 +2488,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 answer=gpt2_output["post"],
                 tags=gpt2_output["tags"],
                 log_data=log_data,
+                autoreview_proba=gpt2_output["autoreview_proba"],
+                reject_action="rts",
             )
     return loop_persistent_data, response_cache, n_asks
 
@@ -2455,13 +2527,25 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
         n_posts_in_queue = len(private_client.queue(blogName, limit=20)["posts"])
         print(f"now {n_posts_in_queue} posts in queue")
+
+        response_cache = do_rts(response_cache)
     return loop_persistent_data, response_cache
 
 
 def do_rts(response_cache):
     drafts = private_client.drafts(blogName, reblog_info=True)["posts"]
     to_send_back = [p for p in drafts if RTS_COMMAND in p["tags"]]
-    print(f"RTS: {len(to_send_back)}/{len(drafts)}")
+    to_autopub = [p for p in drafts if ACCEPT_COMMAND in p["tags"]]
+
+    n_drafts = len(drafts)
+    n_rts = len(to_send_back)
+    n_autopub = len(to_autopub)
+    n_unmarked = n_drafts - n_rts - n_autopub
+
+    print(f"RTS: {n_rts}/{n_drafts}")
+    print(f"AUTOPUB: {n_autopub}/{n_drafts}")
+    print(f"UNMARKED: {n_unmarked}/{n_drafts}")
+
     for p in to_send_back:
         pid = p.get("id")
         print(f"trying to RTS {pid}...")
@@ -2542,6 +2626,28 @@ def do_rts(response_cache):
         else:
             print(f"don't know how to RTS {pid}!")
 
+    # TODO: make if/else here less awful
+    for p in to_autopub[-1:]:
+        pid = p.get("id")
+        print(f"trying to AUTOPUB {pid}...")
+        if "tags" in p:
+            tags = p["tags"]
+            if ACCEPT_COMMAND in tags:
+                tags = [t for t in tags if t != ACCEPT_COMMAND]
+                r = private_client.edit_post(blogName, id=pid, tags=tags, state="draft")
+                if 'errors' in r:
+                    print(f'api error [editing]: response {repr(r)}')
+                else:
+                    r = private_client.edit_post(blogName, id=pid, state="published")
+                    if 'errors' in r:
+                        print(f'api error [publishing]: response {repr(r)}')
+                    else:
+                        print(f"AUTOPUBed {pid}")
+            else:
+                print(f"could not find ACCEPT_COMMAND in tags, have tags {tags}")
+        else:
+            print(f"could not find tags, have keys {p.keys()}")
+
     return response_cache
 
 
@@ -2577,9 +2683,11 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             loop_persistent_data, response_cache, n_asks = do_ask_handling(
                 loop_persistent_data, response_cache
             )
-            if (n_asks > 0) and save_after:
-                response_cache.save()
-                loop_persistent_data.image_analysis_cache.save()
+            if (n_asks > 0):
+                if save_after:
+                    response_cache.save()
+                    loop_persistent_data.image_analysis_cache.save()
+                do_rts(response_cache)
         return loop_persistent_data, response_cache
 
     ### do asks check
@@ -2659,8 +2767,8 @@ def load_retention():
 
 
 if __name__ == "__main__":
-    pr_boot = cProfile.Profile()
-    pr_boot.enable()
+    # pr_boot = cProfile.Profile()
+    # pr_boot.enable()
 
     response_cache = ResponseCache.load(tank_client)
     image_analysis_cache = ImageAnalysisCache.load()
@@ -2672,12 +2780,12 @@ if __name__ == "__main__":
         retention_stack=retention_stack,
     )
 
-    _pr_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    pr_boot.dump_stats(f"profiling_data/boot/{_pr_name}")
-    pr_boot.disable()
-
-    pr_main = cProfile.Profile()
-    pr_main.enable()
+    # _pr_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    # pr_boot.dump_stats(f"profiling_data/boot/{_pr_name}")
+    # pr_boot.disable()
+    #
+    # pr_main = cProfile.Profile()
+    # pr_main.enable()
 
     while True:
         try:
@@ -2686,14 +2794,14 @@ if __name__ == "__main__":
             )
             time.sleep(sleep_time())
             send_alldone()
-            _pr_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-            pr_main.dump_stats(f"profiling_data/main/{_pr_name}")
-            pr_main.enable()
+            # _pr_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            # pr_main.dump_stats(f"profiling_data/main/{_pr_name}")
+            # pr_main.enable()
         except (requests.exceptions.ConnectionError, KeyError, ValueError):
             print("hit an error, waiting for a little while...")
             time.sleep(sleep_time(multiplier=5))
             send_alldone()
         except KeyboardInterrupt:
             send_alldone()
-            pr_main.disable()
+            # pr_main.disable()
             raise KeyboardInterrupt

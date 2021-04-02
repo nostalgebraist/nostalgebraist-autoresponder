@@ -85,7 +85,8 @@ class TraceabilityLogs:
 def traceability_logs_to_df(logs,
                             boring_fields=None,
                             make_input_blogname=True,
-                            drop_malformed={"miro_traces", }
+                            drop_malformed={"miro_traces", },
+                            unpack={"state_reasons"},
                             ):
     data = logs["data"]
 
@@ -107,6 +108,11 @@ def traceability_logs_to_df(logs,
             if not isinstance(tup, tuple)
             else [entry for entry in tup if isinstance(entry, str)][0]
         )
+    for col in unpack:
+        filt = df[col].notnull()
+        to_load = df[filt][col]
+        loaded = pd.DataFrame.from_records(to_load.values, index=to_load.index)
+        df = df.join(loaded)
     return df
 
 

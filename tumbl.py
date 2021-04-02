@@ -591,25 +591,29 @@ def answer_ask(
             must_be_draft = True
 
     if USE_AUTOREVIEWER:
-        if autoreview_prob is not None:
+        if autoreview_proba is not None:
             print("draft_autoreviewer activated!")
             if (not should_publish) and (not must_be_draft):
                 # should we change reject --> accept ?
                 cut = AUTOREVIEWER_CUTOFFS["accept_below"]
-                if autoreview_prob < cut:
-                    print(f"draft_autoreviewer accepts post: autoreview_prob {autoreview_prob:.1%} < cutoff {cut:.1%}")
+                if autoreview_proba < cut:
+                    print(f"draft_autoreviewer accepts post: autoreview_proba {autoreview_proba:.1%} < cutoff {cut:.1%}")
                     should_publish = True
                     ml_accepted = True
+                else:
+                    print(f"draft_autoreviewer: autoreview_proba {autoreview_proba:.1%} >= cutoff {cut:.1%}")
             elif should_publish and (not must_be_draft):
                 # should we change accept --> reject ?
                 cut = AUTOREVIEWER_CUTOFFS["reject_above"]
-                if autoreview_prob > cut:
-                    print(f"draft_autoreviewer rejects post: autoreview_prob {autoreview_prob:.1%} > cutoff {cut:.1%}")
+                if autoreview_proba > cut:
+                    print(f"draft_autoreviewer rejects post: autoreview_proba {autoreview_proba:.1%} > cutoff {cut:.1%}")
                     should_publish = False
                     ml_rejected = True
+                else:
+                    print(f"draft_autoreviewer: autoreview_proba {autoreview_proba:.1%} <= cutoff {cut:.1%}")
 
         else:
-            print("can't use draft_autoreviewer: no autoreview_prob was suppled :(")
+            print("can't use draft_autoreviewer: no autoreview_proba was suppled :(")
 
     if IMAGE_CREATION:
         presub_answer = answer
@@ -1152,7 +1156,7 @@ def respond_to_reblogs_replies(
                     log_data=log_data,
                     to_drafts=to_drafts,
                     autoreview_proba=post_specifier["autoreview_proba"],
-                    reject_action="do_not_post" if is_dashboard else "rts",
+                    reject_action="rts" if is_user_input else "do_not_post",
                 )
 
         time.sleep(0.5)

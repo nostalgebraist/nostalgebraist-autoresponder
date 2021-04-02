@@ -696,7 +696,7 @@ def answer_ask(
 
     api_response = private_client.send_api_request("post", url, data, valid_options)
     if do_not_post:
-        private_client.delete_post(blogName, id=ask_id)
+        private_client.delete_post(blogName, id=api_response['id'])
     if log_data is not None:
         log_data["requested__state"] = state
         log_data["state_reasons"] = state_reasons

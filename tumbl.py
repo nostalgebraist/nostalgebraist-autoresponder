@@ -2086,6 +2086,9 @@ def do_reblog_reply_handling(
         is_user_input=(not is_dashboard),
     )
 
+    if len(reblogs_to_handle + list(replies_to_handle)) > 0:
+        do_rts(response_cache)
+
     ### post-check stuff
 
     count_check_requests_end = relevant_client.get_ratelimit_data()["day"]["remaining"]
@@ -2457,6 +2460,8 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
         n_posts_in_queue = len(private_client.queue(blogName, limit=20)["posts"])
         print(f"now {n_posts_in_queue} posts in queue")
+
+        response_cache = do_rts(response_cache)
     return loop_persistent_data, response_cache
 
 
@@ -2464,10 +2469,16 @@ def do_rts(response_cache):
     drafts = private_client.drafts(blogName, reblog_info=True)["posts"]
     to_send_back = [p for p in drafts if RTS_COMMAND in p["tags"]]
     to_autopub = [p for p in drafts if ACCEPT_COMMAND in p["tags"]]
-    n_unmarked = len(to_autopub) - len(to_send_back) - len(to_autopub)
-    print(f"RTS: {len(to_send_back)}/{len(drafts)}")
-    print(f"AUTOPUB: {len(to_autopub)}/{len(drafts)}")
-    print(f"UNMARKED: {n_unmarked}/{len(drafts)}")
+
+    n_drafts = len(drafts)
+    n_rts = len(to_send_back)
+    n_autopub = len(to_autopub)
+    n_unmarked = n_drafts - n_rts - n_autopub
+
+    print(f"RTS: {n_rts}/{n_drafts}")
+    print(f"AUTOPUB: {n_autopub}/{n_drafts}")
+    print(f"UNMARKED: {n_unmarked}/{n_drafts}")
+
     for p in to_send_back:
         pid = p.get("id")
         print(f"trying to RTS {pid}...")
@@ -2605,16 +2616,17 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             loop_persistent_data, response_cache, n_asks = do_ask_handling(
                 loop_persistent_data, response_cache
             )
-            if (n_asks > 0) and save_after:
-                response_cache.save()
-                loop_persistent_data.image_analysis_cache.save()
+            if (n_asks > 0):
+                if save_after:
+                    response_cache.save()
+                    loop_persistent_data.image_analysis_cache.save()
+                do_rts(response_cache)
         return loop_persistent_data, response_cache
 
     ### do asks check
     loop_persistent_data, response_cache = _mainloop_asks_block(
         loop_persistent_data, response_cache
     )
-    response_cache = do_rts(response_cache)
 
     ### do reblog/reply check
     if n_posts_to_check > 0:
@@ -2624,8 +2636,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         )
         response_cache.save()
         loop_persistent_data.image_analysis_cache.save()
-
-        response_cache = do_rts(response_cache)
 
         ### do another asks check
         loop_persistent_data, response_cache = _mainloop_asks_block(
@@ -2646,8 +2656,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             )
         else:
             print("skipping dash check this time")
-
-        response_cache = do_rts(response_cache)
 
         ### do another asks check
         loop_persistent_data, response_cache = _mainloop_asks_block(

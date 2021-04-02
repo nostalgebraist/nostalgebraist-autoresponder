@@ -178,6 +178,7 @@ except Exception as e:
     print(f"in getting scraped_usernames, encountered {e}, {getattr(e, '__dict__')}")
 
 RTS_COMMAND = "rts"
+ACCEPT_COMMAND = "a"
 
 GLOBAL_TESTING_FLAG = False
 BEAMSPLIT_TESTING_FLAG = False
@@ -348,6 +349,7 @@ def strip_avoid_listed_strings_from_tags(tags):
         )
         and not any([substring in tag.lower() for substring in TAG_AVOID_LIST])
         and tag != RTS_COMMAND
+        and tag != ACCEPT_COMMAND
     ]
 
 
@@ -2461,7 +2463,11 @@ def do_queue_handling(loop_persistent_data, response_cache):
 def do_rts(response_cache):
     drafts = private_client.drafts(blogName, reblog_info=True)["posts"]
     to_send_back = [p for p in drafts if RTS_COMMAND in p["tags"]]
+    to_autopub = [p for p in drafts if ACCEPT_COMMAND in p["tags"]]
+    n_unmarked = len(to_autopub) - len(to_send_back) - len(to_autopub)
     print(f"RTS: {len(to_send_back)}/{len(drafts)}")
+    print(f"AUTOPUB: {len(to_autopub)}/{len(drafts)}")
+    print(f"UNMARKED: {n_unmarked}/{len(drafts)}")
     for p in to_send_back:
         pid = p.get("id")
         print(f"trying to RTS {pid}...")
@@ -2542,6 +2548,28 @@ def do_rts(response_cache):
         else:
             print(f"don't know how to RTS {pid}!")
 
+    # TODO: make if/else here less awful
+    for p in to_autopub[-1:]:
+        pid = p.get("id")
+        print(f"trying to AUTOPUB {pid}...")
+        if "tags" in p:
+            tags = p["tags"]
+            if ACCEPT_COMMAND in tags:
+                tags = [t for t in tags if t != ACCEPT_COMMAND]
+                r = private_client.edit_post(blogName, id=pid, tags=tags, state="draft")
+                if 'errors' in r:
+                    print(f'api error [editing]: response {repr(r)}')
+                else:
+                    r = private_client.edit_post(blogName, id=pid, state="published")
+                    if 'errors' in r:
+                        print(f'api error [publishing]: response {repr(r)}')
+                    else:
+                        print(f"AUTOPUBed {pid}")
+            else:
+                print(f"could not find ACCEPT_COMMAND in tags, have tags {tags}")
+        else:
+            print(f"could not find tags, have keys {p.keys()}")
+
     return response_cache
 
 
@@ -2586,6 +2614,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     loop_persistent_data, response_cache = _mainloop_asks_block(
         loop_persistent_data, response_cache
     )
+    response_cache = do_rts(response_cache)
 
     ### do reblog/reply check
     if n_posts_to_check > 0:
@@ -2595,6 +2624,8 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         )
         response_cache.save()
         loop_persistent_data.image_analysis_cache.save()
+
+        response_cache = do_rts(response_cache)
 
         ### do another asks check
         loop_persistent_data, response_cache = _mainloop_asks_block(
@@ -2615,6 +2646,8 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             )
         else:
             print("skipping dash check this time")
+
+        response_cache = do_rts(response_cache)
 
         ### do another asks check
         loop_persistent_data, response_cache = _mainloop_asks_block(

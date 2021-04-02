@@ -16,7 +16,7 @@ V9_1R4 = True
 V10 = True
 V10_1 = True  # !!
 
-USE_AUTOREVIEWER = True
+USE_AUTOREVIEWER = False
 AUTOREVIEWER_CUTOFFS = {
     "accept_below": 0.125,
     "reject_above": 0.625,

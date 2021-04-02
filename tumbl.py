@@ -615,7 +615,7 @@ def answer_ask(
                     print(f"draft_autoreviewer: autoreview_proba {autoreview_proba:.1%} <= cutoff {cut:.1%}")
 
         else:
-            print("can't use draft_autoreviewer: no autoreview_proba was suppled :(")
+            print("can't use draft_autoreviewer: no autoreview_proba was supplied")
 
     if IMAGE_CREATION:
         presub_answer = answer

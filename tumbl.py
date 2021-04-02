@@ -16,6 +16,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from bot_config import BotSpecificConstants
+from autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS
 
 from reply_munging import (
     mockup_xkit_reply,
@@ -534,6 +535,8 @@ def answer_ask(
     is_reblog=False,
     reblog_key=None,
     log_data=None,
+    autoreview_proba=None,
+    reject_action=None,
 ):
     global TRACE_LOGS
 
@@ -565,21 +568,48 @@ def answer_ask(
     screener_question = (
         question  # TODO: remember why i wanted to do the thing in the previous line...
     )
+    screener_result, traced_reasons = autopublish_screener(
+        asking_name, screener_question, answer, tags, screen_robnost=True, trace=True
+    )
     print(
-        f"autopublish_screener says: {autopublish_screener(asking_name, screener_question, answer, tags, screen_robnost=True)}"
+        f"autopublish_screener says: {screener_result}"
     )
-    state = (
-        "draft"
-        if (
-            to_drafts
-            or (
-                not autopublish_screener(
-                    asking_name, screener_question, answer, tags, screen_robnost=True
-                )
-            )
-        )
-        else "published"
-    )
+    should_publish = True
+    must_be_draft = False
+    ml_accepted = False
+    ml_rejected = False
+    do_not_post = False
+
+    if not screener_result:
+        should_publish = False
+        for d in traced_reasons:
+            if d.get("type") != "substring":
+                print(f"forcing draft due to screener reason: {repr(d)}")
+                must_be_draft = True
+        if to_drafts:
+            print(f"forcing draft due to to_drafts kwarg")
+            must_be_draft = True
+
+    if USE_AUTOREVIEWER:
+        if autoreview_prob is not None:
+            print("draft_autoreviewer activated!")
+            if (not should_publish) and (not must_be_draft):
+                # should we change reject --> accept ?
+                cut = AUTOREVIEWER_CUTOFFS["accept_below"]
+                if autoreview_prob < cut:
+                    print(f"draft_autoreviewer accepts post: autoreview_prob {autoreview_prob:.1%} < cutoff {cut:.1%}")
+                    should_publish = True
+                    ml_accepted = True
+            elif should_publish and (not must_be_draft):
+                # should we change accept --> reject ?
+                cut = AUTOREVIEWER_CUTOFFS["reject_above"]
+                if autoreview_prob > cut:
+                    print(f"draft_autoreviewer rejects post: autoreview_prob {autoreview_prob:.1%} > cutoff {cut:.1%}")
+                    should_publish = False
+                    ml_rejected = True
+
+        else:
+            print("can't use draft_autoreviewer: no autoreview_prob was suppled :(")
 
     if IMAGE_CREATION:
         presub_answer = answer
@@ -591,6 +621,7 @@ def answer_ask(
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state = "draft"
+            must_be_draft = True
             print(
                 f"IMAGE_CREATION: for\n{repr(presub_answer)}\n, subbed\n{repr(answer)}\n"
             )
@@ -598,13 +629,35 @@ def answer_ask(
     if IMAGE_DELIMITER in answer:
         print("image delimiter still in post")
         state = "draft"
+        must_be_draft = True
 
     if GLOBAL_TESTING_FLAG:
         print(f"GLOBAL_TESTING_FLAG --> draft")
         orig_state = state
         state = "draft"
+        must_be_draft = True
         if BEAMSPLIT_TESTING_FLAG:
             tags = ["BEAMSPLIT dummy branch", f"intended state: {orig_state}"] + tags
+
+    # finalize state
+    should_publish = should_publish and (not must_be_draft)
+    state = "published" if should_publish else "draft"
+    if ml_rejected:
+        if reject_action == "rts":
+            tags.append("rts")
+        elif reject_action == "do_not_post":
+            do_not_post = True
+
+    state_reasons = {
+        "should_publish": should_publish,
+        "must_be_draft": must_be_draft,
+        "ml_accepted": ml_accepted,
+        "ml_rejected": ml_rejected,
+        "reject_action": reject_action,
+        "do_not_post": do_not_post,
+        "USE_AUTOREVIEWER": USE_AUTOREVIEWER,
+        "AUTOREVIEWER_CUTOFFS": AUTOREVIEWER_CUTOFFS
+    }
 
     # Take a list of tags and make them acceptable for upload
     tags = ",".join(tags)
@@ -638,8 +691,11 @@ def answer_ask(
             data = {"id": ask_id, "answer": answer, "tags": tags, "state": state}
 
     api_response = private_client.send_api_request("post", url, data, valid_options)
+    if do_not_post:
+        private_client.delete_post(blogName, id=ask_id)
     if log_data is not None:
         log_data["requested__state"] = state
+        log_data["state_reasons"] = state_reasons
         TRACE_LOGS.on_post_creation_callback(api_response, log_data)
     return api_response
 
@@ -1095,6 +1151,8 @@ def respond_to_reblogs_replies(
                     reblog_key=loop_persistent_data.reblog_keys[reblog_identifier],
                     log_data=log_data,
                     to_drafts=to_drafts,
+                    autoreview_proba=post_specifier["autoreview_proba"],
+                    reject_action="do_not_post" if is_dashboard else "rts",
                 )
 
         time.sleep(0.5)
@@ -2423,6 +2481,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 answer=gpt2_output["post"],
                 tags=gpt2_output["tags"],
                 log_data=log_data,
+                autoreview_proba=gpt2_output["autoreview_proba"],
+                reject_action="rts",
             )
     return loop_persistent_data, response_cache, n_asks
 

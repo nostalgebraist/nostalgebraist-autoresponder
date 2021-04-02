@@ -16,6 +16,12 @@ V9_1R4 = True
 V10 = True
 V10_1 = True  # !!
 
+USE_AUTOREVIEWER = False
+AUTOREVIEWER_CUTOFFS = {
+    "accept_below": 0.125,
+    "reject_above": 0.625,
+}
+
 bot_specific_constants = BotSpecificConstants.load()
 BUCKET_NAME = bot_specific_constants.BUCKET_NAME
 BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST

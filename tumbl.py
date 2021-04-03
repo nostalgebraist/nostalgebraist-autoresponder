@@ -497,8 +497,8 @@ def augment_screener_output_with_autoreviewer(
                     ml_accepted = True
                 else:
                     print(f"draft_autoreviewer: autoreview_proba {autoreview_proba:.1%} >= cutoff {cut:.1%}")
-            elif should_publish and (not must_be_draft):
-                # should we change accept --> reject ?
+            elif (not must_be_draft):
+                # should we force reject ?
                 cut = AUTOREVIEWER_CUTOFFS["reject_above"]
                 if autoreview_proba > cut:
                     print(f"draft_autoreviewer rejects post: autoreview_proba {autoreview_proba:.1%} > cutoff {cut:.1%}")

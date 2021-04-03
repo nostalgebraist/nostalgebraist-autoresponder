@@ -1483,6 +1483,17 @@ def is_dynamically_reblog_worthy_on_dash(
         reblog_worthy_prob or reblog_worthy_taggedme
     ) and reblog_worthy_neg_sentiment
 
+    # autoreview prob
+    reblog_worthy_autoreview_prob = True
+    if USE_AUTOREVIEWER:
+        reblog_worthy_autoreview_prob = autoreview_prob < AUTOREVIEWER_CUTOFFS['reject_above']
+
+    if reblog_worthy and not reblog_worthy_autoreview_prob:
+        explanation = f"NOT reblogging {post_identifier} from dash: "
+        explanation += f"\n\tautoreview_prob: {autoreview_prob:.1%} vs. {AUTOREVIEWER_CUTOFFS['reject_above']:.1%}"
+
+    reblog_worthy = reblog_worthy and reblog_worthy_autoreview_prob
+
     if verbose:
         print(
             f"got prob {prob:.1%} for post {post_payload.get('id')} from {post_payload.get('blog_name')}"
@@ -1506,7 +1517,7 @@ def is_dynamically_reblog_worthy_on_dash(
             explanation += f"\n\toverriding prob: i'm tagged in comment"
         if neg_sentiment is not None:
             explanation += f"\n\tneg_sentiment: {neg_sentiment:.0%} vs. {DASH_REBLOG_MAX_NEG_SENTIMENT:.0%}"
-        explanation += f"\n\tautoreview_prob: {autoreview_prob:.0%}"
+        explanation += f"\n\tautoreview_prob: {autoreview_prob:.1%} vs. {AUTOREVIEWER_CUTOFFS['reject_above']:.1%}"
         print(explanation)
     return reblog_worthy
 

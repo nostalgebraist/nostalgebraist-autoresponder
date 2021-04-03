@@ -585,7 +585,7 @@ def make_text_post(
         if reject_action == "rts":
             tags.append("rts")
         elif reject_action == "do_not_post":
-            state_reasons["do_not_post"] = do_not_post
+            state_reasons["do_not_post"] = True
 
     kwargs = {"state": state, "body": post}
     if len(tags) > 0:
@@ -692,7 +692,7 @@ def answer_ask(
         if reject_action == "rts":
             tags.append("rts")
         elif reject_action == "do_not_post":
-            state_reasons["do_not_post"] = do_not_post
+            state_reasons["do_not_post"] = True
 
     # Take a list of tags and make them acceptable for upload
     tags = ",".join(tags)

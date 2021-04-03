@@ -18,8 +18,8 @@ V10_1 = True  # !!
 
 USE_AUTOREVIEWER = True
 AUTOREVIEWER_CUTOFFS = {
-    "accept_below": 0.095,  # v10_1/v5: predict true accept rate: ~14%, false accept rate ~2%
-    "reject_above": 0.69,  # v10_1/v5: predict true reject rate: ~32%, false reject rate ~2.5%
+    "accept_below": 0.11,  # v10_1/v5: predict true accept rate: ~29%, false accept rate ~5%
+    "reject_above": 0.54,  # v10_1/v5: predict true reject rate: ~41%, false reject rate ~5%
 }
 
 bot_specific_constants = BotSpecificConstants.load()

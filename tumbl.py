@@ -497,7 +497,7 @@ def augment_screener_output_with_autoreviewer(
                     ml_accepted = True
                 else:
                     print(f"draft_autoreviewer: autoreview_proba {autoreview_proba:.1%} >= cutoff {cut:.1%}")
-            elif (not must_be_draft):
+            if (not must_be_draft):
                 # should we force reject ?
                 cut = AUTOREVIEWER_CUTOFFS["reject_above"]
                 if autoreview_proba > cut:
@@ -1143,6 +1143,8 @@ def respond_to_reblogs_replies(
                     question=question,
                     log_data=log_data if i == 0 else None,
                     to_drafts=to_drafts,
+                    autoreview_proba=post_specifier["autoreview_proba"],
+                    reject_action="rts"
                 )
         elif okay_to_reply:
             for i, post_specifier in enumerate(post_specifiers_from_gpt2):
@@ -2551,6 +2553,8 @@ def do_queue_handling(loop_persistent_data, response_cache):
                 post=gpt2_output["post"],
                 tags=gpt2_output["tags"],
                 log_data=gpt2_output,
+                autoreview_proba=gpt2_output["autoreview_proba"],
+                reject_action="do_not_post"
             )
 
         n_posts_in_queue = len(private_client.queue(blogName, limit=20)["posts"])

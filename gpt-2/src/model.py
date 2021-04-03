@@ -35,6 +35,7 @@ def default_hparams():
         selector_style_attn=True,
         classic_init=True,
         mlp_ratio=4,
+        causal_masking=True,
     )
 
 
@@ -68,6 +69,7 @@ def hparams_1558M():
         selector_style_attn=False,
         classic_init=True,
         mlp_ratio=4,
+        causal_masking=True,
     )
 
 
@@ -211,7 +213,10 @@ def attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, adapt=Fals
         w = tf.matmul(q, k, transpose_b=True)
         w = w * tf.rsqrt(tf.cast(v.shape[-1].value, w.dtype))
 
-        w = mask_attn_weights(w)
+        if hparams.get("causal_masking", True):
+            w = mask_attn_weights(w)
+        else:
+            print(f"bidirectional attn in scope {scope}")
         attn_dropout = (
             hparams.get("attn_dropout_adapt", 0)
             if adapt

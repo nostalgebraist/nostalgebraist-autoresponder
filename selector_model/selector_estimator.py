@@ -167,6 +167,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         additional_full_blocks=0,
         fullblock_n_head=40,
         fullblock_mlp_ratio=3,
+        fullblock_causal_masking=True,
         show_batch_stats=False,
         stop_early=False,
         stopping_metric="ap",
@@ -244,6 +245,7 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.additional_full_blocks = additional_full_blocks
         self.fullblock_n_head = fullblock_n_head
         self.fullblock_mlp_ratio = fullblock_mlp_ratio
+        self.fullblock_causal_masking = fullblock_causal_masking
 
         self.show_batch_stats = show_batch_stats
         self.stop_early = stop_early
@@ -397,12 +399,14 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
         self.hparams_fullblocks_train_ = hparams_1558M()
         self.hparams_fullblocks_train_.set_hparam("n_head", self.fullblock_n_head)
         self.hparams_fullblocks_train_.set_hparam("mlp_ratio", self.fullblock_mlp_ratio)
+        self.hparams_fullblocks_train_.set_hparam("causal_masking", self.fullblock_causal_masking)
         for train_hparam in fullblock_transfer_hparams:
             self.hparams_fullblocks_train_.set_hparam(train_hparam, getattr(self.hparams_select_train_, train_hparam))
 
         self.hparams_fullblocks_eval_ = hparams_1558M()
         self.hparams_fullblocks_eval_.set_hparam("n_head", self.fullblock_n_head)
         self.hparams_fullblocks_eval_.set_hparam("mlp_ratio", self.fullblock_mlp_ratio)
+        self.hparams_fullblocks_eval_.set_hparam("causal_masking", self.fullblock_causal_masking)
         for train_hparam in fullblock_transfer_hparams:
             self.hparams_fullblocks_eval_.set_hparam(train_hparam, getattr(self.hparams_select_eval_, train_hparam))
 

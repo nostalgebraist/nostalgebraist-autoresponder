@@ -182,7 +182,7 @@ def attention_mask(nd, ns, *, dtype):
     return tf.cast(m, dtype)
 
 
-def attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, adapt=False):
+def attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, adapt=False, custom_mask=None):
     if n_head is None:
         n_head = hparams.n_head
     assert x.shape.ndims == 3  # Should be [batch, sequence, features]
@@ -208,6 +208,14 @@ def attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, adapt=Fals
         w = w * b - tf.cast(65500 if w.dtype != tf.float32 else 1e10, w.dtype) * (1 - b)
         return w
 
+    def custom_mask_attn_weights(w, custom_mask):
+        # TODO: DRY
+        _, _, nd, ns = shape_list(w)
+        b = custom_mask
+        b = tf.reshape(b, [1, 1, nd, ns])
+        w = w * b - tf.cast(65500 if w.dtype != tf.float32 else 1e10, w.dtype) * (1 - b)
+        return w
+
     def multihead_attn(q, k, v):
         # q, k, v have shape [batch, heads, sequence, features]
         w = tf.matmul(q, k, transpose_b=True)
@@ -215,6 +223,8 @@ def attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, adapt=Fals
 
         if hparams.get("causal_masking", True):
             w = mask_attn_weights(w)
+        elif custom_mask is not None:
+            w = custom_mask_attn_weights(w, custom_mask)
         else:
             print(f"bidirectional attn in scope {scope}")
         attn_dropout = (

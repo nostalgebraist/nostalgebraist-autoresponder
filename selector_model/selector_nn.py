@@ -216,7 +216,7 @@ def extract_selection_ix(tokens, extract_from, batch_size, selection_tok):
 def extract_selection_ix_position(tokens, batch_size, selection_tok):
     return extract_selection_ix(
         tokens, tf.sort(tf.argsort(tokens)), batch_size, selection_tok
-    )
+    )["extracted"]
 
 
 def selector(
@@ -239,6 +239,16 @@ def selector(
     additional_full_blocks=0,
 ):
     results = {}
+
+    if hparams_select.get("causal_masking", True):
+        custom_mask = None
+    else:
+        # construct custom mask
+        last = extract_selection_ix_position(X, batch_size, selection_tok)
+        j = tf.sort(tf.argsort(tokens))
+        m = j <= last
+        m = tf.cast(m, hparams.dtype)
+        custom_mask = m
 
     activations = model.model(
         hparams=hparams,
@@ -266,6 +276,7 @@ def selector(
                     hparams=hparams_fullblocks,
                     past=None,
                     past_adapt=None,
+                    custom_mask=custom_mask
                 )
             h_select, _ = attn_only_block(
                 act,

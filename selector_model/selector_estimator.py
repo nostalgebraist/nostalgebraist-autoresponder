@@ -793,84 +793,81 @@ class SelectorEstimatorFromCkpt(BaseEstimator, ClassifierMixin):
             feed_dict[self.select_target_.name] = batch_target.values
 
             with self.session_.as_default():
-                try:
-                    if self.accumulate_gradients > 1:
-                        _, cur_lr, current_step = self.session_.run(
-                            [self.opt_add_gradients_, self.lr_, self.global_step_],
-                            feed_dict=feed_dict,
+                if self.accumulate_gradients > 1:
+                    _, cur_lr, current_step = self.session_.run(
+                        [self.opt_add_gradients_, self.lr_, self.global_step_],
+                        feed_dict=feed_dict,
+                    )
+                    accum_count = self.gradient_accumulator_.count_loss.eval(
+                        self.session_
+                    )
+                    if accum_count % self.accumulate_gradients != 0:
+                        # TODO: DRY
+                        row_ix += self.batch_size
+                        self.global_step_.load(
+                            current_step + 1, session=self.session_
                         )
-                        accum_count = self.gradient_accumulator_.count_loss.eval(
-                            self.session_
+                        extra_postfixes["aaa_accum_count"] = accum_count
+                        extra_postfixes["ntok"] = batch_max_tokens
+                        step_iter.set_postfix(
+                            loss=batch_loss,
+                            loss_avg=running_loss,
+                            lr=cur_lr,
+                            refresh=False,
+                            **extra_postfixes,
                         )
-                        if accum_count % self.accumulate_gradients != 0:
-                            # TODO: DRY
-                            row_ix += self.batch_size
-                            self.global_step_.load(
-                                current_step + 1, session=self.session_
-                            )
-                            extra_postfixes["aaa_accum_count"] = accum_count
-                            extra_postfixes["ntok"] = batch_max_tokens
-                            step_iter.set_postfix(
-                                loss=batch_loss,
-                                loss_avg=running_loss,
-                                lr=cur_lr,
-                                refresh=False,
-                                **extra_postfixes,
-                            )
-                            continue
-                    if self.show_batch_stats:
-                        (
-                            loss_out,
-                            cur_lr,
-                            current_step,
-                            cur_gn,
-                            cur_gn_fullb_ln,
-                            cur_gn_fullb_attn,
-                            cur_gn_fullb_mlp,
-                            cur_gn_ln,
-                            cur_gn_attn,
-                            cur_gn_mlp,
-                            cur_gn_lreg,
-                            cur_gn_mix,
-                            cur_activ_norms,
-                            cur_is_flooding,
-                            *softlayer_vars,
-                            apply_out,
-                        ) = self.session_.run(
-                            [
-                                self.select_loss_,
-                                self.lr_,
-                                self.global_step_,
-                                self.gn_,
-                                self.gn_fullb_ln_,
-                                self.gn_fullb_attn_,
-                                self.gn_fullb_mlp_,
-                                self.gn_ln_,
-                                self.gn_attn_,
-                                self.gn_mlp_,
-                                self.gn_lreg_,
-                                self.gn_mix_,
-                                self.activ_norms_,
-                                self.is_flooding_,
-                                self.softlayer_vars_,
-                                self.opt_apply_,
-                            ],
-                            feed_dict=feed_dict,
-                        )
-                    else:
-                        loss_out, cur_lr, current_step, apply_out = self.session_.run(
-                            [
-                                self.select_loss_,
-                                self.lr_,
-                                self.global_step_,
-                                self.opt_apply_,
-                            ],
-                            feed_dict=feed_dict,
-                        )
-                    if self.accumulate_gradients > 1:
-                        self.session_.run(self.opt_reset_)
-                except tf.errors.InvalidArgumentError:
-                    continue
+                        continue
+                if self.show_batch_stats:
+                    (
+                        loss_out,
+                        cur_lr,
+                        current_step,
+                        cur_gn,
+                        cur_gn_fullb_ln,
+                        cur_gn_fullb_attn,
+                        cur_gn_fullb_mlp,
+                        cur_gn_ln,
+                        cur_gn_attn,
+                        cur_gn_mlp,
+                        cur_gn_lreg,
+                        cur_gn_mix,
+                        cur_activ_norms,
+                        cur_is_flooding,
+                        *softlayer_vars,
+                        apply_out,
+                    ) = self.session_.run(
+                        [
+                            self.select_loss_,
+                            self.lr_,
+                            self.global_step_,
+                            self.gn_,
+                            self.gn_fullb_ln_,
+                            self.gn_fullb_attn_,
+                            self.gn_fullb_mlp_,
+                            self.gn_ln_,
+                            self.gn_attn_,
+                            self.gn_mlp_,
+                            self.gn_lreg_,
+                            self.gn_mix_,
+                            self.activ_norms_,
+                            self.is_flooding_,
+                            self.softlayer_vars_,
+                            self.opt_apply_,
+                        ],
+                        feed_dict=feed_dict,
+                    )
+                else:
+                    loss_out, cur_lr, current_step, apply_out = self.session_.run(
+                        [
+                            self.select_loss_,
+                            self.lr_,
+                            self.global_step_,
+                            self.opt_apply_,
+                        ],
+                        feed_dict=feed_dict,
+                    )
+                if self.accumulate_gradients > 1:
+                    self.session_.run(self.opt_reset_)
 
             batch_loss = apply_out if self.accumulate_gradients > 1 else loss_out
             all_losses.append(batch_loss)

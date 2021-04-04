@@ -240,12 +240,12 @@ def selector(
 ):
     results = {}
 
-    if hparams_select.get("causal_masking", True):
+    if hparams_fullblocks.get("causal_masking", True):
         custom_mask = None
     else:
         # construct custom mask
         last = extract_selection_ix_position(X, batch_size, selection_tok)
-        j = tf.sort(tf.argsort(tokens))
+        j = tf.sort(tf.argsort(X))
         m = j <= last
         m = tf.cast(m, hparams.dtype)
         custom_mask = m

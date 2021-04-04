@@ -224,9 +224,10 @@ def attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, adapt=Fals
         if hparams.get("causal_masking", True):
             w = mask_attn_weights(w)
         elif custom_mask is not None:
+            print(f"bidirectional attn in scope {scope}, custom mask supplied")
             w = custom_mask_attn_weights(w, custom_mask)
         else:
-            print(f"bidirectional attn in scope {scope}")
+            print(f"bidirectional attn in scope {scope}, no custom mask supplied")
         attn_dropout = (
             hparams.get("attn_dropout_adapt", 0)
             if adapt

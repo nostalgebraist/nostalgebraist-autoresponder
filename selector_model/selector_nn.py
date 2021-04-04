@@ -223,12 +223,9 @@ def construct_custom_mask(X, batch_size, selection_tok, hparams):
     n_batch, n_sequence = model.shape_list(X)
 
     last = extract_selection_ix_position(X, batch_size, selection_tok)
-    print(("last", last))
     last = tf.tile(last[:, None, None], [1, n_sequence, n_sequence])
-    print(("last", last))
 
     j = tf.sort(tf.argsort(X))[:, None, :]
-    print(("j", j))
 
     m = j <= last
     m = tf.cast(m, hparams.dtype)

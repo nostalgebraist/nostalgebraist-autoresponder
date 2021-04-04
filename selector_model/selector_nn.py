@@ -244,7 +244,7 @@ def selector(
         custom_mask = None
     else:
         # construct custom mask
-        last = extract_selection_ix_position(X, batch_size, selection_tok)
+        last = extract_selection_ix_position(X, batch_size, selection_tok)[:, None]
         j = tf.sort(tf.argsort(X))
         m = j <= last
         m = tf.cast(m, hparams.dtype)

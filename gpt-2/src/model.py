@@ -210,9 +210,9 @@ def attn(x, scope, n_state, *, past, hparams, n_head=None, gain=None, adapt=Fals
 
     def custom_mask_attn_weights(w, custom_mask):
         # TODO: DRY
-        _, _, nd, ns = shape_list(w)
+        nb, _, nd, ns = shape_list(w)
         b = custom_mask
-        b = tf.reshape(b, [1, 1, nd, ns])
+        b = tf.reshape(b, [nb, 1, nd, ns])
         w = w * b - tf.cast(65500 if w.dtype != tf.float32 else 1e10, w.dtype) * (1 - b)
         return w
 

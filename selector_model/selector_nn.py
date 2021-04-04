@@ -219,6 +219,23 @@ def extract_selection_ix_position(tokens, batch_size, selection_tok):
     )["extracted"]
 
 
+def construct_custom_mask(X, batch_size, selection_tok, hparams):
+    n_batch, n_sequence = model.shape_list(X)
+
+    last = extract_selection_ix_position(X, batch_size, selection_tok)
+    print(("last", last))
+    last = tf.tile(last[:, None, None], [1, n_sequence, n_sequence])
+    print(("last", last))
+
+    j = tf.sort(tf.argsort(X))[:, None, :]
+    print(("j", j))
+
+    m = j <= last
+    m = tf.cast(m, hparams.dtype)
+    custom_mask = m
+    return custom_mask
+
+
 def selector(
     hparams,
     X,
@@ -243,17 +260,7 @@ def selector(
     if hparams_fullblocks.get("causal_masking", True):
         custom_mask = None
     else:
-        custom_mask = None
-
-        # # stuff below does not work yet -- need to adapt model code more to support
-        # # varying mask shape across the batch dim
-        #
-        # # construct custom mask
-        # last = extract_selection_ix_position(X, batch_size, selection_tok)[:, None]
-        # j = tf.sort(tf.argsort(X))
-        # m = j <= last
-        # m = tf.cast(m, hparams.dtype)
-        # custom_mask = m
+        custom_mask = construct_custom_mask(X, batch_size, selection_tok, hparams_fullblocks)
 
     activations = model.model(
         hparams=hparams,

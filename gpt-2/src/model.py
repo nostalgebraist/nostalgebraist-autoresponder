@@ -298,6 +298,7 @@ def block(
     adapt=False,
     h_next=None,
     mix_next_weight_next=1.0,
+    custom_mask=None
 ):
     dtype = hparams.dtype if hparams else tf.float32
     with tf.variable_scope(scope, dtype=dtype):
@@ -305,7 +306,7 @@ def block(
         # if h_next is not None and x.shape[-2] > 1:
         #     x = normed_mix(x, h_next, mix_next_weight_next, "normed_mix")
         x_ln1 = norm(x, "ln_1", hparams=hparams)
-        a, present = attn(x_ln1, "attn", nx, past=past, hparams=hparams)
+        a, present = attn(x_ln1, "attn", nx, past=past, hparams=hparams, custom_mask=custom_mask)
         x = x + a
 
     if adapt and hparams.attn_adapters:

@@ -35,6 +35,7 @@ UNAME_CHAR = "友"
 ORIG_POST_CHAR = "翰"
 
 
+@profile
 def sanitize_user_input_outer_shell(text):
     # to be applied to stuff near the tumblr API level
     sanitized_text = text
@@ -48,6 +49,7 @@ def sanitize_user_input_outer_shell(text):
     return sanitized_text
 
 
+@profile
 def format_post_for_api(post):
     # temporary hack
     post = (
@@ -63,6 +65,7 @@ def format_post_for_api(post):
     return post
 
 
+@profile
 def inverse_format_post_for_api(post):
     if post.startswith("<p>"):
         post = post[len("<p>") :]
@@ -76,6 +79,7 @@ def inverse_format_post_for_api(post):
     return post
 
 
+@profile
 def get_body(post: dict):
     if post.get("type") == "blocks":
         # can't ignore NPF forever, apparently :( :(
@@ -156,6 +160,7 @@ def get_body(post: dict):
     return body
 
 
+@profile
 def malformed_diagnostic_june_2020(body):
     diagnostic_substring = "".join(body.rpartition("</blockquote>")[:2])
     is_malformed_body = diagnostic_substring.endswith("</blockquote></blockquote>")
@@ -163,6 +168,7 @@ def malformed_diagnostic_june_2020(body):
     return is_malformed_body, malformed_explainer
 
 
+@profile
 def malformed_diagnostic_august_2020(body):
     body_re = re.compile(r"<p><a.*?class=\"tumblr_blog\".*?>.+?</a>:</p><blockquote>")
     diagnostic_segments = re.split(body_re, body.replace("\n", ""))
@@ -171,6 +177,7 @@ def malformed_diagnostic_august_2020(body):
     return is_malformed_body, malformed_explainer
 
 
+@profile
 def body_via_trail_hack(post: dict):
     if "trail" not in post:
         print(f"couldn't find trail, available keys are {post.keys()}")
@@ -190,6 +197,7 @@ def body_via_trail_hack(post: dict):
     return "".join(my_units)
 
 
+@profile
 def process_post_from_html_body(
     body: str, debug=False, V10=True, image_analysis_cache=None
 ) -> str:
@@ -211,6 +219,7 @@ def process_post_from_html_body(
     return processed
 
 
+@profile
 def process_post_from_post_payload(
     post: dict, debug=False, V10=True, image_analysis_cache=None
 ) -> str:
@@ -252,6 +261,7 @@ def process_post_from_post_payload(
     return processed
 
 
+@profile
 def screener_string_from_bootstrap_draft(d, image_analysis_cache=None):
     processed = process_post_from_post_payload(
         d, image_analysis_cache=image_analysis_cache
@@ -279,6 +289,7 @@ def screener_string_from_bootstrap_draft(d, image_analysis_cache=None):
 # image stuff
 
 
+@profile
 def find_images_and_sub_text(
     text: str,
     image_formatter=V9_IMAGE_FORMATTER,
@@ -305,6 +316,7 @@ def find_images_and_sub_text(
     return text_subbed
 
 
+@profile
 def upload_images_to_tumblr_urls(images, keys, client, blogname):
     if len(images) != len(keys):
         print(
@@ -327,6 +339,7 @@ def upload_images_to_tumblr_urls(images, keys, client, blogname):
     return {k: url for k, url in zip(keys, urls)}
 
 
+@profile
 def find_text_images_and_sub_real_images(
     text,
     client,
@@ -418,6 +431,7 @@ def find_text_images_and_sub_real_images(
 # currently unused
 
 
+@profile
 def keep_only_nonenglish_script(wash_lists):
     lists = {}
     for locale, words in wash_lists.items():
@@ -427,6 +441,7 @@ def keep_only_nonenglish_script(wash_lists):
     return lists
 
 
+@profile
 def flatten_wash_lists(wash_lists):
     entries = []
     for locale, words in wash_lists.items():
@@ -435,6 +450,7 @@ def flatten_wash_lists(wash_lists):
     return entries
 
 
+@profile
 def load_wash_lists():
     with open(
         "washyourmouthoutwithsoap_multilingual_profanity.json", "r", encoding="utf-8"
@@ -448,6 +464,7 @@ def load_wash_lists():
 # "pretending the post is by me" tools
 
 
+@profile
 def write_text_for_side_judgment(
     post_payload,
     image_analysis_cache=None,

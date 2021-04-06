@@ -80,6 +80,7 @@ SAYS_FRANK_STRINGS = {
 }
 
 
+@profile
 def finalize_prompt_for_neural(
     prompt,
     override_disable_forumlike=False,
@@ -187,6 +188,7 @@ sentiment_est = SideJudgmentModelInterface("sentiment")
 autoreviewer_est = SideJudgmentModelInterface("autoreviewer")
 
 
+@profile
 def parse_continuation(continuation: str, verbose=True, wrap=False):
     if verbose:
         print(
@@ -207,6 +209,7 @@ def parse_continuation(continuation: str, verbose=True, wrap=False):
     return parsed
 
 
+@profile
 def get_textpost_prompts():
     prompts = []
     overrides = []
@@ -244,6 +247,7 @@ profane_substrings = {
 }
 
 
+@profile
 def basic_n_continuations(
     prompt,
     N,
@@ -466,10 +470,12 @@ def basic_n_continuations(
     return continuations, continuation_side_data
 
 
+@profile
 def logit_diff_to_pos_sent(x):
     return 1 / (1 + np.exp(-x))
 
 
+@profile
 def show_note_probas(texts, probas, sentiment_logit_diffs=None, console_width=110):
     if sentiment_logit_diffs is None:
         for tpe, proba in zip(texts, probas):
@@ -487,6 +493,7 @@ def show_note_probas(texts, probas, sentiment_logit_diffs=None, console_width=11
             print("\n~_~_~_~_~_\n")
 
 
+@profile
 def predict_select(data, debug=False, override_disable_forumlike=False):
     if len(data) == 0:
         # this can happen if the retention_stack is big enough
@@ -527,6 +534,7 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
     return probs
 
 
+@profile
 def predict_sentiment(data, debug=False):
     if len(data) == 0:
         # this can happen if the retention_stack is big enough
@@ -567,6 +575,7 @@ def predict_sentiment(data, debug=False):
     return logit_diffs
 
 
+@profile
 def predict_autoreview(data, debug=False, override_disable_forumlike=False):
     selector_input = []
     for text in data.selector_input:
@@ -603,6 +612,7 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
 RESULT_STACK = {}
 
 
+@profile
 def _make_alt_timestamps(v10_timestamp):
     if v10_timestamp is None:
         return []
@@ -628,6 +638,7 @@ def _make_alt_timestamps(v10_timestamp):
     return alts
 
 
+@profile
 def answer_from_gpt2_service(
     data: dict,
     loop_persistent_data,
@@ -665,6 +676,7 @@ def answer_from_gpt2_service(
     return result
 
 
+@profile
 def save_retention(retention_stack):
     with open("data/retention_stack.pkl.gz", "wb") as f:
         pickle.dump(retention_stack, f)
@@ -673,6 +685,7 @@ def save_retention(retention_stack):
         pickle.dump(retention_stack, f)
 
 
+@profile
 def text_post_from_gpt2_service(
     loop_persistent_data, mood=None, ts=None, BEAMSPLIT_TESTING_FLAG=False
 ):
@@ -712,6 +725,7 @@ def text_post_from_gpt2_service(
     return result, loop_persistent_data
 
 
+@profile
 def old_bridge_call__answer(data):
     global PROMPT_STACK
 
@@ -817,6 +831,7 @@ def old_bridge_call__answer(data):
     return serve_answer(PROMPT_STACK[generation_id])
 
 
+@profile
 def old_bridge_call__textpost(data):
     global PROMPT_STACK
 
@@ -903,6 +918,7 @@ def old_bridge_call__textpost(data):
     return serve_textpost(PROMPT_STACK[generation_id])
 
 
+@profile
 def serve_answer(data):
     print("\n------------\n")
     prompt = data["prompt"].rstrip(whitespace)
@@ -1058,6 +1074,7 @@ def serve_answer(data):
     return parsed
 
 
+@profile
 def serve_textpost(data):
     prompt = ""
     kwargs = data["kwargs"]
@@ -1158,6 +1175,7 @@ def serve_textpost(data):
     return parsed
 
 
+@profile
 def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
     if timestamp is None:
         timestamp = ""
@@ -1178,6 +1196,7 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
     return results
 
 
+@profile
 def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
     sentiment_inputs = pd.DataFrame({"selector_input": texts})
     sentiment_results = predict_sentiment(sentiment_inputs, debug=True)
@@ -1186,6 +1205,7 @@ def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
     return results
 
 
+@profile
 def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
     if timestamp is None:
         timestamp = ""

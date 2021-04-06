@@ -107,6 +107,7 @@ def parse_continuation(continuation: str, verbose=False):
     return parsed
 
 
+@profile
 def winndow_probabilities(proba, lower=0.333, upper=0.667):
     proba_ = proba.copy()
     exclusion_mask = np.zeros_like(proba, dtype=bool)
@@ -129,6 +130,7 @@ def get_continuation_sentiments(sentiment_logit_diffs):
     return [logit_diff_to_allen_schema(sld) for sld in sentiment_logit_diffs]
 
 
+@profile
 def sentiment_screen(
     continuations,
     sentiment_logit_diffs,
@@ -222,6 +224,7 @@ def sentiment_screen(
     )
 
 
+@profile
 def serve_selection(
     data,
     retention_stack=None,
@@ -447,6 +450,7 @@ do_image_coldstart = partial(
 )
 
 
+@profile
 def get_retention_stack_judgments(retention_stack):
     from experimental.ml_connector import (
         selection_proba_from_gpt2_service,
@@ -468,6 +472,7 @@ def get_retention_stack_judgments(retention_stack):
     return proba, logit_diffs, autoreview_proba
 
 
+@profile
 def apply_retention_cutoff(retention_stack):
     retention_stack_proba, _, _ = get_retention_stack_judgments(retention_stack)
 

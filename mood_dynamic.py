@@ -241,6 +241,7 @@ class DynamicMoodSystem:
         return mood_inputs
 
 
+@profile
 def compute_determiner(row):
     if np.isfinite(row.p75_generated_logit_diff) and (
         row.generated_ts == row.generated_ts
@@ -262,6 +263,7 @@ def compute_determiner(row):
         return row.logit_diff
 
 
+@profile
 def compute_dynamic_mood_inputs(
     response_cache: ResponseCache,
     weighted_avg_start_time: pd.Timestamp = WEIGHTED_AVG_START_TIME,
@@ -326,6 +328,7 @@ def compute_dynamic_mood_inputs(
     return mood_inputs
 
 
+@profile
 def get_unit_mood_inputs(response_cache: ResponseCache, uii: UserInputIdentifier):
     unit_rc = ResponseCache(client=None,
                             path="",
@@ -343,6 +346,7 @@ def show_unit_mood_inputs(response_cache: ResponseCache, uii: UserInputIdentifie
         print(f"\t{umi[col]: .2f} | {col}")
 
 
+@profile
 def make_mood_inputs_readable(mi, show=True):
     cols = ['blog_name', 'text_for_sentiment',
             'logit_diff', 'p75_generated_logit_diff',
@@ -363,6 +367,7 @@ def make_mood_inputs_readable(mi, show=True):
         return readable
 
 
+@profile
 def apply_daily_mood_offset(
     lti_series: pd.Series, input_is_logit_diff: bool = True
 ) -> pd.Series:
@@ -380,6 +385,7 @@ def apply_daily_mood_offset(
     return lti_series + base_mood_value_series
 
 
+@profile
 def compute_dynamic_mood_over_interval(
     mood_inputs: pd.DataFrame,
     start_time: datetime = None,
@@ -442,6 +448,7 @@ def compute_dynamic_mood_over_interval(
     return lti_series
 
 
+@profile
 def compute_dynamic_mood_at_time(
     mood_inputs: pd.DataFrame,
     time: datetime = None,
@@ -471,6 +478,7 @@ def compute_dynamic_mood_at_time(
     return lti_series.loc[time_indexable]
 
 
+@profile
 def compute_dynamic_moodspec_at_time(
     response_cache: ResponseCache,
     time: datetime = None,
@@ -487,6 +495,7 @@ def compute_dynamic_moodspec_at_time(
     return mood_spec, mood_value
 
 
+@profile
 def create_mood_graph(
     response_cache: ResponseCache,
     start_time: datetime = None,

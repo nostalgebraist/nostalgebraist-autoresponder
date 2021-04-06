@@ -22,7 +22,7 @@ from selector import serve_selection
 
 from experimental.year_munging import sample_and_substitute_year_v10
 
-from bridge_cache_singleton import BRIDGE_CACHE
+import bridge_cache_singleton
 
 TRADE_QUALITY_FOR_SPEED = False
 
@@ -117,9 +117,8 @@ class MLModelInterface:
             "repeat_until_done_signal": repeat_until_done_signal,
         }
         if self.uses_bridge_cache:
-            global BRIDGE_CACHE
-            response = BRIDGE_CACHE.query(data)
-            BRIDGE_CACHE.save()
+            response = bridge_cache_singleton.BRIDGE_CACHE.query(data)
+            bridge_cache_singleton.BRIDGE_CACHE.save()
             return response
 
         new_id = bridge_service_unique_id(bridge_service_url, data)

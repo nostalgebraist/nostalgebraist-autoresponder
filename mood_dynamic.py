@@ -241,26 +241,21 @@ class DynamicMoodSystem:
         return mood_inputs
 
 
-@profile
-def compute_determiner(row):
-    if np.isfinite(row.p75_generated_logit_diff) and (
-        row.generated_ts == row.generated_ts
-    ):
-        if row.using_weighted_avg:
-            weighted_avg = ((1 - WEIGHTED_AVG_P75_WEIGHT) * row.logit_diff) + (
-                WEIGHTED_AVG_P75_WEIGHT * row.p75_generated_logit_diff
-            )
+def compute_determiner_legacy(row):
+    return convert_p75_generated_logit_diff_to_user_input_logit_diff(
+        row.p75_generated_logit_diff
+    )
 
-            # one time empirical lr fit, see `sentiment_refresh_2021.ipynb`
-            weighted_avg_fitted = (0.61029747 * weighted_avg) + 0.4252486735525668
 
-            return weighted_avg_fitted
-        else:
-            return convert_p75_generated_logit_diff_to_user_input_logit_diff(
-                row.p75_generated_logit_diff
-            )
-    else:
-        return row.logit_diff
+def compute_determiner_weighted_avg(row):
+    weighted_avg = ((1 - WEIGHTED_AVG_P75_WEIGHT) * row.logit_diff) + (
+        WEIGHTED_AVG_P75_WEIGHT * row.p75_generated_logit_diff
+    )
+
+    # one time empirical lr fit, see `sentiment_refresh_2021.ipynb`
+    weighted_avg_fitted = (0.61029747 * weighted_avg) + 0.4252486735525668
+
+    return weighted_avg_fitted
 
 
 @profile
@@ -313,7 +308,14 @@ def compute_dynamic_mood_inputs(
 
     df["using_weighted_avg"] = df["time"] >= weighted_avg_start_time
 
-    df["determiner"] = df.apply(compute_determiner, axis=1)
+    can_compute_determiner = df.p75_generated_logit_diff.notnull() & df.generated_ts.notnull()
+    df["determiner"] = 0.
+    df.loc[can_compute_determiner == False, "determiner"] = df.logit_diff
+
+    compute_as_legacy = can_compute_determiner & (df.use_weighted_avg == False)
+    compute_as_weighted_avg = can_compute_determiner & (df.use_weighted_avg == True)
+    df.loc[compute_as_legacy, "determiner"] = df.loc[compute_as_legacy, :].apply(compute_determiner_legacy, axis=1)
+    df.loc[compute_as_weighted_avg, "determiner"] = df.loc[compute_as_weighted_avg, :].apply(compute_determiner_weighted_avg, axis=1)
 
     mood_inputs = df.set_index("time")
 

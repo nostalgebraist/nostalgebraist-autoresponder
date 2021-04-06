@@ -30,7 +30,7 @@ UserInputIdentifier = namedtuple(
 
 
 class ResponseCache:
-@profile
+    @profile
     def __init__(
         self, client: pytumblr.TumblrRestClient, path: str, cache: dict = None
     ):
@@ -69,7 +69,7 @@ class ResponseCache:
             self.cache["last_accessed_time"] = {}
 
     @staticmethod
-@profile
+    @profile
     def load(client, path="data/response_cache.pkl.gz", verbose=True):
         cache = None
         if os.path.exists(path):
@@ -84,7 +84,7 @@ class ResponseCache:
         loaded.remove_oldest()
         return loaded
 
-@profile
+    @profile
     def save(self, verbose=True, do_backup=True):
         self.remove_oldest()
         with open(self.path, "wb") as f:
@@ -97,7 +97,7 @@ class ResponseCache:
             lengths = {k: len(self.cache[k]) for k in CachedResponseType}
             print(f"saved response cache with lengths {lengths}")
 
-@profile
+    @profile
     def remove_oldest(self, max_hours=18, dryrun=False):
         lat = self.cache["last_accessed_time"]
         existing_p = self.cache[CachedResponseType.POSTS]
@@ -124,7 +124,7 @@ class ResponseCache:
             self.cache[CachedResponseType.POSTS] = new_p
             self.cache[CachedResponseType.NOTES] = new_n
 
-@profile
+    @profile
     def record_response_to_cache(
         self, response: dict, care_about_notes=True, care_about_likes=False
     ):
@@ -227,13 +227,13 @@ class ResponseCache:
 
         return response
 
-@profile
+    @profile
     def _cached_note_count(self, rtype, identifier, use_overrides=True):
         if ((identifier, "note_count_override") in self.cache[rtype]) and use_overrides:
             return self.cache[rtype][(identifier, "note_count_override")]
         return max(0, len(self.cache[rtype][identifier]))
 
-@profile
+    @profile
     def _note_cache_uptodate(
         self,
         identifier: PostIdentifier,
@@ -277,7 +277,7 @@ class ResponseCache:
             )
         return cache_uptodate
 
-@profile
+    @profile
     def _api_call_for_rtype(
         self,
         rtype: CachedResponseType,
@@ -296,7 +296,7 @@ class ResponseCache:
             care_about_likes=care_about_likes,
         )
 
-@profile
+    @profile
     def _can_use_cached(
         self,
         rtype: CachedResponseType,
@@ -326,7 +326,7 @@ class ResponseCache:
 
         return is_in_cache and cache_uptodate
 
-@profile
+    @profile
     def _record_unexpected_note_counts(self, rtype, identifier, expected_notes):
         cached_notes = self._cached_note_count(rtype, identifier, use_overrides=False)
         if cached_notes != expected_notes:
@@ -342,7 +342,7 @@ class ResponseCache:
             )
             del self.cache[rtype][(identifier, "note_count_override")]
 
-@profile
+    @profile
     def get_normalized_ident(self, rtype, identifier):
         identifier_int = PostIdentifier(identifier.blog_name, int(identifier.id_))
         identifier_str = PostIdentifier(identifier.blog_name, str(identifier.id_))
@@ -354,7 +354,7 @@ class ResponseCache:
             return identifier_str
         return None
 
-@profile
+    @profile
     def normalized_lookup(self, rtype, identifier, expect_in_cache=False):
         normalized_ident = self.get_normalized_ident(rtype, identifier)
         if normalized_ident is None:
@@ -363,7 +363,7 @@ class ResponseCache:
             return None
         return self.cache[rtype][normalized_ident]
 
-@profile
+    @profile
     def query(
         self,
         rtype: CachedResponseType,
@@ -385,7 +385,7 @@ class ResponseCache:
             )
         return self.normalized_lookup(rtype, identifier, expect_in_cache=True)
 
-@profile
+    @profile
     def mark_handled(self, identifier: PostIdentifier):
         identifier_normalized = PostIdentifier(
             blog_name=identifier.blog_name, id_=str(identifier.id_)
@@ -403,7 +403,7 @@ class ResponseCache:
 
         self.cache["reblogs_handled"].add(identifier_normalized)
 
-@profile
+    @profile
     def mark_unhandled(self, identifier: PostIdentifier):
         tip = self.cached_trail_tip(identifier)
         if tip is not None and tip in self.cache["reblogs_handled"]:
@@ -416,7 +416,7 @@ class ResponseCache:
             self.cache["reblogs_handled"].remove(identifier)
 
     @staticmethod
-@profile
+    @profile
     def trail_tip(trail: list):
         if trail is None:
             return None
@@ -429,14 +429,14 @@ class ResponseCache:
             )
             return tip_ident
 
-@profile
+    @profile
     def cached_trail_tip(self, identifier: PostIdentifier):
         cached_post = self.normalized_lookup(CachedResponseType.POSTS, identifier)
         if cached_post is not None:
             tip = ResponseCache.trail_tip(cached_post.get("trail"))
             return tip
 
-@profile
+    @profile
     def is_handled(self, identifier: PostIdentifier, check_tip=True):
         identifier_normalized = PostIdentifier(
             blog_name=identifier.blog_name, id_=str(identifier.id_)
@@ -458,7 +458,7 @@ class ResponseCache:
 
         return handled
 
-@profile
+    @profile
     def mark_reply_handled(self, identifier: ReplyIdentifier):
         identifier_normalized = ReplyIdentifier(
             blog_name=identifier.blog_name,
@@ -467,7 +467,7 @@ class ResponseCache:
         )
         self.cache["replies_handled"].add(identifier_normalized)
 
-@profile
+    @profile
     def is_reply_handled(self, identifier: ReplyIdentifier):
         identifier_normalized = ReplyIdentifier(
             blog_name=identifier.blog_name,
@@ -476,29 +476,29 @@ class ResponseCache:
         )
         return identifier_normalized in self.cache["replies_handled"]
 
-@profile
+    @profile
     def mark_text_selector_prob(self, identifier: PostIdentifier, prob: float):
         self.cache["text_selector_probs"][identifier] = prob
 
-@profile
+    @profile
     def mark_text_sentiment(self, identifier: PostIdentifier, sentiment: dict):
         self.cache["text_sentiments"][identifier] = sentiment
 
-@profile
+    @profile
     def mark_post_body(self, identifier: PostIdentifier, body: str):
         identifier_normalized = PostIdentifier(
             blog_name=identifier.blog_name, id_=str(identifier.id_)
         )
         self.cache["post_bodies"][identifier_normalized] = body
 
-@profile
+    @profile
     def get_cached_post_body(self, identifier: PostIdentifier):
         identifier_normalized = PostIdentifier(
             blog_name=identifier.blog_name, id_=str(identifier.id_)
         )
         return self.cache["post_bodies"].get(identifier_normalized)
 
-@profile
+    @profile
     def mark_user_input_sentiment(
         self, identifier: UserInputIdentifier, sentiment: dict
     ):
@@ -510,7 +510,7 @@ class ResponseCache:
         )
         self.cache["user_input_sentiments"][identifier_normalized] = sentiment
 
-@profile
+    @profile
     def get_cached_user_input_sentiment(self, identifier: UserInputIdentifier):
         identifier_normalized = UserInputIdentifier(
             input_type=identifier.input_type,
@@ -520,12 +520,12 @@ class ResponseCache:
         )
         return self.cache["user_input_sentiments"].get(identifier_normalized)
 
-@profile
+    @profile
     def mark_blocked_by_user(self, blog_name: str):
         self.cache["blocked_by_users"].add(blog_name)
 
     @staticmethod
-@profile
+    @profile
     def conversational_notes(notes_field: list):
         # return [n for n in notes_field if n.get('type') != "like"]
         added_text_fields = ["added_text", "reply_text"]
@@ -537,7 +537,7 @@ class ResponseCache:
         ]
 
     @staticmethod
-@profile
+    @profile
     def conversational_notes_with_fallback(notes_field: list, direction="earliest"):
         conv_notes = ResponseCache.conversational_notes(notes_field)
         if len(conv_notes) > 0:
@@ -549,7 +549,7 @@ class ResponseCache:
             return sorted(notes_field, key=lambda n: n.get("timestamp", -1))[-1:]
 
     @staticmethod
-@profile
+    @profile
     def conversational_notes_ts_with_fallback(
         notes_field: list, direction="earliest", debug=False
     ):
@@ -564,7 +564,7 @@ class ResponseCache:
         return notes_ts
 
     @staticmethod
-@profile
+    @profile
     def earliest_conversational_note_ts(notes_field: list):
         if notes_field is None:
             return None
@@ -575,7 +575,7 @@ class ResponseCache:
         )
 
     @staticmethod
-@profile
+    @profile
     def latest_conversational_note_ts(notes_field: list):
         if notes_field is None:
             return None
@@ -585,14 +585,14 @@ class ResponseCache:
             )
         )
 
-@profile
+    @profile
     def latest_stored_conversational_note_ts(self, identifier: PostIdentifier):
         notes = self.normalized_lookup(CachedResponseType.NOTES, identifier)
         if notes is not None:
             return self.latest_conversational_note_ts(notes)
         return None
 
-@profile
+    @profile
     def latest_stored_note_ts(self, identifier: PostIdentifier):
         notes = self.normalized_lookup(CachedResponseType.NOTES, identifier)
         if notes is not None:
@@ -601,31 +601,31 @@ class ResponseCache:
         return -1
 
     @property
-@profile
+    @profile
     def reblogs_handled(self):
         return self.cache["reblogs_handled"]
 
     @property
-@profile
+    @profile
     def replies_handled(self):
         return self.cache["replies_handled"]
 
     @property
-@profile
+    @profile
     def text_selector_probs(self):
         return self.cache["text_selector_probs"]
 
     @property
-@profile
+    @profile
     def text_sentiments(self):
         return self.cache["text_sentiments"]
 
     @property
-@profile
+    @profile
     def user_input_sentiments(self):
         return self.cache["user_input_sentiments"]
 
     @property
-@profile
+    @profile
     def blocked_by_users(self):
         return self.cache["blocked_by_users"]

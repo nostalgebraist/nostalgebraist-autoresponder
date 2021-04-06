@@ -943,6 +943,10 @@ def respond_to_reblogs_replies(
 ):
     n_ri = len(identifiers)
     for ri_ix, reblog_identifier in enumerate(identifiers):
+        if response_cache.is_handled(reblog_identifier):
+            # this can happen when a previous round of this loop marked the trail tip as handled
+            print(f"skipping already handled {reblog_identifier}")
+            continue
         if not roll_for_limited_users(reblog_identifier.blog_name):
             continue
         print(f"\n\t--> {ri_ix+1}/{n_ri} begin handling {reblog_identifier}\n")

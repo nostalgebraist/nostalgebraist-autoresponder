@@ -277,12 +277,17 @@ def compute_dynamic_mood_inputs(
                 "pos_logit": sent["logits"][0],
                 "neg_logit": sent["logits"][1],
                 "logit_diff": sent["logits"][0] - sent["logits"][1],
-                "generated_logit_diff": [
-                    pos_sent_to_logit_diff(entry)
-                    for entry in sent.get("generated_pos_sent")
-                ]
-                if "generated_pos_sent" in sent
-                else None,
+                "generated_logit_diff": sent.get("generated_logit_diff")
+                if sent.get("generated_logit_diff")
+                else (
+                    [
+                        pos_sent_to_logit_diff(entry)
+                        for entry in sent.get("generated_pos_sent")
+                    ]
+                    if "generated_pos_sent" in sent
+                    else None
+                ),
+                "p75_generated_logit_diff": sent.get("p75_generated_logit_diff"),
                 "text_for_sentiment": sent.get("text_for_sentiment"),
                 "generated_ts": sent.get("generated_ts"),
             }
@@ -290,7 +295,7 @@ def compute_dynamic_mood_inputs(
         ]
     ).drop_duplicates(subset=["timestamp"])
 
-    _filter = df.generated_logit_diff.notnull()
+    _filter = df.generated_logit_diff.notnull() & df.p75_generated_logit_diff.isnull()
     df.loc[_filter, "p75_generated_logit_diff"] = df.loc[
         _filter, "generated_logit_diff"
     ].apply(lambda l: np.percentile(l, 75))

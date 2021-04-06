@@ -1032,13 +1032,21 @@ def respond_to_reblogs_replies(
                 sent = response_cache.get_cached_user_input_sentiment(
                     user_input_identifier
                 )
-                if sent.get("generated_pos_sent") is not None:
+                if sent.get("generated_logit_diff") is not None:
                     print(
                         f"not overwriting existing mood effects for {user_input_identifier}"
                     )
                 else:
-                    sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
+                    # TODO: DRY
                     sent["generated_ts"] = datetime.now()
+                    generated_pos_sent = gpt2_output.get("all_pos_sentiment")
+
+                    if generated_pos_sent:
+                        sent["generated_logit_diff"] = [
+                            pos_sent_to_logit_diff(entry)
+                            for entry in generated_pos_sent
+                        ]
+                        sent["p75_generated_logit_diff"] = np.percentile(sent["generated_logit_diff"], 75)
                     response_cache.mark_user_input_sentiment(
                         user_input_identifier, sent
                     )
@@ -2515,13 +2523,21 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 sent = response_cache.get_cached_user_input_sentiment(
                     user_input_identifier
                 )
-                if sent.get("generated_pos_sent") is not None:
+                if sent.get("generated_logit_diff") is not None:
                     print(
                         f"not overwriting existing mood effects for {user_input_identifier}"
                     )
                 else:
-                    sent["generated_pos_sent"] = gpt2_output.get("all_pos_sentiment")
+                    # TODO: DRY
                     sent["generated_ts"] = datetime.now()
+                    generated_pos_sent = gpt2_output.get("all_pos_sentiment")
+
+                    if generated_pos_sent:
+                        sent["generated_logit_diff"] = [
+                            pos_sent_to_logit_diff(entry)
+                            for entry in generated_pos_sent
+                        ]
+                        sent["p75_generated_logit_diff"] = np.percentile(sent["generated_logit_diff"], 75)
                     response_cache.mark_user_input_sentiment(
                         user_input_identifier, sent
                     )

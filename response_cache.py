@@ -67,6 +67,9 @@ class ResponseCache:
         if "last_accessed_time" not in self.cache:
             self.cache["last_accessed_time"] = {}
 
+        if "dash_post_judgments" not in self.cache:
+            self.cache["dash_post_judgments"] = {}
+
     @staticmethod
     def load(client, path="data/response_cache.pkl.gz", verbose=True):
         cache = None
@@ -493,6 +496,22 @@ class ResponseCache:
             timestamp=identifier.timestamp,
         )
         return self.cache["user_input_sentiments"].get(identifier_normalized)
+
+    def mark_dash_post_judgments(
+        self, identifier: PostIdentifier, judgments: dict
+    ):
+        identifier_normalized = PostIdentifier(
+            blog_name=identifier.blog_name, id_=str(identifier.id_)
+        )
+        self.cache["dash_post_judgments"][identifier_normalized] = judgments
+
+    def get_cached_dash_post_judgments(
+        self, identifier: PostIdentifier
+    ):
+        identifier_normalized = PostIdentifier(
+            blog_name=identifier.blog_name, id_=str(identifier.id_)
+        )
+        return self.cache["dash_post_judgments"].get(identifier_normalized)
 
     def mark_blocked_by_user(self, blog_name: str):
         self.cache["blocked_by_users"].add(blog_name)

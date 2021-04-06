@@ -864,7 +864,6 @@ class LoopPersistentData:
         follower_names=None,
         image_analysis_cache: ImageAnalysisCache = ImageAnalysisCache(),
         retention_stack: set = set(),
-        dash_post_judgments: dict = dict(),
     ):
         self.reblogs_from_me = reblogs_from_me
         self.reblog_worthy_dash_posts = reblog_worthy_dash_posts
@@ -882,7 +881,6 @@ class LoopPersistentData:
         self.follower_names = follower_names
         self.image_analysis_cache = image_analysis_cache
         self.retention_stack = retention_stack
-        self.dash_post_judgments = dash_post_judgments
 
         if len(self.requests_per_check_history) == 0:
             self.requests_per_check_history.extend(
@@ -1371,19 +1369,27 @@ def is_statically_reblog_worthy_on_dash(
     return True
 
 
-def batch_judge_dash_posts(post_payloads, loop_persistent_data):
+def batch_judge_dash_posts(post_payloads, response_cache):
     post_identifiers, texts = [], []
     for pp in tqdm(post_payloads):
         pi = PostIdentifier(pp["blog_name"], str(pp["id"]))
-        text = write_text_for_side_judgment(pp)
-        if not text:
-            print(f"skipping judgments for {pi}: bad parse?")
+
+        if response_cache.get_cached_dash_post_judgments(pi):
             continue
+
+        text = response_cache.get_cached_post_body(pi)
+        if text is None:
+            text = write_text_for_side_judgment(pp)
+            response_cache.mark_post_body(pi, text)
+            if not text:
+                print(f"skipping judgments for {pi}: bad parse?")
+                continue
 
         post_identifiers.append(pi)
         texts.append(text)
 
     if len(texts) > 0:
+        print(f"{len(texts)}/{len(post_payloads)} need new judgments")
         timestamp = timestamp_to_v10_format(datetime.now())
 
         t1 = time.time()
@@ -1402,8 +1408,8 @@ def batch_judge_dash_posts(post_payloads, loop_persistent_data):
                 "sentiment": sentiment,
                 "autoreview_prob": autoreview_prob,
             }
-            loop_persistent_data.dash_post_judgments[pi] = entry
-    return loop_persistent_data
+            response_cache.mark_dash_post_judgments(pi, entry)
+    return response_cache
 
 
 def is_dynamically_reblog_worthy_on_dash(
@@ -1418,11 +1424,11 @@ def is_dynamically_reblog_worthy_on_dash(
 
     pos_sentiment, neg_sentiment = None, None
 
-    if post_identifier not in loop_persistent_data.dash_post_judgments:
+    judg = response_cache.get_cached_dash_post_judgments(post_identifier)
+    if judg is None:
         print(f"couldn't find judgments for {post_identifier}: bad parse?")
         return False
 
-    judg = loop_persistent_data.dash_post_judgments[post_identifier]
     text, prob, sentiment, autoreview_prob = (
         judg["text"],
         judg["prob"],
@@ -2034,8 +2040,8 @@ def do_reblog_reply_handling(
                 statically_worthy_posts.append(post)
         print(f"{len(statically_worthy_posts)}/{len(posts)} statically reblog worthy")
 
-        loop_persistent_data = batch_judge_dash_posts(
-            statically_worthy_posts, loop_persistent_data
+        response_cache = batch_judge_dash_posts(
+            statically_worthy_posts, response_cache
         )
     else:
         statically_worthy_posts = posts  # posts[:n_posts_to_check]

@@ -353,6 +353,7 @@ def strip_avoid_listed_strings_from_tags(tags):
     ]
 
 
+@profile
 def autopublish_screener(
     asking_name: str,
     question: str,
@@ -458,6 +459,7 @@ def autopublish_screener(
     return True
 
 
+@profile
 def augment_screener_output_with_autoreviewer(
     screener_result,
     traced_reasons,
@@ -523,6 +525,7 @@ def augment_screener_output_with_autoreviewer(
     return state_reasons
 
 
+@profile
 def make_text_post(
     blogname,
     post,
@@ -601,6 +604,7 @@ def make_text_post(
     return api_response
 
 
+@profile
 def answer_ask(
     blogname,
     ask_id,
@@ -752,6 +756,7 @@ def switch_private_client_to(
     private_client = client_to_use
 
 
+@profile
 def _compute_checkprob_from_ratelimits(
     requests_needed_to_check: int, response_cache: ResponseCache, verbose=True
 ):
@@ -894,6 +899,7 @@ class LoopPersistentData:
             )
 
 
+@profile
 def update_follower_names_v1(loop_persistent_data, response_cache):
     offset = 0
     response = response_cache.client.blog_following(dash_blogName, offset=offset)
@@ -933,6 +939,7 @@ def update_follower_names_v2(loop_persistent_data, response_cache):
 update_follower_names = update_follower_names_v2
 
 
+@profile
 def respond_to_reblogs_replies(
     identifiers,
     reply_set,
@@ -1207,6 +1214,7 @@ def respond_to_reblogs_replies(
     return loop_persistent_data, response_cache
 
 
+@profile
 def is_reblog_worthy_when_responding(post_payload, note_payload, verbose=True):
     comment_ = post_payload["reblog"].get("comment", "")
     has_comment = len(comment_) > 0
@@ -1231,6 +1239,7 @@ def is_reblog_worthy_when_responding(post_payload, note_payload, verbose=True):
     return is_reblog_worthy
 
 
+@profile
 def text_for_side_judgments(
     post_identifier,
     post_payload,
@@ -1271,6 +1280,7 @@ def am_i_tagged_in_reblog(post_payload):
     return f"@{blogName}" in comment_
 
 
+@profile
 def is_statically_reblog_worthy_on_dash(
     post_payload, response_cache, loop_persistent_data, verbose=True
 ):
@@ -1375,6 +1385,7 @@ def is_statically_reblog_worthy_on_dash(
     return True
 
 
+@profile
 def batch_judge_dash_posts(post_payloads, loop_persistent_data):
     post_identifiers, texts = [], []
     for pp in tqdm(post_payloads):
@@ -1407,6 +1418,7 @@ def batch_judge_dash_posts(post_payloads, loop_persistent_data):
     return loop_persistent_data
 
 
+@profile
 def is_dynamically_reblog_worthy_on_dash(
     post_payload,
     response_cache,
@@ -1553,6 +1565,7 @@ def is_reblog_worthy_on_dash(
     return dynamically_reblog_worthy
 
 
+@profile
 def review_statically_worthy_dashboard_post(
     post_payload,
     loop_persistent_data,
@@ -1581,6 +1594,7 @@ def review_statically_worthy_dashboard_post(
     return loop_persistent_data, response_cache, updated_last_seen_ts
 
 
+@profile
 def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
     note_payload_iter = (
         tqdm(note_payloads[::-1]) if len(note_payloads) > 5 else note_payloads[::-1]
@@ -1667,6 +1681,7 @@ def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
     return loop_persistent_data, response_cache
 
 
+@profile
 def get_relevant_replies_from_notes(
     post_payload, notes_payload, replies_to_handle, loop_persistent_data, response_cache
 ):
@@ -1837,6 +1852,7 @@ def check_notifications(n_to_check=250, after_ts=0):
     return n
 
 
+@profile
 def do_reblog_reply_handling(
     loop_persistent_data: LoopPersistentData,
     response_cache: ResponseCache,
@@ -2299,6 +2315,7 @@ def handle_review_command(
     )
 
 
+@profile
 def do_ask_handling(loop_persistent_data, response_cache):
     submissions = private_client.submission(blogName)["posts"]
     n_asks = len(submissions)
@@ -2539,6 +2556,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
     return loop_persistent_data, response_cache, n_asks
 
 
+@profile
 def do_queue_handling(loop_persistent_data, response_cache):
     queue = private_client.queue(blogName, limit=20)["posts"]
 
@@ -2579,6 +2597,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
     return loop_persistent_data, response_cache
 
 
+@profile
 def do_rts(response_cache):
     drafts = private_client.drafts(blogName, reblog_info=True)["posts"]
     to_send_back = [p for p in drafts if RTS_COMMAND in p["tags"]]
@@ -2698,6 +2717,7 @@ def do_rts(response_cache):
     return response_cache
 
 
+@profile
 def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseCache):
     response_cache = do_rts(response_cache)
 

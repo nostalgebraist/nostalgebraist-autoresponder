@@ -108,6 +108,7 @@ class MLModelInterface:
     def __init__(self):
         raise NotImplementedError
 
+    @profile
     def do(self, method, *args, repeat_until_done_signal=False, **kwargs):
         data = {
             "model": self.name,
@@ -137,11 +138,13 @@ class GeneratorModelInterface(MLModelInterface):
         self.name = "generator"
         self.uses_bridge_cache = False
 
+    @profile
     def write(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do(
             "write", repeat_until_done_signal=repeat_until_done_signal, *args, **kwargs
         )
 
+    @profile
     def write_random_prompt(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do(
             "write_random_prompt",
@@ -150,6 +153,7 @@ class GeneratorModelInterface(MLModelInterface):
             **kwargs,
         )
 
+    @profile
     def done_writing(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do(
             "done_writing",
@@ -164,6 +168,7 @@ class SideJudgmentModelInterface(MLModelInterface):
         self.name = name
         self.uses_bridge_cache = True
 
+    @profile
     def predict_proba(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do(
             "predict_proba",
@@ -172,6 +177,7 @@ class SideJudgmentModelInterface(MLModelInterface):
             **kwargs,
         )
 
+    @profile
     def _predict(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do(
             "_predict",

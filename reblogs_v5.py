@@ -61,6 +61,7 @@ from image_analysis import (
 )
 
 
+@profile
 def IMAGE_ANALYSIS_FN(
     elem, image_formatter=V9_IMAGE_FORMATTER, image_analysis_cache=None, verbose=True
 ):
@@ -78,10 +79,12 @@ def IMAGE_ANALYSIS_FN(
     )
 
 
+@profile
 def lprint(s, prefix=""):
     print(f"{prefix}{s}", end=f"\n\n{prefix}---------\n\n")
 
 
+@profile
 def map_uname(uname: str, uname_config: str = "frank"):
     uname_map = {}
     if uname_config == "frank":
@@ -116,12 +119,14 @@ def map_uname(uname: str, uname_config: str = "frank"):
     return uname_map.get(uname, uname)
 
 
+@profile
 def is_me(name, uname_config):
     if uname_config == "frank_v10_1_operate":
         return name == "nostalgebraist-autoresponder"
     return map_uname(name, uname_config) == "Frank"
 
 
+@profile
 def make_text_processor_maps(uname_config: str = "frank"):
     if uname_config in ["frank_v5_train", "frank_v10_train"]:
         maps = [("nostalgebraist", "nostalgebraist-autoresponder")]
@@ -149,6 +154,7 @@ def make_text_processor_maps(uname_config: str = "frank"):
         return []
 
 
+@profile
 def text_processor(text: str, maps):
     for m in maps:
         orig = text
@@ -160,12 +166,14 @@ def text_processor(text: str, maps):
     return text
 
 
+@profile
 def is_whitespace_string(elem):
     if not isinstance(elem, bs4.element.NavigableString):
         return False
     return all([(c in whitespace) and (c != " ") for c in str(elem)])
 
 
+@profile
 def show_bs4_elem(elem, prefix=""):
     if isinstance(elem, bs4.element.Tag):
         return f"{type(elem)}: {elem.name})\n\n{prefix}{elem}"
@@ -178,6 +186,7 @@ def show_bs4_elem(elem, prefix=""):
         raise ValueError(f"type {type(elem)}")
 
 
+@profile
 def _tags_from_footer(footer):
     true_tags = []
     note_count = None
@@ -194,6 +203,7 @@ def _tags_from_footer(footer):
     return true_tags, note_count
 
 
+@profile
 def _format_asking_title(elem, uname_config):
     asker_name, _, question = elem.text.partition(" asked:")
     ask_char = V10_ASK_CHAR
@@ -206,6 +216,7 @@ def _format_asking_title(elem, uname_config):
     ]
 
 
+@profile
 def _get_unname_from_a(elem, in_h2, is_first, uname_config):
     uname = None
     href = elem.attrs.get("href", "")
@@ -232,6 +243,7 @@ def _get_unname_from_a(elem, in_h2, is_first, uname_config):
     return map_uname(uname, uname_config)
 
 
+@profile
 def _process_elem(
     elem,
     uname_config,
@@ -462,6 +474,7 @@ def _process_elem(
     return text_units, meta
 
 
+@profile
 def process_post(
     soup,
     debug=False,

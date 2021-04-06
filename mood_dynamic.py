@@ -312,8 +312,8 @@ def compute_dynamic_mood_inputs(
     df["determiner"] = 0.
     df.loc[can_compute_determiner == False, "determiner"] = df.logit_diff
 
-    compute_as_legacy = can_compute_determiner & (df.use_weighted_avg == False)
-    compute_as_weighted_avg = can_compute_determiner & (df.use_weighted_avg == True)
+    compute_as_legacy = can_compute_determiner & (df.using_weighted_avg == False)
+    compute_as_weighted_avg = can_compute_determiner & (df.using_weighted_avg == True)
     df.loc[compute_as_legacy, "determiner"] = df.loc[compute_as_legacy, :].apply(compute_determiner_legacy, axis=1)
     df.loc[compute_as_weighted_avg, "determiner"] = df.loc[compute_as_weighted_avg, :].apply(compute_determiner_weighted_avg, axis=1)
 

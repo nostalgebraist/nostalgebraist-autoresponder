@@ -34,8 +34,9 @@ def make_bridge_cache_key(data: dict) -> BridgeCacheKey:
 
 
 class BridgeCache:
-    def __init__(self, cache: dict):
+    def __init__(self, cache: dict, last_accessed_time: dict):
         self.cache = cache
+        self.last_accessed_time = last_accessed_time
 
     def query(self, data: dict):
         key = make_bridge_cache_key(data)
@@ -50,6 +51,7 @@ class BridgeCache:
 
             self.cache[key] = response_data
 
+        self.last_accessed_time[key] = time.time()
         return self.cache[key]
 
     @staticmethod
@@ -84,8 +86,29 @@ class BridgeCache:
         requests.post(bridge_service_url + "/done", json={"id": bridge_id})
         return response_data
 
+    def remove_oldest(self, max_hours=2, dryrun=False):
+        lat = self.last_accessed_time
+        existing = self.cache
+
+        last_allowed_time = time.time() - (3600 * max_hours)
+
+        allowed = {k for k, t in lat.items() if t >= last_allowed_time}
+
+        new = {k: existing[k] for k in existing if k in allowed}
+
+        before_len = len(existing)
+        delta_len = before_len - len(new)
+
+        if delta_len > 0:
+            if dryrun:
+                print(f"remove_oldest: would drop {delta_len} of {before_len} in bridge cache")
+            else:
+                print(f"remove_oldest: dropping {delta_len} of {before_len} in bridge cache")
+                self.cache = new
+
     def to_json(self):
-        return [{"key": k, "value": v} for k, v in self.cache.items()]
+        return [{"key": k, "value": v, "last_accessed_time": self.last_accessed_time[k]}
+                for k, v in self.cache.items()]
 
     @staticmethod
     def from_json(entries: list) -> "BridgeCache":
@@ -99,11 +122,17 @@ class BridgeCache:
             )
             return BridgeCacheKey(bridge_id=bridge_id, model_versions=model_versions)
 
-        cache = {_parse_key(entry["key"]): entry["value"] for entry in entries}
-        return BridgeCache(cache=cache)
+        cache = {}
+        last_accessed_time = {}
+        for entry in entries:
+            key = _parse_key(entry["key"])
+            cache[key] = entry["value"]
+            last_accessed_time[key] = entry["last_accessed_time"]
+        return BridgeCache(cache=cache, last_accessed_time=last_accessed_time)
 
     def save(self, path="data/bridge_cache.json"):
         t1 = time.time()
+        self.remove_oldest()
         with open(path, "w", encoding="utf-8") as f:
             json.dump(self.to_json(), f)
         delta = time.time() - t1
@@ -120,4 +149,6 @@ class BridgeCache:
                 print("cache file found, but could not load it")
 
         print("initializing bridge cache")
-        return BridgeCache(cache=dict())
+        loaded = BridgeCache(cache=dict(), last_accessed_time=dict())
+        loaded.remove_oldest()
+        return loaded

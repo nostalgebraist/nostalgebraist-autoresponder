@@ -61,7 +61,7 @@ from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
 from autoresponder_static import DEFAULT_CSC
 from autoresponder_static_v8 import timestamp_to_v10_format
 
-from traceability_singleton import TRACE_LOGS
+import traceability_singleton
 
 from util.error_handling import LogExceptionAndSkip
 
@@ -535,8 +535,6 @@ def make_text_post(
     autoreview_proba=None,
     reject_action=None
 ):
-    global TRACE_LOGS
-
     screener_result, traced_reasons = autopublish_screener(asking_name, question, post, tags, trace=True)
 
     state_reasons = augment_screener_output_with_autoreviewer(
@@ -597,7 +595,7 @@ def make_text_post(
 
     if log_data is not None:
         log_data["requested__state"] = state
-        TRACE_LOGS.on_post_creation_callback(api_response, log_data)
+        traceability_singleton.TRACE_LOGS.on_post_creation_callback(api_response, log_data)
     return api_response
 
 
@@ -615,8 +613,6 @@ def answer_ask(
     autoreview_proba=None,
     reject_action=None,
 ):
-    global TRACE_LOGS
-
     if is_reblog:
         url = "/v2/blog/{}/post/reblog".format(blogname)
         valid_options = [
@@ -731,7 +727,7 @@ def answer_ask(
     if log_data is not None:
         log_data["requested__state"] = state
         log_data["state_reasons"] = state_reasons
-        TRACE_LOGS.on_post_creation_callback(api_response, log_data)
+        traceability_singleton.TRACE_LOGS.on_post_creation_callback(api_response, log_data)
     return api_response
 
 

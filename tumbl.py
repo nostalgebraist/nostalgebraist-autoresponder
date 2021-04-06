@@ -1386,9 +1386,12 @@ def batch_judge_dash_posts(post_payloads, loop_persistent_data):
     if len(texts) > 0:
         timestamp = timestamp_to_v10_format(datetime.now())
 
+        t1 = time.time()
         probs = selection_proba_from_gpt2_service(texts, timestamp=timestamp)
         sentiments = sentiment_logit_diffs_from_gpt2_service(texts)
         autoreview_probs = autoreview_proba_from_gpt2_service(texts, timestamp=timestamp)
+        delta = time.time() - t1
+        print(f"got {len(texts)} judgments in {delta:.2f}s")
 
         for pi, text, prob, sentiment, autoreview_prob in zip(
             post_identifiers, texts, probs, sentiments, autoreview_probs

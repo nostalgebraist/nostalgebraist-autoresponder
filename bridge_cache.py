@@ -103,8 +103,11 @@ class BridgeCache:
         return BridgeCache(cache=cache)
 
     def save(self, path="data/bridge_cache.json"):
+        t1 = time.time()
         with open(path, "w", encoding="utf-8") as f:
             json.dump(self.to_json(), f)
+        delta = time.time() - t1
+        print(f"saved bridge cache with length {len(self.cache)} in {delta:.2f}s")
 
     @staticmethod
     def load(path="data/bridge_cache.json") -> "BridgeCache":

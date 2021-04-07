@@ -33,6 +33,14 @@ def make_bridge_cache_key(data: dict) -> BridgeCacheKey:
     return BridgeCacheKey(bridge_id=bridge_id, model_versions=LATEST_MODEL_VERSIONS)
 
 
+def _serialize_bridge_cache_value(v: dict):
+    return v[0]["result"]
+
+
+def _deserialize_bridge_cache_value(vs):
+    return [{"result": vs}]
+
+
 class BridgeCache:
     def __init__(self, cache: dict, last_accessed_time: dict):
         self.cache = cache
@@ -107,7 +115,7 @@ class BridgeCache:
                 self.cache = new
 
     def to_json(self):
-        return [{"key": k, "value": v, "last_accessed_time": self.last_accessed_time[k]}
+        return [{"key": k, "value": _serialize_bridge_cache_value(v), "last_accessed_time": self.last_accessed_time[k]}
                 for k, v in self.cache.items()]
 
     @staticmethod
@@ -126,7 +134,7 @@ class BridgeCache:
         last_accessed_time = {}
         for entry in entries:
             key = _parse_key(entry["key"])
-            cache[key] = entry["value"]
+            cache[key] = _deserialize_bridge_cache_value(entry["value"])
             last_accessed_time[key] = entry["last_accessed_time"]
         return BridgeCache(cache=cache, last_accessed_time=last_accessed_time)
 

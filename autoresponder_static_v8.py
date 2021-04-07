@@ -267,7 +267,9 @@ def final_munge_before_neural_v8(
 def construct_fic_override_v2(text, control_seg_config=DEFAULT_CSC):
     print(f"starting with {repr(text)}")
 
-    title_triggers = ['story about', 'story in which', 'story of', ]
+    title_triggers = [tt
+                      for thing in ['story', 'fic']
+                      for tt in [f'{thing} about', f'{thing} in which', f'{thing} of', ]]
 
     formatted = None
 

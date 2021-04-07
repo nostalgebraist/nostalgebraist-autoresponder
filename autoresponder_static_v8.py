@@ -236,28 +236,53 @@ def final_munge_before_neural_v8(
     )
     if write_fic_override:
         print(f"applying write_fic_override...")
-        print(f"starting with {repr(formatted)}")
-        lcc = last_control_char(formatted, control_seg_config=control_seg_config)
+        if control_seg_config["flags"].get("fic_override_v2", False):
+            formatted_ = construct_fic_override_v2(normal_text, control_seg_config=control_seg_config)
+        else:
+            print(f"starting with {repr(formatted)}")
+            lcc = last_control_char(formatted, control_seg_config=control_seg_config)
 
-        print(f"found lcc {lcc}")
+            print(f"found lcc {lcc}")
 
-        formatted_ = formatted[: lcc[1]]
+            formatted_ = formatted[: lcc[1]]
 
-        print(f"subsetted to {formatted_}")
+            print(f"subsetted to {formatted_}")
 
-        formatted_ = formatted_ + control_seg_config["ORIG_FICTION_CHAR_FORUMLIKE"]
+            formatted_ = formatted_ + control_seg_config["ORIG_FICTION_CHAR_FORUMLIKE"]
 
-        if control_seg_config["flags"]["fic_override_add_remainder"]:
-            remainder = formatted[lcc[1] + len(lcc[0]) :]
-            formatted_ = formatted_ + remainder
-            print(f"added remainder {remainder}")
+            if control_seg_config["flags"]["fic_override_add_remainder"]:
+                remainder = formatted[lcc[1] + len(lcc[0]) :]
+                formatted_ = formatted_ + remainder
+                print(f"added remainder {remainder}")
 
-        formatted = formatted_
+            formatted = formatted_
         print(f"using: {formatted}")
     if GLOBAL_DEBUG:
         print(
             f"v8: neural model will see exactly the following:\n\n{repr(formatted)}\n\n"
         )
+    return formatted
+
+
+def construct_fic_override_v2(text, control_seg_config=DEFAULT_CSC):
+    print(f"starting with {repr(text)}")
+
+    title_triggers = ['story about', 'story in which', 'story of', ]
+
+    formatted = None
+
+    for tt in title_triggers:
+        if tt in text:
+            print(f"on {tt} path")
+            title = text.partition(tt)[2].strip('.,!? ').capitalize()
+            print(f"formed title {repr(title)}")
+            formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE'] + "# original fiction\n" + f"<h2>{title}</h2>"
+
+    if formatted is None:
+        formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE']
+
+    print(f"using {repr(formatted)}")
+
     return formatted
 
 

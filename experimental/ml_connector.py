@@ -967,7 +967,8 @@ def serve_answer(data):
         override_disable_forumlike=override_disable_forumlike,
     )
     parsed = data.copy()
-    parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
+    delete_title = write_fic_override and CONTROL_SEG_CONFIG["flags"].get("fic_override_v2", False)
+    parsed["continuations"] = [final_munge_after_neural(c, delete_title=delete_title) for c in continuations]
     parsed["continuation_side_data"] = continuation_side_data
     parsed["generator_v10_timestamp"] = generator_v10_timestamp
     parsed["selector_v10_timestamp"] = selector_v10_timestamp
@@ -976,7 +977,7 @@ def serve_answer(data):
         if selector_cut_to_final_exchange and not override_disable_forumlike:
             prompt_cut = cut_to_final_exchange_chinese(prompt)
             selector_inputs = [
-                prompt_cut + final_munge_after_neural(c) for c in continuations
+                prompt_cut + final_munge_after_neural(c, delete_title=delete_title) for c in continuations
             ]
         else:
             selector_inputs = [prompt + c for c in continuations]
@@ -1034,7 +1035,7 @@ def serve_answer(data):
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
 
     autoreview_inputs = [
-        cut_to_new_since_last_frank_post(prompt + final_munge_after_neural(c))
+        cut_to_new_since_last_frank_post(prompt + final_munge_after_neural(c, delete_title=delete_title))
         for c in continuations
     ]
 

@@ -288,7 +288,7 @@ def construct_fic_override_v2(text, control_seg_config=DEFAULT_CSC):
     return formatted
 
 
-def final_munge_after_neural_v8(text):
+def final_munge_after_neural_v8(text, delete_title=False):
     # strip orig post starters
     for cchar in [
         ORIG_POST_CHAR_FORUMLIKE,
@@ -303,6 +303,9 @@ def final_munge_after_neural_v8(text):
 
     post = post.replace(EOT_FULL, "")
     tag_text = tag_text.replace(EOT_FULL, "") + EOT_FULL
+
+    if delete_title:
+        post = re.sub(r"<h2>.+</h2>", "", post)
 
     return post + T_CHAR + tag_text
 
@@ -323,7 +326,7 @@ def final_munge_before_neural_v10_1(doc, **kwargs):
     )
 
 
-def final_munge_after_neural_v10(text):
+def final_munge_after_neural_v10(text, delete_title=False):
     # strip orig post starters
 
     # expect_tag_prefix = False
@@ -345,11 +348,14 @@ def final_munge_after_neural_v10(text):
     post = post.replace(EOT_FULL, "")
     tag_text = tag_text.replace(EOT_FULL, "") + EOT_FULL
 
+    if delete_title:
+        post = re.sub(r"<h2>.+</h2>", "", post)
+
     return post + T_CHAR + tag_text
 
 
 # TODO: DRY
-def final_munge_after_neural_v10_1(text):
+def final_munge_after_neural_v10_1(text, delete_title=False):
     # strip orig post starters
 
     # expect_tag_prefix = False
@@ -371,5 +377,8 @@ def final_munge_after_neural_v10_1(text):
     post = post.replace(EOT_FULL, "")
     tag_text = tag_text.replace(EOT_FULL, "") + EOT_FULL
     tag_text = tag_text.replace(",", "")
+
+    if delete_title:
+        post = re.sub(r"<h2>.+</h2>", "", post)
 
     return post + T_CHAR + tag_text

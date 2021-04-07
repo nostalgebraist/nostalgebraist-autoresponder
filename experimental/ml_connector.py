@@ -753,7 +753,7 @@ def old_bridge_call__answer(data):
     }
 
     if kwargs["write_fic_override"] or write_review_override:
-        kwargs["best_of"] = 8 if not (TRADE_QUALITY_FOR_SPEED) else 6
+        kwargs["best_of"] = 6 if not (TRADE_QUALITY_FOR_SPEED) else 4
 
     expected_rejection_frac = estimate_expected_rejections(
         min_logit_diff=kwargs["mood"]["min_allowed_score"],
@@ -778,7 +778,7 @@ def old_bridge_call__answer(data):
     kwargs["strategy"] = "proportional_winnowed"
     kwargs["avoid_if_under"] = 5
     if kwargs["write_fic_override"]:
-        kwargs["avoid_if_under"] = 100
+        kwargs["avoid_if_under"] = 50
     kwargs["avoid_half_if_under"] = 10
     kwargs["avoid_if_cut_off"] = False
     kwargs["split_on_control_char"] = True

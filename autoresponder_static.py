@@ -115,6 +115,7 @@ CONTROL_SEG_CONFIGS = {
         "flags": {
             "fic_override_add_remainder": False,
             "add_control_prefix_to_forced_tag_strings": False,
+            "fic_override_v2": True,
         },
         "ASK_CHAR": V10_ASK_CHAR,
         "V10": True,

@@ -189,8 +189,6 @@ def final_munge_before_neural_v8(
     mode="predict",
 ):
     normal_text, time_text = split_off_times_v8(doc)
-    if write_fic_override and control_seg_config["flags"].get("fic_override_v2", False):
-        return construct_fic_override_v2(normal_text, control_seg_config=control_seg_config)
     normal_text = final_munge_before_neural_v7(
         normal_text,
         override_disable_forumlike=override_disable_forumlike,
@@ -240,22 +238,28 @@ def final_munge_before_neural_v8(
     if write_fic_override:
         print(f"applying write_fic_override...")
         print(f"starting with {repr(formatted)}")
-        lcc = last_control_char(formatted, control_seg_config=control_seg_config)
 
-        print(f"found lcc {lcc}")
+        if control_seg_config["flags"].get("fic_override_v2", False):
+            story_prompt = extract_core_from_forumlike_ask_prompt(formatted, control_seg_config=control_seg_config)
 
-        formatted_ = formatted[: lcc[1]]
+            formatted = construct_fic_override_v2(story_prompt, control_seg_config=control_seg_config)
+        else:
+            lcc = last_control_char(formatted, control_seg_config=control_seg_config)
 
-        print(f"subsetted to {formatted_}")
+            print(f"found lcc {lcc}")
 
-        formatted_ = formatted_ + control_seg_config["ORIG_FICTION_CHAR_FORUMLIKE"]
+            formatted_ = formatted[: lcc[1]]
 
-        if control_seg_config["flags"]["fic_override_add_remainder"]:
-            remainder = formatted[lcc[1] + len(lcc[0]) :]
-            formatted_ = formatted_ + remainder
-            print(f"added remainder {remainder}")
+            print(f"subsetted to {formatted_}")
 
-        formatted = formatted_
+            formatted_ = formatted_ + control_seg_config["ORIG_FICTION_CHAR_FORUMLIKE"]
+
+            if control_seg_config["flags"]["fic_override_add_remainder"]:
+                remainder = formatted[lcc[1] + len(lcc[0]) :]
+                formatted_ = formatted_ + remainder
+                print(f"added remainder {remainder}")
+
+            formatted = formatted_
         print(f"using: {formatted}")
     if GLOBAL_DEBUG:
         print(
@@ -264,8 +268,20 @@ def final_munge_before_neural_v8(
     return formatted
 
 
-def construct_fic_override_v2(text, control_seg_config=DEFAULT_CSC):
-    print(f"starting with {repr(text)}")
+def extract_core_from_forumlike_ask_prompt(text, control_seg_config=DEFAULT_CSC):
+    ccs = find_control_chars(text, control_seg_config=control_seg_config)
+    if len(ccs) >= 2:
+        print(f"using these to segment: {repr(ccs[-2:])}")
+        core_end = ccs[-1][1]
+        core_start = ccs[-2][1] + len(ccs[-2][0])
+        return text[core_start:core_end].strip("\n")
+    else:
+        print(f"could not deal with control chars, have {repr(ccs)}")
+        return ""
+
+
+def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC):
+    print(f"starting with {repr(story_prompt)}")
 
     title_triggers = [tt
                       for thing in ['story', 'fic']
@@ -274,9 +290,9 @@ def construct_fic_override_v2(text, control_seg_config=DEFAULT_CSC):
     formatted = None
 
     for tt in title_triggers:
-        if tt in text:
+        if tt in story_prompt:
             print(f"on {tt} path")
-            title = text.partition(tt)[2].strip('.,!? ').capitalize()
+            title = story_prompt.partition(tt)[2].strip('.,!? ').capitalize()
             print(f"formed title {repr(title)}")
             formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE'] + "# original fiction\n" + f"<h2>{title}</h2>"
 
@@ -305,7 +321,7 @@ def final_munge_after_neural_v8(text, delete_title=False):
     tag_text = tag_text.replace(EOT_FULL, "") + EOT_FULL
 
     if delete_title:
-        post = re.sub(r"<h2>.+</h2>", "", post)
+        post = re.sub(r"<h2>.+</h2>[\n]*", "", post)
 
     return post + T_CHAR + tag_text
 
@@ -349,7 +365,7 @@ def final_munge_after_neural_v10(text, delete_title=False):
     tag_text = tag_text.replace(EOT_FULL, "") + EOT_FULL
 
     if delete_title:
-        post = re.sub(r"<h2>.+</h2>", "", post)
+        post = re.sub(r"<h2>.+</h2>[\n]*", "", post)
 
     return post + T_CHAR + tag_text
 
@@ -379,6 +395,6 @@ def final_munge_after_neural_v10_1(text, delete_title=False):
     tag_text = tag_text.replace(",", "")
 
     if delete_title:
-        post = re.sub(r"<h2>.+</h2>", "", post)
+        post = re.sub(r"<h2>.+</h2>[\n]*", "", post)
 
     return post + T_CHAR + tag_text

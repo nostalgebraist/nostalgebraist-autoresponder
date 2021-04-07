@@ -728,9 +728,6 @@ def old_bridge_call__answer(data):
     )
     avoid_initial_blockquote = bool(int(data.get("avoid_initial_blockquote", False)))
 
-    if write_fic_override and DEFAULT_CSC['flags'].get("fic_override_v2", False):
-        exact_prompt = True
-
     if not exact_prompt:
         prompt = (
             UNAME_CHAR

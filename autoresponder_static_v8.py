@@ -189,6 +189,8 @@ def final_munge_before_neural_v8(
     mode="predict",
 ):
     normal_text, time_text = split_off_times_v8(doc)
+    if write_fic_override and control_seg_config["flags"].get("fic_override_v2", False):
+        return construct_fic_override_v2(normal_text, control_seg_config=control_seg_config)
     normal_text = final_munge_before_neural_v7(
         normal_text,
         override_disable_forumlike=override_disable_forumlike,
@@ -197,8 +199,6 @@ def final_munge_before_neural_v8(
         user_name=user_name,
         mode=mode,
     )
-    if write_fic_override and control_seg_config["flags"].get("fic_override_v2", False):
-        return construct_fic_override_v2(normal_text, control_seg_config=control_seg_config)
 
     if override_disable_forumlike:
         return normal_text

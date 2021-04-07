@@ -291,8 +291,10 @@ def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC):
 
     for tt in title_triggers:
         if tt in story_prompt:
-            print(f"on {tt} path")
             title = story_prompt.partition(tt)[2].strip('.,!? ').capitalize()
+            if len(title) == 0:
+                continue
+            print(f"on {tt} path")
             print(f"formed title {repr(title)}")
             formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE'] + "# original fiction\n" + f"<h2>{title}</h2>"
 

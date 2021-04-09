@@ -116,7 +116,7 @@ def traceability_logs_to_df(logs,
     return df
 
 
-def load_traceability_logs_to_df(**kwargs):
-    with open(TRACEABILITY_FN, "rb") as f:
-        logs = pickle.load(f)
-    return traceability_logs_to_df(logs, **kwargs)
+def load_traceability_logs_to_df(path=TRACEABILITY_FN, **kwargs):
+    from traceability_singleton import TRACE_LOGS
+
+    return traceability_logs_to_df(TRACE_LOGS.logs, **kwargs)

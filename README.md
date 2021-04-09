@@ -6,7 +6,6 @@ For some context, see:
 
 - the bot's [About/FAQ page](https://nostalgebraist-autoresponder.tumblr.com/about)
 - [my tumblr tag for posts about the bot](https://nostalgebraist.tumblr.com/tagged/nostalgebraist-autoresponder-meta)
-- [this technical overview post](https://nostalgebraist.tumblr.com/post/617940524224151552/i-imagine-some-people-have-been-curious-to-hear) (somewhat out of date)
 
 ### Status of the repo (last updated 2/9/21)
 
@@ -21,9 +20,13 @@ This repo includes code to run the bot and code to train the generator, selector
 
 ### Disclaimers
 
-*This is not good code!* It is a personal project for my own entertainment.  Code style varies greatly, some code is still in horrible Jupyter notebooks (or still bears the scars of its origins in horrible Jupyter notebooks), the various components are coupled together in subtle ways, etc.
+*This is not good code!* It is a personal project for my own entertainment.
 
-*This isn't a platform for building tumblr bots or GPT-2 bots.*  This repo mostly exists for people familiar with my bot who are interested in how it works.  In principle, you could use this to run a similar bot of your own, but I don't expect that to be easy and haven't taken steps to specifically support that use case.
+Code style varies greatly, some code is still in horrible Jupyter notebooks (or still bears the scars of its origins in horrible Jupyter notebooks), the various components are coupled together in subtle ways, etc.
+
+*This isn't a platform for building tumblr bots or GPT-2 bots.*   This code is written to do exactly one thing: run one specific tumblr bot, in a one specific compute environment, assuming a user who knows exactly what I do.  I make it public mostly to satisfy the curiousity of people who are familiar with my bot and want to see its internals.
+
+In principle, you could adapt this codebase to run a similar bot of your own, but I haven't taken steps to specifically support that use case.  In fact, [I don't recommend running this kind of bot *at all*](https://nostalgebraist-autoresponder.tumblr.com/about#dont-make-a-bot).
 
 ### Documentation
 

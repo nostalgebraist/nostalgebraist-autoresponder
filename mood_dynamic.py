@@ -598,6 +598,7 @@ def counterfactual_mood_graph(
     window_length_days: float = WINDOW_LENGTH_DAYS,
     in_logit_diff_space: bool = True,
     pairs_only: bool = False,
+    include_milestones: bool = False
 ) -> str:
     ytrans = pos_sent_to_logit_diff if in_logit_diff_space else lambda x: x
     if end_time is None:
@@ -678,7 +679,9 @@ def counterfactual_mood_graph(
             c=colors[k],
         )
 
-    golives = deepcopy(MILESTONE_TIMES)
+    golives = {}
+    if include_milestones:
+        golives.update(MILESTONE_TIMES)
     golives.update(
         {ts: f"dc -> {dc:.2f}" for ts, dc in DETERMINER_CENTER_UPDATES.items()}
     )

@@ -1,6 +1,7 @@
 import os
 import pickle
 import time
+import subprocess
 from copy import deepcopy
 from datetime import datetime
 
@@ -50,8 +51,8 @@ class TraceabilityLogs:
         _tsave = time.time()
         print(f"trace save 1: {_tsave-t1:.3f}s sec")
 
-        with open(self.path[: -len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
-            pickle.dump(self.logs, f)
+        backup_path = self.path[: -len(".pkl.gz")] + "_backup.pkl.gz"
+        subprocess.check_output(f"cp {self.path} {backup_path}", shell=True)
 
         _tsave2 = time.time()
         print(f"trace save 2: {_tsave2-_tsave:.3f}s sec")

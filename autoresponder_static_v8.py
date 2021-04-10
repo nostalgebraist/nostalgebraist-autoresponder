@@ -297,7 +297,7 @@ def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC):
             title = title[0].upper() + title[1:]
             print(f"on {tt} path")
             print(f"formed title {repr(title)}")
-            formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE'] + "# original fiction\n" + f"<h2>{title}</h2>"
+            formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE'] + " #original fiction\n" + f"<h2>{title}</h2>"
 
     if formatted is None:
         formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE']

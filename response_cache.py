@@ -5,6 +5,7 @@ Scope creep has caused this to be more of a general cache for lots of stuff, so 
 holds a lot of stuff needed for persistent-over-time elements of bot operation, like
 the mood feature.
 """
+import subprocess
 from collections import namedtuple
 from enum import Enum
 from datetime import datetime, timedelta
@@ -91,16 +92,26 @@ class ResponseCache:
             pickle.dump(self.cache, f)
         if do_backup:
             # TODO: better path handling
-            with open(self.path[: -len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
-                pickle.dump(self.cache, f)
+            backup_path = self.path[: -len(".pkl.gz")] + "_backup.pkl.gz"
+            subprocess.check_output(f"cp {self.path} {backup_path}", shell=True)
         if verbose:
             lengths = {k: len(self.cache[k]) for k in CachedResponseType}
             print(f"saved response cache with lengths {lengths}")
+
+    def decomposed_save(self, directory: str):
+        # for tracking sizes of individual parts
+        os.makedirs(directory, exist_ok=True)
+        for k, v in self.cache.items():
+            path = os.path.join(directory, f"{repr(k)}.pkl.gz")
+            with open(path, "wb") as f:
+                pickle.dump({k: self.cache[k]}, f)
+                print(f"wrote {repr(k)} to {path}")
 
     def remove_oldest(self, max_hours=18, dryrun=False):
         lat = self.cache["last_accessed_time"]
         existing_p = self.cache[CachedResponseType.POSTS]
         existing_n = self.cache[CachedResponseType.NOTES]
+        existing_pb = self.cache["post_bodies"]
 
         last_allowed_time = datetime.now() - timedelta(hours=max_hours)
 
@@ -108,20 +119,32 @@ class ResponseCache:
 
         new_p = {pi: existing_p[pi] for pi in existing_p if pi in allowed_p}
         new_n = {pi: existing_n[pi] for pi in existing_n if pi in allowed_p}
+        new_pb = {pi: existing_pb[pi] for pi in existing_pb if pi in allowed_p}
+        new_lat = {pi: lat[pi] for pi in lat if pi in allowed_p}
 
         before_len_p = len(existing_p)
         before_len_n = len(existing_n)
+        before_len_pb = len(existing_pb)
+        before_len_lat = len(lat)
         delta_len_p = before_len_p - len(new_p)
         delta_len_n = before_len_n - len(new_n)
+        delta_len_pb = before_len_pb - len(new_pb)
+        delta_len_lat = before_len_lat - len(new_lat)
 
         if dryrun:
             print(f"remove_oldest: would drop {delta_len_p} of {before_len_p} POSTS")
             print(f"remove_oldest: would drop {delta_len_n} of {before_len_n} NOTES")
+            print(f"remove_oldest: would drop {delta_len_pb} of {before_len_pb} post_bodies")
+            print(f"remove_oldest: would drop {delta_len_lat} of {before_len_lat} last_accessed_time")
         else:
             print(f"remove_oldest: dropping {delta_len_p} of {before_len_p} POSTS")
             print(f"remove_oldest: dropping {delta_len_n} of {before_len_n} NOTES")
+            print(f"remove_oldest: dropping {delta_len_pb} of {before_len_pb} post_bodies")
+            print(f"remove_oldest: dropping {delta_len_lat} of {before_len_lat} last_accessed_time")
             self.cache[CachedResponseType.POSTS] = new_p
             self.cache[CachedResponseType.NOTES] = new_n
+            self.cache["post_bodies"] = new_pb
+            self.cache["last_accessed_time"] = new_lat
 
     def record_response_to_cache(
         self, response: dict, care_about_notes=True, care_about_likes=False

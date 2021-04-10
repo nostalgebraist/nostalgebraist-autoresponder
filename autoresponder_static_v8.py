@@ -1,5 +1,6 @@
 """code for turning forumlike (v7) format into the v8 version"""
 import os
+import re
 from datetime import datetime
 from autoresponder_static import *
 
@@ -280,8 +281,12 @@ def extract_core_from_forumlike_ask_prompt(text, control_seg_config=DEFAULT_CSC)
         return ""
 
 
-def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC):
-    print(f"starting with {repr(story_prompt)}")
+def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC, verbose=True):
+    def vprint(*args, **kwargs):
+        if verbose:
+            print(*args, **kwargs)
+
+    vprint(f"starting with {repr(story_prompt)}")
 
     title_triggers = [tt
                       for thing in ['story', 'fic']
@@ -295,14 +300,18 @@ def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC):
             if len(title) == 0:
                 continue
             title = title[0].upper() + title[1:]
-            print(f"on {tt} path")
-            print(f"formed title {repr(title)}")
+
+            # "A [noun]" --> "The [noun]"
+            title = re.sub(r"\AA |\AAn ", "The ", title)
+
+            vprint(f"on {tt} path")
+            vprint(f"formed title {repr(title)}")
             formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE'] + " #original fiction\n" + f"<h2>{title}</h2>"
 
     if formatted is None:
         formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE']
 
-    print(f"using {repr(formatted)}")
+    vprint(f"using {repr(formatted)}")
 
     return formatted
 

@@ -341,15 +341,30 @@ class NPFContent(TumblrContentBase):
     def __init__(self,
                  blocks: List[NPFBlock],
                  layout: List[NPFLayout],
-                 blog_name: str):
+                 blog_name: str,
+                 id: int,
+                 post_url: Optional[str] = None):
         self.raw_blocks = [
             block if isinstance(block, NPFBlockAnnotated) else NPFBlockAnnotated(block)
             for block in blocks
         ]
         self.layout = layout
         self.blog_name = blog_name
+        self.id = id
+        self._post_url = post_url
 
         self.blocks = self._make_blocks()
+
+    @property
+    def post_url(self) -> str:
+        if self._post_url is None:
+            # N.B. this doesn't have the "slug", while the API's post_url does
+            return f"https://{self.blog_name}.tumblr.com/post/{self.id}/"
+        return self._post_url
+
+    @property
+    def legacy_prefix_link(self):
+        return f"<p><a class=\"tumblr_blog\" href=\"{self.post_url}\">{self.blog_name}</a>:</p>"
 
     def _make_blocks(self) -> List[NPFBlockAnnotated]:
         if len(self.layout) == 0:
@@ -395,7 +410,16 @@ class NPFContent(TumblrContentBase):
         blocks = [NPFBlock.from_payload(bl) for bl in payload['content']]
         layout = [NPFLayout.from_payload(lay) for lay in payload['layout']]
         blog_name = payload['blog']['name']
-        return NPFContent(blocks=blocks, layout=layout, blog_name=blog_name)
+
+        if 'id' in payload:
+            id = payload['id']
+        else:
+            # trail format
+            id = payload['post']['id']
+        id = int(id)
+
+        post_url = payload.get('post_url')
+        return NPFContent(blocks=blocks, layout=layout, blog_name=blog_name, id=id, post_url=post_url)
 
     def _reset_annotations(self):
         for bl in self.blocks:
@@ -480,46 +504,48 @@ class NPFContent(TumblrContentBase):
 
         self.blocks[-1].suffix += "".join(closers)
 
-    def _assign_ask_tags(self):
-        if len(self.ask_blocks) > 0:
-            first_ask_block = self.ask_blocks[0]
-            last_ask_block = self.ask_blocks[-1]
+    # TODO: remove?
+    # def _assign_ask_tags(self):
+    #     if len(self.ask_blocks) > 0:
+    #         first_ask_block = self.ask_blocks[0]
+    #         # last_ask_block = self.ask_blocks[-1]
+    #
+    #         # TODO: make the formatting real
+    #         first_ask_block.prefix = f"<p><h2>{first_ask_block.asking_name} asked:</h2></p>" + first_ask_block.prefix
+    #         # last_ask_block.suffix += "<p><b>Ask ends</b></p>"
+    #
+    #     # blogname / answering name prefix
+    #     # TODO: make the formatting real
+    #     first_nonask_block = self.blocks[len(self.ask_blocks)]
+    #     first_nonask_block.prefix = self.legacy_prefix_link + first_nonask_block.prefix
 
-            # TODO: make the formatting real
-            first_ask_block.prefix = f"<p><h2>{first_ask_block.asking_name} asked:</h2></p>" + first_ask_block.prefix
-            # last_ask_block.suffix += "<p><b>Ask ends</b></p>"
-
-        # blogname / answering name prefix
-        # TODO: make the formatting real
-        first_nonask_block = self.blocks[len(self.ask_blocks)]
-        first_nonask_block.prefix = f"<p><a class=\"tumblr_blog\">{self.blog_name}:</a></p>" + first_nonask_block.prefix
-
-    def to_html(self, split_ask=False):
+    def to_html(self):
         self._reset_annotations()
         self._assign_indents()
         self._assign_nonlocal_tags()
-        self._assign_ask_tags()
+        # self._assign_ask_tags()
 
-        if split_ask:
-            first = "".join([block.to_html() for block in self.ask_blocks])
-            second = "".join([block.to_html() for block in self.blocks[len(self.ask_blocks):]])
-            return first, second
-
-        return "".join([block.to_html() for block in self.blocks])
+        return "".join([block.to_html() for block in self.blocks[len(self.ask_blocks):]])
 
 
 class TumblrPostBase:
     def __init__(
         self,
         blog_name: str,
+        id: int,
         content: TumblrContentBase,
     ):
         self._blog_name = blog_name
         self._content = content
+        self._id = id
 
     @property
     def blog_name(self):
         return self._blog_name
+
+    @property
+    def id(self):
+        return self._id
 
     @property
     def content(self):
@@ -554,18 +580,28 @@ class TumblrThread:
     def posts(self):
         return self._posts
 
+    @staticmethod
+    def _format_post_as_quoting_previous(post: TumblrPost, prev: TumblrPost, quoted: str) -> str:
+        return f"{prev.content.legacy_prefix_link}<blockquote>{quoted}</blockquote>{post.to_html()}"
+
     def to_html(self) -> str:
         result = ""
 
-        if len(self.posts[0].ask_blocks) > 0:
-            ask_part, post_part = self.posts[0].to_html(split_ask=True)
-            result += ask_part
-            result = f"<blockquote>{result}{post_part}</blockquote>"
-        else:
-            result = f"<blockquote>{result}{self.posts[0].to_html()}</blockquote>"
+        post_part = self.posts[0].to_html()
+        result += post_part
 
-        for post in self.posts[1:-1]:
-            result = f"<blockquote>{result}{post.to_html()}</blockquote>"
+        for prev, post in zip(self.posts[:-1], self.posts[1:]):
+            result = TumblrThread._format_post_as_quoting_previous(post, prev, result)
 
-        result += self.posts[-1].to_html()
+        # if len(self.posts[0].ask_blocks) > 0:
+        #     ask_part, post_part = self.posts[0].to_html(split_ask=True)
+        #     result += ask_part
+        #     result = f"<blockquote>{result}{post_part}</blockquote>"
+        # else:
+        #     result = f"<blockquote>{result}{self.posts[0].to_html()}</blockquote>"
+        #
+        # for post in self.posts[1:-1]:
+        #     result = f"<blockquote>{result}{post.to_html()}</blockquote>"
+        #
+        # result += self.posts[-1].to_html()
         return result

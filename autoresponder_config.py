@@ -174,7 +174,7 @@ MIRO_V2 = False
 MIRO_TRUNC = 2000  # unused in MIRO_V2
 
 MIRO = False
-USE_FIRST_STEP = True
+USE_FIRST_STEP = False
 
 # unused
 EXPERIMENTAL_TOP_P = True

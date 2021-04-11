@@ -876,7 +876,7 @@ def old_bridge_call__textpost(data):
     )
 
     if n_retention is not None:
-        n_candidates_target = max(0, n_candidates_target - n_retention)
+        n_candidates_target = max(1, n_candidates_target - n_retention)
         print(f"with {n_retention} on stack, only need {n_candidates_target}")
 
     kwargs["best_of"] = n_candidates_target

@@ -20,7 +20,7 @@ from image_analysis import (
 
 from text_segmentation import make_image_simple
 
-from experimental.tumblr_parsing import NPFContent, TumblrThread
+from experimental.tumblr_parsing import TumblrThread
 
 VERBOSE_LOGS = False
 

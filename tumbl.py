@@ -163,6 +163,15 @@ FIC_TRIGGER_TESTING = False
 IMAGE_CREATION = True
 IMAGE_CREATION_TESTING = False
 
+NPF_CONSUMPTION = False
+
+if NPF_CONSUMPTION:
+    for client in private_clients + dashboard_clients:
+        client.npf_consumption_on()
+else:
+    for client in private_clients + dashboard_clients:
+        client.npf_consumption_off()
+
 # TODO: move these files once we'rve fully jumped ship to this repo!
 scraped_username_dirs = [
     "../gpt-2/data/autoresponder_v9/v0/post_outflow_im/segments_with_metadata/",

@@ -32,9 +32,16 @@ class RateLimitClient(pytumblr.TumblrRestClient):
             consumer_key, consumer_secret, oauth_token, oauth_secret, host
         )
 
+        self.using_npf_consumption = False
+
     def send_api_request(
         self, method, url, params={}, valid_parameters=[], needs_api_key=False
     ):
+        if "npf" not in params:
+            if "/posts" in url or "/notes" in url or "/notifications" in url:
+                # consumption endpoints
+                params["npf"] = self.using_npf_consumption
+
         if LOG_CALLS_FOR_DEBUG:
             print(f"!requesting {url} with {repr(params)}")
         extras = [key for key in params.keys() if key not in valid_parameters]
@@ -46,6 +53,12 @@ class RateLimitClient(pytumblr.TumblrRestClient):
             valid_parameters=valid_parameters_extended,
             needs_api_key=needs_api_key,
         )
+
+    def npf_consumption_on(self):
+        self.using_npf_consumption = True
+
+    def npf_consumption_off(self):
+        self.using_npf_consumption = False
 
     @staticmethod
     def from_tumblr_rest_client(client: pytumblr.TumblrRestClient, blogName):

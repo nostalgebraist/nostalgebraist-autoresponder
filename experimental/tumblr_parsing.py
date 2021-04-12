@@ -430,9 +430,23 @@ class NPFContent(TumblrContentBase):
         return [bl for bl in self.blocks if bl.is_ask_block]
 
     @staticmethod
-    def from_payload(payload: dict) -> 'NPFContent':
-        blocks = [NPFBlock.from_payload(bl) for bl in payload['content']]
-        layout = [NPFLayout.from_payload(lay) for lay in payload['layout']]
+    def from_payload(payload: dict, raise_on_unimplemented: bool = False) -> 'NPFContent':
+        blocks = []
+        for bl in payload['content']:
+            try:
+                blocks.append(NPFBlock.from_payload(bl))
+            except ValueError as e:
+                if raise_on_unimplemented:
+                    raise e
+
+        layout = []
+        for lay in payload['layout']:
+            try:
+                layout.append(NPFLayout.from_payload(lay))
+            except ValueError as e:
+                if raise_on_unimplemented:
+                    raise e
+
         blog_name = payload['blog']['name']
 
         if 'id' in payload:

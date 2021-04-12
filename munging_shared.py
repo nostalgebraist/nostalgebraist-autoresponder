@@ -1,6 +1,7 @@
 """tumblr API <--> preprocessed text tools I need in more than one place"""
 import re
 import json
+from copy import deepcopy
 
 import reblogs_v5
 from bs4 import BeautifulSoup
@@ -19,7 +20,7 @@ from image_analysis import (
 
 from text_segmentation import make_image_simple
 
-from experimental.tumblr_parsing import TumblrThread
+from experimental.tumblr_parsing import NPFContent, TumblrThread
 
 VERBOSE_LOGS = False
 
@@ -76,6 +77,25 @@ def inverse_format_post_for_api(post):
     if VERBOSE_LOGS:
         print(post)
     return post
+
+
+def simulate_legacy_ask_payload(post_payload):
+    if post_payload.get("type") == "blocks":
+        thread = TumblrThread.from_payload(post_payload)
+        op_content = thread.posts[0].content
+
+        if op_content.has_ask:
+            sim_payload = deepcopy(post_payload)
+
+            ask_content = op_content.ask_content
+            sim_payload["asking_name"] = ask_content.asking_name
+            sim_payload["question"] = ask_content.to_html()
+            sim_payload["answer"] = op_content.to_html()
+
+            return sim_payload
+
+    # if legacy, return as is
+    return post_payload
 
 
 def get_body(post: dict):
@@ -201,6 +221,8 @@ def process_post_from_html_body(
 def process_post_from_post_payload(
     post: dict, debug=False, V10=True, image_analysis_cache=None
 ) -> str:
+    post = simulate_legacy_ask_payload(post)
+
     body = get_body(post)
     if body is None:
         return None

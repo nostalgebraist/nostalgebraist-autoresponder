@@ -3,10 +3,11 @@ import re
 import json
 from copy import deepcopy
 
-import reblogs_v5
+import pytumblr
 from bs4 import BeautifulSoup
 from wcwidth import wcwidth
 
+import reblogs_v5
 from autoresponder_static import find_all_control_chars_chinese, CHINESE_CHAR_DELIMITERS
 from autoresponder_static_v8 import TIME_SIDECHANNEL_CHAR
 
@@ -21,6 +22,8 @@ from image_analysis import (
 from text_segmentation import make_image_simple
 
 from experimental.tumblr_parsing import NPFContent, TumblrThread
+
+from pytumblr_wrapper import RateLimitClient
 
 VERBOSE_LOGS = False
 
@@ -87,6 +90,7 @@ def is_npf(post_payload: dict) -> bool:
 
 
 def simulate_legacy_payload(post_payload):
+    # TODO: is this idempotent?
     payload_is_npf = is_npf(post_payload)
 
     if payload_is_npf:
@@ -542,3 +546,30 @@ def write_text_for_side_judgment(
     if ORIG_POST_CHAR not in text and A_CHAR not in text and UNAME_CHAR not in text:
         text = ORIG_POST_CHAR + text
     return text
+
+
+class LegacySimulatingClient(RateLimitClient):
+    def send_api_request(
+        self, method, url, params={}, valid_parameters=[], needs_api_key=False
+    ):
+        response = super().send_api_request(
+            method,
+            url,
+            params=params,
+            valid_parameters=valid_parameters,
+            needs_api_key=needs_api_key,
+        )
+        print(f"Simulating legacy with keys {sorted(response.keys())}")
+        if "posts" in response:
+            response["posts"] = [simulate_legacy_payload(p) for p in response["posts"]]
+        return response
+
+    @staticmethod
+    def from_tumblr_rest_client(client: pytumblr.TumblrRestClient, blogName):
+        return LegacySimulatingClient(
+            consumer_key=client.request.consumer_key,
+            consumer_secret=client.request.oauth.client.client_secret,
+            oauth_token=client.request.oauth.client.resource_owner_key,
+            oauth_secret=client.request.oauth.client.resource_owner_secret,
+            blogName=blogName,
+        )

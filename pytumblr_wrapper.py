@@ -2,7 +2,7 @@
 import pytumblr
 
 RAW_RESPONSES_FOR_DEBUG = False
-LOG_CALLS_FOR_DEBUG = False
+LOG_CALLS_FOR_DEBUG = True
 
 
 class HeaderTumblrRequest(pytumblr.TumblrRequest):
@@ -34,12 +34,16 @@ class RateLimitClient(pytumblr.TumblrRestClient):
 
         self.using_npf_consumption = False
 
+    @staticmethod
+    def is_consumption_endpoint(url: str) -> bool:
+        # TODO: maybe this should just be /posts?
+        return "/posts" in url or "/notes" in url or "/notifications" in url
+
     def send_api_request(
         self, method, url, params={}, valid_parameters=[], needs_api_key=False
     ):
         if "npf" not in params:
-            if "/posts" in url or "/notes" in url or "/notifications" in url:
-                # consumption endpoints
+            if RateLimitClient.is_consumption_endpoint(url):
                 params["npf"] = self.using_npf_consumption
 
         if LOG_CALLS_FOR_DEBUG:

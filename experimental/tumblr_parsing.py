@@ -1,5 +1,5 @@
 """work in progress"""
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from collections import defaultdict
 from itertools import zip_longest
 from copy import deepcopy
@@ -181,14 +181,38 @@ class NPFImageBlock(NPFBlock, NPFNonTextBlockMixin):
     def alt_text(self):
         return self._alt_text
 
+    @property
+    def original_dimensions(self) -> Optional[Tuple[int, int]]:
+        for entry in self.media:
+            if entry.get('has_original_dimensions'):
+                return (entry['width'], entry['height'])
+
     @staticmethod
     def from_payload(payload: dict) -> 'NPFImageBlock':
         return NPFImageBlock(media=payload['media'],
                              alt_text=payload.get('alt_text'))
 
-    def to_html(self) -> str:
+    def _pick_one_size(self, target_width: int = 640) -> dict:
+        by_width_descending = sorted(self.media, key=lambda entry: entry['width'], reverse=True)
+        for entry in by_width_descending:
+            if entry['width'] <= target_width:
+                return entry
+        return by_width_descending[-1]
+
+    def to_html(self, target_width: int = 640) -> str:
         # TODO: implement
-        return "<p><b>Image blocks not yet implemented</b></p>"
+        selected_size = self._pick_one_size(target_width)
+
+        original_dimensions_attrs_str = ""
+        if self.original_dimensions is not None:
+            orig_w, orig_h = self.original_dimensions
+            original_dimensions_attrs_str = f" data-orig-height=\"{orig_h}\" data-orig-width=\"{orig_w}\""
+
+        img_tag = f"<img src=\"{selected_size['url']}\"{original_dimensions_attrs_str}/>"
+
+        figure_tag = f"<figure class=\"tmblr-full\"{original_dimensions_attrs_str}>{img_tag}</figure>"
+
+        return figure_tag
 
 
 class NPFLayout:

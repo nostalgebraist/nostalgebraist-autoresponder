@@ -366,7 +366,7 @@ class NPFContent(TumblrContentBase):
                  blocks: List[NPFBlock],
                  layout: List[NPFLayout],
                  blog_name: str,
-                 id: int,
+                 id: Optional[int] = None,
                  post_url: Optional[str] = None):
         self.raw_blocks = [
             block if isinstance(block, NPFBlockAnnotated) else NPFBlockAnnotated(block)
@@ -381,7 +381,7 @@ class NPFContent(TumblrContentBase):
 
     @property
     def post_url(self) -> str:
-        if self._post_url is None:
+        if self._post_url is None and self.id is not None:
             # N.B. this doesn't have the "slug", while the API's post_url does
             return f"https://{self.blog_name}.tumblr.com/post/{self.id}/"
         return self._post_url
@@ -428,6 +428,16 @@ class NPFContent(TumblrContentBase):
     @property
     def ask_blocks(self) -> List[NPFBlockAnnotated]:
         return [bl for bl in self.blocks if bl.is_ask_block]
+
+    @property
+    def ask_layout(self) -> Optional[NPFLayoutAsk]:
+        ask_layouts = [lay for lay in self.layout if lay.layout_type == "ask"]
+        if len(ask_layouts) > 0:
+            return ask_layouts[0]
+
+    @property
+    def has_ask(self) -> bool:
+        return len(self.ask_blocks) > 0
 
     @staticmethod
     def from_payload(payload: dict, raise_on_unimplemented: bool = False) -> 'NPFContent':
@@ -542,28 +552,41 @@ class NPFContent(TumblrContentBase):
 
         self.blocks[-1].suffix += "".join(closers)
 
-    # TODO: remove?
-    # def _assign_ask_tags(self):
-    #     if len(self.ask_blocks) > 0:
-    #         first_ask_block = self.ask_blocks[0]
-    #         # last_ask_block = self.ask_blocks[-1]
-    #
-    #         # TODO: make the formatting real
-    #         first_ask_block.prefix = f"<p><h2>{first_ask_block.asking_name} asked:</h2></p>" + first_ask_block.prefix
-    #         # last_ask_block.suffix += "<p><b>Ask ends</b></p>"
-    #
-    #     # blogname / answering name prefix
-    #     # TODO: make the formatting real
-    #     first_nonask_block = self.blocks[len(self.ask_blocks)]
-    #     first_nonask_block.prefix = self.legacy_prefix_link + first_nonask_block.prefix
-
     def to_html(self):
         self._reset_annotations()
         self._assign_indents()
         self._assign_nonlocal_tags()
-        # self._assign_ask_tags()
 
         return "".join([block.to_html() for block in self.blocks[len(self.ask_blocks):]])
+
+    @property
+    def ask_content(self) -> Optional['NPFAsk']:
+        if self.has_ask:
+            return NPFAsk.from_parent_content(self)
+
+
+class NPFAsk(NPFContent):
+    def __init__(self,
+                 blocks: List[NPFBlock],
+                 ask_layout: NPFLayout):
+        super().__init__(
+            blocks=blocks,
+            layout=[],
+            blog_name=ask_layout.asking_name,
+        )
+
+    @property
+    def asking_name(self) -> str:
+        return self.blog_name
+
+    @staticmethod
+    def from_parent_content(parent_content: NPFContent) -> Optional['NPFAsk']:
+        if parent_content.has_ask:
+            return NPFAsk(
+                blocks=parent_content.ask_blocks,
+                ask_layout=parent_content.ask_layout,
+
+            )
 
 
 class TumblrPostBase:
@@ -619,6 +642,19 @@ class TumblrThread:
         return self._posts
 
     @staticmethod
+    def from_payload(payload: dict) -> 'TumblrThread':
+        post_payloads = payload.get('trail', []) + [payload]
+        posts = [
+            TumblrPost(
+                blog_name=post_payload['blog']['name'],
+                content=NPFContent.from_payload(post_payload),
+                tags=post_payload.get('tags', [])
+            )
+            for post_payload in post_payloads
+        ]
+        return TumblrThread(posts)
+
+    @staticmethod
     def _format_post_as_quoting_previous(post: TumblrPost, prev: TumblrPost, quoted: str) -> str:
         return f"{prev.content.legacy_prefix_link}<blockquote>{quoted}</blockquote>{post.to_html()}"
 
@@ -631,15 +667,10 @@ class TumblrThread:
         for prev, post in zip(self.posts[:-1], self.posts[1:]):
             result = TumblrThread._format_post_as_quoting_previous(post, prev, result)
 
-        # if len(self.posts[0].ask_blocks) > 0:
-        #     ask_part, post_part = self.posts[0].to_html(split_ask=True)
-        #     result += ask_part
-        #     result = f"<blockquote>{result}{post_part}</blockquote>"
-        # else:
-        #     result = f"<blockquote>{result}{self.posts[0].to_html()}</blockquote>"
-        #
-        # for post in self.posts[1:-1]:
-        #     result = f"<blockquote>{result}{post.to_html()}</blockquote>"
-        #
-        # result += self.posts[-1].to_html()
         return result
+
+    @property
+    def ask_content(self) -> Optional[NPFAsk]:
+        op = self.posts[0]
+        if op.has_ask:
+            return op.ask_content()

@@ -19,6 +19,8 @@ from image_analysis import (
 
 from text_segmentation import make_image_simple
 
+from experimental.tumblr_parsing import TumblrThread
+
 VERBOSE_LOGS = False
 
 MAY_2020_TRAIL_HACK = True
@@ -78,22 +80,7 @@ def inverse_format_post_for_api(post):
 
 def get_body(post: dict):
     if post.get("type") == "blocks":
-        # can't ignore NPF forever, apparently :( :(
-        # TODO: figure out if this ever triggers (bootstrap drafts are never NPF -- but sometimes malformed)
-        def _parse_block(block):
-            if block["type"] != "text":
-                return ""
-            formatted_text = "<p>" + block.get("text", "") + "</p>"
-            if "heading" in block.get("subtype", ""):
-                formatted_text = "<h2>" + formatted_text + "</h2>"
-            if "indented" in block.get("subtype", ""):
-                formatted_text = "<blockquote>" + formatted_text + "</blockquote>"
-            if "formatting" in block:
-                pass  # TODO: rollup tumblr's terrible re-implementation of basic text markup
-
-        npf_parsed = "".join(_parse_block(block) for block in post.get("content", []))
-        print(f"\nparsed NPF\n\t{post.get('content', [])} \n to \n\t{npf_parsed}\n")
-        return npf_parsed
+        return TumblrThread.from_payload(post).to_html()
     if JUNE_2020_LINKPOST_HACK and post.get("type") == "link":
         try:
             return post["reblog"]["tree_html"] + post["reblog"]["comment"]

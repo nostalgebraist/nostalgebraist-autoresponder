@@ -550,7 +550,11 @@ class NPFContent(TumblrContentBase):
             key = (subtype_key, False)
             closers.append(subtype_and_sign_to_tag[key])
 
-        self.blocks[-1].suffix += "".join(closers)
+        try:
+            self.blocks[-1].suffix += "".join(closers)
+        except IndexError:
+            # if there are 0 blocks
+            pass
 
     def to_html(self):
         self._reset_annotations()

@@ -171,7 +171,7 @@ FIC_TRIGGER_TESTING = False
 IMAGE_CREATION = True
 IMAGE_CREATION_TESTING = False
 
-NPF_CONSUMPTION = False
+NPF_CONSUMPTION = True
 
 if NPF_CONSUMPTION:
     for client in private_clients + dashboard_clients:

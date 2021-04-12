@@ -2,7 +2,7 @@
 import pytumblr
 
 RAW_RESPONSES_FOR_DEBUG = False
-LOG_CALLS_FOR_DEBUG = True
+LOG_CALLS_FOR_DEBUG = False
 
 
 class HeaderTumblrRequest(pytumblr.TumblrRequest):

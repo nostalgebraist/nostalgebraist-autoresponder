@@ -79,7 +79,7 @@ def inverse_format_post_for_api(post):
     return post
 
 
-def simulate_legacy_ask_payload(post_payload):
+def simulate_legacy_payload(post_payload):
     if post_payload.get("type") == "blocks":
         thread = TumblrThread.from_payload(post_payload)
         op_content = thread.posts[0].content
@@ -221,7 +221,7 @@ def process_post_from_html_body(
 def process_post_from_post_payload(
     post: dict, debug=False, V10=True, image_analysis_cache=None
 ) -> str:
-    post = simulate_legacy_ask_payload(post)
+    post = simulate_legacy_payload(post)
 
     body = get_body(post)
     if body is None:

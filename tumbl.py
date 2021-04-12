@@ -88,8 +88,6 @@ DEF_REBLOG_IDS = bot_specific_constants.DEF_REBLOG_IDS
 FORCE_TRAIL_HACK_IDS = bot_specific_constants.FORCE_TRAIL_HACK_IDS
 blogName = bot_specific_constants.blogName
 dash_blogName = bot_specific_constants.dash_blogName
-private_clients = bot_specific_constants.private_clients
-dashboard_clients = bot_specific_constants.dashboard_clients
 bridge_service_url = bot_specific_constants.bridge_service_url
 USER_AVOID_LIST = bot_specific_constants.USER_AVOID_LIST
 TAG_AVOID_LIST = bot_specific_constants.TAG_AVOID_LIST
@@ -104,6 +102,16 @@ LIMITED_USERS = bot_specific_constants.LIMITED_USERS
 LIMITED_USERS_PROBS = bot_specific_constants.LIMITED_USERS_PROBS(EFFECTIVE_SLEEP_TIME)
 LIMITED_SUBSTRINGS = bot_specific_constants.LIMITED_SUBSTRINGS
 SCREENED_USERS = bot_specific_constants.SCREENED_USERS
+
+private_clients = [
+    LegacySimulatingClient.from_rate_limit_client(cl)
+    for cl in bot_specific_constants.private_clients
+]
+
+dashboard_clients = [
+    LegacySimulatingClient.from_rate_limit_client(cl)
+    for cl in bot_specific_constants.dashboard_clients
+]
 
 private_client = private_clients[0]
 dashboard_client = dashboard_clients[0]

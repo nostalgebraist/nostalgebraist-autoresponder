@@ -22,6 +22,7 @@ class RateLimitClient(pytumblr.TumblrRestClient):
         oauth_secret="",
         host="https://api.tumblr.com",
         blogName=None,
+        using_npf_consumption=False
     ):
         if blogName is None:
             # want to keep arg order the same as TumblrRestClient so blogName must be kwarg
@@ -32,7 +33,7 @@ class RateLimitClient(pytumblr.TumblrRestClient):
             consumer_key, consumer_secret, oauth_token, oauth_secret, host
         )
 
-        self.using_npf_consumption = False
+        self.using_npf_consumption = using_npf_consumption
 
     @staticmethod
     def is_consumption_endpoint(url: str) -> bool:

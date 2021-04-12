@@ -565,11 +565,22 @@ class LegacySimulatingClient(RateLimitClient):
         return response
 
     @staticmethod
-    def from_tumblr_rest_client(client: pytumblr.TumblrRestClient, blogName):
+    def from_tumblr_rest_client(client: pytumblr.TumblrRestClient, blogName) -> 'LegacySimulatingClient':
         return LegacySimulatingClient(
             consumer_key=client.request.consumer_key,
             consumer_secret=client.request.oauth.client.client_secret,
             oauth_token=client.request.oauth.client.resource_owner_key,
             oauth_secret=client.request.oauth.client.resource_owner_secret,
             blogName=blogName,
+        )
+
+    @staticmethod
+    def from_rate_limit_client(client: RateLimitClient) -> 'LegacySimulatingClient':
+        return LegacySimulatingClient(
+            consumer_key=client.request.consumer_key,
+            consumer_secret=client.request.oauth.client.client_secret,
+            oauth_token=client.request.oauth.client.resource_owner_key,
+            oauth_secret=client.request.oauth.client.resource_owner_secret,
+            blogName=client.blogName,
+            using_npf_consumption=client.using_npf_consumption
         )

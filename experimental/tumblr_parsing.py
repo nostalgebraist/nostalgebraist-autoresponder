@@ -200,7 +200,6 @@ class NPFImageBlock(NPFBlock, NPFNonTextBlockMixin):
         return by_width_descending[-1]
 
     def to_html(self, target_width: int = 640) -> str:
-        # TODO: implement
         selected_size = self._pick_one_size(target_width)
 
         original_dimensions_attrs_str = ""
@@ -475,12 +474,6 @@ class NPFContent(TumblrContentBase):
         self.blocks = self._make_blocks()
 
     def _assign_indents(self):
-        #  i think the below comment is out of date and this works now?  TODO: verify
-        #
-        #  this doesn't quite work
-        #  stepping out a level should close the tag *currently* top of stack
-        #  not the tag *opened by the block that steps out*
-
         indenting_subtypes = {"indented", "ordered-list-item", "unordered-list-item"}
         prev_subtypes = [None] + [
             block.base_block.subtype_name for block in self.blocks
@@ -633,7 +626,6 @@ class TumblrPost(TumblrPostBase):
         return self._tags
 
     def to_html(self) -> str:
-        # TODO: tags?
         return self._content.to_html()
 
 

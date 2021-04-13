@@ -675,6 +675,6 @@ class TumblrThread:
 
     @property
     def ask_content(self) -> Optional[NPFAsk]:
-        op = self.posts[0]
-        if op.has_ask:
-            return op.ask_content()
+        op_content = self.posts[0].content
+        if op_content.has_ask:
+            return op_content.ask_content

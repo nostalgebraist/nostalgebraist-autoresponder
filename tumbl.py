@@ -612,6 +612,7 @@ def make_text_post(
 
     if log_data is not None:
         log_data["requested__state"] = state
+        log_data["state_reasons"] = state_reasons
         traceability_singleton.TRACE_LOGS.on_post_creation_callback(api_response, log_data)
     return api_response
 

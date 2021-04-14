@@ -447,6 +447,9 @@ class NPFContent(TumblrContentBase):
             except ValueError as e:
                 if raise_on_unimplemented:
                     raise e
+                # generic default/fake filler block
+                # TODO: make these generate no text rather than <p><br></p>
+                blocks.append(NPFTextBlock(""))
 
         layout = []
         for lay in payload['layout']:

@@ -402,14 +402,20 @@ class NPFContent(TumblrContentBase):
                     for row_ixs in layout_entry.rows:
                         # note: this doesn't properly handle multi-column rows
                         # TODO: handle multi-column rows
-                        ordered_block_ixs.extend(row_ixs)
+
+                        # note: deduplication here is needed b/c of april 2021 tumblr npf ask bug
+                        deduped_ixs = [ix for ix in row_ixs if ix not in ordered_block_ixs]
+                        ordered_block_ixs.extend(deduped_ixs)
                 elif layout_entry.layout_type == "ask":
-                    ordered_block_ixs.extend(layout_entry.blocks)
+                    # note: deduplication here is needed b/c of april 2021 tumblr npf ask bug
+                    deduped_ixs = [ix for ix in layout_entry.blocks if ix not in ordered_block_ixs]
+                    ordered_block_ixs.extend(deduped_ixs)
                     ask_ixs.update(layout_entry.blocks)
                     ask_ixs_to_layouts.update(
                         {ix: layout_entry
                          for ix in layout_entry.blocks}
                     )
+
             if all([layout_entry.layout_type == "ask"
                     for layout_entry in self.layout]):
                 extras = [ix for ix in range(len(self.raw_blocks))

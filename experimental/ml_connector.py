@@ -1142,15 +1142,13 @@ def serve_textpost(data):
     sentiment_results = predict_sentiment(sentiment_inputs, debug=True)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
 
-    # TODO: verify this works properly
     autoreview_inputs = selector_inputs
     autoreview_results = predict_autoreview(
         autoreview_inputs,
         override_disable_forumlike=True,
-        debug=True,
+        debug=False,
     )
     parsed["autoreview_proba"] = [float(p) for p in autoreview_results]
-    # end TODO block
 
     if GLOBAL_DEBUG:
         print(f"sending back: {parsed}")

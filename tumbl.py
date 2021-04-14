@@ -70,7 +70,7 @@ eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
 # TODO: move to BotSpecificConstants
 SLEEP_TIME = 60
-SLEEP_TIME_OFFPEAK = 360
+SLEEP_TIME_OFFPEAK = 180
 PEAK_HOURS_START = 8
 PEAK_HOURS_END = 24
 PEAK_HOURS_FRAC = (PEAK_HOURS_END - PEAK_HOURS_START) / 24

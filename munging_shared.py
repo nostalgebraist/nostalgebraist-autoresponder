@@ -366,12 +366,19 @@ def upload_images_to_tumblr_urls(images, keys, client, blogname):
     for p, im in zip(paths, images):
         im.save(p, format="jpeg")
 
+    # TODO: figure out how to do this in NPF consumption world
+    orig_npf_flag = client.using_npf_consumption
+    client.npf_consumption_off()
+
     r = client.create_photo(blogname, state="draft", data=paths)
 
     r2 = client.posts(blogname, id=r["id"])["posts"][0]
     urls = [ph["original_size"] for ph in r2["photos"]]
 
     client.delete_post(blogname, id=r["id"])
+
+    if orig_npf_flag:
+        client.npf_consumption_on()
 
     return {k: url for k, url in zip(keys, urls)}
 

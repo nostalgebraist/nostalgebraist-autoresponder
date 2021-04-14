@@ -2639,6 +2639,8 @@ def do_rts(response_cache):
         pid = p.get("id")
         print(f"trying to RTS {pid}...")
 
+        p_body = get_body(p)
+
         if "reblogged_from_id" in p and "reblogged_from_name" in p:
             pi = PostIdentifier(p["reblogged_from_name"], p["reblogged_from_id"])
             print(f"\tidentified as reblog from {pi}")
@@ -2653,9 +2655,9 @@ def do_rts(response_cache):
         elif p.get("type") == "answer":
             print(f"\tidentified as answer to ask")
             private_client.edit_post(blogName, id=pid, state="submission")
-        elif "replied to your post" in p.get("body", ""):
+        elif "replied to your post" in p_body:
             print(f"\tidentified as answer to reply")
-            reply_post_id, replier_name = post_body_find_reply_data(p["body"])
+            reply_post_id, replier_name = post_body_find_reply_data(p_body)
 
             if reply_post_id is None or replier_name is None:
                 print(f"couldn't RTS: couldn't find reply post ID")
@@ -2679,7 +2681,7 @@ def do_rts(response_cache):
                     }
 
                     reply_post_ident = PostIdentifier(blogName, reply_post_id)
-                    reply_post_notes = response_cache.normalized_lookup(
+                    reply_post_notes = response_cache.query(
                         CachedResponseType.NOTES, reply_post_ident
                     )
 
@@ -2694,7 +2696,7 @@ def do_rts(response_cache):
                     text_matching_notes = [
                         {k: n[k] for k in ["reply_text", "timestamp"]}
                         for n in relevant_notes
-                        if n["reply_text"] in p["body"]
+                        if n["reply_text"] in p_body
                     ]
                     if len(text_matching_notes) > 0:
                         print(f"picking between {text_matching_notes}")

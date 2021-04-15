@@ -5,6 +5,13 @@ from itertools import zip_longest
 from copy import deepcopy
 
 
+def _get_blogname_from_payload(post_payload):
+    """retrieves payload --> broken_blog_name, or payload --> blog --> name"""
+    if 'broken_blog_name' in post_payload:
+        return post_payload['broken_blog_name']
+    return post_payload['blog']['name']
+
+
 class TumblrContentBlockBase:
     def to_html(self) -> str:
         raise NotImplementedError
@@ -465,14 +472,17 @@ class NPFContent(TumblrContentBase):
                 if raise_on_unimplemented:
                     raise e
 
-        blog_name = payload['blog']['name']
+        blog_name = _get_blogname_from_payload(payload)
 
         if 'id' in payload:
             id = payload['id']
-        else:
+        elif 'post' in payload:
             # trail format
             id = payload['post']['id']
-        id = int(id)
+        else:
+            # broken trail item format
+            id = None
+        id = int(id) if id is not None else None
 
         post_url = payload.get('post_url')
         return NPFContent(blocks=blocks, layout=layout, blog_name=blog_name, id=id, post_url=post_url)
@@ -651,12 +661,13 @@ class TumblrThread:
         post_payloads = payload.get('trail', []) + [payload]
         posts = [
             TumblrPost(
-                blog_name=post_payload['blog']['name'],
+                blog_name=_get_blogname_from_payload(post_payload),
                 content=NPFContent.from_payload(post_payload),
                 tags=post_payload.get('tags', [])
             )
             for post_payload in post_payloads
         ]
+
         return TumblrThread(posts)
 
     @staticmethod

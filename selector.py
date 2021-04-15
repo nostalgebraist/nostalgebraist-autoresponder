@@ -161,30 +161,28 @@ def sentiment_screen(
     min_allowed_score = mood["min_allowed_score"]
     max_allowed_score = mood["max_allowed_score"]
 
-    print(f"{score_fn}: {scores}\n")
-
     exclusion_mask = np.zeros_like(scores, dtype=bool)
 
     if (scores >= min_allowed_score).any():
         exclude_lower = scores < min_allowed_score
         print(
-            f"excluding {exclude_lower.sum()} of {len(scores)} with {score_fn}<{min_allowed_score}"
+            f"excluding {exclude_lower.sum()} of {len(scores)} with {score_fn}<{min_allowed_score:.3f}"
         )
         exclusion_mask[exclude_lower] = True
     else:
         print(
-            f"couldn't find any with {score_fn}>={min_allowed_score}, highest is {scores.max()}"
+            f"couldn't find any with {score_fn}>={min_allowed_score}, highest is {scores.max():.3f}"
         )
 
     if (scores <= max_allowed_score).any():
         exclude_upper = scores > max_allowed_score
         print(
-            f"excluding {exclude_upper.sum()} of {len(scores)} with {score_fn}>{max_allowed_score}"
+            f"excluding {exclude_upper.sum()} of {len(scores)} with {score_fn}>{max_allowed_score:.3f}"
         )
         exclusion_mask[exclude_upper] = True
     else:
         print(
-            f"couldn't find any with {score_fn}<={max_allowed_score}, lowest is {scores.min()}"
+            f"couldn't find any with {score_fn}<={max_allowed_score}, lowest is {scores.min():.3f}"
         )
 
     if exclusion_mask.all():
@@ -242,12 +240,6 @@ def serve_selection(
         selection_proba = do_image_coldstart(continuations, selection_proba)
 
     sentiment_logit_diffs = data.get("sentiment_logit_diffs")
-    if selection_proba is not None:
-        print(
-            f"len(selection_proba): {len(selection_proba)} vs len(continuations): {len(continuations)}"
-        )
-    else:
-        print("selection_proba is None")
 
     autoreview_proba = data.get("autoreview_proba", [None for _ in continuations])
 
@@ -281,9 +273,6 @@ def serve_selection(
                 selection_proba += [None for _ in retention_stack]
             continuation_side_data += [{} for _ in retention_stack]
 
-    print(
-        f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}"
-    )
     do_mood_screen = False
     if mood is not None:
         do_mood_screen = mood.get("name") != "unrestricted"
@@ -357,9 +346,6 @@ def serve_selection(
         f"\nselecting #{choice_ix} with pred {chosen_proba:.1%}, pos_sent {chosen_pos_sent:.1%}, autorev {autorev_for_display}, mirotarg {chosen_mirotarg}:\n{continuation}"
     )
 
-    print(
-        f"len(continuations) {len(continuations)} vs len(selection_proba) {len(selection_proba)}"
-    )
     if data["type"] == "textpost":
         for i, p in enumerate(selection_proba):
             if p > RETENTION_CUTOFF and continuations[i] not in retention_stack:

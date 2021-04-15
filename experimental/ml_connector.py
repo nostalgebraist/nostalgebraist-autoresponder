@@ -658,7 +658,6 @@ def answer_from_gpt2_service(
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
         if k not in result:
-            print(f"adding key {k}")
             result[k] = v
 
     return result
@@ -705,7 +704,6 @@ def text_post_from_gpt2_service(
     # for logging, add any input fields that didn't make the round trip
     for k, v in data.items():
         if k not in result:
-            print(f"adding key {k}")
             result[k] = v
 
     return result, loop_persistent_data

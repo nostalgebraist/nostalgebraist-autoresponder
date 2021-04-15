@@ -2434,11 +2434,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
         else:
             for k in [
                 "id",
-                "post_url",
-                "date",
                 "timestamp",
                 "asking_name",
-                "asking_url",
                 "summary",
                 "question",
             ]:

@@ -567,7 +567,6 @@ class LegacySimulatingClient(RateLimitClient):
             needs_api_key=needs_api_key,
         )
         if "posts" in response:
-            print(f"Simulating legacy for url {repr(url)}")
             response["posts"] = [simulate_legacy_payload(p) for p in response["posts"]]
         return response
 

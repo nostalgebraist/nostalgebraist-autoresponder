@@ -305,7 +305,6 @@ def serve_selection(
     if strategy == "argmax":
         choice_ix = proba.argmax()
     elif strategy == "eps_greedy":
-        print(f"choosing between preds {proba}\n")
         roll = np.random.rand()
         if roll < eps:
             print(f"choosing randomly: roll {roll} < eps {eps}")
@@ -320,7 +319,6 @@ def serve_selection(
             proba_winnowed = proba
 
         probs = proba_winnowed / sum(proba_winnowed)
-        print(f"choosing between preds {proba_winnowed}\nprobs {probs}")
         choice_ix = np.random.choice(list(range(len(probs))), p=probs)
     elif strategy == "uniform":
         print("choosing randomly with uniform distribution")

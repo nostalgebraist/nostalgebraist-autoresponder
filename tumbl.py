@@ -2443,11 +2443,14 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 "question",
             ]:
                 print(f"{k}: {x[k]}")
-            question = inverse_format_post_for_api(x["question"])
+
+            question = x["question"]
 
             question = find_images_and_sub_text(
                 question, image_analysis_cache=loop_persistent_data.image_analysis_cache
             )
+
+            question = inverse_format_post_for_api(question)
 
             forced_tags_string = ""
 

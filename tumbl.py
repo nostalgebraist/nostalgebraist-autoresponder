@@ -1816,15 +1816,6 @@ def get_relevant_replies_from_notes(
                 )
 
         if not response_cache.is_reply_handled(reply_identifier):
-            print(f"for {n}, causal notes are")
-            for n2 in notes_payload[ix:]:
-                if n2["blog_name"] == blogName:
-                    print(f"\t{n2}")
-
-            print(
-                f"\nusing {[n2 for n2 in notes_payload[ix:] if n2['blog_name'] == blogName][0]}\n\t{reply_context_post_id}\n"
-            )
-
             replies_to_handle.add(reply_identifier)
 
             # we need reblog_key for our own post here

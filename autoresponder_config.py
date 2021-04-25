@@ -18,8 +18,8 @@ V10_1 = True  # !!
 
 USE_AUTOREVIEWER = True
 AUTOREVIEWER_CUTOFFS = {
-    "accept_below": 0.13,  # v10_1/v9: predict true accept rate: ~39%, false accept rate ~4.5%
-    "reject_above": 0.6,  # v10_1/v9: predict true reject rate: ~42%, false reject rate ~5%
+    "accept_below": 0.159,  # v10_1/v10: predict true accept rate: ~48%, false accept rate ~7.5%
+    "reject_above": 0.552,  # v10_1/v10: predict true reject rate: ~49%, false reject rate ~6%
 }
 
 bot_specific_constants = BotSpecificConstants.load()
@@ -67,7 +67,7 @@ else:
 if V10_1:
     ckpt_select = "selector/v10_1/v7/.hdf5"
     ckpt_sentiment = "sentiment/v10_1/v1/.hdf5"
-    ckpt_autoreviewer = "draft_autoreviewer/v10_1/v9/.hdf5"
+    ckpt_autoreviewer = "draft_autoreviewer/v10_1/v10/.hdf5"
 else:
     ckpt_select = "selector/v10/v17/.hdf5"
     ckpt_sentiment = "sentiment/v10/v2/.hdf5"

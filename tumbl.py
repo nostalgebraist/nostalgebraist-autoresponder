@@ -2770,7 +2770,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                 if save_after:
                     response_cache.save()
                     loop_persistent_data.image_analysis_cache.save()
-                do_rts(response_cache)
         return loop_persistent_data, response_cache
 
     ### do asks check

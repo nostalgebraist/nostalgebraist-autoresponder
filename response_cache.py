@@ -430,12 +430,12 @@ class ResponseCache:
     def trail_tip(trail: list):
         if trail is None:
             return None
-        ordered_trail = sorted(trail, key=lambda x: x.get("post", {}).get("id", -1))
+        ordered_trail = sorted(trail, key=lambda x: x.get("post", {}).get("id", "-1"))
         if len(ordered_trail) > 0:
             tip = ordered_trail[-1]
             tip_ident = PostIdentifier(
                 tip.get("blog", {}).get("name", ""),
-                str(tip.get("post", {}).get("id", -1)),
+                str(tip.get("post", {}).get("id", "-1")),
             )
             return tip_ident
 

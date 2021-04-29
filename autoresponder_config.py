@@ -67,7 +67,7 @@ else:
 if V10_1:
     ckpt_select = "selector/v10_1/v8/.hdf5"
     ckpt_sentiment = "sentiment/v10_1/v1/.hdf5"
-    ckpt_autoreviewer = "draft_autoreviewer/v10_1/v10/.hdf5"
+    ckpt_autoreviewer = "draft_autoreviewer/v10_1/v9/.hdf5"  # manual rollback until i understand why v10 is bad
 else:
     ckpt_select = "selector/v10/v17/.hdf5"
     ckpt_sentiment = "sentiment/v10/v2/.hdf5"

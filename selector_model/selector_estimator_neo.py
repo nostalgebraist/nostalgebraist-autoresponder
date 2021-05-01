@@ -277,9 +277,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             )
 
             batch_target = (
-                data_batch[self.target_cols_]
+                data_batch[self.target_cols_].values
                 if len(self.target_cols_) > 1
-                else data_batch[self.target_cols_[0]]
+                else data_batch[self.target_cols_[0]].values
             )
 
             batch_target = torch.as_tensor(batch_target).to(self.device)
@@ -290,8 +290,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 input_ids_with_pads=input_ids_with_pads,
             )
 
-            print(("batch_target", batch_target))
-            print(("logits", logits))
             loss = self.loss_fn(input=logits, target=batch_target)
             loss.backward()
 

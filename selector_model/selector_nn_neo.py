@@ -306,7 +306,10 @@ class NostARHead(nn.Module):
         output_attentions=False,
     ):
         with torch.no_grad():
-            self.base_model(input_ids=input_ids, attention_mask=attention_mask)
+            partial_forward(model=self.base_model,
+                            max_layer=max(self.layer_nums),
+                            input_ids=input_ids,
+                            attention_mask=attention_mask)
 
         attn_outs = [
             attn(self.base_model._extracted_activations[lnum], input_ids_with_pads)[0]
@@ -320,3 +323,122 @@ class NostARHead(nn.Module):
         logits = self.logit_head(hidden_state)
 
         return logits
+
+
+def partial_forward(
+    model,
+    max_layer: int,
+    input_ids=None,
+    past_key_values=None,
+    attention_mask=None,
+    token_type_ids=None,
+    position_ids=None,
+    head_mask=None,
+    inputs_embeds=None,
+    use_cache=None,
+    output_attentions=None,
+    output_hidden_states=None,
+    return_dict=None,
+):
+    """hack for memory -- TODO: make this less awkward"""
+    output_attentions = output_attentions if output_attentions is not None else model.config.output_attentions
+    output_hidden_states = (
+        output_hidden_states if output_hidden_states is not None else model.config.output_hidden_states
+    )
+    use_cache = use_cache if use_cache is not None else model.config.use_cache
+    return_dict = return_dict if return_dict is not None else model.config.use_return_dict
+
+    if input_ids is not None and inputs_embeds is not None:
+        raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+    elif input_ids is not None:
+        input_shape = input_ids.size()
+        input_ids = input_ids.view(-1, input_shape[-1])
+        batch_size = input_ids.shape[0]
+    elif inputs_embeds is not None:
+        input_shape = inputs_embeds.size()[:-1]
+        batch_size = inputs_embeds.shape[0]
+    else:
+        raise ValueError("You have to specify either input_ids or inputs_embeds")
+
+    device = input_ids.device if input_ids is not None else inputs_embeds.device
+
+    if token_type_ids is not None:
+        token_type_ids = token_type_ids.view(-1, input_shape[-1])
+    if position_ids is not None:
+        position_ids = position_ids.view(-1, input_shape[-1])
+
+    if past_key_values is None:
+        past_length = 0
+        past_key_values = tuple([None] * len(model.h))
+    else:
+        past_length = past_key_values[0][0].size(-2)
+
+    device = input_ids.device if input_ids is not None else inputs_embeds.device
+    if position_ids is None:
+        position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=device)
+        position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
+
+    # Attention mask.
+    if attention_mask is not None:
+        assert batch_size > 0, "batch_size has to be defined and > 0"
+        global_attention_mask = attention_mask.view(batch_size, -1)
+        # We create a 3D attention mask from a 2D tensor mask.
+        # Sizes are [batch_size, 1, 1, to_seq_length]
+        # So we can broadcast to [batch_size, num_heads, from_seq_length, to_seq_length]
+        # this attention mask is more simple than the triangular masking of causal attention
+        # used in OpenAI GPT, we just need to prepare the broadcast dimension here.
+        global_attention_mask = global_attention_mask[:, None, None, :]
+
+        # Since global_attention_mask is 1.0 for positions we want to attend and 0.0 for
+        # masked positions, this operation will create a tensor which is 0.0 for
+        # positions we want to attend and -10000.0 for masked positions.
+        # Since we are adding it to the raw scores before the softmax, this is
+        # effectively the same as removing these entirely.
+        global_attention_mask = global_attention_mask.to(dtype=model.dtype)  # fp16 compatibility
+        global_attention_mask = (1.0 - global_attention_mask) * -10000.0
+    else:
+        global_attention_mask = None
+
+    # Local causal attention mask
+    batch_size, seq_length = input_shape
+    full_seq_length = seq_length + past_length
+    local_attention_mask = GPTNeoAttentionMixin.create_local_attention_mask(
+        batch_size, full_seq_length, model.config.window_size, device, attention_mask
+    )
+
+    # Prepare head mask if needed
+    # 1.0 in head_mask indicate we keep the head
+    # attention_probs has shape bsz x num_heads x N x N
+    # head_mask has shape n_layer x batch x num_heads x N x N
+    head_mask = model.get_head_mask(head_mask, model.config.num_layers)
+
+    if inputs_embeds is None:
+        inputs_embeds = model.wte(input_ids)
+    position_embeds = model.wpe(position_ids)
+    hidden_states = inputs_embeds + position_embeds
+
+    if token_type_ids is not None:
+        token_type_embeds = model.wte(token_type_ids)
+        hidden_states = hidden_states + token_type_embeds
+
+    hidden_states = model.drop(hidden_states)
+
+    presents = () if use_cache else None
+    for i, (block, layer_past) in enumerate(zip(model.h, past_key_values)):
+        if i > max_layer:
+            break
+        attn_type = model.config.attention_layers[i]
+        attn_mask = global_attention_mask if attn_type == "global" else local_attention_mask
+
+        outputs = block(
+            hidden_states,
+            layer_past=layer_past,
+            attention_mask=attn_mask,
+            head_mask=head_mask[i],
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+        )
+
+        hidden_states = outputs[0]
+        if use_cache is True:
+            presents = presents + (outputs[1],)

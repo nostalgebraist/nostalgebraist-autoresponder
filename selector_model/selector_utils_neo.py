@@ -4,8 +4,6 @@ from typing import NamedTuple
 import numpy as np
 import torch
 
-from selector_nn_neo import NostARHead
-
 
 NostARHeadOptimizerParams = NamedTuple(
     "NostARHeadOptimizerParams",
@@ -45,7 +43,7 @@ def cosine_anneal_warmup_multiplier(
 
 
 def get_nost_ar_head_optimizers(
-    model: NostARHead, opt_params: NostARHeadOptimizerParams
+    model, opt_params: NostARHeadOptimizerParams
 ):
     non_decay_vars = []
     decay_vars = []

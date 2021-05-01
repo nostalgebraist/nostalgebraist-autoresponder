@@ -248,7 +248,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             data_batch.selector_input.values,
             self.tokenizer,
             max_length=self.length,
-            device=self.model.device
+            device=self.device
         )
 
         # TODO: batch max length for printing

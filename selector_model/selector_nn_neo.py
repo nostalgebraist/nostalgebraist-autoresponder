@@ -30,10 +30,13 @@ def get_child_module_by_names(module, names):
     return obj
 
 
-def extract_activations(model, layer_names: list, prefixes: list = []):
-    if not hasattr(model, "_extracted_activations"):
-        model._extracted_activations = {}
-    handles = {}
+def extract_activations(model, layer_names: list, prefixes: list = [], verbose=True):
+    for attr in ['_extracted_activations', '_extracted_activation_handles']:
+        if not hasattr(model, attr):
+            setattr(model, attr, {})
+
+    def _get_layer(name):
+        return get_child_module_by_names(model, prefixes + [str(name)])
 
     def _make_record_output_hook(name):
         model._extracted_activations[name] = None
@@ -42,15 +45,21 @@ def extract_activations(model, layer_names: list, prefixes: list = []):
             model._extracted_activations[name] = output[0]
         return _record_output_hook
 
-    for name in layer_names:
-        if name in model._extracted_activations:
-            print(f"skipping layer {name}, hook already exists")
-            continue
-        layer = get_child_module_by_names(model, prefixes + [str(name)])
-        handle = layer.register_forward_hook(_make_record_output_hook(name))
-        handles[name] = handle
+    def _hook_already_there(name):
+        handle = model._extracted_activation_handles.get(name)
+        if not handle:
+            return False
+        layer = _get_layer(name)
+        return handle.id in layer._forward_hooks
 
-    return handles
+    for name in layer_names:
+        if _hook_already_there(name):
+            if verbose:
+                print(f"skipping layer {name}, hook already exists")
+            continue
+        layer = _get_layer(name)
+        handle = layer.register_forward_hook(_make_record_output_hook(name))
+        model._extracted_activation_handles[name] = handle
 
 
 def select_at_last_token(select_from, tokens, pad_token_id=50257):
@@ -62,9 +71,9 @@ def select_at_last_token(select_from, tokens, pad_token_id=50257):
 
 
 class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
+    """Adapted from transformers library's `GPTNeoSelfAttention`"""
     def __init__(self,
                  base_model_config: GPTNeoConfig,
-                 layer_num: int,
                  n_head: int,
                  attn_dropout=0.,
                  res_dropout=0.,):
@@ -79,7 +88,6 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         )
         self.register_buffer("masked_bias", torch.tensor(-1e9))
 
-        self.layer_num = layer_num
         self.n_head = n_head
         self.attn_dropout = nn.Dropout(attn_dropout)
         self.res_dropout = nn.Dropout(res_dropout)
@@ -101,9 +109,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         hidden_states,
         tokens,
         attention_mask=None,
-        layer_past=None,
         head_mask=None,
-        use_cache=False,
         output_attentions=False,
     ):
         hidden_state_at_last_token = select_at_last_token(hidden_states, tokens).unsqueeze(-2)
@@ -114,17 +120,6 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         query = self._split_heads(query, self.n_head, self.head_dim)
         key = self._split_heads(key, self.n_head, self.head_dim)
         value = self._split_heads(value, self.n_head, self.head_dim)
-
-        if layer_past is not None:
-            past_key = layer_past[0]
-            past_value = layer_past[1]
-            key = torch.cat((past_key, key), dim=-2)
-            value = torch.cat((past_value, value), dim=-2)
-
-        if use_cache is True:
-            present = (key, value)
-        else:
-            present = None
 
         query_length, key_length = query.size(-2), key.size(-2)
         causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length].bool()
@@ -137,8 +132,10 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         attn_output = self.out_proj(attn_output)
         attn_output = self.res_dropout(attn_output)
 
-        outputs = (attn_output, present)
+        attn_output = attn_output.squeeze(-2)
+
+        outputs = (attn_output,)
         if output_attentions:
             outputs += (attn_weights,)
 
-        return outputs  # a, present, (attentions)
+        return outputs  # a, (attentions)

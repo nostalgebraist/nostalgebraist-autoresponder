@@ -306,7 +306,7 @@ class NostARHead(nn.Module):
         output_attentions=False,
     ):
         with torch.no_grad():
-            partial_forward(model=self.base_model,
+            partial_forward(model=self.base_model.transformer,
                             max_layer=max(self.layer_nums),
                             input_ids=input_ids,
                             attention_mask=attention_mask)

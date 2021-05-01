@@ -340,7 +340,14 @@ def partial_forward(
     output_hidden_states=None,
     return_dict=None,
 ):
-    """hack for memory -- TODO: make this less awkward"""
+    """
+    hack for memory -- TODO: make this less awkward
+
+    n.b. this is copied from their master branch, their latest pypi release diverges
+    so it does't work
+
+    TODO: get a stable full copy of this thing into this repo so we can avoid this kind of thing
+    """
     output_attentions = output_attentions if output_attentions is not None else model.config.output_attentions
     output_hidden_states = (
         output_hidden_states if output_hidden_states is not None else model.config.output_hidden_states

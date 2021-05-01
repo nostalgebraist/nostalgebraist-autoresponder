@@ -12,8 +12,16 @@ from transformers.models.gpt_neo.modeling_gpt_neo import GPTNeoAttentionMixin, G
 from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 
 
-def prep_inputs(batch_texts, tokenizer, device='cpu'):
-    feed_in = tokenizer(batch_texts, padding=True)
+def prep_inputs(batch_texts, tokenizer, max_length=2048, device='cpu'):
+    batch_texts_ = []
+    for bt in batch_texts:
+        to_append = bt
+        if not to_append.endswith(tokenizer.eos_token):
+            to_append = to_append + tokenizer.eos_token
+        batch_texts_.append(to_append)
+    batch_texts = batch_texts_
+
+    feed_in = tokenizer(batch_texts, padding=True, truncation=True, max_length=max_length)
 
     for k in feed_in.keys():
         feed_in[k] = np.asarray(feed_in[k])

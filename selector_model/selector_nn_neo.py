@@ -176,18 +176,6 @@ class NostARHeadMLP(nn.Module):
         return hidden_states
 
 
-# TODO: move to selector_estimator_neo.py
-NostARHeadOptimizerParams = NamedTuple(
-    'NostARHeadOptimizerParams',
-    epochs=int,
-    batch_size=int,
-    base_lr=float,
-    weight_decay=float,
-    min_lr_frac=float,
-    warmup_ratio=float,
-)
-
-
 NostARHeadArchitectureParams = NamedTuple(
     'NostARHeadArchitectureParams',
     layer_nums=List[int],
@@ -195,6 +183,8 @@ NostARHeadArchitectureParams = NamedTuple(
     mlp_ratio=Union[int, float],
     attn_dropout=float,
     res_dropout=float,
+    init_gain=float,
+    init_gain_logit_head=float,
 )
 
 
@@ -225,6 +215,7 @@ class NostARHead(nn.Module):
         self.params = params
 
         self._setup()
+        self.init_weights()
 
     @property
     def base_model(self) -> GPTNeoForCausalLM:
@@ -246,6 +237,22 @@ class NostARHead(nn.Module):
 
     def __str__(self):
         return f"NostARHead(params={repr(self.params)})"
+
+    def init_weights(self):
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        """Initialize the weights."""
+        if module is self.logit_head:
+            nn.init.orthogonal_(module.weight, gain=self.params.init_gain_logit_head)
+            print(f"initialized logit_head with gain {self.params.init_gain_logit_head:.2f}")
+        elif isinstance(module, (nn.Linear,)):
+            nn.init.orthogonal_(module.weight, gain=self.params.init_gain)
+            if module.bias is not None:
+                module.bias.data.zero_()
+        elif isinstance(module, nn.LayerNorm):
+            module.bias.data.zero_()
+            module.weight.data.fill_(1.0)
 
     def _setup_attns(self):
         self.attns = nn.ModuleList([

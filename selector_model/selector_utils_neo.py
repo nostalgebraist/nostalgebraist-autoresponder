@@ -44,15 +44,34 @@ def cosine_anneal_warmup_multiplier(
     return mult1 * mult2
 
 
-def get_nost_ar_head_optimizer(
+def get_nost_ar_head_optimizers(
     model: NostARHead, opt_params: NostARHeadOptimizerParams
 ):
-    return torch.optim.AdamW(
-        params=model.parameters(),
+    non_decay_vars = []
+    decay_vars = []
+
+    for name, param in model.named_parameters():
+        if "ln.weight" in name or "logit_head.bias" in name:
+            print(f"assigning '{name}' to non_decay_vars")
+            non_decay_vars.append(param)
+        else:
+            print(f"assigning '{name}' to decay_vars")
+            decay_vars.append(param)
+
+    opt_decay = torch.optim.AdamW(
+        params=decay_vars,
         lr=opt_params.base_lr,
         weight_decay=opt_params.weight_decay,
         betas=(opt_params.adam_beta1, opt_params.adam_beta2),
     )
+
+    opt_no_decay = torch.optim.Adam(
+        params=non_decay_vars,
+        lr=opt_params.base_lr,
+        betas=(opt_params.adam_beta1, opt_params.adam_beta2),
+    )
+
+    return opt_decay, opt_no_decay
 
 
 def get_nost_ar_head_scheduler(

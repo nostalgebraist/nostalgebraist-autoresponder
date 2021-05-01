@@ -340,14 +340,6 @@ def partial_forward(
     output_hidden_states=None,
     return_dict=None,
 ):
-    """
-    hack for memory -- TODO: make this less awkward
-
-    n.b. this is copied from their master branch, their latest pypi release diverges
-    so it does't work
-
-    TODO: get a stable full copy of this thing into this repo so we can avoid this kind of thing
-    """
     output_attentions = output_attentions if output_attentions is not None else model.config.output_attentions
     output_hidden_states = (
         output_hidden_states if output_hidden_states is not None else model.config.output_hidden_states
@@ -367,8 +359,6 @@ def partial_forward(
     else:
         raise ValueError("You have to specify either input_ids or inputs_embeds")
 
-    device = input_ids.device if input_ids is not None else inputs_embeds.device
-
     if token_type_ids is not None:
         token_type_ids = token_type_ids.view(-1, input_shape[-1])
     if position_ids is not None:
@@ -379,9 +369,8 @@ def partial_forward(
         past_key_values = tuple([None] * len(model.h))
     else:
         past_length = past_key_values[0][0].size(-2)
-
-    device = input_ids.device if input_ids is not None else inputs_embeds.device
     if position_ids is None:
+        device = input_ids.device if input_ids is not None else inputs_embeds.device
         position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=device)
         position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
 
@@ -406,17 +395,10 @@ def partial_forward(
     else:
         global_attention_mask = None
 
-    # Local causal attention mask
-    batch_size, seq_length = input_shape
-    full_seq_length = seq_length + past_length
-    local_attention_mask = GPTNeoAttentionMixin.create_local_attention_mask(
-        batch_size, full_seq_length, model.config.window_size, device, attention_mask
-    )
-
     # Prepare head mask if needed
     # 1.0 in head_mask indicate we keep the head
-    # attention_probs has shape bsz x num_heads x N x N
-    # head_mask has shape n_layer x batch x num_heads x N x N
+    # attention_probs has shape bsz x num_headss x N x N
+    # head_mask has shape n_layer x batch x num_headss x N x N
     head_mask = model.get_head_mask(head_mask, model.config.num_layers)
 
     if inputs_embeds is None:
@@ -430,12 +412,11 @@ def partial_forward(
 
     hidden_states = model.drop(hidden_states)
 
-    presents = () if use_cache else None
     for i, (block, layer_past) in enumerate(zip(model.h, past_key_values)):
         if i > max_layer:
             break
         attn_type = model.config.attention_layers[i]
-        attn_mask = global_attention_mask if attn_type == "global" else local_attention_mask
+        attn_mask = global_attention_mask if attn_type == "global" else attention_mask
 
         outputs = block(
             hidden_states,
@@ -447,5 +428,3 @@ def partial_forward(
         )
 
         hidden_states = outputs[0]
-        if use_cache is True:
-            presents = presents + (outputs[1],)

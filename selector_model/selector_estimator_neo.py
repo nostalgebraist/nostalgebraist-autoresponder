@@ -240,7 +240,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 lambda s: len(self.enc.encode(s))
             )
         data = data.sort_values(by="n_tokens")
-        data = reshuffle_batches(data, batch_size=self.batch_size)
+        data = reshuffle_batches(data, batch_size=self.opt_params.batch_size)
         return data
 
     def _feed_from_batch(self, data_batch):
@@ -270,7 +270,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=3
         )
         for step_ix in step_iter:
-            data_batch = data.iloc[row_ix : row_ix + self.batch_size, :]
+            data_batch = data.iloc[row_ix : row_ix + self.opt_params.batch_size, :]
 
             input_ids, attention_mask, input_ids_with_pads = self._feed_from_batch(
                 data_batch
@@ -320,7 +320,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 refresh=False,
                 **extra_postfixes,
             )
-            row_ix += self.batch_size
+            row_ix += self.opt_params.batch_size
 
     def _val_split(self, X, y):
         if self.calibrate or self.evaluate_during_training:
@@ -438,17 +438,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             y_val, preds, probs, pfcs=X_val["prompt_finalchar"]
         )
 
-        if self.stop_early:
-            criterion = eval_metrics_results[self.stopping_metric]
-            if self.last_best_val_metric_ is not None:
-                delta = criterion - self.last_best_val_metric_
-                delta_is_okay = (
-                    (delta > 0)
-                    if eval_metrics_results[self.stopping_metric]["greater_is_better"]
-                    else (delta < 0)
-                )
-                stop_early_signal = not delta_is_okay
-            self.last_best_val_metric_ = criterion
         return stop_early_signal, eval_metrics_results
 
     def _calib_inputs(self, logits):
@@ -523,7 +512,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 X, y
             )
             self._setup(self.X_train_, self.y_train_, training=True)
-            for epoch_ix in tqdm(list(range(self.epochs))):
+            for epoch_ix in tqdm(list(range(self.opt_params.epochs))):
                 self._epoch(self.X_train_, self.y_train_, avg_loss_beta=avg_loss_beta)
 
                 epoch_needs_val = self.stop_early or self.evaluate_during_training
@@ -564,7 +553,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
     def _predict_select(self, batch, threshold=0.5, disable_calibration=False):
         self.model.eval()
 
-        if len(batch) != self.batch_size:
+        if len(batch) != self.opt_params.batch_size:
             raise ValueError("badlength")
         input_ids, attention_mask, input_ids_with_pads = self._feed_from_batch(batch)
 
@@ -591,7 +580,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         all_pd_ixs = []
         all_preds = []
         data = self._make_batched_data(X)
-        steps = len(data) // self.batch_size + 1
+        steps = len(data) // self.opt_params.batch_size + 1
 
         row_ix = 0
 
@@ -602,14 +591,14 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         )
 
         for step_ix in step_iter:
-            data_batch = data.iloc[row_ix : row_ix + self.batch_size, :]
+            data_batch = data.iloc[row_ix : row_ix + self.opt_params.batch_size, :]
             n_needed = len(data_batch)
             if n_needed == 0:
                 continue
-            if n_needed < self.batch_size:
+            if n_needed < self.opt_params.batch_size:
                 data_batch = pd.concat(
                     [data_batch]
-                    + (self.batch_size - n_needed) * [data_batch.iloc[:1, :]],
+                    + (self.opt_params.batch_size - n_needed) * [data_batch.iloc[:1, :]],
                     ignore_index=True,
                 )
 
@@ -619,7 +608,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             all_preds.extend(results_batch[key][:n_needed])
             all_pd_ixs.extend(data_batch["selector_internal_ix"].tolist()[:n_needed])
 
-            row_ix += self.batch_size
+            row_ix += self.opt_params.batch_size
 
         if key == "preds":
             pd_obj = pd.Series(all_preds, index=all_pd_ixs)

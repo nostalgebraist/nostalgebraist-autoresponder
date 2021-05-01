@@ -259,7 +259,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         extra_postfixes = {}
         all_losses = []
-        batch_loss = None
         running_loss = None
 
         data = self._make_batched_data(X, y)
@@ -310,7 +309,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                     running_loss = sum(all_losses) / len(all_losses)
             else:
                 running_loss = (avg_loss_beta * running_loss) + (
-                    (1 - avg_loss_beta) * batch_loss
+                    (1 - avg_loss_beta) * loss_float
                 )
 
             # extra_postfixes["ntok"] = batch_max_tokens

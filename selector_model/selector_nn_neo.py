@@ -328,16 +328,15 @@ class NostARHead(nn.Module):
         output_attentions=False,
     ):
         with torch.no_grad():
-            with torch.cuda.amp.autocast():
-                extracted_activations = partial_forward(
-                    model=self.base_model.transformer,
-                    layer_nums=self.layer_nums,
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                )
+            extracted_activations = partial_forward(
+                model=self.base_model.transformer,
+                layer_nums=self.layer_nums,
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+            )
 
         attn_outs = [
-            attn(extracted_activations[lnum].to(torch.float32), input_ids_with_pads)[0]
+            attn(extracted_activations[lnum], input_ids_with_pads)[0]
             for lnum, attn in self.layer_nums_to_attns.items()
         ]
 
@@ -430,6 +429,8 @@ def partial_forward(
             attention_mask=attn_mask,
             head_mask=head_mask[i],
         )
+
+        print(f"block {i}: {torch.cuda.memory_allocated() / (1024**2)})")
 
         hidden_states = outputs[0]
     return extracted_activations

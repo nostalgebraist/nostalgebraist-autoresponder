@@ -432,7 +432,7 @@ def partial_forward(
             head_mask=head_mask[i],
         )
 
-        print(f"block {i}: {torch.cuda.memory_allocated() / (1024**2):.0f} | {hidden_states.shape} | {outputs[0].shape}")
+        # print(f"block {i}: {torch.cuda.memory_allocated() / (1024**2):.0f} | {hidden_states.shape} | {outputs[0].shape}")
 
         hidden_states = outputs[0]
     return extracted_activations

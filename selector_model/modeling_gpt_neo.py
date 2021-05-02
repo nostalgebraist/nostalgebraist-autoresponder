@@ -183,7 +183,6 @@ class GPTNeoAttentionMixin:
         elif len(tensor.shape) == 2:
             padding_side = (window_size, 0)
         else:
-            print(tensor.shape)
             raise ValueError(f"Input tensor rank should be one of [2, 3], but is: {len(tensor.shape)}")
 
         padded_tensor = F.pad(tensor, padding_side, value=pad_value)
@@ -206,7 +205,6 @@ class GPTNeoAttentionMixin:
         elif len(tensors.shape) == 2:
             return torch.reshape(tensors, split_dim_shape)
         else:
-            print(tensor.shape)
             raise ValueError(f"Input vector rank should be one of [2, 3], but is: {len(tensors.shape)}")
 
     @staticmethod
@@ -276,7 +274,7 @@ class GPTNeoAttentionMixin:
         query = query.to(torch.float32)
         key = key.to(torch.float32)
 
-        print(("query", query.shape, "key", key.transpose(-1, -2).shape))
+        # print(("query", query.shape, "key", key.transpose(-1, -2).shape))
         attn_weights = torch.matmul(query, key.transpose(-1, -2))
         attn_weights = torch.where(causal_mask, attn_weights, masked_bias.to(attn_weights.dtype))
 

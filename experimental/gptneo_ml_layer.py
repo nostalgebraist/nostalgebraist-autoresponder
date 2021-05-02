@@ -4,6 +4,7 @@ import time
 from functools import partial
 
 import requests
+import torch
 import numpy as np
 from transformers import AutoTokenizer
 from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig

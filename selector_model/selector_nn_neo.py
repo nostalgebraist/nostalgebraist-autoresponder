@@ -330,7 +330,7 @@ class NostARHead(nn.Module):
         with torch.no_grad():
             extracted_activations = partial_forward(
                 model=self.base_model.transformer,
-                max_layer=max(self.layer_nums),
+                layer_nums=self.layer_nums,
                 input_ids=input_ids,
                 attention_mask=attention_mask,
             )
@@ -351,7 +351,6 @@ class NostARHead(nn.Module):
 
 def partial_forward(
     model,
-    max_layer: int,
     layer_nums: List[int],
     input_ids=None,
     past_key_values=None,
@@ -434,7 +433,7 @@ def partial_forward(
 
     extracted_activations = {}
     for i, (block, layer_past) in enumerate(zip(model.h, past_key_values)):
-        if i > max_layer:
+        if i > max(layer_nums):
             break
         if i in layer_nums:
             extracted_activations[i] = hidden_states

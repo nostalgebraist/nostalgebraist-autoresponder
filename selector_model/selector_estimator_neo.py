@@ -105,7 +105,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         flooding=False,  # TODO: implement
         flood_level=0.0,  # TODO: implement
         classic_init=False,  # TODO: implement
-        cleanup_on_exception=True
+        cleanup_on_exception=True,
+        show_running_loss=True,
     ):
         self.device = device
         self.model = NostARHead(
@@ -153,6 +154,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.flood_level = flood_level
         self.classic_init = classic_init
         self.cleanup_on_exception = cleanup_on_exception
+        self.show_running_loss = show_running_loss
 
         self.uid_ = None
         self.train_vars_ = None
@@ -302,20 +304,22 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             self.sched_decay_.step()
             self.sched_no_decay_.step()
 
-            loss_float = loss.detach().item()
+            if self.show_running_loss:
+                loss_float = loss.detach().item()
+                all_losses.append(loss_float)
 
             del loss
             del logits
             del batch_target
 
-            all_losses.append(loss_float)
-            if running_loss is None:
-                if step_ix > 3:
-                    running_loss = sum(all_losses) / len(all_losses)
-            else:
-                running_loss = (avg_loss_beta * running_loss) + (
-                    (1 - avg_loss_beta) * loss_float
-                )
+            if self.show_running_loss:
+                if running_loss is None:
+                    if step_ix > 3:
+                        running_loss = sum(all_losses) / len(all_losses)
+                else:
+                    running_loss = (avg_loss_beta * running_loss) + (
+                        (1 - avg_loss_beta) * loss_float
+                    )
 
             extra_postfixes["ntok"] = batch_max_tokens
 

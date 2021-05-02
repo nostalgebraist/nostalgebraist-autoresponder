@@ -197,23 +197,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             raise NotImplementedError
         else:
             self.loss_fn = F.cross_entropy
-            print("setting up vars")
-            # self.train_vars_ = [var for var in selector_vars if "ln_" not in var.name]
-
-            self.decay_vars_ = []
-            self.non_decay_vars_ = []
-
-            for name, param in self.model.named_parameters():
-                if "ln.weight" in name or "logit_head.bias" in name:
-                    print(f"assigning '{name}' to non_decay_vars_")
-                    self.non_decay_vars_.append(param)
-                else:
-                    print(f"assigning '{name}' to decay_vars_")
-                    self.decay_vars_.append(param)
-
-            if not training:
-                # done
-                return None
 
             # opt stuff
 

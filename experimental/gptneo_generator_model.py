@@ -76,3 +76,29 @@ class GPTNeoGeneratorModel:
                 "miro_traces": miro_traces,
             },
         }
+
+    def done_writing(self, prompt: str):
+        pass
+
+    def set_sampling_config(self, sampling_config: SamplingConfig):
+        self.sampling_config = sampling_config
+        self._setup(reset=False)
+
+    @staticmethod
+    def load(
+        path,
+        transformers_model,
+        tokenizer,
+        batch_size,
+        device="cuda:0",
+        sampling_params: SamplingParams = GPT_NEO_DEFAULT_SAMPLING_PARAMS,
+    ) -> "GPTNeoGeneratorModel":
+
+        model = GeneratorModel(
+            transformers_model=transformers_model,
+            tokenizer=tokenizer,
+            batch_size=batch_size,
+            device=device,
+            sampling_params=sampling_params,
+        )
+        return model

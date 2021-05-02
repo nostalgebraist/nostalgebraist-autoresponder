@@ -51,7 +51,7 @@ def load_from_gdrive_with_gs_fallback(
     print(f"local_gdrive_path: {local_gdrive_path}")
     print(f"local_gs_path: {local_gs_path}")
 
-    enclosing_dir = local_gs_path.rpartition("/")[0]
+    enclosing_dir = local_gs_path
     os.makedirs(enclosing_dir, exist_ok=True)
 
     enclosing_dir_exists = os.path.exists(enclosing_dir)

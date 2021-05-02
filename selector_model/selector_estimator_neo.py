@@ -473,19 +473,12 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         return stop_early_signal, eval_metrics_results
 
     def _calib_inputs(self, logits):
-        if self.calibrate_logits_separately:
-            return logits
-        else:
-            logit_diff = logits[:, 1:] - logits[:, :1]
-            return logit_diff
+        logit_diff = logits[:, 1:] - logits[:, :1]
+        return logit_diff
 
     @property
     def _calib_kwargs(self):
-        return (
-            {"penalty": "l2", "C": 1e4}
-            if self.calibrate_logits_separately
-            else {"penalty": "none"}
-        )
+        return {"penalty": "none"}
 
     def _fit_calibration(self, X_val, y_val):
         logits = self._predict(X_val, key="logits", disable_calibration=True)

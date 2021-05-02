@@ -269,10 +269,12 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         data = self._make_batched_data(X, y)
         steps = len(data) // self.opt_params.batch_size
 
+        # data pass
         row_ix = 0
         step_iter = tqdm(
             list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=3
         )
+        epoch_data = []
         for step_ix in step_iter:
             data_batch = data.iloc[row_ix : row_ix + self.opt_params.batch_size, :]
 
@@ -287,6 +289,40 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             )
 
             batch_target = torch.as_tensor(batch_target).pin_memory().to(self.device)
+
+            epoch_data.append(
+                {
+                    "input_ids": input_ids,
+                    "attention_mask": attention_mask,
+                    "input_ids_with_pads": input_ids_with_pads,
+                    "batch_max_tokens": batch_max_tokens,
+                }
+            )
+
+        # train pass
+        row_ix = 0
+        step_iter = tqdm(
+            epoch_data, smoothing=0.0, miniters=1, mininterval=3
+        )
+        for step_ix, batch_data in enumerate(step_iter):
+            # data_batch = data.iloc[row_ix : row_ix + self.opt_params.batch_size, :]
+            #
+            # input_ids, attention_mask, input_ids_with_pads, batch_max_tokens = self._feed_from_batch(
+            #     data_batch
+            # )
+            #
+            # batch_target = (
+            #     data_batch[self.target_cols_].values
+            #     if len(self.target_cols_) > 1
+            #     else data_batch[self.target_cols_[0]].values
+            # )
+            #
+            # batch_target = torch.as_tensor(batch_target).pin_memory().to(self.device)
+
+            input_ids = batch_data["input_ids"]
+            attention_mask = batch_data["attention_mask"]
+            input_ids_with_pads = batch_data["input_ids_with_pads"]
+            batch_max_tokens = batch_data["batch_max_tokens"]
 
             logits = self.model(
                 input_ids=input_ids,

@@ -40,7 +40,7 @@ def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_mult=256, device
         feed_in[k] = np.asarray(feed_in[k])
 
     input_ids_with_pads = feed_in["input_ids"].copy()
-    input_ids_with_pads = torch.as_tensor(input_ids_with_pads).to(device)
+    input_ids_with_pads = torch.as_tensor(input_ids_with_pads).pin_memory().to(device)
 
     feed_in["input_ids"][feed_in["input_ids"] == tokenizer.pad_token_id] = 0
 

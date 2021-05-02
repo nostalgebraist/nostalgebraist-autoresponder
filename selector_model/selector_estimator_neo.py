@@ -108,6 +108,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         flooding=False,  # TODO: implement
         flood_level=0.0,  # TODO: implement
         classic_init=False,  # TODO: implement
+        cleanup_on_exception=True
     ):
         self.device = device
         self.model = NostARHead(
@@ -154,6 +155,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.flooding = flooding
         self.flood_level = flood_level
         self.classic_init = classic_init
+        self.cleanup_on_exception = cleanup_on_exception
 
         self.uid_ = None
         self.train_vars_ = None
@@ -251,7 +253,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             device=self.device
         )
 
-        # TODO: batch max length for printing
+        batch_max_tokens = input_ids.shape[1]
         return input_ids, attention_mask, input_ids_with_pads, batch_max_tokens
 
     def _epoch(self, X, y, avg_loss_beta=0.98):

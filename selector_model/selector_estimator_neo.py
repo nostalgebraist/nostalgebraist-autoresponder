@@ -299,6 +299,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                     "batch_target": batch_target
                 }
             )
+            row_ix += self.opt_params.batch_size
 
         # train pass
         row_ix = 0

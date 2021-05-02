@@ -107,7 +107,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         classic_init=False,  # TODO: implement
         cleanup_on_exception=True,
         show_running_loss=True,
-        use_amp_in_base_forward=False
+        use_amp_in_base_forward=False,
+        use_amp_training=False
     ):
         self.device = device
         self.model = NostARHead(
@@ -156,7 +157,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.classic_init = classic_init
         self.cleanup_on_exception = cleanup_on_exception
         self.show_running_loss = show_running_loss
+
         self.use_amp_in_base_forward = use_amp_in_base_forward
+        self.use_amp_training = use_amp_training
 
         self.uid_ = None
         self.train_vars_ = None
@@ -179,6 +182,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.gradient_accumulator_ = None
         self.opt_reset_ = None
         self.opt_add_gradients_ = None
+
+        self.scaler_ = None
 
         self.X_train_, self.y_train_, self.X_val_, self.y_val_ = None, None, None, None
 
@@ -229,6 +234,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 self.opt_params,
                 len(X) // self.opt_params.batch_size
             )
+
+            self.scaler_ = torch.cuda.amp.GradScaler(enabled=self.use_amp_training)
 
     def _make_batched_data(self, X, y=None):
         if y is None:
@@ -307,38 +314,26 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             epoch_data, smoothing=0.0, miniters=1, mininterval=3
         )
         for step_ix, batch_data in enumerate(step_iter):
-            # data_batch = data.iloc[row_ix : row_ix + self.opt_params.batch_size, :]
-            #
-            # input_ids, attention_mask, input_ids_with_pads, batch_max_tokens = self._feed_from_batch(
-            #     data_batch
-            # )
-            #
-            # batch_target = (
-            #     data_batch[self.target_cols_].values
-            #     if len(self.target_cols_) > 1
-            #     else data_batch[self.target_cols_[0]].values
-            # )
-            #
-            # batch_target = torch.as_tensor(batch_target).pin_memory().to(self.device)
-
             input_ids = batch_data["input_ids"]
             attention_mask = batch_data["attention_mask"]
             input_ids_with_pads = batch_data["input_ids_with_pads"]
             batch_max_tokens = batch_data["batch_max_tokens"]
             batch_target = batch_data["batch_target"]
 
-            logits = self.model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                input_ids_with_pads=input_ids_with_pads,
-                use_amp_in_base_forward=self.use_amp_in_base_forward
-            )
+            with torch.cuda.amp.autocast(enabled=self.use_amp_training):
+                logits = self.model(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    input_ids_with_pads=input_ids_with_pads,
+                    use_amp_in_base_forward=self.use_amp_in_base_forward
+                )
+                loss = self.loss_fn(input=logits, target=batch_target)
 
-            loss = self.loss_fn(input=logits, target=batch_target)
-            loss.backward()
+            self.scaler_.scale(loss).backward()
 
-            self.opt_decay_.step()
-            self.opt_no_decay_.step()
+            self.scaler_.step(self.opt_decay_)
+            self.scaler_.step(self.opt_no_decay_)
+            self.scaler_.update()
 
             self.opt_decay_.zero_grad()
             self.opt_no_decay_.zero_grad()

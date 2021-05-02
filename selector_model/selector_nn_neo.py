@@ -334,7 +334,7 @@ class NostARHead(nn.Module):
         attention_mask,
         head_mask=None,
         output_attentions=False,
-        use_amp_in_base_forward=False
+        use_amp_in_base_forward=False,
     ):
         with torch.no_grad():
             extracted_activations = partial_forward(

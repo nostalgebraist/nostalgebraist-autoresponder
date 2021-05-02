@@ -206,6 +206,7 @@ class GPTNeoAttentionMixin:
         elif len(tensors.shape) == 2:
             return torch.reshape(tensors, split_dim_shape)
         else:
+            print(tensor.shape)
             raise ValueError(f"Input vector rank should be one of [2, 3], but is: {len(tensors.shape)}")
 
     @staticmethod

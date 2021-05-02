@@ -659,8 +659,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             },
         }
 
-        metadata["constructor_args"]["params"] = typed_namedtuple_to_dict(metadata["params"])
-        metadata["constructor_args"]["opt_params"] = typed_namedtuple_to_dict(metadata["opt_params"])
+        metadata["constructor_args"]["params"] = typed_namedtuple_to_dict(metadata["constructor_args"]["params"])
+        metadata["constructor_args"]["opt_params"] = typed_namedtuple_to_dict(metadata["constructor_args"]["opt_params"])
 
         with open(os.path.join(path, "metadata.json"), "w") as f:
             json.dump(metadata, f, indent=1)

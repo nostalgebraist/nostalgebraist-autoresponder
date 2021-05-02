@@ -296,6 +296,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                     "attention_mask": attention_mask,
                     "input_ids_with_pads": input_ids_with_pads,
                     "batch_max_tokens": batch_max_tokens,
+                    "batch_target": batch_target
                 }
             )
 
@@ -323,6 +324,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             attention_mask = batch_data["attention_mask"]
             input_ids_with_pads = batch_data["input_ids_with_pads"]
             batch_max_tokens = batch_data["batch_max_tokens"]
+            batch_target = batch_data["batch_target"]
 
             logits = self.model(
                 input_ids=input_ids,

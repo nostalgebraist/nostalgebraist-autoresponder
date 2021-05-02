@@ -183,6 +183,7 @@ class GPTNeoAttentionMixin:
         elif len(tensor.shape) == 2:
             padding_side = (window_size, 0)
         else:
+            print(tensor.shape)
             raise ValueError(f"Input tensor rank should be one of [2, 3], but is: {len(tensor.shape)}")
 
         padded_tensor = F.pad(tensor, padding_side, value=pad_value)

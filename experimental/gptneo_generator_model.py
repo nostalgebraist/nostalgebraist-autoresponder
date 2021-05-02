@@ -85,10 +85,6 @@ class GPTNeoGeneratorModel:
     def done_writing(self, prompt: str):
         pass
 
-    def set_sampling_config(self, sampling_config: SamplingConfig):
-        self.sampling_config = sampling_config
-        self._setup(reset=False)
-
     @staticmethod
     def load(
         path,

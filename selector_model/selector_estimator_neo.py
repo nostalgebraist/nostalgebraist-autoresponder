@@ -114,7 +114,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         use_amp_training=False
     ):
         self.device = device
-        self.model_ = self.model_.to(self.device)
         self.tokenizer = tokenizer
         self.params = params
         self.opt_params = opt_params
@@ -196,6 +195,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             tokenizer=self.tokenizer,
             params=self.params
         )
+        self.model_ = self.model_.to(self.device)
 
         if not training:
             return

@@ -1,9 +1,6 @@
 # TODO:
 # - better name for "prompt_finalchar"
 import inspect
-import pickle
-import os
-import json
 import gc
 
 import numpy as np

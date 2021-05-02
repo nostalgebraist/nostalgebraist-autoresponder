@@ -379,6 +379,7 @@ def partial_forward(
 
     position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=device)
     position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
+    print(("position_ids", position_ids.shape))
 
     # Attention mask.
     if attention_mask is not None:
@@ -415,7 +416,11 @@ def partial_forward(
     head_mask = model.get_head_mask(head_mask, model.config.num_layers)
 
     inputs_embeds = model.wte(input_ids)
-    position_embeds = model.wpe(position_ids)
+    try:
+        position_embeds = model.wpe(position_ids)
+    except Exception as e:
+        print(f"failed trying to call model.wpe on position_ids {position_ids.shape}")
+        raise e
     hidden_states = inputs_embeds + position_embeds
 
     hidden_states = model.drop(hidden_states)

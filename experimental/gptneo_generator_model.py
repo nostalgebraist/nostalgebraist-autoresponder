@@ -5,6 +5,7 @@ import numpy as np
 
 from autoresponder_config import *  # TODO: move elsewhere?
 from experimental.sampling_params import SamplingParams, DEFAULT_SAMPLING_CONFIG
+from util.util import copy_and_update_config
 
 GPT_NEO_DEFAULT_SAMPLING_PARAMS = copy_and_update_config(
     SamplingParams,

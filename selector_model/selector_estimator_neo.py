@@ -348,7 +348,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             del loss
             del logits
-            del batch_target
+            del batch_data
 
             if self.show_running_loss:
                 if running_loss is None:

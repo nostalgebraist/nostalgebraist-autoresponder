@@ -8,7 +8,7 @@ import torch.nn as nn
 from transformers.activations import ACT2FN
 from transformers.models.gpt2.tokenization_gpt2_fast import GPT2TokenizerFast
 from transformers.models.gpt2.tokenization_gpt2 import GPT2Tokenizer
-from transformers.models.gpt_neo.modeling_gpt_neo import (
+from modeling_gpt_neo import (
     GPTNeoAttentionMixin,
     GPTNeoForCausalLM,
 )
@@ -355,41 +355,23 @@ def partial_forward(
     input_ids=None,
     past_key_values=None,
     attention_mask=None,
-    token_type_ids=None,
     position_ids=None,
     head_mask=None,
-    inputs_embeds=None,
 ):
-    if input_ids is not None and inputs_embeds is not None:
-        raise ValueError(
-            "You cannot specify both input_ids and inputs_embeds at the same time"
-        )
-    elif input_ids is not None:
-        input_shape = input_ids.size()
-        input_ids = input_ids.view(-1, input_shape[-1])
-        batch_size = input_ids.shape[0]
-    elif inputs_embeds is not None:
-        input_shape = inputs_embeds.size()[:-1]
-        batch_size = inputs_embeds.shape[0]
-    else:
-        raise ValueError("You have to specify either input_ids or inputs_embeds")
+    device = input_ids.device
 
-    if token_type_ids is not None:
-        token_type_ids = token_type_ids.view(-1, input_shape[-1])
+    input_shape = input_ids.size()
+    input_ids = input_ids.view(-1, input_shape[-1])
+    batch_size = input_ids.shape[0]
+
     if position_ids is not None:
         position_ids = position_ids.view(-1, input_shape[-1])
 
-    if past_key_values is None:
-        past_length = 0
-        past_key_values = tuple([None] * len(model.h))
-    else:
-        past_length = past_key_values[0][0].size(-2)
-    if position_ids is None:
-        device = input_ids.device if input_ids is not None else inputs_embeds.device
-        position_ids = torch.arange(
-            past_length, input_shape[-1] + past_length, dtype=torch.long, device=device
-        )
-        position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
+    past_length = 0
+    past_key_values = tuple([None] * len(model.h))
+
+    position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=device)
+    position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
 
     # Attention mask.
     if attention_mask is not None:
@@ -407,27 +389,27 @@ def partial_forward(
         # positions we want to attend and -10000.0 for masked positions.
         # Since we are adding it to the raw scores before the softmax, this is
         # effectively the same as removing these entirely.
-        global_attention_mask = global_attention_mask.to(
-            dtype=model.dtype
-        )  # fp16 compatibility
+        global_attention_mask = global_attention_mask.to(dtype=model.dtype)  # fp16 compatibility
         global_attention_mask = (1.0 - global_attention_mask) * -10000.0
     else:
         global_attention_mask = None
 
+    # Local causal attention mask
+    batch_size, seq_length = input_shape
+    full_seq_length = seq_length + past_length
+    local_attention_mask = GPTNeoAttentionMixin.create_local_attention_mask(
+        batch_size, full_seq_length, model.config.window_size, device, attention_mask
+    )
+
     # Prepare head mask if needed
     # 1.0 in head_mask indicate we keep the head
-    # attention_probs has shape bsz x num_headss x N x N
-    # head_mask has shape n_layer x batch x num_headss x N x N
+    # attention_probs has shape bsz x num_heads x N x N
+    # head_mask has shape n_layer x batch x num_heads x N x N
     head_mask = model.get_head_mask(head_mask, model.config.num_layers)
 
-    if inputs_embeds is None:
-        inputs_embeds = model.wte(input_ids)
+    inputs_embeds = model.wte(input_ids)
     position_embeds = model.wpe(position_ids)
     hidden_states = inputs_embeds + position_embeds
-
-    if token_type_ids is not None:
-        token_type_embeds = model.wte(token_type_ids)
-        hidden_states = hidden_states + token_type_embeds
 
     hidden_states = model.drop(hidden_states)
 
@@ -437,8 +419,9 @@ def partial_forward(
             break
         if i in layer_nums:
             extracted_activations[i] = hidden_states
+
         attn_type = model.config.attention_layers[i]
-        attn_mask = global_attention_mask if attn_type == "global" else attention_mask
+        attn_mask = global_attention_mask if attn_type == "global" else local_attention_mask
 
         outputs = block(
             hidden_states,

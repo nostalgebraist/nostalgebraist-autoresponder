@@ -688,6 +688,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         state_dict_path = os.path.join(path, "state_dict.pt")
         est.model_.load_state_dict(torch.load(state_dict_path, map_location=constructor_args['device']))
 
-        est.lr_calib = joblib.load(os.path.join(path, "lr_calib.pkl.gz"))
+        est.lr_calib_ = joblib.load(os.path.join(path, "lr_calib.pkl.gz"))
 
         return est

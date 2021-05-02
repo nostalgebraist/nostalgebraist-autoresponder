@@ -328,7 +328,7 @@ class NostARHead(nn.Module):
         output_attentions=False,
     ):
         with torch.no_grad():
-            with torch.cuda.autocast():
+            with torch.cuda.amp.autocast():
                 extracted_activations = partial_forward(
                     model=self.base_model.transformer,
                     layer_nums=self.layer_nums,

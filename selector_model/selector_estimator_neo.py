@@ -118,14 +118,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.params = params
         self.opt_params = opt_params
 
-        parameter_count = sum(
-            [np.prod(list(v.shape)) for v in self.model_.parameters()]
-        )
-        print(
-            "This model is using %d parameters (%.2fM)"
-            % (parameter_count, parameter_count / (1024.0 * 1024.0))
-        )
-
         self.use_logit_diff_basis = use_logit_diff_basis
         self.use_only_logit_diff = use_only_logit_diff
 
@@ -196,6 +188,14 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             params=self.params
         )
         self.model_ = self.model_.to(self.device)
+
+        parameter_count = sum(
+            [np.prod(list(v.shape)) for v in self.model_.parameters()]
+        )
+        print(
+            "This model is using %d parameters (%.2fM)"
+            % (parameter_count, parameter_count / (1024.0 * 1024.0))
+        )
 
         if not training:
             return

@@ -31,6 +31,7 @@ def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_mult=256, device
     if pad_to_mult:
         true_len = len(feed_in['input_ids'][0])
         pad_to_len = pad_to_mult * (true_len // pad_to_mult + 1)
+        pad_to_len = min(pad_to_len, max_length)
         feed_in = tokenizer(
             batch_texts, padding='max_length', truncation=True, max_length=pad_to_len
         )
@@ -379,7 +380,6 @@ def partial_forward(
 
     position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=device)
     position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
-    print(("position_ids", position_ids.shape))
 
     # Attention mask.
     if attention_mask is not None:

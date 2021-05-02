@@ -15,6 +15,10 @@ GPT_NEO_DEFAULT_SAMPLING_PARAMS = copy_and_update_config(
 )
 
 
+def is_repeating_criterion(unique_token_frac):
+    return unique_token_frac < 0.2
+
+
 class GPTNeoGeneratorModel:
     def __init__(
         self,

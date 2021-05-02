@@ -15,7 +15,7 @@ from modeling_gpt_neo import (
 from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 
 
-def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_max_length=True, device="cpu"):
+def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_mult=256, device="cpu"):
     batch_texts_ = []
     for bt in batch_texts:
         to_append = bt
@@ -24,11 +24,16 @@ def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_max_length=True,
         batch_texts_.append(to_append)
     batch_texts = batch_texts_
 
-    # TODO: pad to mult of 256
-    padding = 'max_length' if pad_to_max_length else True
     feed_in = tokenizer(
-        batch_texts, padding=padding, truncation=True, max_length=max_length
+        batch_texts, padding=True, truncation=True, max_length=max_length
     )
+
+    if pad_to_mult:
+        true_len = len(feed_in['input_ids'][0])
+        pad_to_len = pad_to_mult * (true_len // pad_to_mult + 1)
+        feed_in = tokenizer(
+            batch_texts, padding='max_length', truncation=True, max_length=pad_to_len
+        )
 
     for k in feed_in.keys():
         feed_in[k] = np.asarray(feed_in[k])

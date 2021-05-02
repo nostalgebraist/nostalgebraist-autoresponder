@@ -136,7 +136,7 @@ generator_model = load_from_gdrive_with_gs_fallback(
     gs_command=gs_command_get_model,
     tokenizer=tokenizer,
     batch_size=batch_size,
-    device=device,
+    device='cuda:0',
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
 )
 

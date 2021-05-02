@@ -8,11 +8,14 @@ import torch.nn as nn
 from transformers.activations import ACT2FN
 from transformers.models.gpt2.tokenization_gpt2_fast import GPT2TokenizerFast
 from transformers.models.gpt2.tokenization_gpt2 import GPT2Tokenizer
-from transformers.models.gpt_neo.modeling_gpt_neo import GPTNeoAttentionMixin, GPTNeoForCausalLM
+from transformers.models.gpt_neo.modeling_gpt_neo import (
+    GPTNeoAttentionMixin,
+    GPTNeoForCausalLM,
+)
 from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 
 
-def prep_inputs(batch_texts, tokenizer, max_length=2048, device='cpu'):
+def prep_inputs(batch_texts, tokenizer, max_length=2048, device="cpu"):
     batch_texts_ = []
     for bt in batch_texts:
         to_append = bt
@@ -21,21 +24,23 @@ def prep_inputs(batch_texts, tokenizer, max_length=2048, device='cpu'):
         batch_texts_.append(to_append)
     batch_texts = batch_texts_
 
-    feed_in = tokenizer(batch_texts, padding=True, truncation=True, max_length=max_length)
+    feed_in = tokenizer(
+        batch_texts, padding=True, truncation=True, max_length=max_length
+    )
 
     for k in feed_in.keys():
         feed_in[k] = np.asarray(feed_in[k])
 
-    input_ids_with_pads = feed_in['input_ids'].copy()
+    input_ids_with_pads = feed_in["input_ids"].copy()
     input_ids_with_pads = torch.as_tensor(input_ids_with_pads).to(device)
 
-    feed_in['input_ids'][feed_in['input_ids'] == tokenizer.pad_token_id] = 0
+    feed_in["input_ids"][feed_in["input_ids"] == tokenizer.pad_token_id] = 0
 
     for k in feed_in.keys():
         feed_in[k] = torch.as_tensor(feed_in[k]).to(device)
 
-    input_ids = feed_in['input_ids']
-    attention_mask = feed_in['attention_mask']
+    input_ids = feed_in["input_ids"]
+    attention_mask = feed_in["attention_mask"]
     return input_ids, attention_mask, input_ids_with_pads
 
 
@@ -47,7 +52,7 @@ def get_child_module_by_names(module, names):
 
 
 def extract_activations(model, layer_names: list, prefixes: list = [], verbose=True):
-    for attr in ['_extracted_activations', '_extracted_activation_handles']:
+    for attr in ["_extracted_activations", "_extracted_activation_handles"]:
         if not hasattr(model, attr):
             setattr(model, attr, {})
 
@@ -59,6 +64,7 @@ def extract_activations(model, layer_names: list, prefixes: list = [], verbose=T
 
         def _record_output_hook(module, input, output) -> None:
             model._extracted_activations[name] = output[0]
+
         return _record_output_hook
 
     def _hook_already_there(name):
@@ -88,21 +94,23 @@ def select_at_last_token(select_from, tokens, pad_token_id=50257):
 
 class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
     """Adapted from transformers library's `GPTNeoSelfAttention`"""
-    def __init__(self,
-                 base_model_config: GPTNeoConfig,
-                 n_head: int,
-                 attn_dropout=0.,
-                 res_dropout=0.,
-                 layer_norm_epsilon=1e-5,
-                 ):
+
+    def __init__(
+        self,
+        base_model_config: GPTNeoConfig,
+        n_head: int,
+        attn_dropout=0.0,
+        res_dropout=0.0,
+        layer_norm_epsilon=1e-5,
+    ):
         super().__init__()
 
         max_positions = base_model_config.max_position_embeddings
         self.register_buffer(
             "bias",
-            torch.tril(torch.ones((max_positions, max_positions), dtype=torch.uint8)).view(
-                1, 1, max_positions, max_positions
-            ),
+            torch.tril(
+                torch.ones((max_positions, max_positions), dtype=torch.uint8)
+            ).view(1, 1, max_positions, max_positions),
         )
         self.register_buffer("masked_bias", torch.tensor(-1e9))
 
@@ -134,7 +142,9 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
     ):
         hidden_states = self.ln(hidden_states)
 
-        hidden_state_at_last_token = select_at_last_token(hidden_states, input_ids_with_pads).unsqueeze(-2)
+        hidden_state_at_last_token = select_at_last_token(
+            hidden_states, input_ids_with_pads
+        ).unsqueeze(-2)
 
         query = self.q_proj(hidden_state_at_last_token)
         key = self.k_proj(hidden_states)
@@ -145,10 +155,19 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         value = self._split_heads(value, self.n_head, self.head_dim)
 
         query_length, key_length = query.size(-2), key.size(-2)
-        causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length].bool()
+        causal_mask = self.bias[
+            :, :, key_length - query_length : key_length, :key_length
+        ].bool()
 
         attn_output, attn_weights = self._attn(
-            query, key, value, causal_mask, self.masked_bias, self.attn_dropout, attention_mask, head_mask
+            query,
+            key,
+            value,
+            causal_mask,
+            self.masked_bias,
+            self.attn_dropout,
+            attention_mask,
+            head_mask,
         )
 
         attn_output = self._merge_heads(attn_output, self.n_head, self.head_dim)
@@ -165,15 +184,13 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
 
 class NostARHeadMLP(nn.Module):
-    def __init__(self,
-                 input_size: int,
-                 intermediate_size: int,
-                 res_dropout: float = 0.
-                 ):
+    def __init__(
+        self, input_size: int, intermediate_size: int, res_dropout: float = 0.0
+    ):
         super().__init__()
         self.c_fc = nn.Linear(input_size, intermediate_size)
         self.c_proj = nn.Linear(intermediate_size, input_size)
-        self.act = ACT2FN['gelu']
+        self.act = ACT2FN["gelu"]
         self.dropout = nn.Dropout(res_dropout)
 
     def forward(self, hidden_states):
@@ -185,7 +202,7 @@ class NostARHeadMLP(nn.Module):
 
 
 NostARHeadArchitectureParams = NamedTuple(
-    'NostARHeadArchitectureParams',
+    "NostARHeadArchitectureParams",
     layer_nums=List[int],
     n_head=Union[int, List[int]],
     mlp_ratio=Union[int, float],
@@ -198,7 +215,7 @@ NostARHeadArchitectureParams = NamedTuple(
 
 def validate_arch_params(params: NostARHeadArchitectureParams):
     if not isinstance(params.n_head, int):
-        if len(params['n_head']) != len(params['layer_nums']):
+        if len(params["n_head"]) != len(params["layer_nums"]):
             msg = "n_head and layer_nums must be equal length, got "
             msg += f"n_head={params['n_head']}, layer_nums={params['layer_nums']}"
             raise ValueError(msg)
@@ -253,7 +270,9 @@ class NostARHead(nn.Module):
         """Initialize the weights."""
         if module is self.logit_head:
             nn.init.orthogonal_(module.weight, gain=self.params.init_gain_logit_head)
-            print(f"initialized logit_head with gain {self.params.init_gain_logit_head:.2f}")
+            print(
+                f"initialized logit_head with gain {self.params.init_gain_logit_head:.2f}"
+            )
         elif isinstance(module, (nn.Linear,)):
             nn.init.orthogonal_(module.weight, gain=self.params.init_gain)
             if module.bias is not None:
@@ -263,30 +282,31 @@ class NostARHead(nn.Module):
             module.weight.data.fill_(1.0)
 
     def _setup_attns(self):
-        self.attns = nn.ModuleList([
-            NostARHeadAttention(
-                n_head=nh,
-                base_model_config=self.base_model.config,
-                attn_dropout=self.params.attn_dropout,
-                res_dropout=self.params.res_dropout,
-            )
-            for nh in self.n_head
-        ])
+        self.attns = nn.ModuleList(
+            [
+                NostARHeadAttention(
+                    n_head=nh,
+                    base_model_config=self.base_model.config,
+                    attn_dropout=self.params.attn_dropout,
+                    res_dropout=self.params.res_dropout,
+                )
+                for nh in self.n_head
+            ]
+        )
 
         self.layer_nums_to_attns = {
-            lnum: attn
-            for lnum, attn in zip(self.layer_nums, self.attns)
+            lnum: attn for lnum, attn in zip(self.layer_nums, self.attns)
         }
 
     def _setup(self):
         for param in self.base_model.parameters():
             param.requires_grad = False
 
-        extract_activations(
-            self.base_model,
-            layer_names=self.layer_nums,
-            prefixes=['transformer', 'h']
-        )
+        # extract_activations(
+        #     self.base_model,
+        #     layer_names=self.layer_nums,
+        #     prefixes=['transformer', 'h']
+        # )
 
         self._setup_attns()
 
@@ -294,8 +314,7 @@ class NostARHead(nn.Module):
         mlp_intermediate_size = int(mlp_input_size * self.params.mlp_ratio)
 
         self.mlp = NostARHeadMLP(
-            input_size=mlp_input_size,
-            intermediate_size=mlp_intermediate_size
+            input_size=mlp_input_size, intermediate_size=mlp_intermediate_size
         )
 
         self.logit_head = nn.Linear(mlp_input_size, 2)
@@ -309,13 +328,15 @@ class NostARHead(nn.Module):
         output_attentions=False,
     ):
         with torch.no_grad():
-            partial_forward(model=self.base_model.transformer,
-                            max_layer=max(self.layer_nums),
-                            input_ids=input_ids,
-                            attention_mask=attention_mask)
+            extracted_activations = partial_forward(
+                model=self.base_model.transformer,
+                max_layer=max(self.layer_nums),
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+            )
 
         attn_outs = [
-            attn(self.base_model._extracted_activations[lnum], input_ids_with_pads)[0]
+            attn(extracted_activations[lnum], input_ids_with_pads)[0]
             for lnum, attn in self.layer_nums_to_attns.items()
         ]
 
@@ -331,6 +352,7 @@ class NostARHead(nn.Module):
 def partial_forward(
     model,
     max_layer: int,
+    layer_nums: List[int],
     input_ids=None,
     past_key_values=None,
     attention_mask=None,
@@ -338,20 +360,11 @@ def partial_forward(
     position_ids=None,
     head_mask=None,
     inputs_embeds=None,
-    use_cache=None,
-    output_attentions=None,
-    output_hidden_states=None,
-    return_dict=None,
 ):
-    output_attentions = output_attentions if output_attentions is not None else model.config.output_attentions
-    output_hidden_states = (
-        output_hidden_states if output_hidden_states is not None else model.config.output_hidden_states
-    )
-    use_cache = use_cache if use_cache is not None else model.config.use_cache
-    return_dict = return_dict if return_dict is not None else model.config.use_return_dict
-
     if input_ids is not None and inputs_embeds is not None:
-        raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+        raise ValueError(
+            "You cannot specify both input_ids and inputs_embeds at the same time"
+        )
     elif input_ids is not None:
         input_shape = input_ids.size()
         input_ids = input_ids.view(-1, input_shape[-1])
@@ -374,7 +387,9 @@ def partial_forward(
         past_length = past_key_values[0][0].size(-2)
     if position_ids is None:
         device = input_ids.device if input_ids is not None else inputs_embeds.device
-        position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=device)
+        position_ids = torch.arange(
+            past_length, input_shape[-1] + past_length, dtype=torch.long, device=device
+        )
         position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
 
     # Attention mask.
@@ -393,7 +408,9 @@ def partial_forward(
         # positions we want to attend and -10000.0 for masked positions.
         # Since we are adding it to the raw scores before the softmax, this is
         # effectively the same as removing these entirely.
-        global_attention_mask = global_attention_mask.to(dtype=model.dtype)  # fp16 compatibility
+        global_attention_mask = global_attention_mask.to(
+            dtype=model.dtype
+        )  # fp16 compatibility
         global_attention_mask = (1.0 - global_attention_mask) * -10000.0
     else:
         global_attention_mask = None
@@ -415,9 +432,12 @@ def partial_forward(
 
     hidden_states = model.drop(hidden_states)
 
+    extracted_activations = {}
     for i, (block, layer_past) in enumerate(zip(model.h, past_key_values)):
         if i > max_layer:
             break
+        if i in layer_nums:
+            extracted_activations[i] = hidden_states
         attn_type = model.config.attention_layers[i]
         attn_mask = global_attention_mask if attn_type == "global" else attention_mask
 
@@ -426,8 +446,7 @@ def partial_forward(
             layer_past=layer_past,
             attention_mask=attn_mask,
             head_mask=head_mask[i],
-            use_cache=use_cache,
-            output_attentions=output_attentions,
         )
 
         hidden_states = outputs[0]
+    return extracted_activations

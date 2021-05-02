@@ -305,6 +305,10 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             loss_float = loss.detach().item()
 
+            del loss
+            del logits
+            del batch_target
+
             all_losses.append(loss_float)
             if running_loss is None:
                 if step_ix > 3:

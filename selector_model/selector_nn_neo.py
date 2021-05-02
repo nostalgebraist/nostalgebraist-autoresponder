@@ -440,6 +440,7 @@ def partial_forward(
         attn_type = model.config.attention_layers[i]
         attn_mask = global_attention_mask if attn_type == "global" else attention_mask
 
+        print(hidden_states.shape)
         outputs = block(
             hidden_states,
             layer_past=layer_past,

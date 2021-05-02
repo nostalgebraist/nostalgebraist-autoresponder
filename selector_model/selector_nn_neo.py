@@ -8,7 +8,7 @@ import torch.nn as nn
 from transformers.activations import ACT2FN
 from transformers.models.gpt2.tokenization_gpt2_fast import GPT2TokenizerFast
 from transformers.models.gpt2.tokenization_gpt2 import GPT2Tokenizer
-from modeling_gpt_neo import (
+from selector_model.modeling_gpt_neo import (
     GPTNeoAttentionMixin,
     GPTNeoForCausalLM,
 )

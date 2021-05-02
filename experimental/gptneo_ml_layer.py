@@ -135,7 +135,7 @@ sample_done_criterion = make_sample_done_criterion(
 
 generator_model = load_from_gdrive_with_gs_fallback(
     load_fn=load_generator_model,
-    relative_path=os.path.join(model_path),
+    relative_path=model_name,
     gs_command=gs_command_get_model,
     tokenizer=tokenizer,
     batch_size=batch_size,

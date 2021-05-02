@@ -522,7 +522,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             for epoch_ix in tqdm(list(range(self.opt_params.epochs))):
                 self._epoch(self.X_train_, self.y_train_, avg_loss_beta=avg_loss_beta)
 
-                epoch_needs_val = self.stop_early or self.evaluate_during_training
+                epoch_needs_val = self.evaluate_during_training
 
                 if epoch_needs_val:
                     stop_early_signal, eval_metrics_results = self.eval_on_val_set(

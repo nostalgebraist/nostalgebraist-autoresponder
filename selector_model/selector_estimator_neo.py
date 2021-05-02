@@ -553,9 +553,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             attention_mask=attention_mask,
             input_ids_with_pads=input_ids_with_pads,
             use_amp_in_base_forward=self.use_amp_in_base_forward,
-        )
+        ).cpu().detach().numpy()
 
-        probs_raw = scipy.special.softmax(logits.cpu().detach().numpy(), axis=1)
+        probs_raw = scipy.special.softmax(logits, axis=1)
 
         if self.calibrate and not disable_calibration:
             probs = self._compute_calib_probs(logits, pfcs=batch["prompt_finalchar"])
@@ -628,19 +628,20 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             del p
         gc.collect()
 
-    def _make_constructor_args(self):
+    def _make_constructor_args(self, force_save_args=set()):
         # TODO: create mixin for this
         sig = inspect.signature(self.__class__.__init__)
-        args = {k: getattr(self, k) for k in sig.parameters.keys() if hasattr(self, k)}
+        args = {k: getattr(self, k) for k in sig.parameters.keys() if hasattr(self, k) or k in force_save_args}
         return args
 
     def save(self, path: str):
         no_save_args = {"tokenizer", "base_model"}
+        force_save_args = {"params"}
 
         metadata = {
             "constructor_args": {
                 name: value
-                for name, value in self._make_constructor_args().items()
+                for name, value in self._make_constructor_args(force_save_args=force_save_args).items()
                 if name not in no_save_args
             },
         }
@@ -658,12 +659,14 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         with open(os.path.join(path, "metadata.json"), "r") as f:
             metadata = json.load(f)
 
-            constructor_args = metadata["constructor_args"]
-            constructor_args["base_model"] = base_model
-            constructor_args["tokenizer"] = tokenizer
-            constructor_args.update(**kwargs)
+        constructor_args = metadata["constructor_args"]
+        constructor_args["base_model"] = base_model
+        constructor_args["tokenizer"] = tokenizer
+        constructor_args.update(**kwargs)
 
-            est = NostARHeadEstimator(**constructor_args)
+        est = NostARHeadEstimator(**constructor_args)
 
-            state_dict_path = os.path.join(path, "state_dict.pt")
-            est.model.load_state_dict(torch.load(state_dict_path, map_location=constructor_args['device']))
+        state_dict_path = os.path.join(path, "state_dict.pt")
+        est.model.load_state_dict(torch.load(state_dict_path, map_location=constructor_args['device']))
+
+        return est

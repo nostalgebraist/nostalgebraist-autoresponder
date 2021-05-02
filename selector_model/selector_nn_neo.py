@@ -24,6 +24,7 @@ def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_max_length=True,
         batch_texts_.append(to_append)
     batch_texts = batch_texts_
 
+    # TODO: pad to mult of 256
     padding = 'max_length' if pad_to_max_length else True
     feed_in = tokenizer(
         batch_texts, padding=padding, truncation=True, max_length=max_length

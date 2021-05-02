@@ -304,6 +304,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             self.sched_decay_.step()
             self.sched_no_decay_.step()
 
+            loss_float = None
             if self.show_running_loss:
                 loss_float = loss.detach().item()
                 all_losses.append(loss_float)

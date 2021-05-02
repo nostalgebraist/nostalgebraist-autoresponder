@@ -255,6 +255,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
     def _epoch(self, X, y, avg_loss_beta=0.98):
         self.model.train()
+        for param in self.model.parameters():
+            param.requires_grad = True
 
         extra_postfixes = {}
         all_losses = []
@@ -556,6 +558,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
     def _predict_select(self, batch, threshold=0.5, disable_calibration=False):
         self.model.eval()
+        for param in self.model.parameters():
+            param.requires_grad = False
 
         if len(batch) != self.opt_params.batch_size:
             raise ValueError("badlength")
@@ -567,7 +571,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             input_ids_with_pads=input_ids_with_pads,
         )
 
-        probs_raw = scipy.special.softmax(logits, axis=1)
+        probs_raw = scipy.special.softmax(logits.cpu().detach().numpy(), axis=1)
 
         if self.calibrate and not disable_calibration:
             probs = self._compute_calib_probs(logits, pfcs=batch["prompt_finalchar"])

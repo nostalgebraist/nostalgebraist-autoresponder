@@ -279,6 +279,9 @@ class NostARHead(nn.Module):
         }
 
     def _setup(self):
+        for param in self.base_model.parameters():
+            param.requires_grad = False
+
         extract_activations(
             self.base_model,
             layer_names=self.layer_nums,

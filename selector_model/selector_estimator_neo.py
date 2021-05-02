@@ -114,17 +114,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         use_amp_training=False
     ):
         self.device = device
-        self.model = NostARHead(
-            base_model=base_model,
-            tokenizer=tokenizer,
-            params=params
-        )
-        self.model = self.model.to(self.device)
+        self.model_ = self.model_.to(self.device)
         self.tokenizer = tokenizer
+        self.params = params
         self.opt_params = opt_params
 
         parameter_count = sum(
-            [np.prod(list(v.shape)) for v in self.model.parameters()]
+            [np.prod(list(v.shape)) for v in self.model_.parameters()]
         )
         print(
             "This model is using %d parameters (%.2fM)"
@@ -188,38 +184,49 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         self.X_train_, self.y_train_, self.X_val_, self.y_val_ = None, None, None, None
 
+        self.model_ = None
+
     def _setup(self, X=None, y=None, training=True):
         print("entering setup")
-        print(f"estimator:\n{repr(self)}\n")
 
-        print("making losses")
+        print("making model")
 
+        self.model_ = NostARHead(
+            base_model=self.base_model,
+            tokenizer=self.tokenizer,
+            params=self.params
+        )
+
+        if not training:
+            return
+
+        print("creating loss fn")
         if self.supervise_logits:
             raise NotImplementedError
         else:
             self.loss_fn = F.cross_entropy
 
-            # opt stuff
+        # opt stuff
 
-            print("creating opt")
-            self.opt_decay_, self.opt_no_decay_ = get_nost_ar_head_optimizers(
-                self.model,
-                self.opt_params
-            )
+        print("creating opt")
+        self.opt_decay_, self.opt_no_decay_ = get_nost_ar_head_optimizers(
+            self.model_,
+            self.opt_params
+        )
 
-            self.sched_decay_ = get_nost_ar_head_scheduler(
-                self.opt_decay_,
-                self.opt_params,
-                len(X) // self.opt_params.batch_size
-            )
+        self.sched_decay_ = get_nost_ar_head_scheduler(
+            self.opt_decay_,
+            self.opt_params,
+            len(X) // self.opt_params.batch_size
+        )
 
-            self.sched_no_decay_ = get_nost_ar_head_scheduler(
-                self.opt_no_decay_,
-                self.opt_params,
-                len(X) // self.opt_params.batch_size
-            )
+        self.sched_no_decay_ = get_nost_ar_head_scheduler(
+            self.opt_no_decay_,
+            self.opt_params,
+            len(X) // self.opt_params.batch_size
+        )
 
-            self.scaler_ = torch.cuda.amp.GradScaler(enabled=self.use_amp_training)
+        self.scaler_ = torch.cuda.amp.GradScaler(enabled=self.use_amp_training)
 
     def _make_batched_data(self, X, y=None):
         if y is None:
@@ -249,8 +256,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         return input_ids, attention_mask, input_ids_with_pads, batch_max_tokens
 
     def _epoch(self, X, y, avg_loss_beta=0.98):
-        self.model.train()
-        for param in self.model.parameters():
+        self.model_.train()
+        for param in self.model_.parameters():
             param.requires_grad = True
 
         extra_postfixes = {}
@@ -305,7 +312,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             batch_target = batch_data["batch_target"]
 
             with torch.cuda.amp.autocast(enabled=self.use_amp_training):
-                logits = self.model(
+                logits = self.model_(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
                     input_ids_with_pads=input_ids_with_pads,
@@ -540,15 +547,15 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         return probs
 
     def _predict_select(self, batch, threshold=0.5, disable_calibration=False):
-        self.model.eval()
-        for param in self.model.parameters():
+        self.model_.eval()
+        for param in self.model_.parameters():
             param.requires_grad = False
 
         if len(batch) != self.opt_params.batch_size:
             raise ValueError("badlength")
         input_ids, attention_mask, input_ids_with_pads, _ = self._feed_from_batch(batch)
 
-        logits = self.model(
+        logits = self.model_(
             input_ids=input_ids,
             attention_mask=attention_mask,
             input_ids_with_pads=input_ids_with_pads,
@@ -621,27 +628,26 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
     def cleanup(self):
         print("cleanup: deleting state")
-        to_delete = list(self.model.parameters())
+        to_delete = list(self.model_.parameters())
         to_delete += list(self.opt_decay_.state)
         to_delete += list(self.opt_no_decay_.state)
         for p in to_delete:
             del p
         gc.collect()
 
-    def _make_constructor_args(self, force_save_args=set()):
+    def _make_constructor_args(self):
         # TODO: create mixin for this
         sig = inspect.signature(self.__class__.__init__)
-        args = {k: getattr(self, k) for k in sig.parameters.keys() if hasattr(self, k) or k in force_save_args}
+        args = {k: getattr(self, k) for k in sig.parameters.keys() if hasattr(self, k)}
         return args
 
     def save(self, path: str):
         no_save_args = {"tokenizer", "base_model"}
-        force_save_args = {"params"}
 
         metadata = {
             "constructor_args": {
                 name: value
-                for name, value in self._make_constructor_args(force_save_args=force_save_args).items()
+                for name, value in self._make_constructor_args().items()
                 if name not in no_save_args
             },
         }
@@ -650,7 +656,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             json.dump(metadata, f, indent=1)
 
         state_dict_path = os.path.join(path, "state_dict.pt")
-        torch.save(self.model.state_dict(), state_dict_path)
+        torch.save(self.model_.state_dict(), state_dict_path)
 
         joblib.dump(self.lr_calib_, os.path.join(path, "lr_calib.pkl.gz"))
 
@@ -665,8 +671,11 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         constructor_args.update(**kwargs)
 
         est = NostARHeadEstimator(**constructor_args)
+        est._setup(training=False)
 
         state_dict_path = os.path.join(path, "state_dict.pt")
         est.model.load_state_dict(torch.load(state_dict_path, map_location=constructor_args['device']))
+
+        est.lr_calib = joblib.load(os.path.join(path, "lr_calib.pkl.gz"))
 
         return est

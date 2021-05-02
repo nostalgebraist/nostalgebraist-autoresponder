@@ -633,8 +633,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
     def cleanup(self):
         print("cleanup: deleting state")
         to_delete = list(self.model.parameters())
-        to_delete += list(self.opt_decay_.parameters())
-        to_delete += list(self.opt_no_decay_.parameters())
+        to_delete += list(self.opt_decay_.state)
+        to_delete += list(self.opt_no_decay_.state)
         for p in to_delete:
             del p
         gc.collect()

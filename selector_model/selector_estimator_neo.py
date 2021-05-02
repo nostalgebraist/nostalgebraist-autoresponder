@@ -30,6 +30,7 @@ from transformers.models.gpt_neo.modeling_gpt_neo import GPTNeoForCausalLM
 
 from selector_model.selector_nn_neo import NostARHead, NostARHeadArchitectureParams, GPT2TokenizerType, prep_inputs
 from selector_model.selector_utils_neo import NostARHeadOptimizerParams, get_nost_ar_head_optimizers, get_nost_ar_head_scheduler
+from util.util import typed_namedtuple_to_dict
 
 ORIG_POST_CHAR_CHINESE = "翰"
 
@@ -658,6 +659,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             },
         }
 
+        metadata["params"] = typed_namedtuple_to_dict(metadata["params"])
+        metadata["opt_params"] = typed_namedtuple_to_dict(metadata["opt_params"])
+
         with open(os.path.join(path, "metadata.json"), "w") as f:
             json.dump(metadata, f, indent=1)
 
@@ -674,13 +678,15 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         constructor_args = metadata["constructor_args"]
         constructor_args["base_model"] = base_model
         constructor_args["tokenizer"] = tokenizer
+        constructor_args["params"] = NostARHeadArchitectureParams(**constructor_args["params"])
+        constructor_args["opt_params"] = NostARHeadOptimizerParams(**constructor_args["opt_params"])
         constructor_args.update(**kwargs)
 
         est = NostARHeadEstimator(**constructor_args)
         est._setup(training=False)
 
         state_dict_path = os.path.join(path, "state_dict.pt")
-        est.model.load_state_dict(torch.load(state_dict_path, map_location=constructor_args['device']))
+        est.model_.load_state_dict(torch.load(state_dict_path, map_location=constructor_args['device']))
 
         est.lr_calib = joblib.load(os.path.join(path, "lr_calib.pkl.gz"))
 

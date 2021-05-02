@@ -1,6 +1,9 @@
 # TODO:
 # - better name for "prompt_finalchar"
 import inspect
+import joblib
+import os
+import json
 import gc
 
 import numpy as np
@@ -116,7 +119,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             tokenizer=tokenizer,
             params=params
         )
-        self.model.to(self.device)
+        self.model = self.model.to(self.device)
         self.tokenizer = tokenizer
         self.opt_params = opt_params
 
@@ -175,8 +178,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.lr_ = None
         self.opt_ = None
         self.lr_calib_ = None
-        self.lr_calib_resp_ = None
-        self.lr_calib_orig_ = None
         self.n_head_ = None
         self.last_best_val_metric_ = None
         self.gradient_accumulator_ = None
@@ -494,36 +495,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         preds = probs[:, 1] > 0.5
         self._display_eval_metrics(y_val, preds, probs, pfcs=X_val["prompt_finalchar"])
 
-        if self.calibrate_prefixes_separately:
-            orig_filter = (X_val["prompt_finalchar"] == ORIG_POST_CHAR_CHINESE).values
+        self.lr_calib_ = LogisticRegression(**self._calib_kwargs)
+        self.lr_calib_.fit(calib_inputs, y_val)
 
-            self.lr_calib_resp_ = LogisticRegression(**self._calib_kwargs)
-            self.lr_calib_resp_.fit(
-                calib_inputs[orig_filter == False], y_val.values[orig_filter == False]
-            )
-
-            self.lr_calib_orig_ = LogisticRegression(**self._calib_kwargs)
-            self.lr_calib_orig_.fit(
-                calib_inputs[orig_filter == True], y_val.values[orig_filter == True]
-            )
-
-            calib_coef_info = {
-                "resp_coef": self.lr_calib_resp_.coef_.tolist(),
-                "resp_intercept": self.lr_calib_resp_.intercept_,
-                "orig_coef": self.lr_calib_orig_.coef_.tolist(),
-                "orig_intercept": self.lr_calib_orig_.intercept_,
-            }
-        else:
-            self.lr_calib_ = LogisticRegression(**self._calib_kwargs)
-            self.lr_calib_.fit(calib_inputs, y_val)
-
-            calib_coef_info = {
-                "coef": self.lr_calib_.coef_.tolist(),
-                "intercept": self.lr_calib_.intercept_,
-            }
-
-            self.lr_calib_resp_ = self.lr_calib_
-            self.lr_calib_orig_ = self.lr_calib_
+        calib_coef_info = {
+            "coef": self.lr_calib_.coef_.tolist(),
+            "intercept": self.lr_calib_.intercept_,
+        }
 
         with tqdm(
             list(range(0, 1)), smoothing=0.0, miniters=1, mininterval=1
@@ -565,20 +543,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
     def _compute_calib_probs(self, logits, pfcs):
         calib_inputs = self._calib_inputs(logits)
-        if self.calibrate_prefixes_separately:
-            orig_filter = (pfcs == ORIG_POST_CHAR_CHINESE).values
-            probs = np.zeros((len(logits), 2))
-
-            if (orig_filter == False).any():
-                probs[orig_filter == False, :] = self.lr_calib_resp_.predict_proba(
-                    calib_inputs[orig_filter == False]
-                )
-            if (orig_filter == True).any():
-                probs[orig_filter == True, :] = self.lr_calib_orig_.predict_proba(
-                    calib_inputs[orig_filter == True]
-                )
-        else:
-            probs = self.lr_calib_.predict_proba(calib_inputs)
+        probs = self.lr_calib_.predict_proba(calib_inputs)
         return probs
 
     def _predict_select(self, batch, threshold=0.5, disable_calibration=False):
@@ -677,8 +642,35 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         return args
 
     def save(self, path: str):
-        raise NotImplementedError
+        no_save_args = {"tokenizer", "base_model"}
+
+        metadata = {
+            "constructor_args": {
+                name: value
+                for name, value in self._make_constructor_args().items()
+                if name not in no_save_args
+            },
+        }
+
+        with open(os.path.join(path, "metadata.json"), "w") as f:
+            json.dump(metadata, f, indent=1)
+
+        state_dict_path = os.path.join(path, "state_dict.pt")
+        torch.save(self.model.state_dict(), state_dict_path)
+
+        joblib.dump(self.lr_calib_, os.path.join(path, "lr_calib.pkl.gz"))
 
     @staticmethod
-    def load(path, session, base_hparams, enc, **kwargs) -> "NostARHeadEstimator":
-        raise NotImplementedError
+    def load(path, base_model, tokenizer, **kwargs) -> "NostARHeadEstimator":
+        with open(os.path.join(path, "metadata.json"), "r") as f:
+            metadata = json.load(f)
+
+            constructor_args = metadata["constructor_args"]
+            constructor_args["base_model"] = base_model
+            constructor_args["tokenizer"] = tokenizer
+            constructor_args.update(**kwargs)
+
+            est = NostARHeadEstimator(**constructor_args)
+
+            state_dict_path = os.path.join(path, "state_dict.pt")
+            est.model.load_state_dict(torch.load(state_dict_path, map_location=constructor_args['device']))

@@ -311,4 +311,9 @@ if SELECT_VIA_GENERATOR_LONGLENGTH:
 if SENTIMENT_VIA_GENERATOR_LONGLENGTH:
     length_sentiment = max_ctx_fits_on_gpu
 
+GPT_NEO_T = 1.
+GPT_NEO_TOP_P = 0.95
+GPT_NEO_TOP_K = 0
+GPT_NEO_MAX_LENGTH = 2048
+
 os.chdir(startdir)

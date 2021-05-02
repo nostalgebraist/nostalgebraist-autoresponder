@@ -252,7 +252,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         )
 
         # TODO: batch max length for printing
-        return input_ids, attention_mask, input_ids_with_pads
+        return input_ids, attention_mask, input_ids_with_pads, batch_max_tokens
 
     def _epoch(self, X, y, avg_loss_beta=0.98):
         self.model.train()
@@ -271,7 +271,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         for step_ix in step_iter:
             data_batch = data.iloc[row_ix : row_ix + self.opt_params.batch_size, :]
 
-            input_ids, attention_mask, input_ids_with_pads = self._feed_from_batch(
+            input_ids, attention_mask, input_ids_with_pads, batch_max_tokens = self._feed_from_batch(
                 data_batch
             )
 
@@ -312,7 +312,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                     (1 - avg_loss_beta) * loss_float
                 )
 
-            # extra_postfixes["ntok"] = batch_max_tokens
+            extra_postfixes["ntok"] = batch_max_tokens
 
             step_iter.set_postfix(
                 loss=loss_float,
@@ -556,7 +556,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         if len(batch) != self.opt_params.batch_size:
             raise ValueError("badlength")
-        input_ids, attention_mask, input_ids_with_pads = self._feed_from_batch(batch)
+        input_ids, attention_mask, input_ids_with_pads, _ = self._feed_from_batch(batch)
 
         logits = self.model(
             input_ids=input_ids,

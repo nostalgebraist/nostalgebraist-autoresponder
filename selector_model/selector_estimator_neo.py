@@ -5,6 +5,7 @@ import joblib
 import os
 import json
 import gc
+import weakref
 
 import numpy as np
 import pandas as pd
@@ -114,6 +115,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         use_amp_training=False
     ):
         self.device = device
+        self._base_model = weakref.ref(base_model)
         self.tokenizer = tokenizer
         self.params = params
         self.opt_params = opt_params
@@ -176,6 +178,10 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.X_train_, self.y_train_, self.X_val_, self.y_val_ = None, None, None, None
 
         self.model_ = None
+
+    @property
+    def base_model(self):
+        return self._base_model()
 
     def _setup(self, X=None, y=None, training=True):
         print("entering setup")

@@ -15,7 +15,8 @@ V9_1R3 = True
 V9_1R4 = True
 V10 = True
 V10_1 = True
-V11 = True  # !! -- gptneo, th
+V10_1_torch = True  # !!
+V11 = False  # !! -- gptneo, th
 
 USE_AUTOREVIEWER = True
 AUTOREVIEWER_CUTOFFS = {
@@ -61,6 +62,9 @@ else:
 if V11:
     model_name = "neo_ar_2_7B_v0_nost_tuning_f"
     model_path = os.path.join("/", model_name)
+elif V10_1_torch:
+    model_name = "torch__autoresponder_v10_1"
+    model_path = os.path.join("/", model_name)
 elif V10_1:
     model_name = "autoresponder_v10_1"
     model_path = os.path.join("models", model_name, "model-141.hdf5")
@@ -72,6 +76,10 @@ if V11:
     ckpt_select = "selector/v11/v1/"
     ckpt_sentiment = "sentment/v11/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v11/v1/"
+elif V10_1_torch:
+    ckpt_select = "selector/v10_1_torch/v1/.hdf5"
+    ckpt_sentiment = "sentiment/v10_1_torch/v1/.hdf5"
+    ckpt_autoreviewer = "draft_autoreviewer/v10_1_torch/v1/.hdf5"
 elif V10_1:
     ckpt_select = "selector/v10_1/v8/.hdf5"
     ckpt_sentiment = "sentiment/v10_1/v1/.hdf5"
@@ -98,7 +106,19 @@ if V11:
     ) = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v11_sentiment/* /sentiment/v11/"
     gs_command_get_autoreviewer = (
         gs_command_get_selector
-    ) = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v11/* /draft_autoreviewer"
+    ) = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10_1_torch/* /draft_autoreviewer/v10_1_torch/"
+elif V10_1_torch:
+    gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/tf_to_torch/{model_name}/* {model_path}"
+
+    gs_command_get_selector = (
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_torch_selector/* /selector/v10_1_torch/"
+    )
+    gs_command_get_sentiment = (
+        gs_command_get_selector
+    ) = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_torch_sentiment/* /sentiment/v10_1_torch/"
+    gs_command_get_autoreviewer = (
+        gs_command_get_selector
+    ) = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10_1_torch/* /draft_autoreviewer"
 elif V10_1:
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_1_nost_tuning_f/model-141.hdf5 /models/autoresponder_v10_1/"
 

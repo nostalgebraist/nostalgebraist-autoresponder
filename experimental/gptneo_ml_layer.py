@@ -16,7 +16,7 @@ from autoresponder_static_v8 import *
 from experimental.gptneo_generator_model import GPTNeoGeneratorModel, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
 from selector_model.selector_estimator_neo import NostARHeadEstimator
 
-from selector_model.modeling_gpt_neo import GPTNeoForCausalLM, GPTNeoModel
+from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import GPTNeoForCausalLM, GPTNeoModel
 GPTNeoModel.init_weights = lambda *args, **kwargs: None
 GPTNeoForCausalLM.init_weights = lambda *args, **kwargs: None
 

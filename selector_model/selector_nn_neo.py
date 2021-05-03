@@ -17,8 +17,8 @@ from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import (
     GPTNeoForCausalLM,
 )
 
-import stable_library_code.transformers.gpt2.partial_forward.partial_forward as gpt2_partial_forward
-import stable_library_code.transformers.gpt_neo.partial_forward.partial_forward as gpt_neo_partial_forward
+from stable_library_code.transformers.gpt2.partial_forward.partial_forward import partial_forward as gpt2_partial_forward
+from stable_library_code.transformers.gpt_neo.partial_forward.partial_forward import partial_forward as gpt_neo_partial_forward
 
 GPT2TokenizerType = Union[GPT2Tokenizer, GPT2TokenizerFast]
 GPTConfigType = Union[GPT2Config, GPTNeoConfig]

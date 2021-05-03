@@ -15,7 +15,7 @@ V9_1R3 = True
 V9_1R4 = True
 V10 = True
 V10_1 = True
-V11 = True # !! -- gptneo, th
+V11 = True  # !! -- gptneo, th
 
 USE_AUTOREVIEWER = True
 AUTOREVIEWER_CUTOFFS = {
@@ -93,21 +93,17 @@ if V11:
     gs_command_get_selector = (
         f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v11_selector/* /selector/v11/"
     )
-    gs_command_get_sentiment = gs_command_get_selector = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v11_sentiment/* /sentiment/v11/"
-    )
-    gs_command_get_autoreviewer = gs_command_get_selector = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v11/* /draft_autoreviewer"
-    )
+    gs_command_get_sentiment = (
+        gs_command_get_selector
+    ) = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v11_sentiment/* /sentiment/v11/"
+    gs_command_get_autoreviewer = (
+        gs_command_get_selector
+    ) = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v11/* /draft_autoreviewer"
 elif V10_1:
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_1_nost_tuning_f/model-141.hdf5 /models/autoresponder_v10_1/"
 
-    gs_command_get_selector = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_selector/* /selector/v10_1/"
-    )
-    gs_command_get_sentiment = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_sentiment/* /sentiment/v10_1/"
-    )
+    gs_command_get_selector = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_selector/* /selector/v10_1/"
+    gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_sentiment/* /sentiment/v10_1/"
     gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10_1/* /draft_autoreviewer/v10_1/"
 else:
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/model-135.hdf5 /models/autoresponder_v10/"
@@ -115,9 +111,7 @@ else:
     gs_command_get_selector = (
         f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/* /selector/v10/"
     )
-    gs_command_get_sentiment = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
-    )
+    gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
     gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10/* /draft_autoreviewer/v10/"
 
 length_select = 825
@@ -179,16 +173,16 @@ else:
 
 BREAKRUNS = True
 BREAKRUNS_TAU = 0.01  # 0.03
-BREAKRUNS_DECAY = 0.
+BREAKRUNS_DECAY = 0.0
 
 temperature = 0.9  # 0.85
 top_k = 0
 top_p = 0.95
 middle_p = 0
 
-FIRST_STEP_BREAKRUNS=True  # disable via tau=0
-FIRST_STEP_BREAKRUNS_TAU=0.
-FIRST_STEP_BREAKRUNS_DECAY=0.
+FIRST_STEP_BREAKRUNS = True  # disable via tau=0
+FIRST_STEP_BREAKRUNS_TAU = 0.0
+FIRST_STEP_BREAKRUNS_DECAY = 0.0
 
 MIRO_V2 = False
 MIRO_TRUNC = 2000  # unused in MIRO_V2
@@ -331,7 +325,7 @@ if SELECT_VIA_GENERATOR_LONGLENGTH:
 if SENTIMENT_VIA_GENERATOR_LONGLENGTH:
     length_sentiment = max_ctx_fits_on_gpu
 
-GPT_NEO_T = 1.
+GPT_NEO_T = 1.0
 GPT_NEO_TOP_P = 0.95
 GPT_NEO_TOP_K = 0
 GPT_NEO_MAX_LENGTH = 2048

@@ -161,7 +161,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
             self.k_proj.weight.copy_(k_weight)
             self.v_proj.weight.copy_(v_weight)
 
-            print(f"classic_init: initialized qkv from qkv_weight {qkv_weight}")
+            print(f"classic_init: initialized qkv from qkv_weight with shape {qkv_weight.shape}")
             del qkv_weight
 
     def forward(

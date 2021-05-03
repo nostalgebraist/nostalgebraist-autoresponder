@@ -29,7 +29,7 @@ import torch
 import torch.nn.functional as F
 
 from selector_model.selector_nn_neo import NostARHead, NostARHeadArchitectureParams, GPT2TokenizerType, GPTModelType, prep_inputs
-from selector_model.selector_utils_neo import NostARHeadOptimizerParams, get_nost_ar_head_optimizers, get_nost_ar_head_scheduler, cross_entropy_with_flooding
+from selector_model.selector_utils_neo import NostARHeadOptimizerParams, get_nost_ar_head_optimizers, get_nost_ar_head_scheduler, cross_entropy_with_flooding, make_huber_loss_from_logits
 from util.util import typed_namedtuple_to_dict
 
 ORIG_POST_CHAR_CHINESE = "翰"
@@ -95,18 +95,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         params: NostARHeadArchitectureParams,
         opt_params: NostARHeadOptimizerParams,
         device='cuda:0',
-        use_logit_diff_basis=False,  # TODO: figure these out for sentiment
-        use_only_logit_diff=False,  # TODO: figure these out for sentiment
         length=None,
-        uid_override=None,
-        supervise_logits=False,  # TODO: figure these out for sentiment
-        supervise_only_logit_diff=False,  # TODO: figure these out for sentiment
+        regression_target=False,
         calibrate=True,
         calibration_val_size=0.1,
         calibration_split_type="ttsp",
         evaluate_during_training=True,
-        huber=False,  # TODO: figure these out for sentiment
-        huber_delta=1.0,  # TODO: figure these out for sentiment
+        huber_delta=1.0,
         flooding=True,
         flood_level=0.0,
         cleanup_on_exception=True,
@@ -121,21 +116,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.params = params
         self.opt_params = opt_params
 
-        self.use_logit_diff_basis = use_logit_diff_basis
-        self.use_only_logit_diff = use_only_logit_diff
-
         self.length = length
 
-        self.uid_override = uid_override
-
-        self.supervise_logits = supervise_logits
-        self.supervise_only_logit_diff = supervise_only_logit_diff
-        if (
-            self.supervise_logits
-            and self.supervise_only_logit_diff
-            and not self.use_only_logit_diff
-        ):
-            self.use_logit_diff_basis = True
+        self.regression_target = regression_target
 
         self.calibrate = calibrate
         self.calibration_val_size = calibration_val_size
@@ -143,7 +126,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         self.evaluate_during_training = evaluate_during_training
 
-        self.huber = huber
         self.huber_delta = huber_delta
         self.flooding = flooding
         self.flood_level = flood_level
@@ -154,27 +136,16 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.use_amp_training = use_amp_training
         self.pad_to_mult = pad_to_mult
 
-        self.uid_ = None
-        self.train_vars_ = None
-        self.decay_vars_ = None
-        self.selection_step_train_ = None
-        self.selection_step_eval_ = None
-        self.select_logits_train_ = None
-        self.select_logits_eval_ = None
-        self.select_target_ = None
-        self.select_loss_ = None
         self.target_cols_ = None
 
         self.lr_ = None
-        self.opt_ = None
-        self.lr_calib_ = None
-        self.n_head_ = None
-        self.last_best_val_metric_ = None
-        self.gradient_accumulator_ = None
-        self.opt_reset_ = None
-        self.opt_add_gradients_ = None
-
+        self.opt_decay_ = None
+        self.opt_no_decay_ = None
+        self.sched_decay_ = None
+        self.sched_no_decay_ = None
         self.scaler_ = None
+
+        self.lr_calib_ = None
 
         self.X_train_, self.y_train_, self.X_val_, self.y_val_ = None, None, None, None
 
@@ -208,8 +179,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             return
 
         print("creating loss fn")
-        if self.supervise_logits:
-            raise NotImplementedError
+        if self.regression_target:
+            self.loss_fn = make_huber_loss_from_logits(huber_delta=self.huber_delta)
         else:
             self.loss_fn = F.cross_entropy
             if self.flooding:
@@ -633,7 +604,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
     def predict(self, X):
         # TODO: make this less of a shitty hack
-        return self._predict(X, key="preds" if not self.supervise_logits else "logits")
+        return self._predict(X, key="preds" if not self.regression_target else "logits")
 
     def predict_proba(self, X):
         return self._predict(X, key="probs")

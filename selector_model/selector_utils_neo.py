@@ -115,3 +115,10 @@ def cross_entropy_with_flooding(input, target, flood_level):
     loss_flooded = torch.abs(loss_unreduced - flood_level) + flood_level
     loss_reduced = loss_flooded.mean()
     return loss_reduced
+
+
+def make_huber_loss_from_logits(huber_delta):
+    def huber_loss_from_logits(input, target):
+        logit_diff = input[:, 1] - input[:, 0]
+        return F.smooth_l1_loss(input=logit_diff, target=target, beta=huber_delta)
+    return huber_loss_from_logits

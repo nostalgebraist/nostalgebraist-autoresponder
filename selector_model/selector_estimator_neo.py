@@ -6,6 +6,7 @@ import os
 import json
 import gc
 import weakref
+from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -29,7 +30,7 @@ import torch.nn.functional as F
 from transformers.models.gpt_neo.modeling_gpt_neo import GPTNeoForCausalLM
 
 from selector_model.selector_nn_neo import NostARHead, NostARHeadArchitectureParams, GPT2TokenizerType, prep_inputs
-from selector_model.selector_utils_neo import NostARHeadOptimizerParams, get_nost_ar_head_optimizers, get_nost_ar_head_scheduler
+from selector_model.selector_utils_neo import NostARHeadOptimizerParams, get_nost_ar_head_optimizers, get_nost_ar_head_scheduler, cross_entropy_with_flooding
 from util.util import typed_namedtuple_to_dict
 
 ORIG_POST_CHAR_CHINESE = "翰"
@@ -107,7 +108,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         evaluate_during_training=True,
         huber=False,  # TODO: figure these out for sentiment
         huber_delta=1.0,  # TODO: figure these out for sentiment
-        flooding=False,  # TODO: implement
+        flooding=True,
         flood_level=0.0,  # TODO: implement
         classic_init=False,  # TODO: implement
         cleanup_on_exception=True,
@@ -214,9 +215,10 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             raise NotImplementedError
         else:
             self.loss_fn = F.cross_entropy
+            if self.flooding:
+                self.loss_fn = partial(cross_entropy_with_flooding, flood_level=self.flood_level)
 
         # opt stuff
-
         print("creating opt")
         self.opt_decay_, self.opt_no_decay_ = get_nost_ar_head_optimizers(
             self.model_,

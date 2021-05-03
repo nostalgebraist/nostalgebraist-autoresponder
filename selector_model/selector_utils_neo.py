@@ -3,6 +3,7 @@ from typing import NamedTuple
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 
 NostARHeadOptimizerParams = NamedTuple(
@@ -86,3 +87,8 @@ def get_nost_ar_head_scheduler(
     )
 
     return torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda=lr_lambda)
+
+
+def cross_entropy_with_flooding(input, target, flood_level):
+    loss_unreduced = F.cross_entropy(input, target, reduction='none')
+    return torch.abs(loss_unreduced - flood_level) + flood_level

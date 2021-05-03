@@ -1,5 +1,6 @@
 from typing import List
-from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import *
+import torch
+# from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import *
 
 
 def partial_forward(
@@ -46,16 +47,7 @@ def partial_forward(
         attention_mask = attention_mask.to(dtype=model.dtype)  # fp16 compatibility
         attention_mask = (1.0 - attention_mask) * -10000.0
 
-    # If a 2D ou 3D attention mask is provided for the cross-attention
-    # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
-    if model.config.add_cross_attention and encoder_hidden_states is not None:
-        encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.size()
-        encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
-        if encoder_attention_mask is None:
-            encoder_attention_mask = torch.ones(encoder_hidden_shape, device=device)
-        encoder_attention_mask = model.invert_attention_mask(encoder_attention_mask)
-    else:
-        encoder_attention_mask = None
+    encoder_attention_mask = None
 
     # Prepare head mask if needed
     # 1.0 in head_mask indicate we keep the head
@@ -82,10 +74,7 @@ def partial_forward(
             layer_past=layer_past,
             attention_mask=attention_mask,
             head_mask=head_mask[i],
-            encoder_hidden_states=encoder_hidden_states,
             encoder_attention_mask=encoder_attention_mask,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
         )
 
         hidden_states = outputs[0]

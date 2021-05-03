@@ -60,7 +60,7 @@ else:
 
 if V11:
     model_name = "neo_ar_2_7B_v0_nost_tuning_f"
-    model_path = os.path.join("models", model_name)
+    model_path = os.path.join("/", model_name)
 elif V10_1:
     model_name = "autoresponder_v10_1"
     model_path = os.path.join("models", model_name, "model-141.hdf5")

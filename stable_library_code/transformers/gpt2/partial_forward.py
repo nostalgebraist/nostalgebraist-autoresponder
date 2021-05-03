@@ -63,14 +63,9 @@ def partial_forward(
     # head_mask has shape n_layer x batch x n_heads x N x N
     head_mask = model.get_head_mask(head_mask, model.config.n_layer)
 
-    if inputs_embeds is None:
-        inputs_embeds = model.wte(input_ids)
+    inputs_embeds = model.wte(input_ids)
     position_embeds = model.wpe(position_ids)
     hidden_states = inputs_embeds + position_embeds
-
-    if token_type_ids is not None:
-        token_type_embeds = model.wte(token_type_ids)
-        hidden_states = hidden_states + token_type_embeds
 
     hidden_states = model.drop(hidden_states)
 

@@ -93,15 +93,19 @@ def load_generator_model(
     retries=False,
 ):
     # TODO: make the model class appropriate for the config settings (gpt2 vs gptneo)
+
+    model_class = GPTNeoForCausalLM if V11 else GPT2LMHeadModel
+    config_class = GPTNeoConfig if V11 else GPT2Config
+
     state_dict = torch.load(
         os.path.join(path, "pytorch_model.bin"),
         map_location=torch.device(device),
     )
 
-    transformers_model = GPTNeoForCausalLM.from_pretrained(
+    transformers_model = model_class.from_pretrained(
         None,
         state_dict=state_dict,
-        config=GPTNeoConfig.from_pretrained(path),
+        config=config_class.from_pretrained(path),
     )
     transformers_model = transformers_model.to(device)
 

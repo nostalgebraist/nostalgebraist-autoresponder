@@ -108,14 +108,14 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         huber=False,  # TODO: figure these out for sentiment
         huber_delta=1.0,  # TODO: figure these out for sentiment
         flooding=True,
-        flood_level=0.0,  # TODO: implement
-        classic_init=False,  # TODO: implement
+        flood_level=0.0,
         cleanup_on_exception=True,
         show_running_loss=True,
         use_amp_in_base_forward=False,
         use_amp_training=False,
         pad_to_mult=256,
         classic_behavior_lr_sched=True,
+        classic_behavior_attn_init=False,  # TODO: implement
     ):
         self.device = device
         self._base_model = weakref.ref(base_model)
@@ -149,7 +149,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.huber_delta = huber_delta
         self.flooding = flooding
         self.flood_level = flood_level
-        self.classic_init = classic_init
         self.cleanup_on_exception = cleanup_on_exception
         self.show_running_loss = show_running_loss
 
@@ -158,6 +157,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.pad_to_mult = pad_to_mult
 
         self.classic_behavior_lr_sched = classic_behavior_lr_sched
+        self.classic_behavior_attn_init = classic_behavior_attn_init
+        if self.classic_behavior_attn_init:
+            raise NotImplementedError
 
         self.uid_ = None
         self.train_vars_ = None

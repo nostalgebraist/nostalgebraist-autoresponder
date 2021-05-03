@@ -20,6 +20,10 @@ from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import GPTNeoForC
 GPTNeoModel.init_weights = lambda *args, **kwargs: None
 GPTNeoForCausalLM.init_weights = lambda *args, **kwargs: None
 
+from stable_library_code.transformers.gpt2.modeling_gpt2 import GPT2LMHeadModel, GPT2Model
+GPT2Model.init_weights = lambda *args, **kwargs: None
+GPT2LMHeadModel.init_weights = lambda *args, **kwargs: None
+
 from util.util import typed_namedtuple_to_dict
 
 

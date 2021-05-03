@@ -16,6 +16,7 @@ NostARHeadOptimizerParams = NamedTuple(
     warmup_ratio=float,
     adam_beta1=float,
     adam_beta2=float,
+    classic_behavior_lr_sched=bool
 )
 
 
@@ -92,10 +93,10 @@ def get_nost_ar_head_scheduler(
     opt: torch.optim.Optimizer,
     opt_params: NostARHeadOptimizerParams,
     data_len: int,
-    classic_behavior: bool = True,
 ):
     total_steps = opt_params.epochs * data_len // opt_params.batch_size
 
+    classic_behavior = opt_params.classic_behavior_lr_sched
     sched_fn = classic_cosine_anneal_warmup_multiplier if classic_behavior else cosine_anneal_warmup_multiplier
 
     lr_lambda = partial(

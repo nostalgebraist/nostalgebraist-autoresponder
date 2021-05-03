@@ -266,7 +266,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 else data_batch[self.target_cols_[0]].values
             )
 
-            batch_target = torch.as_tensor(batch_target).pin_memory().to(self.device)
+            batch_target = torch.as_tensor(batch_target, dtype=torch.float).pin_memory().to(self.device)
 
             epoch_data.append(
                 {

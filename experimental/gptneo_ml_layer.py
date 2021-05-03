@@ -52,14 +52,13 @@ def load_from_gdrive_with_gs_fallback(
     print(f"local_gdrive_path: {local_gdrive_path}")
     print(f"local_gs_path: {local_gs_path}")
 
-    enclosing_dir = local_gs_path
-    os.makedirs(enclosing_dir, exist_ok=True)
+    os.makedirs(local_gs_path, exist_ok=True)
 
-    enclosing_dir_exists = os.path.exists(enclosing_dir)
-    target_exists = os.path.exists(local_gs_path)
+    enclosing_dir_exists = os.path.exists(local_gs_path)
+    target_exists = len(os.listdir(local_gs_path)) > 0
 
-    print(f"local_gs: enclosing dir {enclosing_dir} exists?: {enclosing_dir_exists}")
-    print(f"local_gs: target {local_gs_path} exists?: {target_exists}")
+    print(f"local_gs: enclosing dir {local_gs_path} exists?: {enclosing_dir_exists}")
+    print(f"local_gs: enclosing {local_gs_path} non-empty?: {target_exists}")
 
     if not target_exists:
         try:

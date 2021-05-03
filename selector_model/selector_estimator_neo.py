@@ -349,9 +349,12 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             self.sched_no_decay_.step()
 
             loss_float = None
+            cur_lr = None
             if self.show_running_loss:
                 loss_float = loss.detach().item()
                 all_losses.append(loss_float)
+
+                cur_lr = self.sched_decay_.state_dict()['_last_lr'][0]
 
             del loss
             del logits
@@ -371,7 +374,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             step_iter.set_postfix(
                 loss=loss_float,
                 loss_avg=running_loss,
-                # lr=cur_lr,
+                lr=cur_lr,
                 refresh=False,
                 **extra_postfixes,
             )

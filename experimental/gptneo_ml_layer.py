@@ -77,7 +77,7 @@ def load_from_gdrive_with_gs_fallback(
 
 
 def load_tokenizer():
-    tokenizer = AutoTokenizer.from_pretrained("gpt2", max_model_len=2048)
+    tokenizer = AutoTokenizer.from_pretrained("gpt2", max_model_len=2048 if V11 else 1024)
     tokenizer.add_special_tokens({'pad_token': '<|padding|>'})
     return tokenizer
 

@@ -21,7 +21,8 @@ def partial_forward(
     if position_ids is not None:
         position_ids = position_ids.view(-1, input_shape[-1])
 
-    past_length = past_key_values[0][0].size(-2)
+    past_length = 0
+    past_key_values = tuple([None] * len(self.h))
     if position_ids is None:
         position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=device)
         position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])

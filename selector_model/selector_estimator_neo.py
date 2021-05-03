@@ -27,9 +27,8 @@ import scipy.stats
 
 import torch
 import torch.nn.functional as F
-from transformers.models.gpt_neo.modeling_gpt_neo import GPTNeoForCausalLM
 
-from selector_model.selector_nn_neo import NostARHead, NostARHeadArchitectureParams, GPT2TokenizerType, prep_inputs
+from selector_model.selector_nn_neo import NostARHead, NostARHeadArchitectureParams, GPT2TokenizerType, GPTModelType, prep_inputs
 from selector_model.selector_utils_neo import NostARHeadOptimizerParams, get_nost_ar_head_optimizers, get_nost_ar_head_scheduler, cross_entropy_with_flooding
 from util.util import typed_namedtuple_to_dict
 
@@ -91,7 +90,7 @@ def reshuffle_batches(train_data_for_selection, batch_size):
 class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
     def __init__(
         self,
-        base_model: GPTNeoForCausalLM,  # TODO: make compat with GPTNeoModel, etc?
+        base_model: GPTModelType,
         tokenizer: GPT2TokenizerType,
         params: NostARHeadArchitectureParams,
         opt_params: NostARHeadOptimizerParams,

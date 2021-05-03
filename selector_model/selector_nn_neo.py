@@ -336,7 +336,9 @@ class NostARHead(nn.Module):
         mlp_intermediate_size = int(mlp_input_size * self.params.mlp_ratio)
 
         self.mlp = NostARHeadMLP(
-            input_size=mlp_input_size, intermediate_size=mlp_intermediate_size
+            input_size=mlp_input_size,
+            intermediate_size=mlp_intermediate_size,
+            res_dropout=self.params.res_dropout,
         )
 
         self.logit_head = nn.Linear(mlp_input_size, 2)

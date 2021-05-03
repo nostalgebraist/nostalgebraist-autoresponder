@@ -150,6 +150,19 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         self.q_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
         self.out_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)
 
+    def classic_init(self, gain: float = 1.):
+        qkv_weight = torch.empty(self.embed_dim, 3 * self.embed_dim)
+        nn.init.orthogonal_(qkv_weight, gain)
+
+        q_weight, k_weight, v_weight = torch.split(qkv_weight, 3, dim=-1)
+
+        self.q_proj.weight.copy_(q_weight)
+        self.k_proj.weight.copy_(k_weight)
+        self.v_proj.weight.copy_(v_weight)
+
+        print(f"classic_init: initialized qkv from qkv_weight {qkv_weight}")
+        del qkv_weight
+
     def forward(
         self,
         hidden_states,
@@ -228,6 +241,7 @@ NostARHeadArchitectureParams = NamedTuple(
     res_dropout=float,
     init_gain=float,
     init_gain_logit_head=float,
+    classic_behavior_attn_init=bool
 )
 
 
@@ -288,15 +302,19 @@ class NostARHead(nn.Module):
             print(
                 f"initialized logit_head with gain {self.params.init_gain_logit_head:.2f}"
             )
+        elif any([module is m for m in self.attns]) and self.params.classic_behavior_attn_init:
+            print(f"calling classic init for {repr(module)} with gain {self.params.init_gain:.2f}")
+            module.classic_init(gain=self.params.init_gain)
         elif isinstance(module, (nn.Linear,)):
+            print(
+                f"initialized {repr(module)} with gain {self.params.init_gain:.2f}"
+            )
             nn.init.orthogonal_(module.weight, gain=self.params.init_gain)
             if module.bias is not None:
                 module.bias.data.zero_()
         elif isinstance(module, nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
-        else:
-            print(f"not overriding default initialization for module {repr(module)}")
 
     def _setup_attns(self):
         self.attns = nn.ModuleList(

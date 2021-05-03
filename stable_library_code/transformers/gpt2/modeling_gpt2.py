@@ -47,7 +47,7 @@ from transformers.modeling_utils import (
 )
 from transformers.utils import logging
 from transformers.utils.model_parallel_utils import assert_device_map, get_device_map
-from transformers.models.gpt2.configuration_gpt2 import GPT2Config
+from .configuration_gpt2 import GPT2Config
 
 
 logger = logging.get_logger(__name__)

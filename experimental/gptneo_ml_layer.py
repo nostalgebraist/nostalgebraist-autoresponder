@@ -7,7 +7,7 @@ import requests
 import torch
 import numpy as np
 from transformers import AutoTokenizer
-from transformers.models.gpt2.configuration_gpt2 import GPT2Config
+from stable_library_code.transformers.gpt2.configuration_gpt2 import GPT2Config
 from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 
 from autoresponder_config import *

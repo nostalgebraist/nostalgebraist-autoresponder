@@ -145,9 +145,9 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
         self.ln = nn.LayerNorm(self.embed_dim, eps=layer_norm_epsilon)
 
-        self.k_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=False)
-        self.v_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=False)
-        self.q_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=False)
+        self.k_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
+        self.v_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
+        self.q_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
         self.out_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)
 
     def forward(

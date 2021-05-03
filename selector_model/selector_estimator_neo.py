@@ -248,6 +248,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         steps = len(data) // self.opt_params.batch_size
 
         # data pass
+        target_dtype = torch.float if self.regression_target else torch.long
+
         row_ix = 0
         step_iter = tqdm(
             list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=3
@@ -266,7 +268,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 else data_batch[self.target_cols_[0]].values
             )
 
-            batch_target = torch.as_tensor(batch_target, dtype=torch.float).pin_memory().to(self.device)
+            batch_target = torch.as_tensor(batch_target, dtype=target_dtype).pin_memory().to(self.device)
 
             epoch_data.append(
                 {

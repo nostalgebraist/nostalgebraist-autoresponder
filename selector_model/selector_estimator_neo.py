@@ -232,13 +232,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.sched_decay_ = get_nost_ar_head_scheduler(
             self.opt_decay_,
             self.opt_params,
-            len(X) // self.opt_params.batch_size,
+            self.opt_params.epochs * len(X) // self.opt_params.batch_size,
         )
 
         self.sched_no_decay_ = get_nost_ar_head_scheduler(
             self.opt_no_decay_,
             self.opt_params,
-            len(X) // self.opt_params.batch_size,
+            self.opt_params.epochs * len(X) // self.opt_params.batch_size,
         )
 
         self.scaler_ = torch.cuda.amp.GradScaler(enabled=self.use_amp_training)

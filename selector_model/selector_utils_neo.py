@@ -43,6 +43,21 @@ def cosine_anneal_warmup_multiplier(
     return mult1 * mult2
 
 
+def classic_cosine_anneal_warmup_multiplier(
+    step,
+    total_steps,
+    warmup_steps,
+    min_value_warmup=0,
+    min_value_decay=0,
+):
+    mult1 = warmup_multiplier(step, warmup_steps, min_value=min_value_warmup)
+
+    cos_mult__decay_to_zero = cosine_anneal_multiplier(step, total_steps, min_value=0.)
+    mult2 = np.clip(cos_mult__decay_to_zero, a_min=min_value_decay, a_max=None)
+
+    return np.where(step <= warmup_steps, mult1, mult2)
+
+
 def get_nost_ar_head_optimizers(
     model, opt_params: NostARHeadOptimizerParams
 ):
@@ -74,12 +89,17 @@ def get_nost_ar_head_optimizers(
 
 
 def get_nost_ar_head_scheduler(
-    opt: torch.optim.Optimizer, opt_params: NostARHeadOptimizerParams, data_len: int
+    opt: torch.optim.Optimizer,
+    opt_params: NostARHeadOptimizerParams,
+    data_len: int,
+    classic_behavior: bool = True,
 ):
     total_steps = opt_params.epochs * data_len // opt_params.batch_size
 
+    sched_fn = classic_cosine_anneal_warmup_multiplier if classic_behavior else cosine_anneal_warmup_multiplier
+
     lr_lambda = partial(
-        cosine_anneal_warmup_multiplier,
+        sched_fn,
         total_steps=total_steps,
         warmup_steps=opt_params.warmup_ratio * total_steps,
         min_value_warmup=0.0,

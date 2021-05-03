@@ -114,7 +114,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         show_running_loss=True,
         use_amp_in_base_forward=False,
         use_amp_training=False,
-        pad_to_mult=256
+        pad_to_mult=256,
+        classic_behavior_lr_sched=True,
     ):
         self.device = device
         self._base_model = weakref.ref(base_model)
@@ -155,6 +156,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.use_amp_in_base_forward = use_amp_in_base_forward
         self.use_amp_training = use_amp_training
         self.pad_to_mult = pad_to_mult
+
+        self.classic_behavior_lr_sched = classic_behavior_lr_sched
 
         self.uid_ = None
         self.train_vars_ = None
@@ -227,13 +230,15 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.sched_decay_ = get_nost_ar_head_scheduler(
             self.opt_decay_,
             self.opt_params,
-            len(X) // self.opt_params.batch_size
+            len(X) // self.opt_params.batch_size,
+            classic_behavior=self.classic_behavior_lr_sched
         )
 
         self.sched_no_decay_ = get_nost_ar_head_scheduler(
             self.opt_no_decay_,
             self.opt_params,
-            len(X) // self.opt_params.batch_size
+            len(X) // self.opt_params.batch_size,
+            classic_behavior=self.classic_behavior_lr_sched
         )
 
         self.scaler_ = torch.cuda.amp.GradScaler(enabled=self.use_amp_training)

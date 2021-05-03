@@ -16,8 +16,8 @@
 """ OpenAI GPT-2 configuration """
 """Copied from transformers library @ commit b24ead87e1be6bce17e4ec5c953b6d028e4b3af7 -nost"""
 
-from ...configuration_utils import PretrainedConfig
-from ...utils import logging
+from transformers.configuration_utils import PretrainedConfig
+from transformers.utils import logging
 
 
 logger = logging.get_logger(__name__)

@@ -91,4 +91,6 @@ def get_nost_ar_head_scheduler(
 
 def cross_entropy_with_flooding(input, target, flood_level):
     loss_unreduced = F.cross_entropy(input, target, reduction='none')
-    return torch.abs(loss_unreduced - flood_level) + flood_level
+    loss_flooded = torch.abs(loss_unreduced - flood_level) + flood_level
+    loss_reduced = loss_flooded.mean()
+    return loss_reduced

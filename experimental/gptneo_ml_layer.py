@@ -92,6 +92,7 @@ def load_generator_model(
     device="cuda:0",
     retries=False,
 ):
+    # TODO: make the model class appropriate for the config settings (gpt2 vs gptneo)
     state_dict = torch.load(
         os.path.join(path, "pytorch_model.bin"),
         map_location=torch.device(device),

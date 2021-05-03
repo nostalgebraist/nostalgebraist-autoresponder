@@ -320,6 +320,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             batch_max_tokens = batch_data["batch_max_tokens"]
             batch_target = batch_data["batch_target"]
 
+            # TODO: figure out whether we need logits in float32 explicitly
             with torch.cuda.amp.autocast(enabled=self.use_amp_training):
                 logits = self.model_(
                     input_ids=input_ids,
@@ -567,12 +568,14 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             raise ValueError("badlength")
         input_ids, attention_mask, input_ids_with_pads, _ = self._feed_from_batch(batch)
 
-        logits = self.model_(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            input_ids_with_pads=input_ids_with_pads,
-            use_amp_in_base_forward=self.use_amp_in_base_forward,
-        ).cpu().detach().numpy()
+        # TODO: figure out whether we need logits in float32 explicitly
+        with torch.cuda.amp.autocast(enabled=self.use_amp_training):
+            logits = self.model_(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                input_ids_with_pads=input_ids_with_pads,
+                use_amp_in_base_forward=self.use_amp_in_base_forward,
+            ).cpu().detach().numpy()
 
         probs_raw = scipy.special.softmax(logits, axis=1)
 

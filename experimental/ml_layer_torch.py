@@ -158,7 +158,7 @@ generator_model = load_from_gdrive_with_gs_fallback(
 )
 
 selector_est = load_from_gdrive_with_gs_fallback(
-    load_fn=partial(load_selector, base_model=generator_model.transformers_model()),
+    load_fn=partial(load_selector, base_model=generator_model.transformers_model),
     relative_path=ckpt_select.rpartition("/")[0],  # TODO: redefine ckpt_select
     gs_command=gs_command_get_selector,
     tokenizer=tokenizer,
@@ -170,7 +170,7 @@ lr_calib_orig = selector_est.lr_calib_
 
 
 sentiment_est = load_from_gdrive_with_gs_fallback(
-    load_fn=partial(load_selector, base_model=generator_model.transformers_model()),
+    load_fn=partial(load_selector, base_model=generator_model.transformers_model),
     relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
     gs_command=gs_command_get_sentiment,
     tokenizer=tokenizer,
@@ -180,7 +180,7 @@ sentiment_est.length = length_sentiment
 lr_calib_sentiment = selector_est.lr_calib_
 
 autoreviewer_est = load_from_gdrive_with_gs_fallback(
-    load_fn=partial(load_selector, base_model=generator_model.transformers_model()),
+    load_fn=partial(load_selector, base_model=generator_model.transformers_model),
     relative_path=ckpt_autoreviewer.rpartition("/")[0],  # TODO: redefine ckpt_select
     gs_command=gs_command_get_autoreviewer,
     tokenizer=tokenizer,

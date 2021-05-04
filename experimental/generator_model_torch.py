@@ -29,16 +29,13 @@ class GeneratorModelTorch:
         device="cuda:0",
         sampling_params: SamplingParams = GPT_NEO_DEFAULT_SAMPLING_PARAMS,
     ):
-        transformers_model = transformers_model.to(device)
-        self._transformers_model = weakref.ref(transformers_model)
+        self.transformers_model = transformers_model
         self.tokenizer = tokenizer
         self.batch_size = batch_size
         self.device = device
         self.sampling_params = sampling_params
 
-    @property
-    def transformers_model(self):
-        return self._transformers_model()
+        self.transformers_model = self.transformers_model.to(device)
 
     def write_random_prompt(
         self, prompts: list, probs: list, verbose=False

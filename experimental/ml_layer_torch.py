@@ -284,7 +284,7 @@ def poll(
                 "ckpt_sentiment": ckpt_sentiment,
                 "ckpt_autoreviewer": ckpt_autoreviewer,
                 "hparams_select": typed_namedtuple_to_dict(selector_est.params),
-                "hparams_select_sentiment": {},  # typed_namedtuple_to_dict(sentiment_est.params),
+                "hparams_select_sentiment": typed_namedtuple_to_dict(sentiment_est.params),
                 "sampling_info": sampling_info,
             }
             RESULT_STACK[prompt_id]["model_info"] = model_info

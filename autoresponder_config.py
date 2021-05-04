@@ -19,10 +19,23 @@ V10_1_torch = True  # !!
 V11 = True  # !!!! -- gptneo, th
 
 USE_AUTOREVIEWER = True
-AUTOREVIEWER_CUTOFFS = {
-    "accept_below": 0.145,  # v10_1/v11: predict true accept rate: ~40%, false accept rate ~6.7%
-    "reject_above": 0.541,  # v10_1/v11: predict true reject rate: ~49%, false reject rate ~6%
-}
+if V11:
+    # TODO: fill
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.158,  # v11/v11: predict true accept rate: ~50%, false accept rate ~6.7%
+        "reject_above": 0.461,  # v11/v11: predict true reject rate: ~59%, false reject rate ~5%
+    }
+elif V10_1_torch:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.158,  # v10_1_torch/v1: predict true accept rate: ~38%, false accept rate ~6.7%
+        "reject_above": 0.467,  # v10_1_torch/v1: predict true reject rate: ~54%, false reject rate ~6%
+    }
+
+else:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.145,  # v10_1/v11: predict true accept rate: ~40%, false accept rate ~6.7%
+        "reject_above": 0.541,  # v10_1/v11: predict true reject rate: ~49%, false reject rate ~6%
+    }
 
 bot_specific_constants = BotSpecificConstants.load()
 BUCKET_NAME = bot_specific_constants.BUCKET_NAME

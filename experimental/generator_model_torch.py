@@ -20,7 +20,7 @@ def is_repeating_criterion(unique_token_frac):
     return unique_token_frac < 0.2
 
 
-class GPTNeoGeneratorModel:
+class GeneratorModelTorch:
     def __init__(
         self,
         transformers_model,
@@ -87,13 +87,12 @@ class GPTNeoGeneratorModel:
 
     @staticmethod
     def load(
-        path,
         transformers_model,
         tokenizer,
         batch_size,
         device="cuda:0",
         sampling_params: SamplingParams = GPT_NEO_DEFAULT_SAMPLING_PARAMS,
-    ) -> "GPTNeoGeneratorModel":
+    ) -> "GeneratorModelTorch":
 
         model = GeneratorModel(
             transformers_model=transformers_model,

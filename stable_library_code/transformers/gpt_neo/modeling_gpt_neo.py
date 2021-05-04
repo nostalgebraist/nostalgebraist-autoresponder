@@ -745,6 +745,23 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
+        print(f"use_cache: {use_cache}")
+
+        if input_ids is not None:
+            print(f"input_ids: {input_ids.shape}")
+        else:
+            print("input_ids: None")
+        if attention_mask is not None:
+            print(f"attention_mask: {attention_mask.shape}")
+        else:
+            print("attention_mask: None")
+        if past_key_values is not None:
+            print(f"past_key_values: {len(past_key_values)} entries")
+            print(f"past_key_values: key shape {past_key_values[0][0].shape}")
+            print(f"past_key_values: value shape {past_key_values[0][0].shape}")
+        else:
+            print("past_key_values: None")
+
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
         elif input_ids is not None:

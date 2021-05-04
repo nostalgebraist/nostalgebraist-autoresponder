@@ -44,24 +44,46 @@ class GeneratorModelTorch:
         return self.write(prompt=prompt, verbose=verbose)
 
     def write(self, prompt: str, verbose=False):
+        max_context_size = GPT_NEO_MAX_LENGTH - required_continuation_room
+
         batch_pr = [prompt for _ in range(self.batch_size)]
+        batch_pr_tokens = self.tokenizer(batch_pr, truncation=True, max_length=max_context_size)['input_ids']
 
-        input_ids = self.tokenizer(batch_pr, truncation=True, max_length=GPT_NEO_MAX_LENGTH)['input_ids']
-        prompt_end_ix = len(input_ids[0])
+        continuations_tokens = batch_pr_tokens
+        n_orig_prompt_tokens = len(continuations_tokens[0])
+        n_continuations_tokens = len(continuations_tokens[0]) - n_orig_prompt_tokens
+        done = n_continuations_tokens < MAX_CONTINUE_TOKENS
+        print(f"done: {done}, n_continuations_tokens={n_continuations_tokens}, len(continuations_tokens[0])={len(continuations_tokens[0])}, n_orig_prompt_tokens={n_orig_prompt_tokens}")
 
-        input_ids_th = torch.as_tensor(input_ids).to(self.device)
+        while not done:
+            input_ids = self.tokenizer(batch_pr, truncation=True, max_length=max_context_size)['input_ids']
+            prompt_end_ix = len(input_ids[0])
 
-        out = self.transformers_model.generate(
-            input_ids=input_ids_th,
-            do_sample=True,
-            top_p=self.sampling_params.top_p,
-            temperature=self.sampling_params.temperature,
-            top_k=self.sampling_params.top_k,
-            max_length=GPT_NEO_MAX_LENGTH,
-            pad_token_id=self.tokenizer.pad_token_id,
-        )
+            input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
-        continuations_ = [self.tokenizer.decode(o[prompt_end_ix:]) for o in out]
+            out = self.transformers_model.generate(
+                input_ids=input_ids_th,
+                do_sample=True,
+                top_p=self.sampling_params.top_p,
+                temperature=self.sampling_params.temperature,
+                top_k=self.sampling_params.top_k,
+                max_length=GPT_NEO_MAX_LENGTH,
+                pad_token_id=self.tokenizer.pad_token_id,
+            )
+
+            next_prompts = []
+            for i, o in enumerate(out):
+                continuations_tokens[i].extend(o[prompt_end_ix:])
+
+                next_prompt_tokens = continuations_tokens[i][-max_context_size:]
+                next_prompt = self.tokenizer.decode(next_prompt_tokens)
+                next_prompts.append(next_prompt)
+            n_continuations_tokens = len(continuations_tokens[0]) - n_orig_prompt_tokens
+            done = n_continuations_tokens < MAX_CONTINUE_TOKENS
+            print(f"done: {done}, n_continuations_tokens={n_continuations_tokens}, len(continuations_tokens[0])={len(continuations_tokens[0])}, n_orig_prompt_tokens={n_orig_prompt_tokens}")
+            print(f"next_prompt_tokens: {len(next_prompt_tokens[0])}")
+
+        continuations_ = [self.tokenizer.decode(o[n_orig_prompt_tokens:]) for o in continuations_tokens]
         mirotarg = None  # for back compat
         miro_traces = {
             "surprise": [],

@@ -344,6 +344,8 @@ GPT_NEO_TOP_P = 0.95
 GPT_NEO_TOP_K = 0
 GPT_NEO_MAX_LENGTH = 2048 if V11 else 1024
 
+head_inference_batch_size = 1 if V11 else None
+
 # V11 loads on cpu initially then transfers to gpu
 TENSOR_LOAD_DEVICE = 'cpu' if V11 else 'cuda:0'
 

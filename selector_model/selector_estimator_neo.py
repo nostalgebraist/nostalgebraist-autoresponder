@@ -652,13 +652,15 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         joblib.dump(self.lr_calib_, os.path.join(path, "lr_calib.pkl.gz"))
 
     @staticmethod
-    def load(path, base_model, tokenizer, **kwargs) -> "NostARHeadEstimator":
+    def load(path, base_model, tokenizer, inference_batch_size=None, **kwargs) -> "NostARHeadEstimator":
         with open(os.path.join(path, "metadata.json"), "r") as f:
             metadata = json.load(f)
 
         constructor_args = metadata["constructor_args"]
         constructor_args["base_model"] = base_model
         constructor_args["tokenizer"] = tokenizer
+        if inference_batch_size is not None:
+            constructor_args["opt_params"]["batch_size"] = inference_batch_size
         constructor_args["params"] = NostARHeadArchitectureParams(**constructor_args["params"])
         constructor_args["opt_params"] = NostARHeadOptimizerParams(**constructor_args["opt_params"])
         constructor_args.update(**kwargs)

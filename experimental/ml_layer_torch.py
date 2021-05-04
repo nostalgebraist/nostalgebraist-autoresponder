@@ -119,6 +119,13 @@ def load_generator_model(
     )
 
 
+def load_selector(path, base_model, tokenizer, retries=False, **kwargs):
+    selector_est = NostARHeadEstimator.load(
+        path, base_model=base_model, tokenizer=tokenizer, **kwargs
+    )
+    return selector_est
+
+
 def make_sample_done_criterion(control_seg_config):
     def sample_done_criterion(text, unique_token_frac):
         has_EOT = eot_end_segment in text
@@ -150,16 +157,8 @@ generator_model = load_from_gdrive_with_gs_fallback(
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
 )
 
-
-def load_selector(path, base_model, tokenizer, retries=False, **kwargs):
-    selector_est = NostARHeadEstimator.load(
-        path, base_model=base_model, tokenizer=tokenizer, **kwargs
-    )
-    return selector_est
-
-
 selector_est = load_from_gdrive_with_gs_fallback(
-    load_fn=partial(load_selector, base_model=generator_model.transformers_model),
+    load_fn=partial(load_selector, base_model=generator_model.transformers_model()),
     relative_path=ckpt_select.rpartition("/")[0],  # TODO: redefine ckpt_select
     gs_command=gs_command_get_selector,
     tokenizer=tokenizer,
@@ -171,7 +170,7 @@ lr_calib_orig = selector_est.lr_calib_
 
 
 sentiment_est = load_from_gdrive_with_gs_fallback(
-    load_fn=partial(load_selector, base_model=generator_model.transformers_model),
+    load_fn=partial(load_selector, base_model=generator_model.transformers_model()),
     relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
     gs_command=gs_command_get_sentiment,
     tokenizer=tokenizer,
@@ -181,7 +180,7 @@ sentiment_est.length = length_sentiment
 lr_calib_sentiment = selector_est.lr_calib_
 
 autoreviewer_est = load_from_gdrive_with_gs_fallback(
-    load_fn=partial(load_selector, base_model=generator_model.transformers_model),
+    load_fn=partial(load_selector, base_model=generator_model.transformers_model()),
     relative_path=ckpt_autoreviewer.rpartition("/")[0],  # TODO: redefine ckpt_select
     gs_command=gs_command_get_autoreviewer,
     tokenizer=tokenizer,

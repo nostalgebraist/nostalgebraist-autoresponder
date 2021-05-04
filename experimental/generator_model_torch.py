@@ -58,6 +58,7 @@ class GeneratorModelTorch:
             temperature=self.sampling_params.temperature,
             top_k=self.sampling_params.top_k,
             max_length=GPT_NEO_MAX_LENGTH,
+            pad_token_id=self.tokenizer.pad_token_id,
         )
 
         continuations_ = [self.tokenizer.decode(o[prompt_end_ix:]) for o in out]

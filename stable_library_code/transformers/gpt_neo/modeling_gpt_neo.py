@@ -427,6 +427,7 @@ class GPTNeoLocalSelfAttention(nn.Module, GPTNeoAttentionMixin):
             # we just need 1 block with block_length 1 when caching is enabled
             query = self._split_seq_length_dim_to(query, 1, 1)
         else:
+            print(f"with no past, using num_blocks={num_blocks}, block_length={block_length}")
             query = self._split_seq_length_dim_to(query, num_blocks, block_length)
 
         key = self._look_back(key, block_length, self.window_size)

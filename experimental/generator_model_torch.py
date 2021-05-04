@@ -60,7 +60,7 @@ class GeneratorModelTorch:
             max_length=GPT_NEO_MAX_LENGTH,
         )
 
-        continuations_ = [tokenizer.decode(o[prompt_end_ix:]) for o in out]
+        continuations_ = [self.tokenizer.decode(o[prompt_end_ix:]) for o in out]
         mirotarg = None  # for back compat
         miro_traces = {
             "surprise": [],

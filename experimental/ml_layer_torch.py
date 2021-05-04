@@ -163,7 +163,6 @@ selector_est = load_from_gdrive_with_gs_fallback(
     relative_path=ckpt_select.rpartition("/")[0],  # TODO: redefine ckpt_select
     gs_command=gs_command_get_selector,
     tokenizer=tokenizer,
-    batch_size=batch_size,
 )
 selector_est.length = length_select
 
@@ -176,7 +175,6 @@ sentiment_est = load_from_gdrive_with_gs_fallback(
     relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
     gs_command=gs_command_get_sentiment,
     tokenizer=tokenizer,
-    batch_size=batch_size,
 )
 sentiment_est.length = length_sentiment
 
@@ -187,7 +185,6 @@ autoreviewer_est = load_from_gdrive_with_gs_fallback(
     relative_path=ckpt_autoreviewer.rpartition("/")[0],  # TODO: redefine ckpt_select
     gs_command=gs_command_get_autoreviewer,
     tokenizer=tokenizer,
-    batch_size=batch_size,
 )
 
 

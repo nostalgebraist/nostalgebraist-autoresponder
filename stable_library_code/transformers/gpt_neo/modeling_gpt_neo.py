@@ -745,23 +745,6 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        print(f"use_cache: {use_cache}")
-
-        if input_ids is not None:
-            print(f"input_ids: {input_ids.shape}")
-        else:
-            print("input_ids: None")
-        if attention_mask is not None:
-            print(f"attention_mask: {attention_mask.shape}")
-        else:
-            print("attention_mask: None")
-        if past_key_values is not None:
-            print(f"past_key_values: {len(past_key_values)} entries")
-            print(f"past_key_values: key shape {past_key_values[0][0].shape}")
-            print(f"past_key_values: value shape {past_key_values[0][0].shape}")
-        else:
-            print("past_key_values: None")
-
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
         elif input_ids is not None:
@@ -842,69 +825,90 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
         presents = () if use_cache else None
         all_self_attentions = () if output_attentions else None
         all_hidden_states = () if output_hidden_states else None
-        for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
-            attn_type = self.config.attention_layers[i]
-            attn_mask = global_attention_mask if attn_type == "global" else local_attention_mask
+        try:
+            for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
+                attn_type = self.config.attention_layers[i]
+                attn_mask = global_attention_mask if attn_type == "global" else local_attention_mask
 
+                if output_hidden_states:
+                    all_hidden_states = all_hidden_states + (hidden_states,)
+
+                if getattr(self.config, "gradient_checkpointing", False) and self.training:
+
+                    if use_cache:
+                        logger.warning(
+                            "`use_cache=True` is incompatible with `config.gradient_checkpointing=True`. Setting "
+                            "`use_cache=False`..."
+                        )
+                        use_cache = False
+
+                    def create_custom_forward(module):
+                        def custom_forward(*inputs):
+                            # None for past_key_value
+                            return module(*inputs, use_cache, output_attentions)
+
+                        return custom_forward
+
+                    outputs = torch.utils.checkpoint.checkpoint(
+                        create_custom_forward(block),
+                        hidden_states,
+                        None,
+                        attn_mask,
+                        head_mask[i],
+                    )
+                else:
+                    outputs = block(
+                        hidden_states,
+                        layer_past=layer_past,
+                        attention_mask=attn_mask,
+                        head_mask=head_mask[i],
+                        use_cache=use_cache,
+                        output_attentions=output_attentions,
+                    )
+
+                hidden_states = outputs[0]
+                if use_cache is True:
+                    presents = presents + (outputs[1],)
+
+                if output_attentions:
+                    all_self_attentions = all_self_attentions + (outputs[2 if use_cache else 1],)
+
+            hidden_states = self.ln_f(hidden_states)
+
+            hidden_states = hidden_states.view(*output_shape)
+            # Add last hidden state
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
-            if getattr(self.config, "gradient_checkpointing", False) and self.training:
+            if not return_dict:
+                return tuple(v for v in [hidden_states, presents, all_hidden_states, all_self_attentions] if v is not None)
 
-                if use_cache:
-                    logger.warning(
-                        "`use_cache=True` is incompatible with `config.gradient_checkpointing=True`. Setting "
-                        "`use_cache=False`..."
-                    )
-                    use_cache = False
+            return BaseModelOutputWithPast(
+                last_hidden_state=hidden_states,
+                past_key_values=presents,
+                hidden_states=all_hidden_states,
+                attentions=all_self_attentions,
+            )
+        except Exception as e:
+            print('failed with the following inputs:')
+            print(f"use_cache: {use_cache}")
 
-                def create_custom_forward(module):
-                    def custom_forward(*inputs):
-                        # None for past_key_value
-                        return module(*inputs, use_cache, output_attentions)
-
-                    return custom_forward
-
-                outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(block),
-                    hidden_states,
-                    None,
-                    attn_mask,
-                    head_mask[i],
-                )
+            if input_ids is not None:
+                print(f"input_ids: {input_ids.shape}")
             else:
-                outputs = block(
-                    hidden_states,
-                    layer_past=layer_past,
-                    attention_mask=attn_mask,
-                    head_mask=head_mask[i],
-                    use_cache=use_cache,
-                    output_attentions=output_attentions,
-                )
+                print("input_ids: None")
+            if attention_mask is not None:
+                print(f"attention_mask: {attention_mask.shape}")
+            else:
+                print("attention_mask: None")
+            if past_key_values is not None:
+                print(f"past_key_values: {len(past_key_values)} entries")
+                print(f"past_key_values: key shape {past_key_values[0][0].shape}")
+                print(f"past_key_values: value shape {past_key_values[0][0].shape}")
+            else:
+                print("past_key_values: None")
 
-            hidden_states = outputs[0]
-            if use_cache is True:
-                presents = presents + (outputs[1],)
-
-            if output_attentions:
-                all_self_attentions = all_self_attentions + (outputs[2 if use_cache else 1],)
-
-        hidden_states = self.ln_f(hidden_states)
-
-        hidden_states = hidden_states.view(*output_shape)
-        # Add last hidden state
-        if output_hidden_states:
-            all_hidden_states = all_hidden_states + (hidden_states,)
-
-        if not return_dict:
-            return tuple(v for v in [hidden_states, presents, all_hidden_states, all_self_attentions] if v is not None)
-
-        return BaseModelOutputWithPast(
-            last_hidden_state=hidden_states,
-            past_key_values=presents,
-            hidden_states=all_hidden_states,
-            attentions=all_self_attentions,
-        )
+            raise e
 
 
 @add_start_docstrings(

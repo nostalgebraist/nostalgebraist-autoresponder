@@ -321,6 +321,8 @@ def loop_poll(
     while True:
         try:
             open_request_ids = poll(dummy=dummy, ports=ports, routes=routes)
+            collect_out = gc.collect()
+            print(f"gc.collect(): {collect_out}")
         except Exception as e:
             print(f"{type(e)}: {e}")
             time.sleep(period * 10)

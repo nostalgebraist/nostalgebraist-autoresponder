@@ -43,7 +43,7 @@ class GeneratorModelTorch:
         prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))
         return self.write(prompt=prompt, verbose=verbose)
 
-    def write(self, prompt: str, verbose=False):
+    def write(self, prompt: str, verbose=False, max_length_per_feed=None):
         max_context_size = GPT_NEO_MAX_LENGTH - required_continuation_room
 
         batch_pr = [prompt for _ in range(self.batch_size)]
@@ -65,7 +65,7 @@ class GeneratorModelTorch:
                 top_p=self.sampling_params.top_p,
                 temperature=self.sampling_params.temperature,
                 top_k=self.sampling_params.top_k,
-                max_length=GPT_NEO_MAX_LENGTH,
+                max_length=GPT_NEO_MAX_LENGTH if max_length_per_feed is None else max_length_per_feed,
                 pad_token_id=self.tokenizer.pad_token_id,
             )
 

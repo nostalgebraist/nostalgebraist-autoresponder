@@ -14,7 +14,7 @@ from autoresponder_config import *
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
-from experimental.gptneo_generator_model import GPTNeoGeneratorModel, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
+from experimental.generator_model_torch import GPTNeoGeneratorModel, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
 from selector_model.selector_estimator_neo import NostARHeadEstimator
 
 from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import GPTNeoForCausalLM, GPTNeoModel

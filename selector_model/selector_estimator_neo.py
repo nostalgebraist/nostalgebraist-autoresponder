@@ -217,7 +217,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             data = pd.concat([X, y], axis=1)
         if "n_tokens" not in data.columns:
             data["n_tokens"] = data.selector_input.apply(
-                lambda s: len(self.enc.encode(s))
+                lambda s: len(self.tokenizer.encode(s))
             )
         data = data.sort_values(by="n_tokens")
         data = reshuffle_batches(data, batch_size=self.opt_params.batch_size)

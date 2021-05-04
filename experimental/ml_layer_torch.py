@@ -187,6 +187,9 @@ autoreviewer_est = load_from_gdrive_with_gs_fallback(
 )
 
 
+DEPRECATED_KWARGS = {"mirotarg"}
+
+
 def poll(
     dummy=False,
     ports=[
@@ -233,6 +236,11 @@ def poll(
             requested_args, requested_kwargs = data.get("args", []), data.get(
                 "kwargs", {}
             )
+
+            for name in DEPRECATED_KWARGS:
+                if name in requested_kwargs:
+                    print(f"skipping deprecated param {name}")
+                    del requested_kwargs[name]
 
             result = getattr(requested_model, requested_method)(
                 *requested_args, **requested_kwargs

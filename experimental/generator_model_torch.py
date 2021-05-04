@@ -44,7 +44,7 @@ class GeneratorModelTorch:
         return self.write(prompt=prompt, verbose=verbose)
 
     def write(self, prompt: str, verbose=False):
-        batch_pr = [pr for _ in range(self.batch_size)]
+        batch_pr = [prompt for _ in range(self.batch_size)]
 
         input_ids = self.tokenizer(batch_pr)['input_ids']
         prompt_end_ix = len(input_ids)[0]

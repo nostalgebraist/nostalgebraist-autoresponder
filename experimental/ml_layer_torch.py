@@ -1,6 +1,7 @@
 import os
 import subprocess
 import time
+import gc
 from functools import partial
 
 import requests
@@ -24,8 +25,6 @@ GPTNeoForCausalLM.init_weights = lambda *args, **kwargs: None
 from stable_library_code.transformers.gpt2.modeling_gpt2 import GPT2LMHeadModel, GPT2Model
 GPT2Model.init_weights = lambda *args, **kwargs: None
 GPT2LMHeadModel.init_weights = lambda *args, **kwargs: None
-
-from util.util import typed_namedtuple_to_dict
 
 
 # TODO: move this over later
@@ -124,7 +123,7 @@ def load_generator_model(
 
 def load_selector(path, base_model, tokenizer, retries=False, **kwargs):
     selector_est = NostARHeadEstimator.load(
-        path, base_model=base_model, tokenizer=tokenizer, **kwargs
+        path, base_model=base_model, tokenizer=tokenizer, inference_batch_size=head_inference_batch_size, **kwargs
     )
     return selector_est
 

@@ -94,7 +94,7 @@ class GeneratorModelTorch:
         sampling_params: SamplingParams = GPT_NEO_DEFAULT_SAMPLING_PARAMS,
     ) -> "GeneratorModelTorch":
 
-        model = GeneratorModel(
+        model = GeneratorModelTorch(
             transformers_model=transformers_model,
             tokenizer=tokenizer,
             batch_size=batch_size,

@@ -91,6 +91,7 @@ def load_generator_model(
     batch_size,
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
     device="cuda:0",
+    load_device=TENSOR_LOAD_DEVICE,
     retries=False,
 ):
     # TODO: make the model class appropriate for the config settings (gpt2 vs gptneo)
@@ -98,9 +99,11 @@ def load_generator_model(
     model_class = GPTNeoForCausalLM if V11 else GPT2LMHeadModel
     config_class = GPTNeoConfig if V11 else GPT2Config
 
+    if TENSOR_LOAD_DEVICE is None:
+        TENSOR_LOAD_DEVICE = device
     state_dict = torch.load(
         os.path.join(path, "pytorch_model.bin"),
-        map_location=torch.device(device),
+        map_location=torch.device(TENSOR_LOAD_DEVICE),
     )
 
     transformers_model = model_class.from_pretrained(

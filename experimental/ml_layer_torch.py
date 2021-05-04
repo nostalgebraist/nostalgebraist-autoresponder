@@ -162,9 +162,7 @@ selector_est = load_from_gdrive_with_gs_fallback(
     load_fn=partial(load_selector, base_model=generator_model.transformers_model),
     relative_path=ckpt_select.rpartition("/")[0],  # TODO: redefine ckpt_select
     gs_command=gs_command_get_selector,
-    session=generator_model.session,
-    base_hparams=hparams,
-    enc=enc,
+    tokenizer=tokenizer,
     batch_size=batch_size,
 )
 selector_est.length = length_select
@@ -173,28 +171,24 @@ lr_calib_resp = selector_est.lr_calib_
 lr_calib_orig = selector_est.lr_calib_
 
 
-# sentiment_est = load_from_gdrive_with_gs_fallback(
-#     load_fn=load_selector,
-#     relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
-#     gs_command=gs_command_get_sentiment,
-#     session=generator_model.session,
-#     base_hparams=hparams,
-#     enc=enc,
-#     batch_size=batch_size,
-# )
-# sentiment_est.length = length_sentiment
-#
-# lr_calib_sentiment = selector_est.lr_calib_
-#
-# autoreviewer_est = load_from_gdrive_with_gs_fallback(
-#     load_fn=load_selector,
-#     relative_path=ckpt_autoreviewer.rpartition("/")[0],  # TODO: redefine ckpt_select
-#     gs_command=gs_command_get_autoreviewer,
-#     session=generator_model.session,
-#     base_hparams=hparams,
-#     enc=enc,
-#     batch_size=batch_size,
-# )
+sentiment_est = load_from_gdrive_with_gs_fallback(
+    load_fn=partial(load_selector, base_model=generator_model.transformers_model),
+    relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
+    gs_command=gs_command_get_sentiment,
+    tokenizer=tokenizer,
+    batch_size=batch_size,
+)
+sentiment_est.length = length_sentiment
+
+lr_calib_sentiment = selector_est.lr_calib_
+
+autoreviewer_est = load_from_gdrive_with_gs_fallback(
+    load_fn=partial(load_selector, base_model=generator_model.transformers_model),
+    relative_path=ckpt_autoreviewer.rpartition("/")[0],  # TODO: redefine ckpt_select
+    gs_command=gs_command_get_autoreviewer,
+    tokenizer=tokenizer,
+    batch_size=batch_size,
+)
 
 
 def poll(
@@ -228,11 +222,9 @@ def poll(
             elif data["model"] == "selector":
                 requested_model = selector_est
             elif data["model"] == "sentiment":
-                continue
-                # requested_model = sentiment_est
+                requested_model = sentiment_est
             elif data["model"] == "autoreviewer":
-                continue
-                # requested_model = autoreviewer_est
+                requested_model = autoreviewer_est
             else:
                 raise ValueError(f"requested_model: {data.get('model')}")
 

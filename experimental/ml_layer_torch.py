@@ -289,6 +289,9 @@ def poll(
             }
             RESULT_STACK[prompt_id]["model_info"] = model_info
 
+            # print(f"sending back:")
+            # print(repr(RESULT_STACK[prompt_id]))
+
         if len(RESULT_STACK) > 0:
             requests.post(
                 f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",

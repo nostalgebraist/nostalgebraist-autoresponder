@@ -101,12 +101,8 @@ if V11:
     gs_command_get_selector = (
         f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v11_selector/* /selector/v11/"
     )
-    gs_command_get_sentiment = (
-        gs_command_get_selector
-    ) = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v11_sentiment/* /sentiment/v11/"
-    gs_command_get_autoreviewer = (
-        gs_command_get_selector
-    ) = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v11/* /draft_autoreviewer/v11/"
+    gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v11_sentiment/* /sentiment/v11/"
+    gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v11/* /draft_autoreviewer/v11/"
 elif V10_1_torch:
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/tf_to_torch/{model_name}/* {model_path}"
 

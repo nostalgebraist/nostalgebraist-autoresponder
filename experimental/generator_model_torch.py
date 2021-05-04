@@ -46,7 +46,7 @@ class GeneratorModelTorch:
     def write(self, prompt: str, verbose=False):
         batch_pr = [prompt for _ in range(self.batch_size)]
 
-        input_ids = self.tokenizer(batch_pr)['input_ids']
+        input_ids = self.tokenizer(batch_pr, truncation=True, max_length=GPT_NEO_MAX_LENGTH)['input_ids']
         prompt_end_ix = len(input_ids[0])
 
         input_ids_th = torch.as_tensor(input_ids).to(self.device)

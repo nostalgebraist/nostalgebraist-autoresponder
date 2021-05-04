@@ -99,11 +99,11 @@ def load_generator_model(
     model_class = GPTNeoForCausalLM if V11 else GPT2LMHeadModel
     config_class = GPTNeoConfig if V11 else GPT2Config
 
-    if TENSOR_LOAD_DEVICE is None:
-        TENSOR_LOAD_DEVICE = device
+    if load_device is None:
+        load_device = device
     state_dict = torch.load(
         os.path.join(path, "pytorch_model.bin"),
-        map_location=torch.device(TENSOR_LOAD_DEVICE),
+        map_location=torch.device(load_device),
     )
 
     transformers_model = model_class.from_pretrained(

@@ -1,5 +1,3 @@
-import weakref
-
 import torch
 import numpy as np
 
@@ -59,13 +57,18 @@ class GeneratorModelTorch:
 
             input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
+            if max_length_per_feed is not None:
+                max_length_for_transformers_call = min(GPT_NEO_MAX_LENGTH, max_length_per_feed + prompt_end_ix)
+            else:
+                max_length_for_transformers_call = GPT_NEO_MAX_LENGTH
+
             out = self.transformers_model.generate(
                 input_ids=input_ids_th,
                 do_sample=True,
                 top_p=self.sampling_params.top_p,
                 temperature=self.sampling_params.temperature,
                 top_k=self.sampling_params.top_k,
-                max_length=GPT_NEO_MAX_LENGTH,
+                max_length=max_length_for_transformers_call,
                 pad_token_id=self.tokenizer.pad_token_id,
             )
 
@@ -73,7 +76,7 @@ class GeneratorModelTorch:
             dones = []
             for i, o in enumerate(out):
                 # record the tokens
-                extras = o[prompt_end_ix:]
+                extras = o[prompt_end_ix:].cpu().numpy()
                 nonpads = [t for t in extras if t != self.tokenizer.pad_token_id]
                 continuations_tokens[i].extend(nonpads)
 
@@ -81,7 +84,7 @@ class GeneratorModelTorch:
                 next_prompt_tokens = continuations_tokens[i][-max_context_size:]
                 next_prompt = self.tokenizer.decode(next_prompt_tokens)
                 next_prompts.append(next_prompt)
-                print(f"next_prompt_tokens: {len(next_prompt_tokens[0])}")
+                print(f"next_prompt_tokens: {len(next_prompt_tokens)}")
 
                 # is this one done?
                 final_token = nonpads[-1]
@@ -90,9 +93,14 @@ class GeneratorModelTorch:
                 n_continuations_tokens = len(continuations_tokens[i]) - n_orig_prompt_tokens
                 more_permitted = n_continuations_tokens < MAX_CONTINUE_TOKENS
 
-                print(f"done: {done}")
+                this_done = (not more_needed) or (not more_permitted)
+                dones.append(this_done)
+
+                print(f"this_done: {this_done}")
                 print(f"\tmore_needed={more_needed} <-- final_token={final_token}")
                 print(f"\tmore_permitted={more_permitted} <-- n_continuations_tokens={n_continuations_tokens}, len(continuations_tokens[i])={len(continuations_tokens[i])}, n_orig_prompt_tokens={n_orig_prompt_tokens}")
+            batch_pr = next_prompts
+            done = all(dones)
 
         continuations_ = [self.tokenizer.decode(o[n_orig_prompt_tokens:]) for o in continuations_tokens]
         mirotarg = None  # for back compat

@@ -934,8 +934,9 @@ class GPTNeoForCausalLM(GPTNeoPreTrainedModel):
         self.lm_head = new_embeddings
 
     def prepare_inputs_for_generation(self, input_ids, past=None, user_past=None, **kwargs):
-        print(f"kwargs: {kwargs}")
-        print(f"past? {past is not None} | user_past?: {user_past is not None}")
+        # print(f"kwargs: {kwargs}")
+        if past is None and user_past is None:
+            print(f"No past or user_past.  This should only happen when recomputing past")
         if past is None and user_past is not None:
             past = user_past
 

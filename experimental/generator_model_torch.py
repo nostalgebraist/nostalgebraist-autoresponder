@@ -60,11 +60,10 @@ class GeneratorModelTorch:
             input_ids_padded = input_ids
 
         out = self.transformers_model(input_ids=input_ids_padded)
-        pkv = out["past_key_values"]
+        pkv_clipped = tuple(tuple(y[..., : true_len, :] for y in x) for x in out["past_key_values"])
+
         del out
         hardcore_collect_and_show()
-
-        pkv_clipped = tuple(tuple(y[..., : true_len - 1, :] for y in x) for x in pkv)
 
         return pkv_clipped
 
@@ -92,7 +91,7 @@ class GeneratorModelTorch:
 
             input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
-            past_key_values = self._get_past_using_padding(input_ids_th[:, :-1])
+            user_past = self._get_past_using_padding(input_ids_th[:, :-1])
 
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(
@@ -103,7 +102,7 @@ class GeneratorModelTorch:
 
             out = self.transformers_model.generate(
                 input_ids=input_ids_th[:, -1:],
-                past_key_values=past,
+                user_past=user_past,
                 do_sample=True,
                 top_p=self.sampling_params.top_p,
                 temperature=self.sampling_params.temperature,
@@ -111,7 +110,7 @@ class GeneratorModelTorch:
                 max_length=max_length_for_transformers_call,
                 pad_token_id=self.tokenizer.pad_token_id,
             )
-            del past_key_values
+            del user_past
             hardcore_collect_and_show()
 
             next_prompts = []

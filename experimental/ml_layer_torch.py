@@ -17,7 +17,7 @@ from autoresponder_static_v8 import *
 
 from experimental.generator_model_torch import GeneratorModelTorch, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
 from selector_model.selector_estimator_neo import NostARHeadEstimator
-from experimental.ultra_defensive_load import ultra_defensive_load
+from experimental.ultra_defensive_loading import ultra_defensive_load
 
 from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import GPTNeoForCausalLM, GPTNeoModel
 GPTNeoModel.init_weights = lambda *args, **kwargs: None

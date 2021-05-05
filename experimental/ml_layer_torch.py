@@ -109,11 +109,10 @@ def load_generator_model(
     config = config_class.from_pretrained(path)
 
     transformers_model = model_class(config=config)
+    transformers_model = transformers_model.to(device)
 
     transformers_model.load_state_dict(state_dict, strict=False)
     transformers_model.tie_weights()
-
-    transformers_model = transformers_model.to(device)
 
     # transformers_model = model_class.from_pretrained(
     #     None,

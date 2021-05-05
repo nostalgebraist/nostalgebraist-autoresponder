@@ -71,8 +71,6 @@ class GeneratorModelTorch:
                 max_length=max_length_for_transformers_call,
                 pad_token_id=self.tokenizer.pad_token_id,
             )
-            from pprint import pprint
-            pprint(out)
 
             next_prompts = []
             dones = []

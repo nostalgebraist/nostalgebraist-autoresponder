@@ -1,4 +1,5 @@
 # HPARAMS, FLAGS, ETC
+# TODO: refactor this terrible, terrible file
 import os
 import subprocess
 
@@ -152,28 +153,17 @@ def _gpu_type():
         gpu_info = subprocess.check_output("nvidia-smi").decode("utf-8")
     except:
         return "small"
-    if "P100" in gpu_info:
+    if "P100" in gpu_info or "V100" in gpu_info:
         return "big"
     else:
         return "small"
 
 
-if BATCHONE:
-    batch_size = 1
+GPU_TYPE = _gpu_type()
 
-    if _gpu_type() == "big":
-        max_ctx_fits_on_gpu = 1020
-    else:
-        max_ctx_fits_on_gpu = 1020
+batch_size = 1
 
-else:
-    batch_size = 2
-
-    if _gpu_type() == "big":
-        max_ctx_fits_on_gpu = 940  # 825
-    else:
-        max_ctx_fits_on_gpu = 840  # 1020  #800
-
+max_ctx_fits_on_gpu = 1020
 
 # sets max context size, for long prompts we want to cut off to allow bot to write at least this many tokens
 required_continuation_room = 100
@@ -363,6 +353,12 @@ head_inference_batch_size = 1 if V11 else None
 # TENSOR_LOAD_DEVICE = 'cpu' if V11 else 'cuda:0'
 
 # lazy init should allow this everywhere
+# TODO: get rid of this, no longer needed in ultra_defensive_load
 TENSOR_LOAD_DEVICE = 'cuda:0'
+
+if GPU_TYPE == "big" or (not V11):
+    MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
+else:
+    MODELS_SERVED = {"generator", }
 
 os.chdir(startdir)

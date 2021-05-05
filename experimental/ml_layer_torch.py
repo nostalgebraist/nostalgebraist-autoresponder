@@ -102,24 +102,6 @@ def load_generator_model(
 
     transformers_model = ultra_defensive_load(config_path=config_path, model_path=model_path)
 
-    # model_class = GPTNeoForCausalLM if V11 else GPT2LMHeadModel
-    # config_class = GPTNeoConfig if V11 else GPT2Config
-    #
-    # if load_device is None:
-    #     load_device = device
-    # state_dict = torch.load(
-    #     os.path.join(path, "pytorch_model.bin"),
-    #     map_location=torch.device(load_device),
-    # )
-    #
-    # config = config_class.from_pretrained(path)
-    #
-    # transformers_model = model_class(config=config)
-    # transformers_model = transformers_model.to(device)
-    #
-    # transformers_model.load_state_dict(state_dict, strict=False)
-    # transformers_model.tie_weights()
-
     return GeneratorModelTorch.load(
         transformers_model=transformers_model,
         tokenizer=tokenizer,
@@ -157,6 +139,8 @@ sample_done_criterion = make_sample_done_criterion(
     control_seg_config=CONTROL_SEG_CONFIG
 )
 
+generator_model, selector_est, sentiment_est, autoreviewer_est = None, None, None, None
+
 generator_model = load_from_gdrive_with_gs_fallback(
     load_fn=load_generator_model,
     relative_path=model_name,
@@ -167,34 +151,36 @@ generator_model = load_from_gdrive_with_gs_fallback(
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
 )
 
-selector_est = load_from_gdrive_with_gs_fallback(
-    load_fn=partial(load_selector, base_model=generator_model.transformers_model),
-    relative_path=ckpt_select.rpartition("/")[0],  # TODO: redefine ckpt_select
-    gs_command=gs_command_get_selector,
-    tokenizer=tokenizer,
-)
-selector_est.length = length_select
+if "selector" in MODELS_SERVED:
+    selector_est = load_from_gdrive_with_gs_fallback(
+        load_fn=partial(load_selector, base_model=generator_model.transformers_model),
+        relative_path=ckpt_select.rpartition("/")[0],  # TODO: redefine ckpt_select
+        gs_command=gs_command_get_selector,
+        tokenizer=tokenizer,
+    )
+    selector_est.length = length_select
 
-lr_calib_resp = selector_est.lr_calib_
-lr_calib_orig = selector_est.lr_calib_
+    lr_calib_resp = selector_est.lr_calib_
+    lr_calib_orig = selector_est.lr_calib_
 
+if "sentiment" in MODELS_SERVED:
+    sentiment_est = load_from_gdrive_with_gs_fallback(
+        load_fn=partial(load_selector, base_model=generator_model.transformers_model),
+        relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
+        gs_command=gs_command_get_sentiment,
+        tokenizer=tokenizer,
+    )
+    sentiment_est.length = length_sentiment
 
-sentiment_est = load_from_gdrive_with_gs_fallback(
-    load_fn=partial(load_selector, base_model=generator_model.transformers_model),
-    relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
-    gs_command=gs_command_get_sentiment,
-    tokenizer=tokenizer,
-)
-sentiment_est.length = length_sentiment
+    lr_calib_sentiment = selector_est.lr_calib_
 
-lr_calib_sentiment = selector_est.lr_calib_
-
-autoreviewer_est = load_from_gdrive_with_gs_fallback(
-    load_fn=partial(load_selector, base_model=generator_model.transformers_model),
-    relative_path=ckpt_autoreviewer.rpartition("/")[0],  # TODO: redefine ckpt_select
-    gs_command=gs_command_get_autoreviewer,
-    tokenizer=tokenizer,
-)
+if "autoreviewer" in MODELS_SERVED:
+    autoreviewer_est = load_from_gdrive_with_gs_fallback(
+        load_fn=partial(load_selector, base_model=generator_model.transformers_model),
+        relative_path=ckpt_autoreviewer.rpartition("/")[0],  # TODO: redefine ckpt_select
+        gs_command=gs_command_get_autoreviewer,
+        tokenizer=tokenizer,
+    )
 
 
 DEPRECATED_KWARGS = {"mirotarg"}
@@ -223,6 +209,9 @@ def poll(
         for prompt_id, data in PROMPT_STACK.items():
             if prompt_id in CLOSED_REQUESTS:
                 RESULT_STACK[prompt_id] = CLOSED_REQUESTS[prompt_id]
+                continue
+
+            if data["model"] not in MODELS_SERVED:
                 continue
 
             requested_model = None

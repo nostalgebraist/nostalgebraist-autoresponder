@@ -4,8 +4,8 @@ import torch
 from selector_model.selector_nn_neo import get_child_module_by_names
 
 from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import (
-    GPTNeoForCausalLM,
-    GPTNeoModel,
+    GPTNeoForCausalLM,  # modified to use lazy loading -nost
+    GPTNeoModel,  # modified to use lazy loading -nost
 )
 from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 

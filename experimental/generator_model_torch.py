@@ -103,7 +103,7 @@ class GeneratorModelTorch:
 
             out = self.transformers_model.generate(
                 input_ids=input_ids_th[:, -1:],
-                past_key_values=past_key_values,
+                past_key_values=past,
                 do_sample=True,
                 top_p=self.sampling_params.top_p,
                 temperature=self.sampling_params.temperature,

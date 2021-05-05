@@ -3,6 +3,10 @@ import numpy as np
 
 from autoresponder_config import *  # TODO: move elsewhere?
 from experimental.sampling_params import SamplingParams, DEFAULT_SAMPLING_CONFIG
+
+from transformers import LogitsProcessorList
+from experimental.sample_torch import BreakrunsLogitsProcessor
+
 from util.util import copy_and_update_config, collect_and_show
 
 GPT_NEO_DEFAULT_SAMPLING_PARAMS = copy_and_update_config(
@@ -23,6 +27,18 @@ def hardcore_collect_and_show():
     torch.cuda.empty_cache()
 
 
+def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=False):
+    def _override_get_breakruns(*args, **kwargs) -> LogitsProcessorList:
+        return LogitsProcessorList([
+            BreakrunsLogitsProcessor(
+                base_temperature=base_t,
+                tau=tau,
+                tokenizer=tokenizer,
+                debug=debug
+            )
+        ])
+
+
 class GeneratorModelTorch:
     def __init__(
         self,
@@ -39,6 +55,14 @@ class GeneratorModelTorch:
         self.sampling_params = sampling_params
 
         self.transformers_model = self.transformers_model.to(device)
+
+        if self.sampling_params.breakruns:
+            breakruns_override = make_override_get_breakruns(
+                base_temperature=self.sampling_params.temperature,
+                tau=self.sampling_params.breakruns_tau,
+                tokenizer=self.tokenizer if BREAKRUNS_DEBUG else None,
+                debug=BREAKRUNS_DEBUG)
+            self.transformers_model._get_logits_processor = breakruns_override
 
     def _get_past_using_padding(self, input_ids, pad_to_mult=256):
         true_len = input_ids.shape[1]
@@ -106,8 +130,8 @@ class GeneratorModelTorch:
                 do_sample=True,
                 use_cache=True,
                 top_p=self.sampling_params.top_p,
-                temperature=self.sampling_params.temperature,
-                no_repeat_ngram_size=10,  # TODO: remove once we have breakruns again
+                temperature=1 if self.sampling_params.breakruns else self.sampling_params.temperature,
+                # no_repeat_ngram_size=10,  # TODO: remove once we have breakruns again
                 max_length=max_length_for_transformers_call,
                 pad_token_id=self.tokenizer.pad_token_id,
                 user_past=user_past,

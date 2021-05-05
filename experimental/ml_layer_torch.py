@@ -269,7 +269,7 @@ def poll(
                 "MIRO_TRUNC": MIRO_TRUNC,  # unused in miro v2
                 "MIRO_LR": MIRO_LR,
                 "USE_FIRST_STEP": False,
-                "BREAKRUNS": False,
+                "BREAKRUNS": BREAKRUNS,
                 "BREAKRUNS_TAU": BREAKRUNS_TAU,
                 "BREAKRUNS_DECAY": BREAKRUNS_DECAY,
                 "length": GPT_NEO_MAX_LENGTH,

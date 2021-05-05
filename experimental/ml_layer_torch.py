@@ -274,13 +274,21 @@ def poll(
                 "first_step_chop_highest": first_step_chop_highest,
             }
 
+            hparams_select, hparams_select_sentiment = None, None
+
+            if "selector" in MODELS_SERVED:
+                hparams_select = typed_namedtuple_to_dict(selector_est.params)
+
+            if "sentiment" in MODELS_SERVED:
+                hparams_select_sentiment = typed_namedtuple_to_dict(sentiment_est.params)
+
             model_info = {
                 "model_name": model_name,
                 "ckpt_select": ckpt_select,
                 "ckpt_sentiment": ckpt_sentiment,
                 "ckpt_autoreviewer": ckpt_autoreviewer,
-                "hparams_select": typed_namedtuple_to_dict(selector_est.params),
-                "hparams_select_sentiment": typed_namedtuple_to_dict(sentiment_est.params),
+                "hparams_select": hparams_select,
+                "hparams_select_sentiment": hparams_select_sentiment,
                 "sampling_info": sampling_info,
             }
             RESULT_STACK[prompt_id]["model_info"] = model_info

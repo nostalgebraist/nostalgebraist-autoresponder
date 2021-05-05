@@ -433,7 +433,7 @@ class GPTNeoLocalSelfAttention(nn.Module, GPTNeoAttentionMixin):
             query = self._split_seq_length_dim_to(query, 1, 1)
         else:
             if num_blocks > 1:
-                print(f"\tnum_blocks {num_blocks}\tblock_length {block_lengths}")
+                print(f"\tnum_blocks {num_blocks}\tblock_length {block_length}")
             query = self._split_seq_length_dim_to(query, num_blocks, block_length)
 
         key = self._look_back(key, block_length, self.window_size)

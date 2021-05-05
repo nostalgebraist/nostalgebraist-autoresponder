@@ -236,6 +236,16 @@ def poll(
                 "kwargs", {}
             )
 
+            if GPU_TYPE != "big" and GPU_TYPE == "big":
+                # can't handle long pasts calc yet
+                prompt = requested_kwargs.get("prompt")
+                if not prompt and len(requested_args) > 0:
+                    prompt = requested_args[0]
+
+                ntok = len(generator_model.tokenizer.encode(prompt))
+                if ntok > 512:
+                    continue
+
             for name in DEPRECATED_KWARGS:
                 if name in requested_kwargs:
                     print(f"skipping deprecated param {name}")

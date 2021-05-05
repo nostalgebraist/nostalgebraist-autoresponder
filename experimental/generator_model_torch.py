@@ -45,7 +45,7 @@ class GeneratorModelTorch:
 
         pad_to_len = pad_to_mult * (true_len // pad_to_mult + 1)
         pad_to_len = min(pad_to_len, GPT_NEO_MAX_LENGTH)
-        pad_to_len = min(pad_to_len, true_len)
+        pad_to_len = min(pad_to_mult, true_len)
         print(f"true_len {true_len} --> pad_to_len {pad_to_len}")
 
         pad_len = pad_to_len - true_len

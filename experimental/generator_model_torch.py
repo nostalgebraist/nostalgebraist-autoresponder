@@ -106,7 +106,7 @@ class GeneratorModelTorch:
                 use_cache=True,
                 top_p=self.sampling_params.top_p,
                 temperature=self.sampling_params.temperature,
-                top_k=self.sampling_params.top_k,
+                no_repeat_ngram_size=10,  # TODO: remove once we have breakruns again
                 max_length=max_length_for_transformers_call,
                 pad_token_id=self.tokenizer.pad_token_id,
                 user_past=user_past,

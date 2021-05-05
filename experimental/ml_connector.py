@@ -401,7 +401,7 @@ def basic_n_continuations(
                     continue
 
             roll = np.random.rand()
-            # NOTE: the < 100 check is for weird long posts with no spaces
+            # NOTE: the < 100 check is for weird posts where the newline doesn't happen
             if len(c.partition("\n")[2].split(" ")) < avoid_if_under and len(c) < 100:
                 print(
                     f"\n\trejecting because length under {avoid_if_under}: {_tabfill(c)}\n"

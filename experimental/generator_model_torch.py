@@ -37,6 +37,7 @@ def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=Fal
                 debug=debug
             )
         ])
+    return _override_get_breakruns
 
 
 class GeneratorModelTorch:

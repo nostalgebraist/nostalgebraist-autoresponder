@@ -346,7 +346,6 @@ max_ctx_fits_on_gpu = 2048 if V11 else 1024
 GPT_NEO_T = 1.0
 GPT_NEO_TOP_P = 0.95
 GPT_NEO_TOP_K = 0
-GPT_NEO_MAX_LENGTH = 2048 if V11 else 1024
 
 head_inference_batch_size = 1 if V11 else None
 
@@ -359,12 +358,18 @@ TENSOR_LOAD_DEVICE = 'cuda:0'
 
 if GPU_TYPE == "big":
     MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
+    GPT_NEO_MAX_LENGTH = 256 * 7
 elif V11_INSURANCE:
     MODELS_SERVED = {"selector", "sentiment", "autoreviewer"}
+    GPT_NEO_MAX_LENGTH = 256 * 5
 elif V11:
+    GPT_NEO_MAX_LENGTH = 256 * 5
     MODELS_SERVED = {"generator", }
 else:
     # pre-v11
+    GPT_NEO_MAX_LENGTH = 1024
     MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
 
+print(("GPT_NEO_MAX_LENGTH", GPT_NEO_MAX_LENGTH))
+print(("MODELS_SERVED", MODELS_SERVED))
 os.chdir(startdir)

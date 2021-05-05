@@ -17,7 +17,8 @@ V9_1R4 = True
 V10 = True
 V10_1 = True
 V10_1_torch = True  # !!
-V11 = True  # !!!! -- gptneo, th
+V11 = False  # !!!! -- gptneo, th
+V11_INSURANCE = True
 
 USE_AUTOREVIEWER = True
 if V11:

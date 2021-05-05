@@ -17,6 +17,7 @@ from autoresponder_static_v8 import *
 
 from experimental.generator_model_torch import GeneratorModelTorch, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
 from selector_model.selector_estimator_neo import NostARHeadEstimator
+from experimental.ultra_defensive_load import ultra_defensive_load
 
 from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import GPTNeoForCausalLM, GPTNeoModel
 GPTNeoModel.init_weights = lambda *args, **kwargs: None
@@ -96,30 +97,28 @@ def load_generator_model(
 ):
     # TODO: make the model class appropriate for the config settings (gpt2 vs gptneo)
 
-    model_class = GPTNeoForCausalLM if V11 else GPT2LMHeadModel
-    config_class = GPTNeoConfig if V11 else GPT2Config
+    config_path = os.path.join(path, "config.json")
+    model_path = os.path.join(path, "pytorch_model.bin")
 
-    if load_device is None:
-        load_device = device
-    state_dict = torch.load(
-        os.path.join(path, "pytorch_model.bin"),
-        map_location=torch.device(load_device),
-    )
+    transformers_model = ultra_defensive_load(config_path=config_path, model_path=model_path)
 
-    config = config_class.from_pretrained(path)
-
-    transformers_model = model_class(config=config)
-    transformers_model = transformers_model.to(device)
-
-    transformers_model.load_state_dict(state_dict, strict=False)
-    transformers_model.tie_weights()
-
-    # transformers_model = model_class.from_pretrained(
-    #     None,
-    #     state_dict=state_dict,
-    #     config=config_class.from_pretrained(path),
+    # model_class = GPTNeoForCausalLM if V11 else GPT2LMHeadModel
+    # config_class = GPTNeoConfig if V11 else GPT2Config
+    #
+    # if load_device is None:
+    #     load_device = device
+    # state_dict = torch.load(
+    #     os.path.join(path, "pytorch_model.bin"),
+    #     map_location=torch.device(load_device),
     # )
-
+    #
+    # config = config_class.from_pretrained(path)
+    #
+    # transformers_model = model_class(config=config)
+    # transformers_model = transformers_model.to(device)
+    #
+    # transformers_model.load_state_dict(state_dict, strict=False)
+    # transformers_model.tie_weights()
 
     return GeneratorModelTorch.load(
         transformers_model=transformers_model,

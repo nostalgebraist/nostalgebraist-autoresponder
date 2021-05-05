@@ -772,6 +772,7 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
             position_ids = position_ids.view(-1, input_shape[-1])
 
         if past_key_values is None:
+            print("!!!past_key_values is None!!!")
             past_length = 0
             past_key_values = tuple([None] * len(self.h))
         else:
@@ -865,6 +866,9 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
                 )
             else:
                 try:
+                    print(f"\t block {i}")
+                    print(f"\t past shapes {layer_past[0].shape if layer_past else layer_past}")
+
                     outputs = block(
                         hidden_states,
                         layer_past=layer_past,
@@ -876,7 +880,7 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
                 except Exception as e:
                     print("failed with:")
                     print(f"\t block {i}")
-                    print(f"\t hidden_states.shape {input_ids.shape}")
+                    print(f"\t input_ids.shape {input_ids.shape}")
                     print(f"\t hidden_states.shape {hidden_states.shape}")
                     print(f"\t past shapes {layer_past[0].shape if layer_past else layer_past}")
                     raise e

@@ -810,7 +810,10 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
         batch_size, seq_length = input_shape
         full_seq_length = seq_length + past_length
         print(f"full_seq_length: {full_seq_length}")
-        print(f"attention_mask.size(): {attention_mask.size()}")
+        try:
+            print(f"attention_mask.size(): {attention_mask.size()}")
+        except:
+            print(f"attention_mask: {attention_mask}")
         local_attention_mask = GPTNeoAttentionMixin.create_local_attention_mask(
             batch_size, full_seq_length, self.config.window_size, device, attention_mask
         )

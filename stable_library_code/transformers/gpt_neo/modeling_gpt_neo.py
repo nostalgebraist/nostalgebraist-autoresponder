@@ -432,6 +432,8 @@ class GPTNeoLocalSelfAttention(nn.Module, GPTNeoAttentionMixin):
             # we just need 1 block with block_length 1 when caching is enabled
             query = self._split_seq_length_dim_to(query, 1, 1)
         else:
+            if num_blocks > 1:
+                print(f"\tnum_blocks {num_blocks}\tblock_length {block_lengths}")
             query = self._split_seq_length_dim_to(query, num_blocks, block_length)
 
         key = self._look_back(key, block_length, self.window_size)
@@ -830,6 +832,7 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
         presents = () if use_cache else None
         all_self_attentions = () if output_attentions else None
         all_hidden_states = () if output_hidden_states else None
+
         for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
             attn_type = self.config.attention_layers[i]
             attn_mask = global_attention_mask if attn_type == "global" else local_attention_mask
@@ -861,14 +864,22 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
                     head_mask[i],
                 )
             else:
-                outputs = block(
-                    hidden_states,
-                    layer_past=layer_past,
-                    attention_mask=attn_mask,
-                    head_mask=head_mask[i],
-                    use_cache=use_cache,
-                    output_attentions=output_attentions,
-                )
+                try:
+                    outputs = block(
+                        hidden_states,
+                        layer_past=layer_past,
+                        attention_mask=attn_mask,
+                        head_mask=head_mask[i],
+                        use_cache=use_cache,
+                        output_attentions=output_attentions,
+                    )
+                except Exception as e:
+                    print("failed with:")
+                    print(f"\t block {i}")
+                    print(f"\t hidden_states.shape {input_ids.shape}")
+                    print(f"\t hidden_states.shape {hidden_states.shape}")
+                    print(f"\t past shapes {layer_past[0].shape if layer_past else layer_past}")
+                    raise e
 
             hidden_states = outputs[0]
             if use_cache is True:

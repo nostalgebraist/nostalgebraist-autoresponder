@@ -190,7 +190,9 @@ class GPTNeoAttentionMixin:
         else:
             raise ValueError(f"Input tensor rank should be one of [2, 3], but is: {len(tensor.shape)}")
 
+        print(f"trying to pad {padding_side} with tensor {tensor.size()}")
         padded_tensor = F.pad(tensor, padding_side, value=pad_value)
+        print(f"trying to unfold {padded_tensor.size()} with window_size={window_size}, block_length={block_length}")
         padded_tensor = padded_tensor.unfold(dimension=1, size=window_size + block_length, step=block_length)
 
         if is_key_value:
@@ -807,6 +809,8 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
         # Local causal attention mask
         batch_size, seq_length = input_shape
         full_seq_length = seq_length + past_length
+        print(f"full_seq_length: {full_seq_length}")
+        print(f"attention_mask.size(): {attention_mask.size()}")
         local_attention_mask = GPTNeoAttentionMixin.create_local_attention_mask(
             batch_size, full_seq_length, self.config.window_size, device, attention_mask
         )

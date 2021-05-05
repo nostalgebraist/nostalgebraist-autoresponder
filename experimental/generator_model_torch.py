@@ -78,7 +78,7 @@ class GeneratorModelTorch:
 
             input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
-            past_key_values = _get_past_using_padding(input_ids_th)
+            past_key_values = self._get_past_using_padding(input_ids_th)
 
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(

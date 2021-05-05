@@ -190,7 +190,7 @@ else:
 BREAKRUNS = True
 BREAKRUNS_TAU = 0.01  # 0.03
 BREAKRUNS_DECAY = 0.0
-BREAKRUNS_DEBUG = True
+BREAKRUNS_DEBUG = False
 
 temperature = 0.9  # 0.85
 top_k = 0

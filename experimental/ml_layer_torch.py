@@ -27,7 +27,7 @@ from stable_library_code.transformers.gpt2.modeling_gpt2 import GPT2LMHeadModel,
 GPT2Model.init_weights = lambda *args, **kwargs: None
 GPT2LMHeadModel.init_weights = lambda *args, **kwargs: None
 
-from util.util import typed_namedtuple_to_dict
+from util.util import typed_namedtuple_to_dict, collect_and_show
 
 # TODO: move this over later
 drivedir = "/content/drive/MyDrive/gpt_neo/"
@@ -326,9 +326,7 @@ def loop_poll(
     while True:
         try:
             open_request_ids = poll(dummy=dummy, ports=ports, routes=routes)
-            collect_out = gc.collect()
-            if collect_out > 0:
-                print(f"gc.collect(): {collect_out}")
+            collect_and_show()
         except Exception as e:
             print(f"{type(e)}: {e}")
             time.sleep(period * 10)

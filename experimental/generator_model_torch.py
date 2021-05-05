@@ -3,7 +3,7 @@ import numpy as np
 
 from autoresponder_config import *  # TODO: move elsewhere?
 from experimental.sampling_params import SamplingParams, DEFAULT_SAMPLING_CONFIG
-from util.util import copy_and_update_config
+from util.util import copy_and_update_config, collect_and_show
 
 GPT_NEO_DEFAULT_SAMPLING_PARAMS = copy_and_update_config(
     SamplingParams,
@@ -71,6 +71,8 @@ class GeneratorModelTorch:
                 max_length=max_length_for_transformers_call,
                 pad_token_id=self.tokenizer.pad_token_id,
             )
+            from pprint import pprint
+            pprint(out)
 
             next_prompts = []
             dones = []
@@ -99,6 +101,11 @@ class GeneratorModelTorch:
                 print(f"this_done: {this_done}")
                 print(f"\tmore_needed={more_needed} <-- final_token={final_token}")
                 print(f"\tmore_permitted={more_permitted} <-- n_continuations_tokens={n_continuations_tokens}, len(continuations_tokens[i])={len(continuations_tokens[i])}, n_orig_prompt_tokens={n_orig_prompt_tokens}")
+
+            del out
+            del input_ids_th
+            collect_and_show()
+
             batch_pr = next_prompts
             done = all(dones)
 

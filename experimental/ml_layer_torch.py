@@ -113,12 +113,14 @@ def load_generator_model(
     transformers_model.load_state_dict(state_dict, strict=False)
     transformers_model.tie_weights()
 
+    transformers_model = transformers_model.to(device)
+
     # transformers_model = model_class.from_pretrained(
     #     None,
     #     state_dict=state_dict,
     #     config=config_class.from_pretrained(path),
     # )
-    transformers_model = transformers_model.to(device)
+
 
     return GeneratorModelTorch.load(
         transformers_model=transformers_model,

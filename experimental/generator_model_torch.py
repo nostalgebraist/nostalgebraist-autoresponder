@@ -18,6 +18,11 @@ def is_repeating_criterion(unique_token_frac):
     return unique_token_frac < 0.2
 
 
+def hardcore_collect_and_show():
+    collect_and_show()
+    torch.cuda.empty_cache()
+
+
 class GeneratorModelTorch:
     def __init__(
         self,
@@ -39,16 +44,25 @@ class GeneratorModelTorch:
         true_len = input_ids.shape[1]
 
         pad_to_len = pad_to_mult * (true_len // pad_to_mult + 1)
+        pad_to_len = min(pad_to_len, GPT_NEO_MAX_LENGTH)
+        pad_to_len = min(pad_to_len, true_len)
+        print(f"true_len {true_len} --> pad_to_len {pad_to_len}")
 
         pad_len = pad_to_len - true_len
 
-        pads = torch.zeros(
-            input_ids.shape[0], pad_len, dtype=input_ids.dtype, device=input_ids.device
-        )
+        if pad_len > 0:
+            pads = torch.zeros(
+                input_ids.shape[0], pad_len, dtype=input_ids.dtype, device=input_ids.device
+            )
 
-        input_ids_padded = torch.cat([input_ids, pads], dim=1)
+            input_ids_padded = torch.cat([input_ids, pads], dim=1)
+        else:
+            input_ids_padded = input_ids
 
-        pkv = self.transformers_model(input_ids=input_ids_padded)["past_key_values"]
+        out = self.transformers_model(input_ids=input_ids_padded)
+        pkv = out["past_key_values"]
+        del out
+        hardcore_collect_and_show()
 
         pkv_clipped = tuple(tuple(y[..., : true_len - 1, :] for y in x) for x in pkv)
 
@@ -78,7 +92,7 @@ class GeneratorModelTorch:
 
             input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
-            past_key_values = self._get_past_using_padding(input_ids_th)
+            past_key_values = self._get_past_using_padding(input_ids_th[:, :-1])
 
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(
@@ -97,6 +111,8 @@ class GeneratorModelTorch:
                 max_length=max_length_for_transformers_call,
                 pad_token_id=self.tokenizer.pad_token_id,
             )
+            del past_key_values
+            hardcore_collect_and_show()
 
             next_prompts = []
             dones = []
@@ -132,7 +148,7 @@ class GeneratorModelTorch:
 
             del out
             del input_ids_th
-            collect_and_show()
+            hardcore_collect_and_show()
 
             batch_pr = next_prompts
             done = all(dones)

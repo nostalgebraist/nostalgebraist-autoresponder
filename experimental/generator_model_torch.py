@@ -101,14 +101,15 @@ class GeneratorModelTorch:
                 max_length_for_transformers_call = GPT_NEO_MAX_LENGTH
 
             out = self.transformers_model.generate(
-                input_ids=input_ids_th[:, -1:],
-                user_past=user_past,
+                input_ids=input_ids_th,
                 do_sample=True,
+                use_cache=True,
                 top_p=self.sampling_params.top_p,
                 temperature=self.sampling_params.temperature,
                 top_k=self.sampling_params.top_k,
                 max_length=max_length_for_transformers_call,
                 pad_token_id=self.tokenizer.pad_token_id,
+                user_past=user_past,
             )
             del user_past
             hardcore_collect_and_show()
@@ -117,7 +118,7 @@ class GeneratorModelTorch:
             dones = []
             for i, o in enumerate(out):
                 # record the tokens
-                extras = o[1:].cpu().numpy()
+                extras = o[prompt_end_ix:].cpu().numpy()
                 nonpads = [t for t in extras if t != self.tokenizer.pad_token_id]
                 continuations_tokens[i].extend(nonpads)
 

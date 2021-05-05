@@ -359,7 +359,10 @@ GPT_NEO_MAX_LENGTH = 2048 if V11 else 1024
 
 head_inference_batch_size = 1 if V11 else None
 
-# V11 loads on cpu initially then transfers to gpu
-TENSOR_LOAD_DEVICE = 'cpu' if V11 else 'cuda:0'
+# # V11 loads on cpu initially then transfers to gpu
+# TENSOR_LOAD_DEVICE = 'cpu' if V11 else 'cuda:0'
+
+# lazy init should allow this everywhere
+TENSOR_LOAD_DEVICE = 'cuda:0'
 
 os.chdir(startdir)

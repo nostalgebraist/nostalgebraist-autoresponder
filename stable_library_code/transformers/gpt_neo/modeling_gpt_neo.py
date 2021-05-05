@@ -37,6 +37,11 @@ from transformers.utils import logging
 from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 
 
+class LazyLinearAPICompatible(nn.LazyLinear):
+    def __init__(self, in_features: int, out_features: int, bias: bool = True) -> None:
+        super().__init__(out_features=out_features, bias=bias)
+
+
 logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "GPTNeoConfig"
@@ -128,7 +133,7 @@ def load_tf_weights_in_gpt_neo(model, config, gpt_neo_checkpoint_path):
 
     # init the final linear layer using word embeddings
     embs = model.transformer.wte.weight
-    lin = nn.LazyLinear(embs.size()[1], embs.size()[0], bias=False)
+    lin = LazyLinearAPICompatible(embs.size()[1], embs.size()[0], bias=False)
     lin.weight = embs
     model.set_output_embeddings(lin)
     return model
@@ -319,10 +324,10 @@ class GPTNeoSelfAttention(nn.Module, GPTNeoAttentionMixin):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`: {self.num_heads})."
             )
 
-        self.k_proj = nn.LazyLinear(self.embed_dim, self.embed_dim, bias=False)
-        self.v_proj = nn.LazyLinear(self.embed_dim, self.embed_dim, bias=False)
-        self.q_proj = nn.LazyLinear(self.embed_dim, self.embed_dim, bias=False)
-        self.out_proj = nn.LazyLinear(self.embed_dim, self.embed_dim, bias=True)
+        self.k_proj = LazyLinearAPICompatible(self.embed_dim, self.embed_dim, bias=False)
+        self.v_proj = LazyLinearAPICompatible(self.embed_dim, self.embed_dim, bias=False)
+        self.q_proj = LazyLinearAPICompatible(self.embed_dim, self.embed_dim, bias=False)
+        self.out_proj = LazyLinearAPICompatible(self.embed_dim, self.embed_dim, bias=True)
 
     def forward(
         self,
@@ -388,10 +393,10 @@ class GPTNeoLocalSelfAttention(nn.Module, GPTNeoAttentionMixin):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`: {self.num_heads})."
             )
 
-        self.k_proj = nn.LazyLinear(self.embed_dim, self.embed_dim, bias=False)
-        self.v_proj = nn.LazyLinear(self.embed_dim, self.embed_dim, bias=False)
-        self.q_proj = nn.LazyLinear(self.embed_dim, self.embed_dim, bias=False)
-        self.out_proj = nn.LazyLinear(self.embed_dim, self.embed_dim, bias=True)
+        self.k_proj = LazyLinearAPICompatible(self.embed_dim, self.embed_dim, bias=False)
+        self.v_proj = LazyLinearAPICompatible(self.embed_dim, self.embed_dim, bias=False)
+        self.q_proj = LazyLinearAPICompatible(self.embed_dim, self.embed_dim, bias=False)
+        self.out_proj = LazyLinearAPICompatible(self.embed_dim, self.embed_dim, bias=True)
 
         self.window_size = config.window_size
 
@@ -519,8 +524,8 @@ class GPTNeoMLP(nn.Module):
     def __init__(self, intermediate_size, config):  # in MLP: intermediate_size= 4 * hidden_size
         super().__init__()
         embed_dim = config.hidden_size
-        self.c_fc = nn.LazyLinear(embed_dim, intermediate_size)
-        self.c_proj = nn.LazyLinear(intermediate_size, embed_dim)
+        self.c_fc = LazyLinearAPICompatible(embed_dim, intermediate_size)
+        self.c_proj = LazyLinearAPICompatible(intermediate_size, embed_dim)
         self.act = ACT2FN[config.activation_function]
         self.dropout = nn.Dropout(config.resid_dropout)
 
@@ -595,7 +600,7 @@ class GPTNeoPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights."""
-        if isinstance(module, (nn.LazyLinear,)):
+        if isinstance(module, (LazyLinearAPICompatible,)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
@@ -904,7 +909,7 @@ class GPTNeoForCausalLM(GPTNeoPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.transformer = GPTNeoModel(config)
-        self.lm_head = nn.LazyLinear(config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head = LazyLinearAPICompatible(config.hidden_size, config.vocab_size, bias=False)
 
         self.init_weights()
 

@@ -866,9 +866,6 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
                 )
             else:
                 try:
-                    print(f"\t block {i}")
-                    print(f"\t past shapes {layer_past[0].shape if layer_past else layer_past}")
-
                     outputs = block(
                         hidden_states,
                         layer_past=layer_past,

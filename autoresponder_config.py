@@ -356,9 +356,14 @@ head_inference_batch_size = 1 if V11 else None
 # TODO: get rid of this, no longer needed in ultra_defensive_load
 TENSOR_LOAD_DEVICE = 'cuda:0'
 
-if GPU_TYPE == "big" or (not V11):
+if GPU_TYPE == "big":
     MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
-else:
+elif V11_INSURANCE:
+    MODELS_SERVED = {"selector", "sentiment", "autoreviewer"}
+elif V11:
     MODELS_SERVED = {"generator", }
+else:
+    # pre-v11
+    MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
 
 os.chdir(startdir)

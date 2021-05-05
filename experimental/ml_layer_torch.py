@@ -328,8 +328,9 @@ def loop_poll(
             open_request_ids = poll(dummy=dummy, ports=ports, routes=routes)
             collect_and_show()
         except Exception as e:
-            print(f"{type(e)}: {e}")
-            time.sleep(period * 10)
+            raise e
+            # print(f"{type(e)}: {e}")
+            # time.sleep(period * 10)
         if len(open_request_ids) == 0 or dummy:
             time.sleep(period)
         else:

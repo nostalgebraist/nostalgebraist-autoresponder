@@ -102,7 +102,7 @@ class GeneratorModelTorch:
             dones = []
             for i, o in enumerate(out):
                 # record the tokens
-                extras = o.cpu().numpy()
+                extras = o[1:].cpu().numpy()
                 nonpads = [t for t in extras if t != self.tokenizer.pad_token_id]
                 continuations_tokens[i].extend(nonpads)
 

@@ -31,7 +31,7 @@ def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=Fal
     def _override_get_breakruns(*args, **kwargs) -> LogitsProcessorList:
         return LogitsProcessorList([
             BreakrunsLogitsProcessor(
-                base_temperature=base_t,
+                base_temperature=base_temperature,
                 tau=tau,
                 tokenizer=tokenizer,
                 debug=debug

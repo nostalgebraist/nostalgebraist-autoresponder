@@ -95,7 +95,7 @@ def traceability_logs_to_df(logs,
     if "miro_traces" in drop_malformed:
         for entry in data:
             mt = entry.get('miro_traces')
-            if mt and len(mt['mu'][0]) != len(mt['k'][0]):
+            if mt and len(mt['mu']) > 0 and len(mt['mu'][0]) != len(mt['k'][0]):
                 entry['miro_traces'] = None
 
     df = pd.DataFrame(data)

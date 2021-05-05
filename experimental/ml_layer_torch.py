@@ -106,11 +106,18 @@ def load_generator_model(
         map_location=torch.device(load_device),
     )
 
-    transformers_model = model_class.from_pretrained(
-        None,
-        state_dict=state_dict,
-        config=config_class.from_pretrained(path),
-    )
+    config = config_class.from_pretrained(path)
+
+    transformers_model = model_class(config=config)
+
+    transformers_model.load_state_dict(state_dict, strict=False)
+    transformers_model.tie_weights()
+
+    # transformers_model = model_class.from_pretrained(
+    #     None,
+    #     state_dict=state_dict,
+    #     config=config_class.from_pretrained(path),
+    # )
     transformers_model = transformers_model.to(device)
 
     return GeneratorModelTorch.load(

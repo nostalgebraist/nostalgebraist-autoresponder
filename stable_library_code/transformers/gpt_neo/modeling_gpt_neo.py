@@ -190,9 +190,9 @@ class GPTNeoAttentionMixin:
         else:
             raise ValueError(f"Input tensor rank should be one of [2, 3], but is: {len(tensor.shape)}")
 
-        print(f"trying to pad {padding_side} with tensor {tensor.size()}")
+        # print(f"trying to pad {padding_side} with tensor {tensor.size()}")
         padded_tensor = F.pad(tensor, padding_side, value=pad_value)
-        print(f"trying to unfold {padded_tensor.size()} with window_size={window_size}, block_length={block_length}")
+        # print(f"trying to unfold {padded_tensor.size()} with window_size={window_size}, block_length={block_length}")
         padded_tensor = padded_tensor.unfold(dimension=1, size=window_size + block_length, step=block_length)
 
         if is_key_value:
@@ -434,8 +434,8 @@ class GPTNeoLocalSelfAttention(nn.Module, GPTNeoAttentionMixin):
             # we just need 1 block with block_length 1 when caching is enabled
             query = self._split_seq_length_dim_to(query, 1, 1)
         else:
-            if num_blocks > 1:
-                print(f"\tnum_blocks {num_blocks}\tblock_length {block_length}")
+            # if num_blocks > 1:
+            #     print(f"\tnum_blocks {num_blocks}\tblock_length {block_length}")
             query = self._split_seq_length_dim_to(query, num_blocks, block_length)
 
         key = self._look_back(key, block_length, self.window_size)
@@ -774,7 +774,7 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
             position_ids = position_ids.view(-1, input_shape[-1])
 
         if past_key_values is None:
-            print("!!!past_key_values is None!!!")
+            # print("!!!past_key_values is None!!!")
             past_length = 0
             past_key_values = tuple([None] * len(self.h))
         else:
@@ -809,11 +809,6 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
         # Local causal attention mask
         batch_size, seq_length = input_shape
         full_seq_length = seq_length + past_length
-        print(f"full_seq_length: {full_seq_length}")
-        try:
-            print(f"attention_mask.size(): {attention_mask.size()}")
-        except:
-            print(f"attention_mask: {attention_mask}")
         local_attention_mask = GPTNeoAttentionMixin.create_local_attention_mask(
             batch_size, full_seq_length, self.config.window_size, device, attention_mask
         )

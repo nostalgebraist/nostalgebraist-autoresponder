@@ -236,7 +236,7 @@ def poll(
                 "kwargs", {}
             )
 
-            if GPU_TYPE != "big":
+            if GPU_TYPE != "big" and requested_method != "done_writing":
                 # can't handle long pasts calc yet
                 prompt = requested_kwargs.get("prompt")
                 if not prompt and len(requested_args) > 0:
@@ -245,6 +245,7 @@ def poll(
                 ntok = len(generator_model.tokenizer.encode(prompt))
                 if ntok > 512:
                     print(f"not handling prompt with length {ntok}")
+                    time.sleep(30)
                     continue
                 print(f"OK to handle prompt with length {ntok}")
 

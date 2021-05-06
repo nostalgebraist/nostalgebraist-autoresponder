@@ -194,6 +194,7 @@ def poll(
     routes=[
         "pollml",
     ],
+    show_memory=True,
 ):
     global CLOSED_REQUESTS
 
@@ -315,6 +316,10 @@ def poll(
                 json=RESULT_STACK if not dummy else {},
             )
 
+            collect_and_show()
+            if show_memory:
+                show_gpu()
+
         open_request_ids = set()
         for prompt_id in PROMPT_STACK:
             if PROMPT_STACK[prompt_id].get("repeat_until_done_signal", False):
@@ -339,10 +344,7 @@ def loop_poll(
     open_request_ids = set()
     while True:
         try:
-            open_request_ids = poll(dummy=dummy, ports=ports, routes=routes)
-            collect_and_show()
-            if show_memory:
-                show_gpu()
+            open_request_ids = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
         except Exception as e:
             raise e
             # print(f"{type(e)}: {e}")

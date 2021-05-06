@@ -243,7 +243,7 @@ def poll(
                     prompt = requested_args[0]
 
                 ntok = len(generator_model.tokenizer.encode(prompt))
-                if ntok > 512:
+                if ntok > 256:
                     print(f"not handling prompt with length {ntok}")
                     time.sleep(30)
                     continue

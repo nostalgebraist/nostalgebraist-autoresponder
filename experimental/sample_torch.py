@@ -16,9 +16,9 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
         self.debug = debug
         self.tokenizer = tokenizer
 
-    def _dprint(self, *args, **kwargs):
+    def _dprint(self, msg, fillers={}, **kwargs):
         if self.debug:
-            print(*args, **kwargs)
+            print(msg.format(**fillers), **kwargs)
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
         seq_length = input_ids.shape[1]
@@ -47,7 +47,7 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
             print(f"was_top?: {was_top} | sampled {sampled_str} actual_top {actual_top_str} | self.breakruns_counter: {self.breakruns_counter}")
 
         eff_temperature = self.base_temperature + (self.breakruns_counter * self.tau)
-        self._dprint(f"eff_temperature: {eff_temperature}")
+        self._dprint("eff_temperature: {et}", fillers={"et": eff_temperature})
 
         self.last_logits = scores
 

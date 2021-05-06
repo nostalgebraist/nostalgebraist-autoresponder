@@ -363,7 +363,8 @@ if GPU_TYPE == "big":
 elif V11_INSURANCE:
     MODELS_SERVED = {"selector", "sentiment", "autoreviewer"}
 elif V11:
-    MODELS_SERVED = {"generator", }
+    MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
+    # MODELS_SERVED = {"generator", }
 else:
     # pre-v11
     MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}

@@ -27,7 +27,7 @@ from stable_library_code.transformers.gpt2.modeling_gpt2 import GPT2LMHeadModel,
 GPT2Model.init_weights = lambda *args, **kwargs: None
 GPT2LMHeadModel.init_weights = lambda *args, **kwargs: None
 
-from util.util import typed_namedtuple_to_dict, collect_and_show
+from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
 # TODO: move this over later
 drivedir = "/content/drive/MyDrive/gpt_neo/"
@@ -334,12 +334,15 @@ def loop_poll(
     routes=[
         "pollml",
     ],
+    show_memory=True,
 ):
     open_request_ids = set()
     while True:
         try:
             open_request_ids = poll(dummy=dummy, ports=ports, routes=routes)
             collect_and_show()
+            if show_memory:
+                show_gpu()
         except Exception as e:
             raise e
             # print(f"{type(e)}: {e}")

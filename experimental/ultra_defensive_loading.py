@@ -1,5 +1,3 @@
-import subprocess
-
 import torch
 from selector_model.selector_nn_neo import get_child_module_by_names
 
@@ -12,9 +10,7 @@ from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 GPTNeoModel.init_weights = lambda *args, **kwargs: None
 GPTNeoForCausalLM.init_weights = lambda *args, **kwargs: None
 
-
-def show_gpu():
-    print(subprocess.check_output("nvidia-smi").decode())
+from util.util import show_gpu
 
 
 def ultra_defensive_load(config_path, model_path, verbose=True):

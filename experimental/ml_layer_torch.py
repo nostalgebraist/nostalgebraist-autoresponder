@@ -236,7 +236,7 @@ def poll(
                 "kwargs", {}
             )
 
-            if GPU_TYPE != "big" and requested_method != "done_writing":
+            if GPU_TYPE != "big" and requested_method == "write":
                 # can't handle long pasts calc yet
                 prompt = requested_kwargs.get("prompt")
                 if not prompt and len(requested_args) > 0:

@@ -108,7 +108,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         show_running_loss=True,
         use_amp_in_base_forward=False,
         use_amp_training=False,
-        pad_to_mult=256,
+        **kwargs
     ):
         self.device = device
         self._base_model = weakref.ref(base_model)
@@ -134,7 +134,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         self.use_amp_in_base_forward = use_amp_in_base_forward
         self.use_amp_training = use_amp_training
-        self.pad_to_mult = pad_to_mult
 
         self.target_cols_ = None
 
@@ -150,6 +149,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.X_train_, self.y_train_, self.X_val_, self.y_val_ = None, None, None, None
 
         self.model_ = None
+
+        for k in kwargs:
+            print(f"\tSkipping constructor arg {k}")
 
     @property
     def base_model(self):
@@ -229,7 +231,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             self.tokenizer,
             max_length=self.length,
             device=self.device,
-            pad_to_mult=self.pad_to_mult
         )
 
         batch_max_tokens = input_ids.shape[1]

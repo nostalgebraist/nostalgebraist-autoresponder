@@ -24,7 +24,7 @@ from experimental.year_munging import sample_and_substitute_year_v10
 
 import bridge_cache_singleton
 
-TRADE_QUALITY_FOR_SPEED = False
+TRADE_QUALITY_FOR_SPEED = True
 
 logit_diff_sample_series = load_logit_diff_sample()
 EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
@@ -387,21 +387,24 @@ def basic_n_continuations(
 
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
                 if split_on_control_char:
-                    min_ix = first_control_char(
+                    _cchar, min_ix = first_control_char(
                         c, control_seg_config=CONTROL_SEG_CONFIG
-                    )[1]
+                    )
                     csub = c[:min_ix]
-                    print(f"\n\tsplitting on control char:")
+                    print(f"\n\tsplitting on control char {repr(c[min_ix:min_ix+len(_cchar)])}:")
                     print(
                         f"\n\t\t{len(c)} chars, {len(c.split(' '))} words-->\n\t{len(csub)} chars, {len(csub.split(' '))} words\n"
                     )
+                    if len(c) < 1000:
+                        print(f"was originally: {repr(c)}")
                     c = csub
                 else:
                     print(f"\n\trejecting because control char: {_tabfill(c)}\n")
                     continue
 
             roll = np.random.rand()
-            if len(c.partition("\n")[2].split(" ")) < avoid_if_under:
+            # NOTE: the < 100 check is for weird posts where the newline doesn't happen
+            if len(c.partition("\n")[2].split(" ")) < avoid_if_under and len(c) < 100:
                 print(
                     f"\n\trejecting because length under {avoid_if_under}: {_tabfill(c)}\n"
                 )

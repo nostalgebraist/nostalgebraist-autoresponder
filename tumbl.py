@@ -139,7 +139,7 @@ REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this re
 
 MAX_POSTS_PER_STEP = 5
 
-DASH_REBLOG_SELECTION_CUTOFF = 0.4
+DASH_REBLOG_SELECTION_CUTOFF = 0.45
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
@@ -1465,6 +1465,11 @@ def is_dynamically_reblog_worthy_on_dash(
     if len(text) < 10:
         if verbose:
             print(f"\trejecting {post_identifier}: length<10")
+        return False
+
+    if len(text) > 10000:
+        if verbose:
+            print(f"\trejecting {post_identifier}: length>10000")
         return False
 
     if sentiment is None:

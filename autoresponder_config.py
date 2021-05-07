@@ -1,4 +1,5 @@
 # HPARAMS, FLAGS, ETC
+# TODO: refactor this terrible, terrible file
 import os
 import subprocess
 
@@ -14,13 +15,29 @@ V9_1R2 = True
 V9_1R3 = True
 V9_1R4 = True
 V10 = True
-V10_1 = True  # !!
+V10_1 = True
+V10_1_torch = True  # !!
+V11 = True  # !!!! -- gptneo, th
+V11_INSURANCE = False
 
 USE_AUTOREVIEWER = True
-AUTOREVIEWER_CUTOFFS = {
-    "accept_below": 0.145,  # v10_1/v11: predict true accept rate: ~40%, false accept rate ~6.7%
-    "reject_above": 0.541,  # v10_1/v11: predict true reject rate: ~49%, false reject rate ~6%
-}
+if V11:
+    # TODO: fill
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.158,  # v11/v11: predict true accept rate: ~50%, false accept rate ~6.7%
+        "reject_above": 0.461,  # v11/v11: predict true reject rate: ~59%, false reject rate ~5%
+    }
+elif V10_1_torch:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.158,  # v10_1_torch/v1: predict true accept rate: ~38%, false accept rate ~6.7%
+        "reject_above": 0.467,  # v10_1_torch/v1: predict true reject rate: ~54%, false reject rate ~6%
+    }
+
+else:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.145,  # v10_1/v11: predict true accept rate: ~40%, false accept rate ~6.7%
+        "reject_above": 0.541,  # v10_1/v11: predict true reject rate: ~49%, false reject rate ~6%
+    }
 
 bot_specific_constants = BotSpecificConstants.load()
 BUCKET_NAME = bot_specific_constants.BUCKET_NAME
@@ -57,14 +74,28 @@ else:
     final_munge_before_neural = final_munge_before_neural_v10
     final_munge_after_neural = final_munge_after_neural_v10
 
-if V10_1:
+if V11:
+    model_name = "neo_ar_2_7B_v0_nost_tuning_f"
+    model_path = os.path.join("/", model_name)
+elif V10_1_torch:
+    model_name = "torch__autoresponder_v10_1"
+    model_path = os.path.join("/", model_name)
+elif V10_1:
     model_name = "autoresponder_v10_1"
     model_path = os.path.join("models", model_name, "model-141.hdf5")
 else:
     model_name = "autoresponder_v10"
     model_path = os.path.join("models", model_name, "model-135.hdf5")
 
-if V10_1:
+if V11:
+    ckpt_select = "selector/v11/v3/"
+    ckpt_sentiment = "sentiment/v11/v2/"
+    ckpt_autoreviewer = "draft_autoreviewer/v11/v1/"
+elif V10_1_torch:
+    ckpt_select = "selector/v10_1_torch/v1/"
+    ckpt_sentiment = "sentiment/v10_1_torch/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v10_1_torch/v1/"
+elif V10_1:
     ckpt_select = "selector/v10_1/v8/.hdf5"
     ckpt_sentiment = "sentiment/v10_1/v1/.hdf5"
     ckpt_autoreviewer = "draft_autoreviewer/v10_1/v11/.hdf5"
@@ -79,15 +110,27 @@ SELECTOR_EOT_PREPEND = True
 gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/encoder.json /models/{model_name}/"
 gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/{model_name}/"
 
-if V10_1:
-    gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_1_nost_tuning_f/model-141.hdf5 /models/autoresponder_v10_1/"
+if V11:
+    gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/tf_to_torch/neo_ar_2_7B_v0_nost_tuning_f/* {model_path}"
 
     gs_command_get_selector = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_selector/* /selector/v10_1/"
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v11_selector/* /selector/v11/"
     )
-    gs_command_get_sentiment = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_sentiment/* /sentiment/v10_1/"
+    gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v11_sentiment/* /sentiment/v11/"
+    gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v11/* /draft_autoreviewer/v11/"
+elif V10_1_torch:
+    gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/tf_to_torch/{model_name}/* {model_path}"
+
+    gs_command_get_selector = (
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_torch_selector/* /selector/v10_1_torch/"
     )
+    gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_torch_sentiment/* /sentiment/v10_1_torch/"
+    gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10_1_torch/* /draft_autoreviewer/v10_1_torch"
+elif V10_1:
+    gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_1_nost_tuning_f/model-141.hdf5 /models/autoresponder_v10_1/"
+
+    gs_command_get_selector = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_selector/* /selector/v10_1/"
+    gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_1_sentiment/* /sentiment/v10_1/"
     gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10_1/* /draft_autoreviewer/v10_1/"
 else:
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/model-135.hdf5 /models/autoresponder_v10/"
@@ -95,9 +138,7 @@ else:
     gs_command_get_selector = (
         f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_selector/* /selector/v10/"
     )
-    gs_command_get_sentiment = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
-    )
+    gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v10_sentiment/* /sentiment/v10/"
     gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v10/* /draft_autoreviewer/v10/"
 
 length_select = 825
@@ -113,28 +154,17 @@ def _gpu_type():
         gpu_info = subprocess.check_output("nvidia-smi").decode("utf-8")
     except:
         return "small"
-    if "P100" in gpu_info:
+    if "P100" in gpu_info or "V100" in gpu_info:
         return "big"
     else:
         return "small"
 
 
-if BATCHONE:
-    batch_size = 1
+GPU_TYPE = _gpu_type()
 
-    if _gpu_type() == "big":
-        max_ctx_fits_on_gpu = 1020
-    else:
-        max_ctx_fits_on_gpu = 1020
+batch_size = 1
 
-else:
-    batch_size = 2
-
-    if _gpu_type() == "big":
-        max_ctx_fits_on_gpu = 940  # 825
-    else:
-        max_ctx_fits_on_gpu = 840  # 1020  #800
-
+max_ctx_fits_on_gpu = 1020
 
 # sets max context size, for long prompts we want to cut off to allow bot to write at least this many tokens
 required_continuation_room = 100
@@ -158,17 +188,18 @@ else:
 ### Sampling
 
 BREAKRUNS = True
-BREAKRUNS_TAU = 0.01  # 0.03
-BREAKRUNS_DECAY = 0.
+BREAKRUNS_TAU = 0.02  # 0.03
+BREAKRUNS_DECAY = 0.0
+BREAKRUNS_DEBUG = False
 
 temperature = 0.9  # 0.85
 top_k = 0
 top_p = 0.95
 middle_p = 0
 
-FIRST_STEP_BREAKRUNS=True  # disable via tau=0
-FIRST_STEP_BREAKRUNS_TAU=0.
-FIRST_STEP_BREAKRUNS_DECAY=0.
+FIRST_STEP_BREAKRUNS = True  # disable via tau=0
+FIRST_STEP_BREAKRUNS_TAU = 0.0
+FIRST_STEP_BREAKRUNS_DECAY = 0.0
 
 MIRO_V2 = False
 MIRO_TRUNC = 2000  # unused in MIRO_V2
@@ -305,10 +336,37 @@ print(
     )
 )
 
+max_ctx_fits_on_gpu = 2048 if V11 else 1024
+
 if SELECT_VIA_GENERATOR_LONGLENGTH:
     length_select = max_ctx_fits_on_gpu
 
 if SENTIMENT_VIA_GENERATOR_LONGLENGTH:
     length_sentiment = max_ctx_fits_on_gpu
+
+GPT_NEO_T = 0.95 if BREAKRUNS else 1.0
+GPT_NEO_TOP_P = 1.
+GPT_NEO_TOP_K = 0
+GPT_NEO_MAX_LENGTH = 2048 if V11 else 1024
+
+head_inference_batch_size = 1 if V11 else None
+
+# # V11 loads on cpu initially then transfers to gpu
+# TENSOR_LOAD_DEVICE = 'cpu' if V11 else 'cuda:0'
+
+# lazy init should allow this everywhere
+# TODO: get rid of this, no longer needed in ultra_defensive_load
+TENSOR_LOAD_DEVICE = 'cuda:0'
+
+if GPU_TYPE == "big":
+    MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
+elif V11_INSURANCE:
+    MODELS_SERVED = {"selector", "sentiment", "autoreviewer"}
+elif V11:
+    MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
+    # MODELS_SERVED = {"generator", }
+else:
+    # pre-v11
+    MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
 
 os.chdir(startdir)

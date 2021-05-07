@@ -8,13 +8,7 @@ import model
 import sample
 
 from autoresponder_config import *  # TODO: move elsewhere?
-from util.util import typed_namedtuple_to_dict
-
-
-def copy_and_update_config(cls, config, **kwargs):
-    old_d = typed_namedtuple_to_dict(config)
-    new_d = {k: kwargs.get(k) if k in kwargs else v for k, v in old_d.items()}
-    return cls(**new_d)
+from util.util import typed_namedtuple_to_dict, copy_and_update_config
 
 
 def is_repeating_criterion(unique_token_frac):

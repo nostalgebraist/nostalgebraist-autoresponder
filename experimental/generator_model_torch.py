@@ -65,34 +65,6 @@ class GeneratorModelTorch:
                 debug=BREAKRUNS_DEBUG)
             self.transformers_model._get_logits_processor = breakruns_override
 
-    def _get_past_using_padding(self, input_ids, pad_to_mult=256):
-        true_len = input_ids.shape[1]
-
-        pad_to_len = pad_to_mult * (true_len // pad_to_mult + 1)
-        pad_to_len = min(pad_to_len, GPT_NEO_MAX_LENGTH)
-        if true_len < pad_to_mult:
-            pad_to_len = true_len
-        print(f"true_len {true_len} --> pad_to_len {pad_to_len}")
-
-        pad_len = pad_to_len - true_len
-
-        if pad_len > 0:
-            pads = torch.zeros(
-                input_ids.shape[0], pad_len, dtype=input_ids.dtype, device=input_ids.device
-            )
-
-            input_ids_padded = torch.cat([input_ids, pads], dim=1)
-        else:
-            input_ids_padded = input_ids
-
-        out = self.transformers_model(input_ids=input_ids_padded)
-        pkv_clipped = tuple(tuple(y[..., : true_len, :] for y in x) for x in out["past_key_values"])
-
-        del out
-        hardcore_collect_and_show()
-
-        return pkv_clipped
-
     def write_random_prompt(self, prompts: list, probs: list, verbose=False):
         prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))
         return self.write(prompt=prompt, verbose=verbose)
@@ -117,8 +89,6 @@ class GeneratorModelTorch:
 
             input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
-            user_past = self._get_past_using_padding(input_ids_th[:, :-1])
-
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(
                     GPT_NEO_MAX_LENGTH, max_length_per_feed + prompt_end_ix
@@ -132,12 +102,9 @@ class GeneratorModelTorch:
                 use_cache=True,
                 top_p=self.sampling_params.top_p,
                 temperature=1 if self.sampling_params.breakruns else self.sampling_params.temperature,
-                # no_repeat_ngram_size=10,  # TODO: remove once we have breakruns again
                 max_length=max_length_for_transformers_call,
                 pad_token_id=self.tokenizer.pad_token_id,
-                user_past=user_past,
             )
-            del user_past
             hardcore_collect_and_show()
 
             next_prompts = []

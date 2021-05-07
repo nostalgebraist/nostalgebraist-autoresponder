@@ -336,13 +336,13 @@ print(
     )
 )
 
+max_ctx_fits_on_gpu = 2048 if V11 else 1024
+
 if SELECT_VIA_GENERATOR_LONGLENGTH:
     length_select = max_ctx_fits_on_gpu
 
 if SENTIMENT_VIA_GENERATOR_LONGLENGTH:
     length_sentiment = max_ctx_fits_on_gpu
-
-max_ctx_fits_on_gpu = 2048 if V11 else 1024
 
 GPT_NEO_T = 0.95 if BREAKRUNS else 1.0
 GPT_NEO_TOP_P = 0.975

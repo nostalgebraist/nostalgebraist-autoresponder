@@ -24,8 +24,8 @@ USE_AUTOREVIEWER = True
 if V11:
     # TODO: fill
     AUTOREVIEWER_CUTOFFS = {
-        "accept_below": 0.158,  # v11/v11: predict true accept rate: ~50%, false accept rate ~6.7%
-        "reject_above": 0.461,  # v11/v11: predict true reject rate: ~59%, false reject rate ~5%
+        "accept_below": 0.158,  # v11/v1: predict true accept rate: ~50%, false accept rate ~6.7%
+        "reject_above": 0.461,  # v11/v1: predict true reject rate: ~59%, false reject rate ~5%
     }
 elif V10_1_torch:
     AUTOREVIEWER_CUTOFFS = {

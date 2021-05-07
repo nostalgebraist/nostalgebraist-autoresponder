@@ -7,7 +7,16 @@ For some context, see:
 - the bot's [About/FAQ page](https://nostalgebraist-autoresponder.tumblr.com/about)
 - [my tumblr tag for posts about the bot](https://nostalgebraist.tumblr.com/tagged/nostalgebraist-autoresponder-meta)
 
-### Status of the repo (last updated 2/9/21)
+### Status of the repo (last updated 5/6/21)
+
+_Update 5/6/21:_ I have recently made two large changes to the bot:
+
+- switched to pytorch
+- switched the generator model to a fine-tuned [GPT-Neo 2.7B](https://www.eleuther.ai/projects/gpt-neo/)
+
+The code for these changes is complete, but I haven't yet updated any documentation, removed any now-unused code, or updated the Jupyter Notebooks.  Caveat lector!
+
+---
 
 This README used to include a note explaining that I run the bot in practice from a separate, private repo.
 

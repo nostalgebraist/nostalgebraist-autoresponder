@@ -1467,6 +1467,11 @@ def is_dynamically_reblog_worthy_on_dash(
             print(f"\trejecting {post_identifier}: length<10")
         return False
 
+    if len(text) > 10000:
+        if verbose:
+            print(f"\trejecting {post_identifier}: length>10000")
+        return False
+
     if sentiment is None:
         reblog_worthy_neg_sentiment = True  # don't depend on allen too heavily
         print(f"warning: couldn't get sentiment")

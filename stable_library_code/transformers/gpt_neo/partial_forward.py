@@ -51,9 +51,6 @@ def partial_forward(
     # Local causal attention mask
     batch_size, seq_length = input_shape
     full_seq_length = seq_length + past_length
-    local_attention_mask = GPTNeoAttentionMixin.create_local_attention_mask(
-        batch_size, full_seq_length, model.config.window_size, device, attention_mask
-    )
 
     # Prepare head mask if needed
     # 1.0 in head_mask indicate we keep the head
@@ -84,7 +81,7 @@ def partial_forward(
             extracted_activations[i] = hidden_states
 
         attn_type = model.config.attention_layers[i]
-        attn_mask = global_attention_mask if attn_type == "global" else local_attention_mask
+        attn_mask = global_attention_mask
 
         with torch.cuda.amp.autocast(enabled=autocast_this_block):
             outputs = block(

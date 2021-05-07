@@ -25,7 +25,7 @@ GPTConfigType = Union[GPT2Config, GPTNeoConfig]
 GPTModelType = Union[GPT2LMHeadModel, GPTNeoForCausalLM]
 
 
-def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_mult=256, device="cpu"):
+def prep_inputs(batch_texts, tokenizer, max_length=2048, device="cpu"):
     batch_texts_ = []
     for bt in batch_texts:
         to_append = bt
@@ -37,19 +37,6 @@ def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_mult=256, device
     feed_in = tokenizer(
         batch_texts, padding=True, truncation=True, max_length=max_length
     )
-
-    if pad_to_mult:
-        true_len = len(feed_in['input_ids'][0])
-        pad_to_len = pad_to_mult * (true_len // pad_to_mult + 1)
-
-        pad_to_len = min(pad_to_len, max_length)
-
-        if true_len < pad_to_mult:
-            pad_to_len = true_len
-    
-        feed_in = tokenizer(
-            batch_texts, padding='max_length', truncation=True, max_length=pad_to_len
-        )
 
     for k in feed_in.keys():
         feed_in[k] = np.asarray(feed_in[k])

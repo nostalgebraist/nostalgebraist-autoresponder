@@ -29,6 +29,12 @@ UserInputIdentifier = namedtuple(
     "UserInputIdentifier", "input_type blog_name id_ timestamp"
 )
 
+# i have no clear memory of what problem these solved
+# and they are causing a bug
+# so i'll try turning them off
+# - written 5/7/21
+USE_TRAIL_TIPS = False
+
 
 class ResponseCache:
     def __init__(
@@ -428,6 +434,8 @@ class ResponseCache:
 
     @staticmethod
     def trail_tip(trail: list):
+        if not USE_TRAIL_TIPS:
+            return None
         if trail is None:
             return None
         ordered_trail = sorted(trail, key=lambda x: x.get("post", {}).get("id", "-1"))

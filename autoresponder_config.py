@@ -345,7 +345,7 @@ if SENTIMENT_VIA_GENERATOR_LONGLENGTH:
     length_sentiment = max_ctx_fits_on_gpu
 
 GPT_NEO_T = 0.95 if BREAKRUNS else 1.0
-GPT_NEO_TOP_P = 0.975
+GPT_NEO_TOP_P = 1.
 GPT_NEO_TOP_K = 0
 GPT_NEO_MAX_LENGTH = 2048 if V11 else 1024
 

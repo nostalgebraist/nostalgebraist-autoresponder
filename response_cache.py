@@ -19,6 +19,7 @@ from bot_config import BotSpecificConstants
 
 bot_specific_constants = BotSpecificConstants.load()
 NO_REBLOG_IDS = bot_specific_constants.NO_REBLOG_IDS
+blogName = bot_specific_constants.blogName
 
 PostIdentifier = namedtuple("PostIdentifier", "blog_name id_")
 ReplyIdentifier = namedtuple("ReplyIdentifier", "blog_name id_ timestamp")
@@ -28,12 +29,6 @@ UserInputType = Enum("UserInputType", "ASK REBLOG REPLY")
 UserInputIdentifier = namedtuple(
     "UserInputIdentifier", "input_type blog_name id_ timestamp"
 )
-
-# i have no clear memory of what problem these solved
-# and they are causing a bug
-# so i'll try turning them off
-# - written 5/7/21
-USE_TRAIL_TIPS = False
 
 
 class ResponseCache:
@@ -411,7 +406,7 @@ class ResponseCache:
 
         tip = self.cached_trail_tip(identifier_normalized)
         if tip is not None:
-            if tip != identifier:
+            if tip != identifier and tip.blog_name != blogName:
                 print(
                     f"mark_handled: for {identifier}, also marking tip {tip} as handled"
                 )
@@ -434,8 +429,6 @@ class ResponseCache:
 
     @staticmethod
     def trail_tip(trail: list):
-        if not USE_TRAIL_TIPS:
-            return None
         if trail is None:
             return None
         ordered_trail = sorted(trail, key=lambda x: x.get("post", {}).get("id", "-1"))

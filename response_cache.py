@@ -410,7 +410,7 @@ class ResponseCache:
                 print(
                     f"mark_handled: for {identifier}, also marking tip {tip} as handled"
                 )
-            self.cache["reblogs_handled"].add(tip)
+                self.cache["reblogs_handled"].add(tip)
         else:
             print(f"mark_handled: for {identifier}, found no tip {tip} to mark")
 

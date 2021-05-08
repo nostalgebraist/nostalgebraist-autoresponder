@@ -108,6 +108,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         show_running_loss=True,
         use_amp_in_base_forward=False,
         use_amp_training=False,
+        pad_to_mult=None,
         **kwargs
     ):
         self.device = device
@@ -134,6 +135,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         self.use_amp_in_base_forward = use_amp_in_base_forward
         self.use_amp_training = use_amp_training
+
+        self.pad_to_mult = pad_to_mult
 
         self.target_cols_ = None
 
@@ -231,6 +234,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             self.tokenizer,
             max_length=self.length,
             device=self.device,
+            pad_to_mult=self.pad_to_mult,
         )
 
         batch_max_tokens = input_ids.shape[1]

@@ -109,6 +109,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         use_amp_in_base_forward=False,
         use_amp_training=False,
         pad_to_mult=None,
+        display_interval_secs=3,
         **kwargs
     ):
         self.device = device
@@ -137,6 +138,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.use_amp_training = use_amp_training
 
         self.pad_to_mult = pad_to_mult
+        self.display_interval_secs = display_interval_secs
 
         self.target_cols_ = None
 
@@ -257,7 +259,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         row_ix = 0
         step_iter = tqdm(
-            list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=3
+            list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=self.display_interval_secs
         )
         epoch_data = []
         for step_ix in step_iter:
@@ -289,7 +291,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         # train pass
         row_ix = 0
         step_iter = tqdm(
-            epoch_data, smoothing=0.0, miniters=1, mininterval=3
+            epoch_data, smoothing=0.0, miniters=1, mininterval=self.display_interval_secs
         )
         for step_ix, batch_data in enumerate(step_iter):
             input_ids = batch_data["input_ids"]
@@ -577,7 +579,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         row_ix = 0
 
         step_iter = (
-            tqdm(list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=1)
+            tqdm(list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=self.display_interval_secs)
             if steps > 1
             else list(range(0, steps))
         )

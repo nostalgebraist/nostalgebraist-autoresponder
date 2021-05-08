@@ -37,8 +37,8 @@ class RateLimitClient(pytumblr.TumblrRestClient):
 
     @staticmethod
     def is_consumption_endpoint(url: str) -> bool:
-        # TODO: maybe this should just be /posts?
-        return "/posts" in url or "/notes" in url or "/notifications" in url
+        # TODO: maybe this should just be /posts and /dashboard?
+        return "/posts" in url or "/dashboard" in url or "/notes" in url or "/notifications" in url
 
     def send_api_request(
         self, method, url, params={}, valid_parameters=[], needs_api_key=False

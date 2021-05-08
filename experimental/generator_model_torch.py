@@ -74,8 +74,10 @@ class GeneratorModelTorch:
 
         batch_pr = [prompt for _ in range(self.batch_size)]
         batch_pr_tokens = self.tokenizer(
-            batch_pr, truncation=True, max_length=max_context_size
+            batch_pr,
         )["input_ids"]
+
+        batch_pr_tokens = [toks[-max_context_size:] for toks in batch_pr_tokens]
 
         continuations_tokens = batch_pr_tokens
         n_orig_prompt_tokens = len(continuations_tokens[0])
@@ -83,8 +85,9 @@ class GeneratorModelTorch:
 
         while not done:
             input_ids = self.tokenizer(
-                batch_pr, truncation=True, max_length=max_context_size
+                batch_pr,
             )["input_ids"]
+            input_ids = [toks[-max_context_size:] for toks in input_ids]
             prompt_end_ix = len(input_ids[0])
 
             input_ids_th = torch.as_tensor(input_ids).to(self.device)

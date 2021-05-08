@@ -1,5 +1,5 @@
 import weakref
-from typing import Union, List, NamedTuple, Optional
+from typing import Union, List, NamedTuple
 
 import numpy as np
 import torch
@@ -253,7 +253,7 @@ NostARHeadArchitectureParams = NamedTuple(
     init_gain=float,
     init_gain_logit_head=float,
     classic_behavior_attn_init=bool,
-    proj_ratio=Optional[Union[int, float]],
+    proj_ratio=Union[int, float],
 )
 
 

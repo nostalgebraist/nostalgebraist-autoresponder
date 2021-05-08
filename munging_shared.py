@@ -12,16 +12,18 @@ from autoresponder_static import find_all_control_chars_chinese, CHINESE_CHAR_DE
 from autoresponder_static_v8 import TIME_SIDECHANNEL_CHAR
 
 from image_analysis import (
-    extract_and_format_text_from_url,
     V9_IMAGE_FORMATTER,
     IMAGE_DIR,
     IMAGE_DELIMITER,
     IMAGE_DELIMITER_WHITESPACED
 )
 
+import image_analysis_singleton
+image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
+
 from text_segmentation import make_image_simple
 
-from experimental.tumblr_parsing import NPFContent, TumblrThread
+from experimental.tumblr_parsing import TumblrThread
 
 from pytumblr_wrapper import RateLimitClient
 
@@ -237,7 +239,7 @@ def body_via_trail_hack(post: dict):
 
 
 def process_post_from_html_body(
-    body: str, debug=False, V10=True, image_analysis_cache=None
+    body: str, debug=False, V10=True,
 ) -> str:
     # warning: doesn't handle ask prefixes
     # if you want to go from an API payload to text, use process_post_from_post_payload
@@ -251,14 +253,13 @@ def process_post_from_html_body(
         use_article=False,
         debug=debug,
         V10=V10,
-        image_analysis_cache=image_analysis_cache,
     )
 
     return processed
 
 
 def process_post_from_post_payload(
-    post: dict, debug=False, V10=True, image_analysis_cache=None
+    post: dict, debug=False, V10=True,
 ) -> str:
     post = simulate_legacy_payload(post)
 
@@ -267,7 +268,7 @@ def process_post_from_post_payload(
         return None
 
     processed = process_post_from_html_body(
-        body, debug=debug, V10=V10, image_analysis_cache=image_analysis_cache
+        body, debug=debug, V10=V10,
     )
 
     if len(processed) == 0:
@@ -301,10 +302,8 @@ def process_post_from_post_payload(
     return processed
 
 
-def screener_string_from_bootstrap_draft(d, image_analysis_cache=None):
-    processed = process_post_from_post_payload(
-        d, image_analysis_cache=image_analysis_cache
-    )
+def screener_string_from_bootstrap_draft(d):
+    processed = process_post_from_post_payload(d)
     cchars = find_all_control_chars_chinese(processed)
 
     if len(cchars) == 0:
@@ -331,18 +330,15 @@ def screener_string_from_bootstrap_draft(d, image_analysis_cache=None):
 def find_images_and_sub_text(
     text: str,
     image_formatter=V9_IMAGE_FORMATTER,
-    image_analysis_cache=None,
     verbose=False,
 ):
     text_subbed = text
 
     for match in re.finditer(r"(<img src=\")([^\"]+)(\"[^>]*>)", text):
-        if image_analysis_cache is not None:
-            imtext = image_analysis_cache.extract_and_format_text_from_url(
-                match.group(2)
-            )
-        else:
-            imtext = extract_and_format_text_from_url(match.group(2))
+        imtext = image_analysis_cache.extract_and_format_text_from_url(
+            match.group(2)
+        )
+
         text_subbed = text_subbed.replace(
             match.group(0),
             imtext,
@@ -506,15 +502,12 @@ def load_wash_lists():
 
 def write_text_for_side_judgment(
     post_payload,
-    image_analysis_cache=None,
     chop_on_a_char=False,
     add_tags=False,
     swap_in_frank=False,
     add_empty_response=True,
 ):
-    processed = process_post_from_post_payload(
-        post_payload, image_analysis_cache=image_analysis_cache
-    )
+    processed = process_post_from_post_payload(post_payload)
     if processed is None:
         return False
 

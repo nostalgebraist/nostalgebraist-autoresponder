@@ -56,12 +56,14 @@ from experimental.ml_connector import (
     autoreview_proba_from_gpt2_service,
 )
 
-from image_analysis import ImageAnalysisCache, IMAGE_DELIMITER
+from image_analysis import IMAGE_DELIMITER
 
 from autoresponder_static import DEFAULT_CSC
 from autoresponder_static_v8 import timestamp_to_v10_format
 
 import traceability_singleton
+import image_analysis_singleton
+image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
 from util.error_handling import LogExceptionAndSkip
 
@@ -880,7 +882,6 @@ class LoopPersistentData:
         requests_per_check_history=[],
         apriori_requests_per_check=25,
         follower_names=None,
-        image_analysis_cache: ImageAnalysisCache = ImageAnalysisCache(),
         retention_stack: set = set(),
     ):
         self.reblogs_from_me = reblogs_from_me
@@ -897,7 +898,6 @@ class LoopPersistentData:
         self.requests_per_check_history = requests_per_check_history
         self.apriori_requests_per_check = apriori_requests_per_check
         self.follower_names = follower_names
-        self.image_analysis_cache = image_analysis_cache
         self.retention_stack = retention_stack
 
         if len(self.requests_per_check_history) == 0:
@@ -997,7 +997,6 @@ def respond_to_reblogs_replies(
 
         processed = process_post_from_post_payload(
             d_boot,
-            image_analysis_cache=loop_persistent_data.image_analysis_cache,
             V10=True,
         )
         question = processed.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
@@ -1182,7 +1181,6 @@ def respond_to_reblogs_replies(
                 try:
                     screener_question = screener_string_from_bootstrap_draft(
                         d_boot,
-                        image_analysis_cache=loop_persistent_data.image_analysis_cache,
                     )
                 except Exception as e:
                     eargs = getattr(e, "args", "?")
@@ -1279,7 +1277,6 @@ def text_for_side_judgments(
     if text is None:
         text = write_text_for_side_judgment(
             post_payload,
-            image_analysis_cache=loop_persistent_data.image_analysis_cache,
             **write_config,
         )
         response_cache.mark_post_body(post_identifier, text)
@@ -2446,9 +2443,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
             question = x["question"]
 
-            question = find_images_and_sub_text(
-                question, image_analysis_cache=loop_persistent_data.image_analysis_cache
-            )
+            question = find_images_and_sub_text(question)
 
             question = inverse_format_post_for_api(question)
 
@@ -2781,7 +2776,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             if (n_asks > 0):
                 if save_after:
                     response_cache.save()
-                    loop_persistent_data.image_analysis_cache.save()
+                    image_analysis_cache.save()
         return loop_persistent_data, response_cache
 
     ### do asks check
@@ -2796,7 +2791,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             loop_persistent_data, response_cache, n_posts_to_check
         )
         response_cache.save()
-        loop_persistent_data.image_analysis_cache.save()
+        image_analysis_cache.save()
 
         ### do another asks check
         loop_persistent_data, response_cache = _mainloop_asks_block(
@@ -2826,7 +2821,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     relevant_ratelimit_data = private_client.get_ratelimit_data()
     if relevant_ratelimit_data["effective_remaining"] > 0:
         response_cache.save()
-        loop_persistent_data.image_analysis_cache.save()
+        image_analysis_cache.save()
 
         ### do rts
         response_cache = do_rts(response_cache)
@@ -2865,12 +2860,10 @@ if __name__ == "__main__":
     # pr_boot.enable()
 
     response_cache = ResponseCache.load(tank_client)
-    image_analysis_cache = ImageAnalysisCache.load()
 
     retention_stack = load_retention()
 
     loop_persistent_data = LoopPersistentData(
-        image_analysis_cache=image_analysis_cache,
         retention_stack=retention_stack,
     )
 

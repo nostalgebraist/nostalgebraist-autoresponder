@@ -9,15 +9,18 @@ from tqdm.autonotebook import tqdm
 
 from bs4 import BeautifulSoup
 
-from image_analysis import ImageAnalysisCache
 from reblogs_v5 import *
 from autoresponder_static_v8 import *
 from munging_shared import *
 
+import image_analysis_singleton
+image_analysis_cache = image_analysis_singleton.ImageAnalysisCache
+
 tqdm.pandas()
 
 
-# TODO: get rid of this once all images are analyzed
+# TODO (out of date): get rid of this once all images are analyzed
+# TODO (less out of date): stop analyzing new mood graphs?
 CACHE_HITS = 0
 CACHE_MISSES = 0
 
@@ -25,7 +28,6 @@ CACHE_MISSES = 0
 def cached_image_analysis_fn(
     elem,
     image_formatter=V9_IMAGE_FORMATTER,
-    image_analysis_cache=None,
     cached_only=False,
     verbose=False,
 ):
@@ -47,7 +49,6 @@ def cached_image_analysis_fn(
         return IMAGE_ANALYSIS_FN(
             elem,
             image_formatter=image_formatter,
-            image_analysis_cache=image_analysis_cache,
             verbose=verbose,
         )
     return ""
@@ -61,7 +62,6 @@ def fix_p_in_h2_bug(raw_html):
 
 def get_all_posts(
     posts_dir,
-    image_analysis_cache,
     cached_images_only=False,
     return_metadata_per_post=True,
 ):
@@ -100,7 +100,6 @@ def get_all_posts(
             soup,
             uname_config="frank_v10_1_operate",
             get_image_urls=True,
-            image_analysis_cache=image_analysis_cache,
             user_defined_image_analysis=user_defined_image_analysis,
             V10=True,
             debug=False,
@@ -150,7 +149,7 @@ def get_prompt_and_continuation_from_processed(processed: str):
     return prompt, continuation
 
 
-def load_scraped_bot_posts(posts_dir, image_analysis_cache, cached_images_only=False):
+def load_scraped_bot_posts(posts_dir, cached_images_only=False):
     (
         posts,
         post_fns,
@@ -159,7 +158,6 @@ def load_scraped_bot_posts(posts_dir, image_analysis_cache, cached_images_only=F
         metadata_per_post,
     ) = get_all_posts(
         posts_dir=posts_dir,
-        image_analysis_cache=image_analysis_cache,
         cached_images_only=cached_images_only,
         return_metadata_per_post=True,
     )
@@ -241,14 +239,13 @@ def selector_data_prep_pipeline(
     posts_dir,
     save_path,
     save_path_image_urls,
-    image_analysis_cache,
     cached_images_only=False,
     include_reblogs=False,
     save_image_analysis_cache=False,
     save_image_urls=False,
 ):
     ids_to_loaded_data, other_data = load_scraped_bot_posts(
-        posts_dir, image_analysis_cache, cached_images_only=cached_images_only
+        posts_dir, cached_images_only=cached_images_only
     )
     ids_to_selector_training_data_rows = fill_in_selector_training_data(
         ids_to_loaded_data, include_reblogs=include_reblogs
@@ -302,13 +299,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    image_analysis_cache = ImageAnalysisCache.load()
-
     selector_data_prep_pipeline(
         posts_dir=args.posts_dir,
         save_path=args.save_path,
         save_path_image_urls=args.save_path_image_urls,
-        image_analysis_cache=image_analysis_cache,
         cached_images_only=args.cached_images_only,
         include_reblogs=args.include_reblogs,
         save_image_analysis_cache=args.save_image_analysis_cache,

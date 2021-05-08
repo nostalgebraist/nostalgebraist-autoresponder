@@ -50,30 +50,25 @@ USE_IMAGE_ANALYSIS = {"img"}
 
 from string import whitespace
 from itertools import product
-from functools import partial
 
 import bs4
 
 from image_analysis import (
-    extract_and_format_text_from_url,
     V9_IMAGE_FORMATTER,
-    ImageAnalysisCache,
 )
+import image_analysis_singleton
+image_analysis_cache = image_analysis_singleton.ImageAnalysisCache
 
 
 def IMAGE_ANALYSIS_FN(
-    elem, image_formatter=V9_IMAGE_FORMATTER, image_analysis_cache=None, verbose=True
+    elem, image_formatter=V9_IMAGE_FORMATTER, verbose=True
 ):
     url_attr = "href" if elem.name == "a" else "src"
 
     if elem.attrs.get(url_attr) is None:
         return None
 
-    if image_analysis_cache is not None:
-        return image_analysis_cache.extract_and_format_text_from_url(
-            elem.attrs.get(url_attr), image_formatter=image_formatter
-        )
-    return extract_and_format_text_from_url(
+    return image_analysis_cache.extract_and_format_text_from_url(
         elem.attrs.get(url_attr), image_formatter=image_formatter
     )
 
@@ -471,12 +466,8 @@ def process_post(
     get_image_urls=False,
     user_defined_image_analysis=IMAGE_ANALYSIS_FN,
     user_defined_image_formatter=V9_IMAGE_FORMATTER,
-    image_analysis_cache: ImageAnalysisCache = None,
     V10=True,
 ):
-    user_defined_image_analysis = partial(
-        user_defined_image_analysis, image_analysis_cache=image_analysis_cache
-    )
     text_processor_maps = make_text_processor_maps(uname_config)
 
     text_units = []

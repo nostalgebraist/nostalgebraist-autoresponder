@@ -167,7 +167,7 @@ batch_size = 1
 max_ctx_fits_on_gpu = 1020
 
 # sets max context size, for long prompts we want to cut off to allow bot to write at least this many tokens
-required_continuation_room = 100
+required_continuation_room = 256
 
 if EVEN_BETTER_LENGTH:
     better_length = False

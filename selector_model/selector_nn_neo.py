@@ -41,11 +41,6 @@ def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_mult=256, device
     for k in feed_in.keys():
         feed_in[k] = np.asarray(feed_in[k])
 
-    input_ids_with_pads = feed_in["input_ids"].copy()
-    input_ids_with_pads = torch.as_tensor(input_ids_with_pads).pin_memory().to(device)
-
-    feed_in["input_ids"][feed_in["input_ids"] == tokenizer.pad_token_id] = 0
-
     if pad_to_mult:
         true_len = len(feed_in['input_ids'][0])
         pad_to_len = pad_to_mult * (true_len // pad_to_mult + 1)
@@ -59,11 +54,19 @@ def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_mult=256, device
             batch_texts, padding='max_length', truncation=True, max_length=pad_to_len
         )
 
-    for k in feed_in.keys():
-        feed_in[k] = torch.as_tensor(feed_in[k]).to(device)
+        for k in feed_in.keys():
+          feed_in[k] = np.asarray(feed_in[k])
 
     input_ids = feed_in["input_ids"]
+    input_ids_with_pads = feed_in["input_ids"].copy()
     attention_mask = feed_in["attention_mask"]
+
+    input_ids[input_ids == tokenizer.pad_token_id] = 0
+
+    input_ids = torch.as_tensor(input_ids).pin_memory().to(device)
+    input_ids_with_pads = torch.as_tensor(input_ids_with_pads).pin_memory().to(device)
+    attention_mask = torch.as_tensor(attention_mask).pin_memory().to(device)
+
     return input_ids, attention_mask, input_ids_with_pads
 
 

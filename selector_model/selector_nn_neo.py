@@ -1,5 +1,5 @@
 import weakref
-from typing import Union, List, NamedTuple
+from typing import Union, List, NamedTuple, Optional
 
 import numpy as np
 import torch
@@ -128,6 +128,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         attn_dropout=0.0,
         res_dropout=0.0,
         layer_norm_epsilon=1e-5,
+        proj_ratio: float = 1.
     ):
         super().__init__()
 
@@ -146,6 +147,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
         self.embed_dim = base_model_config.hidden_size
         self.head_dim = self.embed_dim // self.n_head
+        self.proj_dim = int(self.proj_ratio * self.embed_dim)
         if self.head_dim * self.n_head != self.embed_dim:
             raise ValueError(
                 f"embed_dim must be divisible by n_head (got `embed_dim`: {self.embed_dim} and `n_head`: {self.n_head})."
@@ -156,7 +158,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         self.k_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
         self.v_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
         self.q_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
-        self.out_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)
+        self.out_proj = nn.Linear(self.embed_dim, self.proj_dim, bias=True)
 
     def classic_init(self, gain: float = 1.):
         with torch.no_grad():
@@ -250,7 +252,8 @@ NostARHeadArchitectureParams = NamedTuple(
     res_dropout=float,
     init_gain=float,
     init_gain_logit_head=float,
-    classic_behavior_attn_init=bool
+    classic_behavior_attn_init=bool,
+    proj_ratio=Optional[Union[int, float]],
 )
 
 
@@ -333,6 +336,7 @@ class NostARHead(nn.Module):
                     base_model_config=self.base_model.config,
                     attn_dropout=self.params.attn_dropout,
                     res_dropout=self.params.res_dropout,
+                    proj_ratio=self.params.proj_ratio,
                 )
                 for nh in self.n_head
             ]
@@ -361,7 +365,7 @@ class NostARHead(nn.Module):
 
         self._setup_attns()
 
-        mlp_input_size = len(self.layer_nums) * self.base_model.config.hidden_size
+        mlp_input_size = len(self.layer_nums) * int(self.params.proj_ratio * self.base_model.config.hidden_size)
         mlp_intermediate_size = int(mlp_input_size * self.params.mlp_ratio)
 
         self.mlp = NostARHeadMLP(

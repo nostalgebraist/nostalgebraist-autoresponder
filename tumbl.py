@@ -1333,15 +1333,12 @@ def is_statically_reblog_worthy_on_dash(
             print(f"\trejecting {post_identifier}: is video")
         return False
 
-    try:
-        p_body = get_body(post_payload)
-        n_img = len(p_body.split("<img")) - 1
-        if n_img > 10:
-            if verbose:
-                print(f"\trejecting {post_identifier}: too many images ({n_img})")
-            return False
-    except AttributeError:
-        print(f"get_body failed for {post_identifier}")
+    p_body = get_body(post_payload)
+    n_img = len(p_body.split("<img")) - 1
+    if n_img > 10:
+        if verbose:
+            print(f"\trejecting {post_identifier}: too many images ({n_img})")
+        return False
 
     # tag avoid list
     tags = post_payload.get("tags", [])

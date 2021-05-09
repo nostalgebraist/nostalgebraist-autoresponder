@@ -141,7 +141,7 @@ REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this re
 
 MAX_POSTS_PER_STEP = 5
 
-DASH_REBLOG_SELECTION_CUTOFF = 0.5
+DASH_REBLOG_SELECTION_CUTOFF = 0.4
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
@@ -876,7 +876,7 @@ class LoopPersistentData:
         last_seen_ts=0,
         last_seen_ts_notifications=0,
         n_posts_to_check_base=240,
-        n_posts_to_check_dash=640,
+        n_posts_to_check_dash=1280,  # 640,
         n_notifications_to_check=1000,
         offset_=0,
         requests_per_check_history=[],

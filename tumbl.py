@@ -1738,7 +1738,7 @@ def get_relevant_replies_from_notes(
                 trail_entries_from_me = [
                     entry
                     for entry in post_payload["trail"]
-                    if entry["blog"]["name"] == blogName
+                    if entry.get("blog", {}).get("name") == blogName
                 ]
                 reply_context_post_id = int(trail_entries_from_me[0]["post"]["id"])
 

@@ -142,10 +142,10 @@ sample_done_criterion = make_sample_done_criterion(
 
 generator_model, selector_est, sentiment_est, autoreviewer_est = None, None, None, None
 
-generator_model = load_from_gdrive_with_gs_fallback(
-    load_fn=load_generator_model,
-    relative_path=model_name,
-    gs_command=gs_command_get_model,
+subprocess.check_output(gs_command_get_model, shell=True)
+
+generator_model = load_generator_model(
+    path=os.path.join("/", model_name),
     tokenizer=tokenizer,
     batch_size=batch_size,
     device='cuda:0',

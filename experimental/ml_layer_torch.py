@@ -101,7 +101,11 @@ def load_generator_model(
     config_path = os.path.join(path, "config.json")
     model_path = os.path.join(path, "pytorch_model.bin")
 
-    transformers_model = low_memory_load(config_path=config_path, model_path=model_path)
+    transformers_model = low_memory_load(
+        config_path=config_path,
+        model_path=model_path,
+        model_cls=GPTNeoForCausalLM,
+    )
 
     return GeneratorModelTorch.load(
         transformers_model=transformers_model,

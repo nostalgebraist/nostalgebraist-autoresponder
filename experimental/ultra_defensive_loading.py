@@ -75,6 +75,8 @@ def ultra_defensive_load(config_path, model_path, verbose=True):
     # does the buffers
     model = model.cuda()
 
+    model.eval()
+
     vshow_gpu()
 
     return model

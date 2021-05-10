@@ -149,6 +149,7 @@ generator_model, selector_est, sentiment_est, autoreviewer_est = None, None, Non
 generator_path = os.path.join("/", model_name)
 
 if not os.path.exists(generator_path):
+    os.makedirs(generator_path)
     subprocess.check_output(gs_command_get_model, shell=True)
 
 generator_model = load_generator_model(

@@ -11,7 +11,7 @@ from transformers import AutoTokenizer
 from stable_library_code.transformers.gpt2.configuration_gpt2 import GPT2Config
 from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 
-from transformer_utils import low_memory_loads
+from transformer_utils import low_memory_load
 
 from autoresponder_config import *
 from autoresponder_static import *

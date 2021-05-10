@@ -146,10 +146,13 @@ sample_done_criterion = make_sample_done_criterion(
 
 generator_model, selector_est, sentiment_est, autoreviewer_est = None, None, None, None
 
-subprocess.check_output(gs_command_get_model, shell=True)
+generator_path = os.path.join("/", model_name)
+
+if not os.path.exists(generator_path):
+    subprocess.check_output(gs_command_get_model, shell=True)
 
 generator_model = load_generator_model(
-    path=os.path.join("/", model_name),
+    path=generator_path,
     tokenizer=tokenizer,
     batch_size=batch_size,
     device='cuda:0',

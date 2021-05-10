@@ -5,6 +5,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from transformer_utils.util.module_utils import get_child_module_by_names
+
 from transformers.activations import ACT2FN
 from transformers.models.gpt2.tokenization_gpt2_fast import GPT2TokenizerFast
 from transformers.models.gpt2.tokenization_gpt2 import GPT2Tokenizer
@@ -68,13 +70,6 @@ def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_mult=256, device
     attention_mask = torch.as_tensor(attention_mask).pin_memory().to(device)
 
     return input_ids, attention_mask, input_ids_with_pads
-
-
-def get_child_module_by_names(module, names):
-    obj = module
-    for getter in map(lambda name: lambda obj: getattr(obj, name), names):
-        obj = getter(obj)
-    return obj
 
 
 def extract_activations(model, layer_names: list, prefixes: list = [], verbose=True):

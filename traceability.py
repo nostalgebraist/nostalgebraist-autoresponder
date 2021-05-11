@@ -8,6 +8,7 @@ from datetime import datetime
 import pandas as pd
 
 TRACEABILITY_FN = os.path.join(os.path.dirname(__file__), "data/traceability_logs.pkl.gz")
+TRACEABILITY_COLD_STORAGE_FN = os.path.join(os.path.dirname(__file__), "data/traceability_logs_cold_storage.pkl.gz")
 
 
 def _add_field(logs, fieldname):
@@ -60,9 +61,6 @@ class TraceabilityLogs:
     def on_post_creation_callback(self, api_response: dict, bridge_response: dict):
         t1 = time.time()
 
-        _tload = time.time()
-        print(f"on_post_creation_callback LOAD: {_tload-t1:.3f}s sec")
-
         entry = {"api__" + k: v for k, v in api_response.items()}
         entry.update(bridge_response)
 
@@ -74,8 +72,6 @@ class TraceabilityLogs:
                 self.logs = _add_field(self.logs, k)
 
         self.logs["data"].append(entry)
-        _tadd = time.time()
-        print(f"on_post_creation_callback ADD: {_tadd-_tload:.3f}s sec")
 
         self.save()
 
@@ -117,7 +113,24 @@ def traceability_logs_to_df(logs,
     return df
 
 
-def load_traceability_logs_to_df(path=TRACEABILITY_FN, **kwargs):
-    from traceability_singleton import TRACE_LOGS
+def load_full_traceability_logs():
+    from traceability_singleton import TRACE_LOGS as trace_logs_hot
 
-    return traceability_logs_to_df(TRACE_LOGS.logs, **kwargs)
+    trace_logs_cold = TraceabilityLogs.load(path=TRACEABILITY_COLD_STORAGE_FN)
+
+    full_trace_logs = {"fields": trace_logs_cold["fields"], "data": trace_logs_cold["data"]}
+
+    for field in trace_logs_hot["fields"]:
+        if field not in full_trace_logs["fields"]:
+            print(f"adding hot field to cold: {repr(field)}")
+            _add_field(full_trace_logs, field)
+
+    full_trace_logs["data"] = full_trace_logs["data"] + trace_logs_hot["data"]
+
+    return full_trace_logs
+
+
+def load_traceability_logs_to_df(**kwargs):
+    full_trace_logs = load_full_traceability_logs()
+
+    return traceability_logs_to_df(full_trace_logs, **kwargs)

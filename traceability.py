@@ -33,12 +33,12 @@ class TraceabilityLogs:
 
     @staticmethod
     def load(path=TRACEABILITY_FN) -> 'TraceabilityLogs':
-        if not os.path.exists(TRACEABILITY_FN):
+        if not os.path.exists(path):
             print('initializing fresh traceability logs')
             logs = {"fields": [], "data": []}
         else:
             print('loading traceability logs')
-            with open(TRACEABILITY_FN, "rb") as f:
+            with open(path, "rb") as f:
                 logs = pickle.load(f)
             return TraceabilityLogs(logs=logs, path=path)
 
@@ -114,9 +114,10 @@ def traceability_logs_to_df(logs,
 
 
 def load_full_traceability_logs():
-    from traceability_singleton import TRACE_LOGS as trace_logs_hot
+    import traceability_singleton
+    trace_logs_hot = traceability_singleton.TRACE_LOGS.logs
 
-    trace_logs_cold = TraceabilityLogs.load(path=TRACEABILITY_COLD_STORAGE_FN)
+    trace_logs_cold = TraceabilityLogs.load(path=TRACEABILITY_COLD_STORAGE_FN).logs
 
     full_trace_logs = {"fields": trace_logs_cold["fields"], "data": trace_logs_cold["data"]}
 

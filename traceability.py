@@ -40,7 +40,7 @@ class TraceabilityLogs:
             print('loading traceability logs')
             with open(path, "rb") as f:
                 logs = pickle.load(f)
-            return TraceabilityLogs(logs=logs, path=path)
+        return TraceabilityLogs(logs=logs, path=path)
 
     def save(self):
         print(f'saving traceability logs: lengths {self.lengths}')

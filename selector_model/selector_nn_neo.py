@@ -143,7 +143,6 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         self.embed_dim = base_model_config.hidden_size
         self.head_dim = self.embed_dim // self.n_head
 
-        # TODO: maybe decrease dim at V, not at proj (fewer params)
         self.proj_dim = int(proj_ratio * self.embed_dim)
 
         if self.head_dim * self.n_head != self.embed_dim:
@@ -155,8 +154,8 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
         self.k_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
         self.v_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
-        self.q_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
-        self.out_proj = nn.Linear(self.embed_dim, self.proj_dim, bias=True)
+        self.q_proj = nn.Linear(self.embed_dim, self.proj_dim, bias=True)  # vs bias=False in GPTNeo -nost
+        self.out_proj = nn.Linear(self.proj_dim, self.proj_dim, bias=True)
 
     def classic_init(self, gain: float = 1.):
         with torch.no_grad():

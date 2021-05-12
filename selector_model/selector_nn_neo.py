@@ -159,13 +159,13 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
     def classic_init(self, gain: float = 1.):
         with torch.no_grad():
-            qkv_weight = torch.empty(self.embed_dim, 2 * self.embed_dim + self.proj_dim, requires_grad=False)
+            qkv_weight = torch.empty(2 * self.embed_dim + self.proj_dim, self.embed_dim, requires_grad=False)
             nn.init.orthogonal_(qkv_weight, gain)
 
             q_weight, k_weight, v_weight = torch.split(
                 qkv_weight,
                 [self.embed_dim, self.embed_dim, self.proj_dim],
-                dim=-1
+                dim=-2
             )
 
             self.q_proj.weight.copy_(q_weight)

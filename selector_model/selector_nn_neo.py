@@ -142,7 +142,10 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
         self.embed_dim = base_model_config.hidden_size
         self.head_dim = self.embed_dim // self.n_head
+
+        # TODO: maybe decrease dim at V, not at proj (fewer params)
         self.proj_dim = int(proj_ratio * self.embed_dim)
+
         if self.head_dim * self.n_head != self.embed_dim:
             raise ValueError(
                 f"embed_dim must be divisible by n_head (got `embed_dim`: {self.embed_dim} and `n_head`: {self.n_head})."

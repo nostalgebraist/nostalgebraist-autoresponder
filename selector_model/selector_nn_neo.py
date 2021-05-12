@@ -144,6 +144,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         self.head_dim = self.embed_dim // self.n_head
 
         self.proj_dim = int(proj_ratio * self.embed_dim)
+        self.v_head_dim = self.proj_dim // self.n_head
 
         if self.head_dim * self.n_head != self.embed_dim:
             raise ValueError(
@@ -195,7 +196,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
         query = self._split_heads(query, self.n_head, self.head_dim)
         key = self._split_heads(key, self.n_head, self.head_dim)
-        value = self._split_heads(value, self.n_head, self.head_dim)
+        value = self._split_heads(value, self.n_head, self.v_head_dim)
 
         query_length, key_length = query.size(-2), key.size(-2)
         causal_mask = self.bias[

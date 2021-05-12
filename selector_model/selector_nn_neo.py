@@ -214,7 +214,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
             head_mask,
         )
 
-        attn_output = self._merge_heads(attn_output, self.n_head, self.head_dim)
+        attn_output = self._merge_heads(attn_output, self.n_head, self.v_head_dim)
         attn_output = self.out_proj(attn_output)
         attn_output = self.res_dropout(attn_output)
 

@@ -667,8 +667,8 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
                         use_cache=use_cache,
                         output_attentions=output_attentions,
                     )
-                except AfterStoppingPointException:
-                    pass
+                except AfterStoppingPointException as e:
+                    raise e
                 except Exception as e:
                     print("failed with:")
                     print(f"\t block {i}")

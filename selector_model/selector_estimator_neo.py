@@ -106,7 +106,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         flood_level=0.0,
         cleanup_on_exception=True,
         show_running_loss=True,
-        use_amp_in_base_forward=False,
         use_amp_training=False,
         pad_to_mult=None,
         display_interval_secs=3,
@@ -134,7 +133,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.cleanup_on_exception = cleanup_on_exception
         self.show_running_loss = show_running_loss
 
-        self.use_amp_in_base_forward = use_amp_in_base_forward
         self.use_amp_training = use_amp_training
 
         self.pad_to_mult = pad_to_mult
@@ -306,7 +304,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                     input_ids=input_ids,
                     attention_mask=attention_mask,
                     input_ids_with_pads=input_ids_with_pads,
-                    use_amp_in_base_forward=self.use_amp_in_base_forward
                 )
                 loss = self.loss_fn(input=logits, target=batch_target)
 
@@ -554,7 +551,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 input_ids_with_pads=input_ids_with_pads,
-                use_amp_in_base_forward=self.use_amp_in_base_forward,
             ).cpu().detach().numpy()
 
         probs_raw = scipy.special.softmax(logits, axis=1)

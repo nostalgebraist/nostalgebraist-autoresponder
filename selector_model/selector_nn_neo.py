@@ -19,8 +19,7 @@ from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import (
     GPTNeoForCausalLM,
 )
 
-from stable_library_code.transformers.gpt2.partial_forward import partial_forward as gpt2_partial_forward
-from stable_library_code.transformers.gpt_neo.partial_forward import partial_forward as gpt_neo_partial_forward
+from transformer_utils.partial_forward import partial_forward
 
 GPT2TokenizerType = Union[GPT2Tokenizer, GPT2TokenizerFast]
 GPTConfigType = Union[GPT2Config, GPTNeoConfig]
@@ -291,6 +290,10 @@ class NostARHead(nn.Module):
         return self.params.layer_nums
 
     @property
+    def layer_names(self):
+        return [f'transformer.h.{i}' for i in self.layer_nums]
+
+    @property
     def n_head(self) -> List[int]:
         if isinstance(self.params.n_head, int):
             return [self.params.n_head for _ in self.layer_nums]
@@ -337,26 +340,13 @@ class NostARHead(nn.Module):
             ]
         )
 
-        self.layer_nums_to_attns = {
-            lnum: attn for lnum, attn in zip(self.layer_nums, self.attns)
+        self.layer_names_to_attns = {
+            lnum: attn for lnum, attn in zip(self.layer_names, self.attns)
         }
 
     def _setup(self):
-        if isinstance(self.base_model, GPT2LMHeadModel):
-            self.partial_forward = gpt2_partial_forward
-        elif isinstance(self.base_model, GPTNeoForCausalLM):
-            self.partial_forward = gpt_neo_partial_forward
-        else:
-            raise ValueError(self.base_model)
-
         for param in self.base_model.parameters():
             param.requires_grad = False
-
-        # extract_activations(
-        #     self.base_model,
-        #     layer_names=self.layer_nums,
-        #     prefixes=['transformer', 'h']
-        # )
 
         self._setup_attns()
 
@@ -381,17 +371,17 @@ class NostARHead(nn.Module):
         use_amp_in_base_forward=False,
     ):
         with torch.no_grad():
-            extracted_activations = self.partial_forward(
+            extracted_activations = partial_forward(
                 model=self.base_model.transformer,
-                layer_nums=self.layer_nums,
+                output_names=self.layer_names,
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 use_amp=use_amp_in_base_forward
             )
 
         attn_outs = [
-            attn(extracted_activations[lnum], input_ids_with_pads)[0]
-            for lnum, attn in self.layer_nums_to_attns.items()
+            attn(extracted_activations[name], input_ids_with_pads)[0]
+            for name, attn in self.layer_names_to_attns.items()
         ]
 
         hidden_state = torch.cat(attn_outs, dim=-1)

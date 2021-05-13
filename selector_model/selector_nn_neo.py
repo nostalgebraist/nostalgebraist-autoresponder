@@ -378,7 +378,7 @@ class NostARHead(nn.Module):
             )
 
         attn_outs = [
-            attn(extracted_activations[name], input_ids_with_pads)[0]
+            attn(extracted_activations[name][0], input_ids_with_pads)[0]
             for name, attn in self.layer_names_to_attns.items()
         ]
 

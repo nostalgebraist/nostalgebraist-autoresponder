@@ -35,6 +35,8 @@ from transformers.modeling_utils import PreTrainedModel
 from transformers.utils import logging
 from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 
+from transformer_utils.partial_forward import AfterStoppingPointException
+
 
 class LazyLinearAPICompatible(nn.LazyLinear):
     def __init__(self, in_features: int, out_features: int, bias: bool = True) -> None:
@@ -665,6 +667,8 @@ class GPTNeoModel(GPTNeoPreTrainedModel):
                         use_cache=use_cache,
                         output_attentions=output_attentions,
                     )
+                except AfterStoppingPointException:
+                    pass
                 except Exception as e:
                     print("failed with:")
                     print(f"\t block {i}")

@@ -385,7 +385,6 @@ class NostARHead(nn.Module):
                     output_names=self.layer_names,
                     input_ids=input_ids,
                     attention_mask=attention_mask,
-                    might_need_hooks=False
                 )
             elif self.partial_forward_type == "ref":
                 extracted_activations = ref_partial_forward(

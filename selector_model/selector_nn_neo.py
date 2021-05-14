@@ -19,7 +19,7 @@ from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import (
     GPTNeoForCausalLM,
 )
 
-from transformer_utils.partial_forward import partial_forward
+from transformer_utils.partial_forward import partial_forward, add_partial_forward_hooks
 
 GPT2TokenizerType = Union[GPT2Tokenizer, GPT2TokenizerFast]
 GPTConfigType = Union[GPT2Config, GPTNeoConfig]
@@ -348,6 +348,8 @@ class NostARHead(nn.Module):
         for param in self.base_model.parameters():
             param.requires_grad = False
 
+        add_partial_forward_hooks(self.base_model)
+
         self._setup_attns()
 
         mlp_input_size = len(self.layer_nums) * int(self.params.proj_ratio * self.base_model.config.hidden_size)
@@ -375,6 +377,7 @@ class NostARHead(nn.Module):
                 output_names=self.layer_names,
                 input_ids=input_ids,
                 attention_mask=attention_mask,
+                might_need_hooks=False
             )
 
         attn_outs = [

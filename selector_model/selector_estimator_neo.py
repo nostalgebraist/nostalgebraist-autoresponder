@@ -291,6 +291,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         step_iter = tqdm(
             epoch_data, smoothing=0.0, miniters=1, mininterval=self.display_interval_secs
         )
+        max_tokens_so_far = 0
         for step_ix, batch_data in enumerate(step_iter):
             input_ids = batch_data["input_ids"]
             attention_mask = batch_data["attention_mask"]
@@ -340,7 +341,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                         (1 - avg_loss_beta) * loss_float
                     )
 
+            max_tokens_so_far = max(max_tokens_so_far, batch_max_tokens)
             extra_postfixes["ntok"] = batch_max_tokens
+            extra_postfixes["ntok_max"] = max_tokens_so_far
 
             step_iter.set_postfix(
                 loss=loss_float,

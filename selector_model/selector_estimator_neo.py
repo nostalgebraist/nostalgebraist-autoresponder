@@ -109,6 +109,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         use_amp_training=False,
         pad_to_mult=None,
         display_interval_secs=3,
+        partial_forward_type="tfu",
         **kwargs
     ):
         self.device = device
@@ -137,6 +138,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         self.pad_to_mult = pad_to_mult
         self.display_interval_secs = display_interval_secs
+        self.partial_forward_type = partial_forward_type
 
         self.target_cols_ = None
 
@@ -168,7 +170,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.model_ = NostARHead(
             base_model=self.base_model,
             tokenizer=self.tokenizer,
-            params=self.params
+            params=self.params,
+            partial_forward_type=self.partial_forward_type
         )
         self.model_ = self.model_.to(self.device)
 

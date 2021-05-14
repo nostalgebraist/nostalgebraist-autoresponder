@@ -18,6 +18,7 @@ from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import (
     GPTNeoAttentionMixin,
     GPTNeoForCausalLM,
 )
+from stable_library_code.transformers.gpt_neo.partial_forward import partial_forward as ref_partial_forward
 
 from transformer_utils.partial_forward import partial_forward, add_partial_forward_hooks
 
@@ -265,6 +266,7 @@ class NostARHead(nn.Module):
         base_model: GPTModelType,  # TODO: make compat with GPTNeoModel, etc?
         tokenizer: GPT2TokenizerType,
         params: NostARHeadArchitectureParams,
+        partial_forward_type="tfu",  # debug
     ):
         validate_arch_params(params)
 
@@ -273,6 +275,7 @@ class NostARHead(nn.Module):
         self._base_model = weakref.ref(base_model)
         self._tokenizer = weakref.ref(tokenizer)
         self.params = params
+        self.partial_forward_type = partial_forward_type
 
         self._setup()
         self.init_weights()
@@ -348,7 +351,8 @@ class NostARHead(nn.Module):
         for param in self.base_model.parameters():
             param.requires_grad = False
 
-        add_partial_forward_hooks(self.base_model)
+        if self.partial_forward_type == "tfu":
+            add_partial_forward_hooks(self.base_model)
 
         self._setup_attns()
 
@@ -372,13 +376,21 @@ class NostARHead(nn.Module):
         output_attentions=False,
     ):
         with torch.no_grad():
-            extracted_activations = partial_forward(
-                model=self.base_model,
-                output_names=self.layer_names,
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                might_need_hooks=False
-            )
+            if self.partial_forward_type == "tfu":
+                extracted_activations = partial_forward(
+                    model=self.base_model,
+                    output_names=self.layer_names,
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    might_need_hooks=False
+                )
+            elif self.partial_forward_type == "ref":
+                extracted_activations = ref_partial_forward(
+                    model=self.base_model,
+                    layer_nums=self.layer_nums,
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                )
 
         attn_outs = [
             attn(extracted_activations[name][0], input_ids_with_pads)[0]

@@ -346,6 +346,9 @@ class NostARHead(nn.Module):
         self.layer_names_to_attns = {
             lnum: attn for lnum, attn in zip(self.layer_names, self.attns)
         }
+        self.layer_nums_to_attns = {
+            lnum: attn for lnum, attn in zip(self.layer_nums, self.attns)
+        }
 
     def _setup(self):
         for param in self.base_model.parameters():
@@ -392,10 +395,16 @@ class NostARHead(nn.Module):
                     attention_mask=attention_mask,
                 )
 
-        attn_outs = [
-            attn(extracted_activations[name][0], input_ids_with_pads)[0]
-            for name, attn in self.layer_names_to_attns.items()
-        ]
+        if self.partial_forward_type == "tfu":
+            attn_outs = [
+                attn(extracted_activations[name][0], input_ids_with_pads)[0]
+                for name, attn in self.layer_names_to_attns.items()
+            ]
+        elif self.partial_forward_type == "ref":
+            attn_outs = [
+                attn(extracted_activations[lnum], input_ids_with_pads)[0]
+                for lnum, attn in self.layer_nums_to_attns.items()
+            ]
 
         hidden_state = torch.cat(attn_outs, dim=-1)
 

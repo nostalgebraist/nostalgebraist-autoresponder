@@ -294,7 +294,7 @@ class NostARHead(nn.Module):
 
     @property
     def layer_names(self):
-        return [f'transformer.h.{i}' for i in self.layer_nums]
+        return [f'h.{i}' for i in self.layer_nums]
 
     @property
     def n_head(self) -> List[int]:
@@ -352,7 +352,7 @@ class NostARHead(nn.Module):
             param.requires_grad = False
 
         if self.partial_forward_type == "tfu":
-            add_partial_forward_hooks(self.base_model)
+            add_partial_forward_hooks(self.base_model.transformer)
 
         self._setup_attns()
 
@@ -378,7 +378,7 @@ class NostARHead(nn.Module):
         with torch.no_grad():
             if self.partial_forward_type == "tfu":
                 extracted_activations = partial_forward(
-                    model=self.base_model,
+                    model=self.base_model.transformer,
                     output_names=self.layer_names,
                     input_ids=input_ids,
                     attention_mask=attention_mask,
@@ -386,7 +386,7 @@ class NostARHead(nn.Module):
                 )
             elif self.partial_forward_type == "ref":
                 extracted_activations = ref_partial_forward(
-                    model=self.base_model,
+                    model=self.base_model.transformer,
                     layer_nums=self.layer_nums,
                     input_ids=input_ids,
                     attention_mask=attention_mask,

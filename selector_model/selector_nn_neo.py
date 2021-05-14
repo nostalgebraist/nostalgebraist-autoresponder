@@ -375,8 +375,6 @@ class NostARHead(nn.Module):
                 output_names=self.layer_names,
                 input_ids=input_ids,
                 attention_mask=attention_mask,
-                verbose=True,
-                debug=True
             )
 
         attn_outs = [

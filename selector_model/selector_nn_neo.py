@@ -355,7 +355,7 @@ class NostARHead(nn.Module):
             param.requires_grad = False
 
         if self.partial_forward_type == "tfu":
-            add_partial_forward_hooks(self.base_model.transformer)
+            add_partial_forward_hooks(self.base_model.transformer, output_names=self.layer_names)
 
         self._setup_attns()
 

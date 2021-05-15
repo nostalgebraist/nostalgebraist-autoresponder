@@ -11,4 +11,4 @@ moviepy
 tqdm
 flask
 transformers
-git+https://github.com/nostalgebraist/transformer-utils@dev
+git+https://github.com/nostalgebraist/transformer-utils@main

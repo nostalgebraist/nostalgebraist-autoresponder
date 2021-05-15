@@ -18,9 +18,9 @@ from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import (
     GPTNeoAttentionMixin,
     GPTNeoForCausalLM,
 )
+from stable_library_code.transformers.gpt_neo.partial_forward import partial_forward as ref_partial_forward
 
-from stable_library_code.transformers.gpt2.partial_forward import partial_forward as gpt2_partial_forward
-from stable_library_code.transformers.gpt_neo.partial_forward import partial_forward as gpt_neo_partial_forward
+from transformer_utils.partial_forward import partial_forward, add_partial_forward_hooks
 
 GPT2TokenizerType = Union[GPT2Tokenizer, GPT2TokenizerFast]
 GPTConfigType = Union[GPT2Config, GPTNeoConfig]
@@ -266,6 +266,7 @@ class NostARHead(nn.Module):
         base_model: GPTModelType,  # TODO: make compat with GPTNeoModel, etc?
         tokenizer: GPT2TokenizerType,
         params: NostARHeadArchitectureParams,
+        partial_forward_type="tfu",  # debug
     ):
         validate_arch_params(params)
 
@@ -274,6 +275,7 @@ class NostARHead(nn.Module):
         self._base_model = weakref.ref(base_model)
         self._tokenizer = weakref.ref(tokenizer)
         self.params = params
+        self.partial_forward_type = partial_forward_type
 
         self._setup()
         self.init_weights()
@@ -289,6 +291,10 @@ class NostARHead(nn.Module):
     @property
     def layer_nums(self):
         return self.params.layer_nums
+
+    @property
+    def layer_names(self):
+        return [f'h.{i}' for i in self.layer_nums]
 
     @property
     def n_head(self) -> List[int]:
@@ -337,26 +343,19 @@ class NostARHead(nn.Module):
             ]
         )
 
+        self.layer_names_to_attns = {
+            lnum: attn for lnum, attn in zip(self.layer_names, self.attns)
+        }
         self.layer_nums_to_attns = {
             lnum: attn for lnum, attn in zip(self.layer_nums, self.attns)
         }
 
     def _setup(self):
-        if isinstance(self.base_model, GPT2LMHeadModel):
-            self.partial_forward = gpt2_partial_forward
-        elif isinstance(self.base_model, GPTNeoForCausalLM):
-            self.partial_forward = gpt_neo_partial_forward
-        else:
-            raise ValueError(self.base_model)
-
         for param in self.base_model.parameters():
             param.requires_grad = False
 
-        # extract_activations(
-        #     self.base_model,
-        #     layer_names=self.layer_nums,
-        #     prefixes=['transformer', 'h']
-        # )
+        if self.partial_forward_type == "tfu":
+            add_partial_forward_hooks(self.base_model.transformer, output_names=self.layer_names)
 
         self._setup_attns()
 
@@ -378,21 +377,34 @@ class NostARHead(nn.Module):
         attention_mask,
         head_mask=None,
         output_attentions=False,
-        use_amp_in_base_forward=False,
     ):
         with torch.no_grad():
-            extracted_activations = self.partial_forward(
-                model=self.base_model.transformer,
-                layer_nums=self.layer_nums,
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                use_amp=use_amp_in_base_forward
-            )
+            if self.partial_forward_type == "tfu":
+                extracted_activations = partial_forward(
+                    model=self.base_model.transformer,
+                    output_names=self.layer_names,
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    use_cache=False
+                )
+            elif self.partial_forward_type == "ref":
+                extracted_activations = ref_partial_forward(
+                    model=self.base_model.transformer,
+                    layer_nums=self.layer_nums,
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                )
 
-        attn_outs = [
-            attn(extracted_activations[lnum], input_ids_with_pads)[0]
-            for lnum, attn in self.layer_nums_to_attns.items()
-        ]
+        if self.partial_forward_type == "tfu":
+            attn_outs = [
+                attn(extracted_activations[name], input_ids_with_pads)[0]
+                for name, attn in self.layer_names_to_attns.items()
+            ]
+        elif self.partial_forward_type == "ref":
+            attn_outs = [
+                attn(extracted_activations[lnum], input_ids_with_pads)[0]
+                for lnum, attn in self.layer_nums_to_attns.items()
+            ]
 
         hidden_state = torch.cat(attn_outs, dim=-1)
 

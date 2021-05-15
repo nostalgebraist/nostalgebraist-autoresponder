@@ -106,10 +106,10 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         flood_level=0.0,
         cleanup_on_exception=True,
         show_running_loss=True,
-        use_amp_in_base_forward=False,
         use_amp_training=False,
         pad_to_mult=None,
         display_interval_secs=3,
+        partial_forward_type="tfu",
         **kwargs
     ):
         self.device = device
@@ -134,11 +134,11 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.cleanup_on_exception = cleanup_on_exception
         self.show_running_loss = show_running_loss
 
-        self.use_amp_in_base_forward = use_amp_in_base_forward
         self.use_amp_training = use_amp_training
 
         self.pad_to_mult = pad_to_mult
         self.display_interval_secs = display_interval_secs
+        self.partial_forward_type = partial_forward_type
 
         self.target_cols_ = None
 
@@ -170,7 +170,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.model_ = NostARHead(
             base_model=self.base_model,
             tokenizer=self.tokenizer,
-            params=self.params
+            params=self.params,
+            partial_forward_type=self.partial_forward_type
         )
         self.model_ = self.model_.to(self.device)
 
@@ -307,7 +308,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                     input_ids=input_ids,
                     attention_mask=attention_mask,
                     input_ids_with_pads=input_ids_with_pads,
-                    use_amp_in_base_forward=self.use_amp_in_base_forward
                 )
                 loss = self.loss_fn(input=logits, target=batch_target)
 
@@ -557,7 +557,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 input_ids_with_pads=input_ids_with_pads,
-                use_amp_in_base_forward=self.use_amp_in_base_forward,
             ).cpu().detach().numpy()
 
         probs_raw = scipy.special.softmax(logits, axis=1)

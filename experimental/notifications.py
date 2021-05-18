@@ -1,6 +1,7 @@
 import time
 import json
 import urllib.parse
+from collections import defaultdict
 # from datetime import datetime
 
 import requests
@@ -79,3 +80,46 @@ def check_notifications(private_client, blogName, n_to_check=250, after_ts=0, be
                 f.write('\n')
 
     return n
+
+
+def load_notification_dump(dedup=True):
+    with open("data/notification_dump.jsonl", "r") as f:
+        nots = [json.loads(line) for line in f]
+
+    if dedup:
+        nots = list({json.dumps(no): no for no in nots}.values())
+
+    return nots
+
+
+def collect_naked_reblogs(nots):
+    post_id_to_equivalent_post_id = {}
+
+    for no in nots:
+        if no['type'] == 'reblog_naked':
+            post_id_to_equivalent_post_id[no['post_id']] = no['target_post_id']
+
+    return post_id_to_equivalent_post_id
+
+
+def assign_to_targets(nots, blogName, valid_only=True):
+    post_id_to_notifications = defaultdict(set)
+
+    post_id_to_equivalent_post_id = collect_naked_reblogs(nots)
+
+    for no in nots:
+        target_post_id = no.get('target_post_id')
+        target_post_id = post_id_to_equivalent_post_id.get(target_post_id, target_post_id)
+        if target_post_id:
+            if no.get('target_tumblelog_name') == blogName:
+                post_id_to_notifications[target_post_id].add(RawNotification(**no))
+            elif target_post_id in post_id_to_equivalent_post_id:
+                target_post_id = post_id_to_equivalent_post_id[target_post_id]
+                post_id_to_notifications[target_post_id].add(RawNotification(**no))
+    #
+    # if valid_only:
+    #     min_ts =
+    #     post_id_to_notifications = {pid: v for pid, v in post_id_to_notifications.items()
+    #                                 if }
+
+    return post_id_to_notifications

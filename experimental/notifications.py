@@ -10,18 +10,20 @@ from response_cache import PostIdentifier   # ResponseCache, CachedResponseType
 
 
 class RawNotification(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._sorted_keys = sorted(self.keys())
+        self._hash = hash(
+            str(
+                [(k, self[k])
+                 for k in
+                 self._sorted_keys
+                 ]
+            )
+        )
+
     def __hash__(self):
-        return hash(json.dumps(self))
-
-
-class RawNotification2(dict):
-    def __hash__(self):
-        return hash(str([(k, self[k]) for k in sorted(self.keys())]))
-
-
-class RawNotification3(dict):
-    def __hash__(self):
-        return hash(str(self))
+        return self._hash
 
 
 def latest_note_ts(private_client, post_identifier: PostIdentifier):

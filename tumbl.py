@@ -4,6 +4,8 @@ Tumblr API layer and main loop of the bot during operation.
 # import cProfile
 import os
 import pickle
+import json
+import urllib.parse
 from datetime import datetime
 from string import punctuation, whitespace
 from itertools import product
@@ -1839,8 +1841,12 @@ def get_relevant_replies_from_notes(
     return replies_to_handle, loop_persistent_data, response_cache
 
 
-def check_notifications(n_to_check=250, after_ts=0):
+def check_notifications(n_to_check=250, after_ts=0, before_ts=None, dump_to_file=False):
     base_url = private_client.request.host + f"/v2/blog/{blogName}/notifications"
+    if before_ts is not None:
+        # TODO: verify this is compatible with pagination
+        base_url = base_url + "?" + urllib.parse.urlencode({"before": before_ts})
+
     request_kwargs = dict(
         allow_redirects=False,
         headers=private_client.request.headers,
@@ -1864,6 +1870,14 @@ def check_notifications(n_to_check=250, after_ts=0):
             url = private_client.request.host + page["_links"]["next"]["href"]
             page = getter(url)
             delta = updater(page)
+
+    if dump_to_file:
+        # for now, just make sure these are saved somehow
+        # once i know how i'm using them, i'll set up something more formal w/ deduping etc
+        with open("data/notification_dump.jsonl", "a", encoding="utf-8") as f:
+            for nn in n:
+                json.dump(nn, f)
+                f.write('\n')
 
     return n
 
@@ -2014,6 +2028,7 @@ def do_reblog_reply_handling(
         notifications = check_notifications(
             n_to_check=loop_persistent_data.n_notifications_to_check,
             after_ts=loop_persistent_data.last_seen_ts_notifications,
+            dump_to_file=True
         )
 
         if len(notifications) > 0:

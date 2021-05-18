@@ -14,6 +14,16 @@ class RawNotification(dict):
         return hash(json.dumps(self))
 
 
+class RawNotification2(dict):
+    def __hash__(self):
+        return hash(str([(k, self[k]) for k in sorted(self.keys())]))
+
+
+class RawNotification3(dict):
+    def __hash__(self):
+        return hash(str(self))
+
+
 def latest_note_ts(private_client, post_identifier: PostIdentifier):
     # TODO: caching
     n = private_client.notes(post_identifier.blog_name, id=post_identifier.id_)['notes']

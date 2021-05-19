@@ -1,7 +1,7 @@
 import time
 import json
 import urllib.parse
-from collections import defaultdict
+from collections import defaultdict, Counter
 # from datetime import datetime
 
 import requests
@@ -92,6 +92,8 @@ def load_notification_dump(dedup=True):
     return nots
 
 
+# note: this was unnecessary
+# TODO: why did i think this was necessary??
 def collect_naked_reblogs(nots):
     post_id_to_equivalent_post_id = {}
 
@@ -107,16 +109,25 @@ def assign_to_targets(nots, blogName, valid_only=True):
 
     post_id_to_equivalent_post_id = collect_naked_reblogs(nots)
 
+    n_per_route = Counter()
+    blognames = Counter()
     for no in nots:
         target_post_id = no.get('target_post_id')
         target_post_id = post_id_to_equivalent_post_id.get(target_post_id, target_post_id)
         if target_post_id:
+            blognames[no.get('target_tumblelog_name')] += 1
             if no.get('target_tumblelog_name') == blogName:
+                n_per_route['direct'] += 1
                 post_id_to_notifications[target_post_id].add(RawNotification(**no))
             elif target_post_id in post_id_to_equivalent_post_id:
+                n_per_route['indirect'] += 1
                 target_post_id = post_id_to_equivalent_post_id[target_post_id]
                 post_id_to_notifications[target_post_id].add(RawNotification(**no))
+            else:
+                print(no)
 
+    print(n_per_route)
+    print(blognames)
     # TODO: make this work?  it's too costly without caching
     #
     # if valid_only:

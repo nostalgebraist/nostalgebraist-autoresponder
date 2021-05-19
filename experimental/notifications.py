@@ -116,6 +116,8 @@ def assign_to_targets(nots, blogName, valid_only=True):
             elif target_post_id in post_id_to_equivalent_post_id:
                 target_post_id = post_id_to_equivalent_post_id[target_post_id]
                 post_id_to_notifications[target_post_id].add(RawNotification(**no))
+
+    # TODO: make this work?  it's too costly without caching
     #
     # if valid_only:
     #     min_ts =

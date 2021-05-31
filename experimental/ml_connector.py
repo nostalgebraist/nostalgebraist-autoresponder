@@ -792,7 +792,7 @@ def old_bridge_call__answer(data):
         fork = "B" if np.random.rand() > 1 else "A"
     # strategy = "proportional_winnowed"
     strategy = "eps_greedy"
-    eps = 0.1
+    eps = 0.15
     kwargs["strategy"] = strategy
     kwargs["eps"] = eps
 
@@ -846,7 +846,7 @@ def old_bridge_call__textpost(data):
         fork = "B" if np.random.rand() > 1 else "A"
         # strategy = "proportional_winnowed"
         strategy = "eps_greedy"
-        eps = 0.25
+        eps = 0.15
         kwargs["strategy"] = strategy
         kwargs["eps"] = eps
         kwargs["AB_fork"] = fork

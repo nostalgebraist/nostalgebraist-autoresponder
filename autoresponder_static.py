@@ -1,5 +1,6 @@
 import re
 import numpy as np
+from copy import deepcopy
 
 FORUMLIKE = True
 FORUMLIKE_V2 = True
@@ -28,6 +29,7 @@ CHINESE_CHAR_DELIMITERS = [
 ORIG_POST_CHAR_FORUMLIKE = " Blog post by Frank\n\n"
 ORIG_POST_CHAR_FORUMLIKE_V10 = " Frank posted:\n\n"
 ORIG_POST_CHAR_FORUMLIKE_V10_1 = " nostalgebraist-autoresponder posted:\n\n"
+ORIG_POST_CHAR_FORUMLIKE_V10_2 = " Posts by nostalgebraist-autoresponder |\n nostalgebraist-autoresponder posted:\n\n"
 
 REVIEW_CHAR_FORUMLIKE = " Book review by Frank\n\n"
 REVIEW_CHAR_FORUMLIKE_V10 = (
@@ -122,6 +124,9 @@ CONTROL_SEG_CONFIGS = {
         "user_name": "nostalgebraist-autoresponder",  # TODO: refactor to use this always
     },
 }
+
+CONTROL_SEG_CONFIGS["V10_2"] = deepcopy(CONTROL_SEG_CONFIGS["V10_1"])
+CONTROL_SEG_CONFIGS["V10_2"]["ORIG_POST_CHAR_FORUMLIKE"] = ORIG_POST_CHAR_FORUMLIKE_V10_2
 
 for k in CONTROL_SEG_CONFIGS.keys():
     CONTROL_SEG_CONFIGS[k]["numbered_phrases"] = {

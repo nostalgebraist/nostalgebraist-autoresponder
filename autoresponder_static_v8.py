@@ -1,6 +1,7 @@
 """code for turning forumlike (v7) format into the v8 version"""
 import os
 import re
+from functools import partial
 from datetime import datetime
 from autoresponder_static import *
 
@@ -354,32 +355,39 @@ def final_munge_before_neural_v10_1(doc, **kwargs):
     )
 
 
+def v10_1_to_v10_2(doc):
+    bad = CONTROL_SEG_CONFIGS['V10_1']['ORIG_POST_CHAR_FORUMLIKE']
+    good = CONTROL_SEG_CONFIGS['V10_2']['ORIG_POST_CHAR_FORUMLIKE']
+    if doc.startswith(bad):
+        return good + doc[len(bad):]
+    return doc
+
+
 def final_munge_before_neural_v10_2(doc, **kwargs):
     kwargs = {k: v for k, v in kwargs.items() if k != "user_name"}
-    return final_munge_before_neural_v8(
-        doc,
-        control_seg_config=CONTROL_SEG_CONFIGS["V10_2"],
-        user_name="nostalgebraist-autoresponder",
-        **kwargs
+    return v10_1_to_v10_2(
+        final_munge_before_neural_v8(
+            doc,
+            control_seg_config=CONTROL_SEG_CONFIGS["V10_2"],
+            user_name="nostalgebraist-autoresponder",
+            **kwargs
+        )
     )
 
 
-def final_munge_after_neural_v10(text, delete_title=False):
+def _final_munge_after_neural_v10(text, delete_title=False, control_seg_config=DEFAULT_CSC):
     # strip orig post starters
 
-    # expect_tag_prefix = False
-    # if ORIG_FICTION_CHAR_FORUMLIKE_V10 in text or REVIEW_CHAR_FORUMLIKE_V10 in text:
-    #     expect_tag_prefix = False
     for cchar in [
-        ORIG_POST_CHAR_FORUMLIKE_V10,
-        REVIEW_CHAR_FORUMLIKE_V10,
-        ORIG_FICTION_CHAR_FORUMLIKE_V10,
+        control_seg_config["ORIG_POST_CHAR_FORUMLIKE"],
+        control_seg_config["REVIEW_CHAR_FORUMLIKE"],
+        control_seg_config["ORIG_FICTION_CHAR_FORUMLIKE"]
     ]:
         text = text.replace(cchar, "")
 
     # swap tags back into chinese format
     tag_text, _, post = text.partition("\n")
-    # if expect_tag_prefix:
+
     if " | Frank's tags:" in tag_text:
         tag_text = tag_text.rpartition("|")[2].rpartition("tags:")[2]
 
@@ -392,31 +400,8 @@ def final_munge_after_neural_v10(text, delete_title=False):
     return post + T_CHAR + tag_text
 
 
-# TODO: DRY
-def final_munge_after_neural_v10_1(text, delete_title=False):
-    # strip orig post starters
+final_munge_after_neural_v10 = partial(_final_munge_after_neural_v10, control_seg_config=CONTROL_SEG_CONFIGS['V10'])
 
-    # expect_tag_prefix = False
-    # if ORIG_FICTION_CHAR_FORUMLIKE_V10 in text or REVIEW_CHAR_FORUMLIKE_V10 in text:
-    #     expect_tag_prefix = False
-    for cchar in [
-        ORIG_POST_CHAR_FORUMLIKE_V10_1,
-        REVIEW_CHAR_FORUMLIKE_V10_1,
-        ORIG_FICTION_CHAR_FORUMLIKE_V10_1,
-    ]:
-        text = text.replace(cchar, "")
+final_munge_after_neural_v10_1 = partial(_final_munge_after_neural_v10, control_seg_config=CONTROL_SEG_CONFIGS['V10_1'])
 
-    # swap tags back into chinese format
-    tag_text, _, post = text.partition("\n")
-    # if expect_tag_prefix:
-    if " | nostalgebraist-autoresponder's tags:" in tag_text:
-        tag_text = tag_text.rpartition("|")[2].rpartition("tags:")[2]
-
-    post = post.replace(EOT_FULL, "")
-    tag_text = tag_text.replace(EOT_FULL, "") + EOT_FULL
-    tag_text = tag_text.replace(",", "")
-
-    if delete_title:
-        post = re.sub(r"<h2>.+</h2>[\n]*", "", post)
-
-    return post + T_CHAR + tag_text
+final_munge_after_neural_v10_2 = partial(_final_munge_after_neural_v10, control_seg_config=CONTROL_SEG_CONFIGS['V10_2'])

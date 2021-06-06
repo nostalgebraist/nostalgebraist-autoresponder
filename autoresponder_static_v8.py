@@ -354,6 +354,16 @@ def final_munge_before_neural_v10_1(doc, **kwargs):
     )
 
 
+def final_munge_before_neural_v10_2(doc, **kwargs):
+    kwargs = {k: v for k, v in kwargs.items() if k != "user_name"}
+    return final_munge_before_neural_v8(
+        doc,
+        control_seg_config=CONTROL_SEG_CONFIGS["V10_2"],
+        user_name="nostalgebraist-autoresponder",
+        **kwargs
+    )
+
+
 def final_munge_after_neural_v10(text, delete_title=False):
     # strip orig post starters
 

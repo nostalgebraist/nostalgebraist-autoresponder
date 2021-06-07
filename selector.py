@@ -7,8 +7,6 @@ from datetime import datetime
 import numpy as np
 from textwrap import wrap
 
-from tqdm import tqdm
-
 from bot_config import BotSpecificConstants
 from image_analysis import IMAGE_DELIMITER_WHITESPACED
 from autoresponder_static_v8 import timestamp_to_v10_format
@@ -22,7 +20,7 @@ generator_url = bot_specific_constants.bridge_service_url + "/pollgenerator"
 
 RESULT_STACK = {}
 
-RETENTION_CUTOFF = 0.75
+RETENTION_CUTOFF = 0.667
 ENFORCE_RETENTION_CUTOFF = True
 
 EOT_WORKAROUND = True

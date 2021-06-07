@@ -922,7 +922,7 @@ def update_follower_names_v1(loop_persistent_data, response_cache):
         names = {entry["name"] for entry in response["blogs"]}
         while len(names) < total_blogs:
             print(f'have {len(names)}')
-            time.sleep(0.2)
+            time.sleep(0.5)
 
             offset = len(names)
             response = response_cache.client.blog_following(

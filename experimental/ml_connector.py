@@ -778,7 +778,6 @@ def old_bridge_call__answer(data):
     kwargs["best_of"] += discounted_extra_best_of
     print(f"discounting to {discounted_extra_best_of} --> best_of={kwargs['best_of']}")
 
-    kwargs["strategy"] = "proportional_winnowed"
     kwargs["avoid_if_under"] = 5
     if kwargs["write_fic_override"]:
         kwargs["avoid_if_under"] = 50
@@ -792,8 +791,8 @@ def old_bridge_call__answer(data):
         kwargs["avoid_if_profane"] = True
     if True:
         fork = "B" if np.random.rand() > 1 else "A"
-    # strategy = "proportional_winnowed"
-    strategy = "eps_greedy"
+    strategy = "proportional_winnowed"
+    # strategy = "eps_greedy"
     eps = 0.15
     kwargs["strategy"] = strategy
     kwargs["eps"] = eps

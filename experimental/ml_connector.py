@@ -845,8 +845,8 @@ def old_bridge_call__textpost(data):
     kwargs["random_year_for_generator"] = True
     if True:
         fork = "B" if np.random.rand() > 1 else "A"
-        # strategy = "proportional_winnowed"
-        strategy = "eps_greedy"
+        strategy = "proportional_winnowed"
+        # strategy = "eps_greedy"
         eps = 0.15
         kwargs["strategy"] = strategy
         kwargs["eps"] = eps

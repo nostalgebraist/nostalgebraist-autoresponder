@@ -388,7 +388,7 @@ def _final_munge_after_neural_v10(text, delete_title=False, control_seg_config=D
     # swap tags back into chinese format
     tag_text, _, post = text.partition("\n")
 
-    if " | Frank's tags:" in tag_text:
+    if f" | {control_seg_config}'s tags:" in tag_text:
         tag_text = tag_text.rpartition("|")[2].rpartition("tags:")[2]
 
     post = post.replace(EOT_FULL, "")

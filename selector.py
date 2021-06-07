@@ -107,7 +107,7 @@ def parse_continuation(continuation: str, verbose=False):
     return parsed
 
 
-def winndow_probabilities(proba, lower=0.333, upper=0.667):
+def winndow_probabilities(proba, lower=0.167, upper=0.833):
     proba_ = proba.copy()
     exclusion_mask = np.zeros_like(proba, dtype=bool)
 

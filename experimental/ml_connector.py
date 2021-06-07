@@ -1101,6 +1101,16 @@ def serve_textpost(data):
         v10_timestamp=generator_v10_timestamp,
         continue_if_cut_off=continue_if_cut_off,
     )
+
+    # v10_2 curiosity
+    # TODO: remove later
+    qc = 0
+    for c in continuations:
+        if "#quotes" in c:
+            qc += 1
+            print(c, end='\n----------\n')
+    print(f'{qc} / {len(continuations)} have quotes')
+
     parsed = data.copy()
     parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
     parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]

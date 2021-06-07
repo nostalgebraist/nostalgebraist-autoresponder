@@ -36,7 +36,9 @@ os.chdir("/")
 
 start_token = None
 
-if V10_1:
+if V11_2:
+    CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V10_2"]
+elif V10_1:
     CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V10_1"]
 elif V10:
     CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V10"]

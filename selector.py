@@ -31,10 +31,12 @@ eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 FIC_COLDSTART = False
 REVIEW_COLDSTART = False
 IMAGE_COLDSTART = False
+QUOTES_COLDSTART = True
 
 FIC_COLDSTART_DELTA = 0.2  # 0.1
 REVIEW_COLDSTART_DELTA = 0.1
 IMAGE_COLDSTART_DELTA = 0.1
+QUOTES_COLDSTART_DELTA = 0.2
 
 WARN_ABOUT_LOST_KEYS = False
 
@@ -239,6 +241,9 @@ def serve_selection(
     if IMAGE_COLDSTART:
         selection_proba = do_image_coldstart(continuations, selection_proba)
 
+    if IMAGE_COLDSTART:
+        selection_proba = do_quotes_coldstart(continuations, selection_proba)
+
     sentiment_logit_diffs = data.get("sentiment_logit_diffs")
 
     autoreview_proba = data.get("autoreview_proba", [None for _ in continuations])
@@ -428,6 +433,9 @@ do_review_coldstart = partial(
 )
 do_image_coldstart = partial(
     do_coldstart, substring=IMAGE_DELIMITER_WHITESPACED, delta=IMAGE_COLDSTART_DELTA
+)
+do_quotes_coldstart = partial(
+    do_coldstart, substring="#quotes", delta=QUOTES_COLDSTART_DELTA
 )
 
 

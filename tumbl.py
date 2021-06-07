@@ -10,6 +10,7 @@ from datetime import datetime
 from string import punctuation, whitespace
 from itertools import product
 from collections import defaultdict
+from pprint import pprint
 
 import requests
 import time
@@ -924,6 +925,8 @@ def update_follower_names_v1(loop_persistent_data, response_cache):
             response = response_cache.client.blog_following(
                 dash_blogName, offset=offset
             )
+            if "blogs" not in response:
+                pprint(response)
             names.update({entry["name"] for entry in response["blogs"]})
             if len(names) == offset:
                 # i "love" tumblr

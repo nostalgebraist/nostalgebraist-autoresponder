@@ -922,7 +922,7 @@ def update_follower_names_v1(loop_persistent_data, response_cache):
         names = {entry["name"] for entry in response["blogs"]}
         while len(names) < total_blogs:
             print(f'have {len(names)}')
-            time.sleep(0.1)
+            time.sleep(0.2)
 
             offset = len(names)
             response = response_cache.client.blog_following(
@@ -930,6 +930,9 @@ def update_follower_names_v1(loop_persistent_data, response_cache):
             )
             if "blogs" not in response:
                 pprint(response)
+                time.sleep(2)
+                continue
+
             names.update({entry["name"] for entry in response["blogs"]})
             if len(names) == offset:
                 # i "love" tumblr

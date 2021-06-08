@@ -558,21 +558,24 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         # TODO: figure out whether we need logits in float32 explicitly
         with torch.cuda.amp.autocast(enabled=self.use_amp_training):
-            logits = self.model_(
+            logits_raw = self.model_(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 input_ids_with_pads=input_ids_with_pads,
             ).cpu().detach().numpy()
 
         if self.regression_target and (self.calibrate and not disable_calibration):
-            logits = self._compute_calib_probs(logits, pfcs=batch["prompt_finalchar"])
+            logits = self._compute_calib_probs(logits_raw, pfcs=batch["prompt_finalchar"])
+            logits = np.stack([-logits / 2, logits / 2], axis=1)
+        else:
+            logits = logits_raw
 
-        probs_raw = scipy.special.softmax(logits, axis=1)
+        probs_raw = scipy.special.softmax(logits_raw, axis=1)
 
         if (not self.regression_target) and (self.calibrate and not disable_calibration):
             probs = self._compute_calib_probs(logits, pfcs=batch["prompt_finalchar"])
         else:
-            probs = probs_raw
+            probs = scipy.special.softmax(logits, axis=1)
         results = {"logits": logits, "probs": probs, "probs_raw": probs_raw}
         results["preds"] = probs[:, 1] > threshold
         return results

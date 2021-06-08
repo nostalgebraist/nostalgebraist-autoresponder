@@ -360,11 +360,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
     def _val_split(self, X, y):
         if self.calibrate or self.evaluate_during_training:
             if self.calibration_split_type == "tts":
+                stratifier = (y > 0) if self.regression_target else y
                 X_train, X_val, y_train, y_val = train_test_split(
-                    X, y, stratify=y, test_size=self.calibration_val_size
+                    X, y, stratify=stratifier, test_size=self.calibration_val_size
                 )
             elif self.calibration_split_type == "ttsp":
-                stratifier = X["prompt_finalchar"] + y.apply(str)
+                y_stratifier = (y > 0) if self.regression_target else y
+                stratifier = X["prompt_finalchar"] + y_stratifier.apply(str)
                 X_train, X_val, y_train, y_val = train_test_split(
                     X, y, stratify=stratifier, test_size=self.calibration_val_size
                 )

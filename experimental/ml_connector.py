@@ -532,6 +532,7 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
 
 
 def predict_sentiment(data, debug=False):
+    data["prompt_finalchar"] = ["" for _ in data.selector_input.values]
     if len(data) == 0:
         # this can happen if the retention_stack is big enough
         return np.array([])
@@ -1189,12 +1190,7 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
 
 
 def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
-    sentiment_inputs = pd.DataFrame(
-        {
-            "selector_input": texts,
-            "prompt_finalchar": ["" for _ in range(len(texts))],  # unused but necessary
-        }
-    )
+    sentiment_inputs = pd.DataFrame({"selector_input": texts})
     sentiment_results = predict_sentiment(sentiment_inputs, debug=True)
     results = [float(p) for p in sentiment_results]
 

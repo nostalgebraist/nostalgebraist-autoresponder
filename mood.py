@@ -13,7 +13,9 @@ def logit_diff_to_pos_sent(x):
     return 1 / (1 + np.exp(-x))
 
 
-def pos_sent_to_logit_diff(x, eps=1e-4):
+def pos_sent_to_logit_diff(x, eps=None):
+    if not eps:
+        eps = np.finfo(np.float64).eps
     return -np.log(1 / min(max(x, eps), 1 - eps) - 1)
 
 

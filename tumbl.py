@@ -331,7 +331,7 @@ def determine_mood(
                 )
             if verbose:
                 print(
-                    f"mood: pos sent {mood_value:.3f} | logit diff {pos_sent_to_logit_diff(mood_value):+.3f}"
+                    f"mood: pos sent {mood_value:.3f} | logit diff {pos_sent_to_logit_diff(mood_value):+.6f}"
                 )
         else:
             mood = random_mood_at_pst_datetime(dt)

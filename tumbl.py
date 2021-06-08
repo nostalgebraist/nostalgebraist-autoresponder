@@ -879,7 +879,7 @@ class LoopPersistentData:
         last_seen_ts=0,
         last_seen_ts_notifications=0,
         n_posts_to_check_base=340,
-        n_posts_to_check_dash=940,
+        n_posts_to_check_dash=690,
         n_notifications_to_check=1000,
         offset_=0,
         requests_per_check_history=[],

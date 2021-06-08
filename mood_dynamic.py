@@ -563,7 +563,7 @@ def create_mood_graph(
         )
 
         plt.ylim(
-            min(default_bottom, lti_series.min()), max(default_top, lti_series.max())
+            min(default_bottom, lti_series.min() - 1.5), max(default_top, lti_series.max() + 1.5)
         )
 
     plt.legend(

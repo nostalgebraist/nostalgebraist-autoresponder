@@ -192,7 +192,7 @@ batch_size = 1
 max_ctx_fits_on_gpu = 1020
 
 # sets max context size, for long prompts we want to cut off to allow bot to write at least this many tokens
-required_continuation_room = 256 if GPU_TYPE == "big" else 512
+required_continuation_room = 256  # if GPU_TYPE == "big" else 512
 
 if EVEN_BETTER_LENGTH:
     better_length = False
@@ -373,6 +373,12 @@ GPT_NEO_T = 0.95 if BREAKRUNS else 1.0
 GPT_NEO_TOP_P = 1.
 GPT_NEO_TOP_K = 0
 GPT_NEO_MAX_LENGTH = 2048 if V11 else 1024
+
+if V11 and (GPU_TYPE != "big"):
+    # TODO: figure out if this OOM happened due to something in transformers 4.6.0
+    #
+    # https://github.com/huggingface/transformers/compare/v4.5.1...v4.6.0
+    GPT_NEO_MAX_LENGTH = 1900
 
 head_inference_batch_size = 1 if V11 else None
 

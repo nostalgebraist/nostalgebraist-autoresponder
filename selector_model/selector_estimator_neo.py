@@ -13,7 +13,7 @@ import pandas as pd
 from tqdm.autonotebook import tqdm
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.model_selection import train_test_split, GroupKFold
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.metrics import (
     accuracy_score,
     brier_score_loss,
@@ -491,7 +491,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         preds = probs[:, 1] > 0.5
         self._display_eval_metrics(y_val, preds, probs, pfcs=X_val["prompt_finalchar"])
 
-        self.lr_calib_ = LogisticRegression(**self._calib_kwargs)
+        lr_cls = LinearRegression if self.regression_target else LogisticRegression
+        self.lr_calib_ = lr_cls(**self._calib_kwargs)
         self.lr_calib_.fit(calib_inputs, y_val)
 
         calib_coef_info = {

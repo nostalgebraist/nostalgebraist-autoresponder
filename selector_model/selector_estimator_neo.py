@@ -483,15 +483,16 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
     @property
     def _calib_kwargs(self):
-        return {"penalty": "none"}
+        return {} if self.regression_target else {"penalty": "none"}
 
     def _fit_calibration(self, X_val, y_val):
         logits = self._predict(X_val, key="logits", disable_calibration=True)
         calib_inputs = self._calib_inputs(logits)
 
-        probs = scipy.special.softmax(logits, axis=1)
-        preds = probs[:, 1] > 0.5
-        self._display_eval_metrics(y_val, preds, probs, pfcs=X_val["prompt_finalchar"])
+        if not self.regression_target:
+            probs = scipy.special.softmax(logits, axis=1)
+            preds = probs[:, 1] > 0.5
+            self._display_eval_metrics(y_val, preds, probs, pfcs=X_val["prompt_finalchar"])
 
         lr_cls = LinearRegression if self.regression_target else LogisticRegression
         self.lr_calib_ = lr_cls(**self._calib_kwargs)
@@ -542,8 +543,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
     def _compute_calib_probs(self, logits, pfcs):
         calib_inputs = self._calib_inputs(logits)
-        probs = self.lr_calib_.predict_proba(calib_inputs)
-        return probs
+        predict_method = 'predict' if self.regression_target else 'predict_proba'
+        result = getattr(self.lr_calib_, predict_method)(calib_inputs)
+        return result
 
     def _predict_select(self, batch, threshold=0.5, disable_calibration=False):
         self.model_.eval()
@@ -562,9 +564,12 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 input_ids_with_pads=input_ids_with_pads,
             ).cpu().detach().numpy()
 
+        if self.regression_target and (self.calibrate and not disable_calibration):
+            logits = self._compute_calib_probs(logits, pfcs=batch["prompt_finalchar"])
+
         probs_raw = scipy.special.softmax(logits, axis=1)
 
-        if self.calibrate and not disable_calibration:
+        if (not self.regression_target) and (self.calibrate and not disable_calibration):
             probs = self._compute_calib_probs(logits, pfcs=batch["prompt_finalchar"])
         else:
             probs = probs_raw

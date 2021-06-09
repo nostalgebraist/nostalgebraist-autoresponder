@@ -610,15 +610,20 @@ def counterfactual_mood_graph(
     window_length_days: float = WINDOW_LENGTH_DAYS,
     in_logit_diff_space: bool = True,
     pairs_only: bool = False,
-    include_milestones: bool = False
+    include_milestones: bool = True,
+    system_kwargs=None
 ) -> str:
     ytrans = pos_sent_to_logit_diff if in_logit_diff_space else lambda x: x
+
     if end_time is None:
         end_time = datetime.now()
     if start_time is None:
         start_time = end_time - pd.Timedelta(days=n_days)
 
     systems = {"actual": DynamicMoodSystem()}
+    if system_kwargs is not None:
+        systems[repr(system_kwargs)] = DynamicMoodSystem(**system_kwargs)
+
     left_time = start_time - pd.Timedelta(days=window_length_days)
 
     for dc in determiner_centers:

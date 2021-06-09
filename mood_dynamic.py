@@ -724,7 +724,7 @@ def counterfactual_mood_graph(
             - 1.5
         )
 
-        plt.ylim(min(default_bottom, min(bottoms)), max(default_top, max(tops)))
+        plt.ylim(min(default_bottom, min(bottoms) - 1.5), max(default_top, max(tops) + 1.5))
 
     plt.legend(
         fontsize=12,

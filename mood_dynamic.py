@@ -104,6 +104,19 @@ DETERMINER_MULTIPLIER_UPDATES = {
     pd.Timestamp("2021-06-07 22:35:00"): 0.1 / RESPONSE_SCALE_BASE,
 }
 
+_NEG_ETERNITY = pd.Timestamp("1980-01-01 00:00:00")
+_POS_ETERNITY = pd.Timestamp("2250-01-01 00:00:00")
+SYSTEM_PARAM_UPADTES = {
+    _NEG_ETERNITY: {},
+    pd.Timestamp("2021-06-09 00:30:00"): {"tau_sec": 3600 * 6},
+}
+SYSTEM_PARAM_UPADTES[_NEG_ETERNITY] = {}
+SYSTEM_PARAM_UPADTES[_POS_ETERNITY] = SYSTEM_PARAM_UPADTES[sorted(SYSTEM_PARAM_UPADTES.keys())[-1]]
+SYSTEM_UPDATE_TIMES = sorted(SYSTEM_PARAM_UPADTES.keys())
+SYSTEM_INTERVALS = [(t1, t2, SYSTEM_PARAM_UPADTES[t1])
+                    for t1, t2 in zip(SYSTEM_UPDATE_TIMES[:-1], SYSTEM_UPDATE_TIMES[1:])
+                    ]
+
 MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP = {
     "only_sad": 0.094,
     "only_non_happy": 0.37,
@@ -415,23 +428,27 @@ def compute_dynamic_mood_over_interval(
     if end_time is None:
         end_time = datetime.now()
 
-    if system is None:
-        system = DynamicMoodSystem()
+    if system is not None:
+        relevant_intervals = [(start_time, end_time, {})]
+    else:
+        relevant_intervals = [
+            (max(start_time, iv[0]), min(end_time, iv[1]), iv[2])
+            for iv in SYSTEM_INTERVALS
+            if start_time < iv[0] < end_time
+        ]
 
-    # sentiment_centered = determiner - system.determiner_center_series(determiner)
-    # sentiment_centered = (
-    #     system.determiner_multiplier_series(sentiment_centered) * sentiment_centered
-    # )
+    print(relevant_intervals)
+
     sentiment_centered = mood_inputs["scaled_determiner"]
     sentiment_centered = sentiment_centered.loc[start_time:end_time]
     sentiment_centered_indexed = sentiment_centered.resample(
-        f"{system.step_sec}s"
+        f"{STEP_SEC}s"
     ).sum()
 
     extra_ts_ix = pd.date_range(
-        sentiment_centered_indexed.index[-1] + pd.Timedelta(seconds=system.step_sec),
-        end_time + pd.Timedelta(seconds=system.step_sec),
-        freq=f"{system.step_sec}s",
+        sentiment_centered_indexed.index[-1] + pd.Timedelta(seconds=STEP_SEC),
+        end_time + pd.Timedelta(seconds=STEP_SEC),
+        freq=f"{STEP_SEC}s",
     )
 
     extra_ts = pd.Series(np.zeros(len(extra_ts_ix)), index=extra_ts_ix)
@@ -441,17 +458,25 @@ def compute_dynamic_mood_over_interval(
 
     start_ts = sentiment_centered_indexed_extended.index[0]
 
-    t = (
-        sentiment_centered_indexed_extended.index - start_ts
-    ).total_seconds().values / system.step_sec
-    u = sentiment_centered_indexed_extended.values
+    x0 = (0, 0)
+    ys = []
+    for t1, t2, system_kwargs in relevant_intervals:
+        system = DynamicMoodSystem(**system_kwargs)
 
-    tout, y, x = lsim(
-        system.lti_system if not forcing_system else system.forcing_system,
-        u,
-        t,
-        interp=False,
-    )
+        t = (
+            sentiment_centered_indexed_extended.loc[t1:t2].index - start_ts
+        ).total_seconds() / STEP_SEC
+
+        tout, y, x = lsim(
+            system.lti_system if not forcing_system else system.forcing_system,
+            sentiment_centered_indexed_extended.loc[t1:t2].values,
+            t.values,
+            interp=False,
+            X0=x0
+        )
+        ys.append(y)
+        x0 = x[-1]
+    y = np.concatenate(ys)
     lti_series = pd.Series(y, index=sentiment_centered_indexed_extended.index)
 
     if apply_daily_offset and not forcing_system:
@@ -620,7 +645,7 @@ def counterfactual_mood_graph(
     if start_time is None:
         start_time = end_time - pd.Timedelta(days=n_days)
 
-    systems = {"actual": DynamicMoodSystem()}
+    systems = {"actual": None}
     if system_kwargs is not None:
         systems[repr(system_kwargs)] = DynamicMoodSystem(**system_kwargs)
 

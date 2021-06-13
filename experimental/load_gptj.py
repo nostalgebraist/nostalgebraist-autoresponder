@@ -57,7 +57,7 @@ class SplitCheckpoint(MutableMapping):
 def load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):
     model = GPTNeoForCausalLM.from_pretrained(
         pretrained_model_name_or_path=None,
-        GPT_J_CONFIG=GPT_J_CONFIG,
+        config=config,
         state_dict=SplitCheckpoint(ckpt_dir),
     )
 

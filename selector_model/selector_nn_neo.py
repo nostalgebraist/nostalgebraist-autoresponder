@@ -177,6 +177,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         head_mask=None,
         output_attentions=False,
     ):
+        hidden_states = hidden_states.to(self.ln.weight.dtype)
         hidden_states = self.ln(hidden_states)
 
         hidden_state_at_last_token = select_at_last_token(

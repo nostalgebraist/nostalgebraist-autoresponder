@@ -27,7 +27,10 @@ USE_AUTOREVIEWER = True
 
 if V12:
     # TODO: fill
-    AUTOREVIEWER_CUTOFFS = {}
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.138,  # v12/v1: predict true accept rate: ~27%, false accept rate ~7.5%
+        "reject_above": 0.681,  # v12/v1: predict true reject rate: ~42%, false reject rate ~6%
+    }
 elif V11_2:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.150,  # v11_2/v1: predict true accept rate: ~36%, false accept rate ~6.7%
@@ -398,6 +401,9 @@ if V11 and (GPU_TYPE != "big"):
     #
     # https://github.com/huggingface/transformers/compare/v4.5.1...v4.6.0
     GPT_NEO_MAX_LENGTH = 1900
+
+if V12 and (GPU_TYPE != "big"):
+    GPT_NEO_MAX_LENGTH = 1536
 
 head_inference_batch_size = 1 if V11 else None
 

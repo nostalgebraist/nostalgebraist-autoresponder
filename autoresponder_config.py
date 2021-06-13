@@ -20,13 +20,17 @@ V10_1_torch = True  # !!
 V11 = True  # !!!! -- gptneo, th
 V11_INSURANCE = False
 V11_2 = True  # nost tuning: spacefix + quotes + dedup
+V12 = False  # gpt-j
 
 USE_AUTOREVIEWER = True
 
-if V11_2:
+
+if V12:
     # TODO: fill
+    AUTOREVIEWER_CUTOFFS = {}
+elif V11_2:
     AUTOREVIEWER_CUTOFFS = {
-        "accept_below": 0.150,  # v11/v4: predict true accept rate: ~36%, false accept rate ~6.7%
+        "accept_below": 0.150,  # v11_2/v1: predict true accept rate: ~36%, false accept rate ~6.7%
         "reject_above": 0.481,  # v11_2/v1: predict true reject rate: ~48%, false reject rate ~6%
     }
 elif V11:
@@ -84,7 +88,10 @@ else:
     final_munge_before_neural = final_munge_before_neural_v10
     final_munge_after_neural = final_munge_after_neural_v10
 
-if V11_2:
+if V12:
+    model_name = "arj-v0-2801-f16"
+    model_path = os.path.join("/", model_name)
+elif V11_2:
     model_name = "neo_ar_2_7B_v0_nost_tuning_quotes_dedup_f"
     model_path = os.path.join("/", model_name)
 elif V11:
@@ -100,7 +107,11 @@ else:
     model_name = "autoresponder_v10"
     model_path = os.path.join("models", model_name, "model-135.hdf5")
 
-if V11_2:
+if V12:
+    ckpt_select = "selector/v12/v1/"
+    ckpt_sentiment = "sentiment/v12/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12/v1/"
+elif V11_2:
     ckpt_select = "selector/v11_2/v2/"
     ckpt_sentiment = "sentiment/v11_2/v2/"
     ckpt_autoreviewer = "draft_autoreviewer/v11_2/v1/"
@@ -127,7 +138,15 @@ SELECTOR_EOT_PREPEND = True
 gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/encoder.json /models/{model_name}/"
 gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/{model_name}/"
 
-if V11_2:
+if V12:
+    gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/gpt-j-th/{model_name}/* {model_path}"
+
+    gs_command_get_selector = (
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v12_selector/* /selector/v12/"
+    )
+    gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v12_sentiment/* /sentiment/v12/"
+    gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v12/* /draft_autoreviewer/v12/"
+elif V11_2:
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/tf_to_torch/neo_ar_2_7B_v0_nost_tuning_quotes_dedup_f/* {model_path}"
 
     gs_command_get_selector = (

@@ -1,17 +1,11 @@
 import os
 import subprocess
 import time
-import gc
 from functools import partial
 
 import requests
-import torch
 import numpy as np
 from transformers import AutoTokenizer
-from stable_library_code.transformers.gpt2.configuration_gpt2 import GPT2Config
-from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
-
-from transformer_utils import low_memory_load
 
 from autoresponder_config import *
 from autoresponder_static import *
@@ -19,14 +13,7 @@ from autoresponder_static_v8 import *
 
 from experimental.generator_model_torch import GeneratorModelTorch, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
 from selector_model.selector_estimator_neo import NostARHeadEstimator
-
-from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import GPTNeoForCausalLM, GPTNeoModel
-GPTNeoModel.init_weights = lambda *args, **kwargs: None
-GPTNeoForCausalLM.init_weights = lambda *args, **kwargs: None
-
-from stable_library_code.transformers.gpt2.modeling_gpt2 import GPT2LMHeadModel, GPT2Model
-GPT2Model.init_weights = lambda *args, **kwargs: None
-GPT2LMHeadModel.init_weights = lambda *args, **kwargs: None
+from experimental.load_gptj import load_gpt_j_split_ckpt
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
@@ -94,20 +81,9 @@ def load_generator_model(
     tokenizer,
     batch_size,
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
-    device="cuda:0",
-    load_device=TENSOR_LOAD_DEVICE,
     retries=False,
 ):
-    # TODO: make the model class appropriate for the config settings (gpt2 vs gptneo)
-
-    config_path = os.path.join(path, "config.json")
-    model_path = os.path.join(path, "pytorch_model.bin")
-
-    transformers_model = low_memory_load(
-        config_path=config_path,
-        model_path=model_path,
-        model_cls=GPTNeoForCausalLM,
-    )
+    transformers_model = load_gpt_j_split_ckpt(path)
 
     return GeneratorModelTorch.load(
         transformers_model=transformers_model,

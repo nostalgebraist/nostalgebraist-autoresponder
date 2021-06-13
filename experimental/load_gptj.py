@@ -1,5 +1,5 @@
 import torch
-from transformers import GPTNeoForCausalLM, AutoGPT_J_CONFIG
+from transformers import GPTNeoForCausalLM, AutoConfig
 
 try:
     from collections.abc import MutableMapping
@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 # GPT-J 6B config
-GPT_J_CONFIG = AutoGPT_J_CONFIG.from_pretrained("EleutherAI/gpt-neo-2.7B")
+GPT_J_CONFIG = AutoConfig.from_pretrained("EleutherAI/gpt-neo-2.7B")
 GPT_J_CONFIG.attention_layers = ["global"] * 28
 GPT_J_CONFIG.attention_types = [["global"], 28]
 GPT_J_CONFIG.num_layers = 28

@@ -21,16 +21,15 @@ V11 = True  # !!!! -- gptneo, th
 V11_INSURANCE = False
 V11_2 = True  # nost tuning: spacefix + quotes + dedup
 V12 = True  # gpt-j
-V12_2 = False  # gpt-j nost tuning
+V12_2 = True  # gpt-j nost tuning
 
 USE_AUTOREVIEWER = True
 
 
 if V12_2:
-    # TODO: fill
     AUTOREVIEWER_CUTOFFS = {
-        # "accept_below": 0.139,  # v12_2/v1: predict true accept rate: ~XX%, false accept rate ~X%
-        # "reject_above": 0.546,  # v12_2/v1: predict true reject rate: ~XX%, false reject rate ~X%
+        "accept_below": 0.132,  # v12_2/v1: predict true accept rate: ~38%, false accept rate ~6.7%
+        "reject_above": 0.612,  # v12_2/v1: predict true reject rate: ~45%, false reject rate ~6%
     }
 elif V12:
     AUTOREVIEWER_CUTOFFS = {

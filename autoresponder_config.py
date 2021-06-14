@@ -21,12 +21,18 @@ V11 = True  # !!!! -- gptneo, th
 V11_INSURANCE = False
 V11_2 = True  # nost tuning: spacefix + quotes + dedup
 V12 = True  # gpt-j
+V12_2 = False  # gpt-j nost tuning
 
 USE_AUTOREVIEWER = True
 
 
-if V12:
+if V12_2:
     # TODO: fill
+    AUTOREVIEWER_CUTOFFS = {
+        # "accept_below": 0.139,  # v12_2/v1: predict true accept rate: ~XX%, false accept rate ~X%
+        # "reject_above": 0.546,  # v12_2/v1: predict true reject rate: ~XX%, false reject rate ~X%
+    }
+elif V12:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.139,  # v12/v3: predict true accept rate: ~43%, false accept rate ~6.7%
         "reject_above": 0.546,  # v12/v3: predict true reject rate: ~50%, false reject rate ~6%
@@ -91,7 +97,10 @@ else:
     final_munge_before_neural = final_munge_before_neural_v10
     final_munge_after_neural = final_munge_after_neural_v10
 
-if V12:
+if V12_2:
+    model_name = "arj-v0-nost-tuning-f16"
+    model_path = os.path.join("/", model_name)
+elif V12:
     model_name = "arj-v0-2801-f16"
     model_path = os.path.join("/", model_name)
 elif V11_2:
@@ -110,7 +119,11 @@ else:
     model_name = "autoresponder_v10"
     model_path = os.path.join("models", model_name, "model-135.hdf5")
 
-if V12:
+if V12_2:
+    ckpt_select = "selector/v12_2/v1/"
+    ckpt_sentiment = "sentiment/v12_2/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_2/v1/"
+elif V12:
     ckpt_select = "selector/v12/v3/"
     ckpt_sentiment = "sentiment/v12/v2/"
     ckpt_autoreviewer = "draft_autoreviewer/v12/v3/"
@@ -142,13 +155,15 @@ gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/au
 gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/{model_name}/"
 
 if V12:
+    suffix = "_2" if V11_2 else ""
+
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/gpt-j-th/{model_name}/* {model_path}"
 
     gs_command_get_selector = (
-        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v12_selector/* /selector/v12/"
+        f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v12{suffix}_selector/* /selector/v12{suffix}/"
     )
-    gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v12_sentiment/* /sentiment/v12/"
-    gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v12/* /draft_autoreviewer/v12/"
+    gs_command_get_sentiment = f"gsutil -m cp -R gs://{BUCKET_NAME}/ar_model_v10/v12{suffix}_sentiment/* /sentiment/v12{suffix}/"
+    gs_command_get_autoreviewer = f"gsutil -m cp -R gs://{BUCKET_NAME}/draft_autoreviewer/v12{suffix}/* /draft_autoreviewer/v12{suffix}/"
 elif V11_2:
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/tf_to_torch/neo_ar_2_7B_v0_nost_tuning_quotes_dedup_f/* {model_path}"
 

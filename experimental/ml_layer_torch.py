@@ -176,8 +176,6 @@ if "sentiment" in MODELS_SERVED:
     )
     sentiment_est.length = length_sentiment
 
-    lr_calib_sentiment = selector_est.lr_calib_
-
 if "autoreviewer" in MODELS_SERVED:
     autoreviewer_est = load_from_gdrive_with_gs_fallback(
         load_fn=partial(load_selector, base_model=generator_model.transformers_model),

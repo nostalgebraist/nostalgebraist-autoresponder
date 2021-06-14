@@ -182,7 +182,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         hidden_states = self.ln(hidden_states)
 
         hidden_state_at_last_token = select_at_last_token(
-            hidden_states, input_ids_with_pads
+            hidden_states, input_ids_with_pads.to(self.ln.weight.device)
         ).unsqueeze(-2)
 
         query = self.q_proj(hidden_state_at_last_token)

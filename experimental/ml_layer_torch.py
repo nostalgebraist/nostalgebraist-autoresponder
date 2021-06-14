@@ -17,22 +17,21 @@ from experimental.load_gptj import load_gpt_j_split_ckpt
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
-if (GPU_TYPE != "big"):
-    print('select variant')
-    variant = None
-    while not variant:
-        try:
-            variant = int(input())
-        except:
-            continue
+print('select variant')
+variant = None
+while variant is None:
+    try:
+        variant = int(input())
+    except:
+        continue
 
-    MODELS_SERVED = ["generator"]
+MODELS_SERVED = ["generator"]
 
-    for i, m in enumerate(['selector', 'sentiment', 'autoreviewer']):
-        if i != variant:
-            MODELS_SERVED.append(m)
+for i, m in enumerate(['selector', 'sentiment', 'autoreviewer']):
+    if i != variant:
+        MODELS_SERVED.append(m)
 
-    print(MODELS_SERVED)
+print(MODELS_SERVED)
 
 # TODO: move this over later
 drivedir = "/content/drive/MyDrive/gpt_neo/"

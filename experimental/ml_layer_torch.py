@@ -17,22 +17,6 @@ from experimental.load_gptj import load_gpt_j_split_ckpt
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
-print('select variant')
-variant = None
-while variant is None:
-    try:
-        variant = [int(i) for i in input().split(',')]
-    except:
-        continue
-
-MODELS_SERVED = ["generator"]
-
-for i, m in enumerate(['selector', 'sentiment', 'autoreviewer']):
-    if i in variant:
-        MODELS_SERVED.append(m)
-
-print(MODELS_SERVED)
-
 # TODO: move this over later
 drivedir = "/content/drive/MyDrive/gpt_neo/"
 os.chdir("/")
@@ -113,7 +97,9 @@ def load_generator_model(
 
 def load_selector(path, base_model, tokenizer, retries=False, **kwargs):
     selector_est = NostARHeadEstimator.load(
-        path, base_model=base_model, tokenizer=tokenizer, inference_batch_size=head_inference_batch_size, **kwargs
+        path, base_model=base_model, tokenizer=tokenizer, inference_batch_size=head_inference_batch_size,
+        device='cpu',
+        **kwargs
     )
     return selector_est
 

@@ -236,7 +236,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             data_batch.selector_input.values,
             self.tokenizer,
             max_length=self.length,
-            device=self.device,
+            device=self.base_model.device,
             pad_to_mult=self.pad_to_mult,
         )
 

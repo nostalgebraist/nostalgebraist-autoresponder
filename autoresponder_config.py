@@ -20,7 +20,7 @@ V10_1_torch = True  # !!
 V11 = True  # !!!! -- gptneo, th
 V11_INSURANCE = False
 V11_2 = True  # nost tuning: spacefix + quotes + dedup
-V12 = False  # gpt-j
+V12 = True  # gpt-j
 
 USE_AUTOREVIEWER = True
 

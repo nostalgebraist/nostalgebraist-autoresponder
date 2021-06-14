@@ -112,7 +112,7 @@ else:
 
 if V12:
     ckpt_select = "selector/v12/v3/"
-    ckpt_sentiment = "sentiment/v12/v1/"
+    ckpt_sentiment = "sentiment/v12/v2/"
     ckpt_autoreviewer = "draft_autoreviewer/v12/v3/"
 elif V11_2:
     ckpt_select = "selector/v11_2/v2/"

@@ -80,6 +80,7 @@ def load_generator_model(
     path,
     tokenizer,
     batch_size,
+    device='cuda:0',
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
     retries=False,
 ):

@@ -21,14 +21,14 @@ print('select variant')
 variant = None
 while variant is None:
     try:
-        variant = int(input())
+        variant = [int(i) for i in input().split(',')]
     except:
         continue
 
 MODELS_SERVED = ["generator"]
 
 for i, m in enumerate(['selector', 'sentiment', 'autoreviewer']):
-    if i != variant:
+    if i in variant:
         MODELS_SERVED.append(m)
 
 print(MODELS_SERVED)

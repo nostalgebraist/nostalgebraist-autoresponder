@@ -28,8 +28,8 @@ USE_AUTOREVIEWER = True
 if V12:
     # TODO: fill
     AUTOREVIEWER_CUTOFFS = {
-        "accept_below": 0.138,  # v12/v1: predict true accept rate: ~27%, false accept rate ~7.5%
-        "reject_above": 0.681,  # v12/v1: predict true reject rate: ~42%, false reject rate ~6%
+        "accept_below": 0.142,  # v12/v2: predict true accept rate: ~42%, false accept rate ~7.5%
+        "reject_above": 0.603,  # v12/v2: predict true reject rate: ~41%, false reject rate ~6%
     }
 elif V11_2:
     AUTOREVIEWER_CUTOFFS = {
@@ -113,7 +113,7 @@ else:
 if V12:
     ckpt_select = "selector/v12/v3/"
     ckpt_sentiment = "sentiment/v12/v1/"
-    ckpt_autoreviewer = "draft_autoreviewer/v12/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12/v2/"
 elif V11_2:
     ckpt_select = "selector/v11_2/v2/"
     ckpt_sentiment = "sentiment/v11_2/v2/"

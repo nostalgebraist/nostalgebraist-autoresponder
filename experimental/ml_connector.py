@@ -782,7 +782,7 @@ def old_bridge_call__answer(data):
     kwargs["avoid_if_under"] = 5
     if kwargs["write_fic_override"]:
         kwargs["avoid_if_under"] = 50
-    kwargs["avoid_half_if_under"] = 10
+    kwargs["avoid_half_if_under"] = 5
     kwargs["avoid_if_cut_off"] = False
     kwargs["split_on_control_char"] = True
     kwargs["avoid_if_profane"] = False
@@ -838,8 +838,8 @@ def old_bridge_call__textpost(data):
     }
 
     kwargs["strategy"] = "proportional"
-    kwargs["avoid_if_under"] = 20
-    kwargs["avoid_half_if_under"] = 40
+    kwargs["avoid_if_under"] = 10
+    kwargs["avoid_half_if_under"] = 10
     kwargs["avoid_if_cut_off"] = False
     kwargs["avoid_initial_blockquote"] = False
     kwargs["avoid_if_says_frank"] = False

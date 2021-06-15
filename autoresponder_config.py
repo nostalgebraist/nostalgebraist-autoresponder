@@ -154,7 +154,7 @@ gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/au
 gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/{model_name}/"
 
 if V12:
-    suffix = "_2" if V11_2 else ""
+    suffix = "_2" if V12_2 else ""
 
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/gpt-j-th/{model_name}/* {model_path}"
 

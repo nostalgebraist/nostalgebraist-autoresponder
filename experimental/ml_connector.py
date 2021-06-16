@@ -589,19 +589,26 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
                 text = EOT_FULL + text
 
         selector_input.append(text)
-    if debug:
-        print("autoreviewer model will see exactly the following:\n")
-        for s in selector_input:
-            print(repr(s))
-        print()
+    # if debug:
+    #     print("autoreviewer model will see exactly the following:\n")
+    #     for s in selector_input:
+    #         print(repr(s))
+    #     print()
     data.loc[:, "selector_input"] = selector_input
 
+    print(data)
+
     data = data.to_dict(orient="records")
+
+    print(data)
 
     response_data = autoreviewer_est.predict_proba(data)
 
     result = np.array(response_data[0]["result"])
     probs = result[:, 1]
+    if debug:
+        print(response_data)
+        print(probs)
     return probs
 
 
@@ -1051,7 +1058,7 @@ def serve_answer(data):
     )
     autoreview_results = predict_autoreview(
         autoreview_inputs,
-        debug=False,
+        debug=True,
     )
     parsed["autoreview_proba"] = [float(p) for p in autoreview_results]
 
@@ -1159,7 +1166,7 @@ def serve_textpost(data):
     autoreview_results = predict_autoreview(
         autoreview_inputs,
         override_disable_forumlike=True,
-        debug=False,
+        debug=True,
     )
     parsed["autoreview_proba"] = [float(p) for p in autoreview_results]
 
@@ -1213,7 +1220,7 @@ def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
     )
     autoreview_results = predict_autoreview(
         autoreview_inputs,
-        debug=False,
+        debug=True,
     )
     results = [float(p) for p in autoreview_results]
     return results

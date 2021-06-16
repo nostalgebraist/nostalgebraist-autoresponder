@@ -211,6 +211,8 @@ def poll(
             elif data["model"] == "sentiment":
                 requested_model = sentiment_est
             elif data["model"] == "autoreviewer":
+                from pprint import pprint
+                pprint(data)
                 requested_model = autoreviewer_est
             else:
                 raise ValueError(f"requested_model: {data.get('model')}")
@@ -224,15 +226,6 @@ def poll(
             requested_args, requested_kwargs = data.get("args", []), data.get(
                 "kwargs", {}
             )
-
-            if GPU_TYPE != "big" and requested_method == "write":
-                # can't handle long pasts calc yet
-                prompt = requested_kwargs.get("prompt")
-                if not prompt and len(requested_args) > 0:
-                    prompt = requested_args[0]
-
-                ntok = len(generator_model.tokenizer.encode(prompt))
-                print(f"prompt length: {ntok}")
 
             for name in DEPRECATED_KWARGS:
                 if name in requested_kwargs:

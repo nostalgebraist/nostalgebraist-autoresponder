@@ -525,7 +525,7 @@ def cut_to_final_exchange_chinese(to_cut, verbose=False):
 
 
 def cut_to_new_since_last_frank_post(
-    processed, keep_one_prev_frank_post=True, verbose=False
+    processed, keep_one_prev_frank_post=True, verbose=True
 ):
     """slightly adapted from munging_shared.screener_string_from_bootstrap_draft"""
     cchars = find_all_control_chars_chinese(processed)

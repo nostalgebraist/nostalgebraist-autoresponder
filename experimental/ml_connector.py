@@ -24,7 +24,7 @@ from experimental.year_munging import sample_and_substitute_year_v10
 
 import bridge_cache_singleton
 
-TRADE_QUALITY_FOR_SPEED = False
+TRADE_QUALITY_FOR_SPEED = True
 
 logit_diff_sample_series = load_logit_diff_sample()
 EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4

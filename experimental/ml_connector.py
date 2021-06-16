@@ -492,6 +492,8 @@ def show_note_probas(texts, probas, sentiment_logit_diffs=None, console_width=11
 
 
 def predict_select(data, debug=False, override_disable_forumlike=False):
+    t1 = time.time()
+
     if len(data) == 0:
         # this can happen if the retention_stack is big enough
         return np.array([])
@@ -528,10 +530,16 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
 
     result = np.array(response_data[0]["result"])
     probs = result[:, 1]
+
+    delta_t = time.time() - t1
+    print(f'predict_select: served in {delta_t:.1f}s')
+
     return probs
 
 
 def predict_sentiment(data, debug=False):
+    t1 = time.time()
+
     data["prompt_finalchar"] = ["" for _ in data.selector_input.values]
     if len(data) == 0:
         # this can happen if the retention_stack is big enough
@@ -569,10 +577,15 @@ def predict_sentiment(data, debug=False):
 
     logit_diffs = logits[:, 1:] - logits[:, :1]
 
+    delta_t = time.time() - t1
+    print(f'predict_sentiment: served in {delta_t:.1f}s')
+
     return logit_diffs
 
 
 def predict_autoreview(data, debug=False, override_disable_forumlike=False):
+    t1 = time.time()
+
     selector_input = []
     for text in data.selector_input:
         if text.endswith(eot_end_segment):
@@ -602,6 +615,10 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
 
     result = np.array(response_data[0]["result"])
     probs = result[:, 1]
+
+    delta_t = time.time() - t1
+    print(f'predict_autoreview: served in {delta_t:.1f}s')
+
     return probs
 
 
@@ -1184,8 +1201,6 @@ def serve_textpost(data):
 
 
 def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
-    t1 = time.time()
-
     if timestamp is None:
         timestamp = ""
 
@@ -1203,28 +1218,18 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
     )
     results = [float(p) for p in selection_results]
 
-    delta_t = time.time() - t1
-    print(f'selection_proba_from_gpt2_service: served in {delta_t:.1f}s')
-
     return results
 
 
 def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
-    t1 = time.time()
-
     sentiment_inputs = pd.DataFrame({"selector_input": texts})
     sentiment_results = predict_sentiment(sentiment_inputs, debug=True)
     results = [float(p) for p in sentiment_results]
-
-    delta_t = time.time() - t1
-    print(f'sentiment_logit_diffs_from_gpt2_service: served in {delta_t:.1f}s')
 
     return results
 
 
 def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
-    t1 = time.time()
-
     if timestamp is None:
         timestamp = ""
 
@@ -1243,8 +1248,5 @@ def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
         debug=False,
     )
     results = [float(p) for p in autoreview_results]
-
-    delta_t = time.time() - t1
-    print(f'autoreview_proba_from_gpt2_service: served in {delta_t:.1f}s')
 
     return results

@@ -640,6 +640,8 @@ def answer_from_gpt2_service(
     no_timestamp=False,
     BEAMSPLIT_TESTING_FLAG=False,
 ):
+    t1 = time.time()
+
     if ts is None:
         ts = datetime.now()
     data["v8_timestamp"] = timestamp_to_v8_format(ts)
@@ -666,6 +668,13 @@ def answer_from_gpt2_service(
         if k not in result:
             result[k] = v
 
+    delta_t = time.time() - t1
+    log_prefix = ""
+    write_fic_override = bool(int(data.get("write_fic_override", 0)))
+    if write_fic_override:
+        log_prefix += " (story)"
+    print(f'answer_from_gpt2_service{log_prefix}: served in {delta_t:.1f}s')
+
     return result
 
 
@@ -680,6 +689,8 @@ def save_retention(retention_stack):
 def text_post_from_gpt2_service(
     loop_persistent_data, mood=None, ts=None, BEAMSPLIT_TESTING_FLAG=False
 ):
+    t1 = time.time()
+
     data = {"mood": mood}
 
     if ts is None:
@@ -711,6 +722,9 @@ def text_post_from_gpt2_service(
     for k, v in data.items():
         if k not in result:
             result[k] = v
+
+    delta_t = time.time() - t1
+    print(f'text_post_from_gpt2_service: served in {delta_t:.1f}s')
 
     return result, loop_persistent_data
 

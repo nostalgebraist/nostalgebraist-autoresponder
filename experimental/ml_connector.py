@@ -1184,6 +1184,8 @@ def serve_textpost(data):
 
 
 def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
+    t1 = time.time()
+
     if timestamp is None:
         timestamp = ""
 
@@ -1200,18 +1202,29 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
         selector_inputs, debug=True, override_disable_forumlike=True
     )
     results = [float(p) for p in selection_results]
+
+    delta_t = time.time() - t1
+    print(f'selection_proba_from_gpt2_service: served in {delta_t:.1f}s')
+
     return results
 
 
 def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
+    t1 = time.time()
+
     sentiment_inputs = pd.DataFrame({"selector_input": texts})
     sentiment_results = predict_sentiment(sentiment_inputs, debug=True)
     results = [float(p) for p in sentiment_results]
+
+    delta_t = time.time() - t1
+    print(f'sentiment_logit_diffs_from_gpt2_service: served in {delta_t:.1f}s')
 
     return results
 
 
 def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
+    t1 = time.time()
+
     if timestamp is None:
         timestamp = ""
 
@@ -1230,4 +1243,8 @@ def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
         debug=False,
     )
     results = [float(p) for p in autoreview_results]
+
+    delta_t = time.time() - t1
+    print(f'autoreview_proba_from_gpt2_service: served in {delta_t:.1f}s')
+
     return results

@@ -23,7 +23,7 @@ V11_2 = True  # nost tuning: spacefix + quotes + dedup
 V12 = True  # gpt-j
 V12_2 = True  # gpt-j nost tuning
 
-USE_AUTOREVIEWER = True
+USE_AUTOREVIEWER = False
 
 
 if V12_2:

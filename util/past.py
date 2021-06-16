@@ -14,13 +14,15 @@ MILESTONE_TIMES = {
     pd.Timestamp("2021-04-02 11:10"): "autoreview_golive",
     pd.Timestamp("2021-05-06 21:57"): "v11_golive",
     pd.Timestamp("2021-06-06 17:12"): "v11_2_golive",
+    pd.Timestamp("2021-06-13 17:22"): "v12_golive",
+    pd.Timestamp("2021-06-14 08:52"): "v12_2_golive",
 }
 
 MAJOR_MILESTONE_TIMES = {
     ts: name
     for ts, name in MILESTONE_TIMES.items()
     if any([
-        subs in name for subs in ['v8', 'v9', 'v10', 'v11']
+        subs in name for subs in ['v8', 'v9', 'v10', 'v11', 'v12']
     ])
 }
 
@@ -99,8 +101,10 @@ VERSION_EXPLAINERS = {
     Corpus model name: 'autoresponder_v10' @ 4400 steps.
     Transfer model name: 'autoresponder_v10_nost_tuning_f'.
     """,
-    "v11": """TODO""",
-    "v11_2": """TODO""",
+    "v11": """TODO (gpt-neo)""",
+    "v11_2": """TODO (nost tuning quotes/dedup/etc)""",
+    "v12": """TODO (gpt-j)""",
+    "v12_2": """TODO (gpt-j) nost tuning""",
 }
 
 VERSION_METADATA = {

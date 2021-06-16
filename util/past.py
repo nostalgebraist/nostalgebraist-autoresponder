@@ -73,6 +73,7 @@ VERSION_EXPLAINERS = {
     Corpus model name: 'autoresponder_v9_v1_1558M' @ 2550 steps.
     Transfer model name: 'autoresponder_v9_v1_1558M_nost_tuning2'.
     """,
+
     "v9_1R3": """
     Variant of "v9_1" with longer Corpus pretrain: 2 epochs --> 5.3 epochs.
 
@@ -82,7 +83,7 @@ VERSION_EXPLAINERS = {
     Transfer model name: 'autoresponder_v9_v1_1558M_nost_tuning3'.
     """,
 
-    "v9_1R3": """
+    "v9_1R4": """
     Variant of "v9_1."
 
     Same Corpus pretrain as v9_1R3.

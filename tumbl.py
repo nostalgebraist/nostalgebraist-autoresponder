@@ -107,6 +107,7 @@ LIMITED_USERS = bot_specific_constants.LIMITED_USERS
 LIMITED_USERS_PROBS = bot_specific_constants.LIMITED_USERS_PROBS(EFFECTIVE_SLEEP_TIME)
 LIMITED_SUBSTRINGS = bot_specific_constants.LIMITED_SUBSTRINGS
 SCREENED_USERS = bot_specific_constants.SCREENED_USERS
+LIMITED_SUBSTRING_FAKE_USERNAME = "!,!,limitedsubs"
 
 private_clients = [
     LegacySimulatingClient.from_rate_limit_client(cl)

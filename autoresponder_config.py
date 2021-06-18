@@ -119,7 +119,7 @@ else:
     model_path = os.path.join("models", model_name, "model-135.hdf5")
 
 if V12_2:
-    ckpt_select = "selector/v12_2/v1/"
+    ckpt_select = "selector/v12_2/v2/"
     ckpt_sentiment = "sentiment/v12_2/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_2/v3/"
 elif V12:

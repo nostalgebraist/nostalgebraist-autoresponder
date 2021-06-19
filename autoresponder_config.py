@@ -102,7 +102,7 @@ else:
     final_munge_before_neural = final_munge_before_neural_v10
     final_munge_after_neural = final_munge_after_neural_v10
 
-if v12_3:
+if V12_3:
     model_name = "nost-tuning-arj-cl"
     model_path = os.path.join("/", model_name)
 elif V12_2:

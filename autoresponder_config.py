@@ -22,7 +22,7 @@ V11_INSURANCE = False
 V11_2 = True  # nost tuning: spacefix + quotes + dedup
 V12 = True  # gpt-j
 V12_2 = True  # gpt-j nost tuning
-V12_3 = True  # lr sched improvements
+V12_3 = False  # lr sched improvements
 
 USE_AUTOREVIEWER = True
 

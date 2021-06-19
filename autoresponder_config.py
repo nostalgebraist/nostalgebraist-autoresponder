@@ -22,11 +22,17 @@ V11_INSURANCE = False
 V11_2 = True  # nost tuning: spacefix + quotes + dedup
 V12 = True  # gpt-j
 V12_2 = True  # gpt-j nost tuning
+V12_3 = True  # lr sched improvements
 
 USE_AUTOREVIEWER = True
 
 
-if V12_2:
+if V12_3:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.097,  # v12_1/v1: predict true accept rate: ~41%, false accept rate ~6.7%
+        "reject_above": 0.606,  # v12_1/v1: predict true reject rate: ~41%, false reject rate ~6%
+    }
+elif V12_2:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.115,  # v12_2/v3: predict true accept rate: ~38%, false accept rate ~6.7%
         "reject_above": 0.603,  # v12_2/v3: predict true reject rate: ~44%, false reject rate ~6%
@@ -96,7 +102,10 @@ else:
     final_munge_before_neural = final_munge_before_neural_v10
     final_munge_after_neural = final_munge_after_neural_v10
 
-if V12_2:
+if v12_3:
+    model_name = "nost-tuning-arj-cl"
+    model_path = os.path.join("/", model_name)
+elif V12_2:
     model_name = "arj-v0-nost-tuning-f16"
     model_path = os.path.join("/", model_name)
 elif V12:
@@ -118,7 +127,11 @@ else:
     model_name = "autoresponder_v10"
     model_path = os.path.join("models", model_name, "model-135.hdf5")
 
-if V12_2:
+if V12_3:
+    ckpt_select = "selector/v12_3/v1/"
+    ckpt_sentiment = "sentiment/v12_3/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_3/v1/"
+elif V12_2:
     ckpt_select = "selector/v12_2/v2/"
     ckpt_sentiment = "sentiment/v12_2/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_2/v3/"
@@ -154,7 +167,7 @@ gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/au
 gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/{model_name}/"
 
 if V12:
-    suffix = "_2" if V12_2 else ""
+    suffix = "_3" if V12_3 else ( "_2" if V12_2 else "")
 
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/gpt-j-th/{model_name}/* {model_path}"
 

@@ -22,16 +22,16 @@ V11_INSURANCE = False
 V11_2 = True  # nost tuning: spacefix + quotes + dedup
 V12 = True  # gpt-j
 V12_2 = True  # gpt-j nost tuning
-V12_3 = False  # higher lr
-V12_4 = False  # fixed lr schedule for gpt-j + skip nost tuning
+V12_3 = True  # higher lr
+V12_4 = True  # fixed lr schedule for gpt-j + skip nost tuning
 
 USE_AUTOREVIEWER = True
 
 
 if V12_4:
     AUTOREVIEWER_CUTOFFS = {
-        "accept_below": -1,  # v12_4/v1: predict true accept rate: ~XX%, false accept rate ~6.7%
-        "reject_above": -1,  # v12_4/v1: predict true reject rate: ~XX%, false reject rate ~6%
+        "accept_below": 0.130,  # v12_4/v1: predict true accept rate: ~40%, false accept rate ~6.7%
+        "reject_above": 0.561,  # v12_4/v1: predict true reject rate: ~47%, false reject rate ~6%
     }
 elif V12_3:
     AUTOREVIEWER_CUTOFFS = {

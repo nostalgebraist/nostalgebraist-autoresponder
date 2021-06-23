@@ -24,7 +24,7 @@ V12 = True  # gpt-j
 V12_2 = True  # gpt-j nost tuning
 V12_3 = True  # higher lr
 V12_4 = True  # fixed lr schedule for gpt-j + skip nost tuning
-V12_5 = False  # many incremental improvements to gpt-j lr / dataset / etc + fixed "Posts by"
+V12_5 = True  # many incremental improvements to gpt-j lr / dataset / etc + fixed "Posts by"
 
 USE_AUTOREVIEWER = True
 
@@ -32,8 +32,8 @@ USE_AUTOREVIEWER = True
 if V12_5:
     # TODO: fill
     AUTOREVIEWER_CUTOFFS = {
-        "accept_below": 0,  # v12_5/v1: predict true accept rate: ~XX%, false accept rate ~6.7%
-        "reject_above": 0,  # v12_5/v1: predict true reject rate: ~XX%, false reject rate ~6%
+        "accept_below": 0.145,  # v12_5/v1: predict true accept rate: ~42%, false accept rate ~6.7%
+        "reject_above": 0.519,  # v12_5/v1: predict true reject rate: ~48%, false reject rate ~6%
     }
 elif V12_4:
     AUTOREVIEWER_CUTOFFS = {

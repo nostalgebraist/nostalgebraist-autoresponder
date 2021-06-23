@@ -125,7 +125,7 @@ else:
 if V12_5:
     model_name = "arj-merged-minu-shuf-alldata-2001"
     model_path = os.path.join("/", model_name)
-if V12_4:
+elif V12_4:
     model_name = "arj-v0-ostate"
     model_path = os.path.join("/", model_name)
 elif V12_3:

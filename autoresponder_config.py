@@ -24,11 +24,18 @@ V12 = True  # gpt-j
 V12_2 = True  # gpt-j nost tuning
 V12_3 = True  # higher lr
 V12_4 = True  # fixed lr schedule for gpt-j + skip nost tuning
+V12_5 = False  # many incremental improvements to gpt-j lr / dataset / etc + fixed "Posts by"
 
 USE_AUTOREVIEWER = True
 
 
-if V12_4:
+if V12_5:
+    # TODO: fill
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0,  # v12_5/v1: predict true accept rate: ~XX%, false accept rate ~6.7%
+        "reject_above": 0,  # v12_5/v1: predict true reject rate: ~XX%, false reject rate ~6%
+    }
+elif V12_4:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.130,  # v12_4/v1: predict true accept rate: ~40%, false accept rate ~6.7%
         "reject_above": 0.561,  # v12_4/v1: predict true reject rate: ~47%, false reject rate ~6%
@@ -98,7 +105,14 @@ DO_ALT_TIMESTAMPS = False  # True is for analytics
 
 eot_end_segment = EOT_FULL if EOT_WORKAROUND else "<|"
 
-if V11_2:
+if V12_5:
+    # CSC v10_1 doesn't use the "Posts by" glitch, CSC v10_2 does
+    #
+    # model version v12_5 was trained on data w/o the glitch
+    # so it can go back to CSC v10_1 safely
+    final_munge_before_neural = final_munge_before_neural_v10_1
+    final_munge_after_neural = final_munge_after_neural_v10_1
+elif V11_2:
     final_munge_before_neural = final_munge_before_neural_v10_2
     final_munge_after_neural = final_munge_after_neural_v10_2
 elif V10_1:
@@ -108,6 +122,9 @@ else:
     final_munge_before_neural = final_munge_before_neural_v10
     final_munge_after_neural = final_munge_after_neural_v10
 
+if V12_5:
+    model_name = "arj-merged-minu-shuf-alldata-2001"
+    model_path = os.path.join("/", model_name)
 if V12_4:
     model_name = "arj-v0-ostate"
     model_path = os.path.join("/", model_name)
@@ -136,7 +153,11 @@ else:
     model_name = "autoresponder_v10"
     model_path = os.path.join("models", model_name, "model-135.hdf5")
 
-if V12_4:
+if V12_5:
+    ckpt_select = "selector/v12_5/v1/"
+    ckpt_sentiment = "sentiment/v12_5/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_5/v1/"
+elif V12_4:
     ckpt_select = "selector/v12_4/v1/"
     ckpt_sentiment = "sentiment/v12_4/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_4/v1/"
@@ -180,7 +201,7 @@ gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/au
 gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/{model_name}/"
 
 if V12:
-    suffix = "_4" if V12_4 else ("_3" if V12_3 else ("_2" if V12_2 else ""))
+    suffix = "_5" if V12_5 else ("_4" if V12_4 else ("_3" if V12_3 else ("_2" if V12_2 else "")))
 
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/gpt-j-th/{model_name}/* {model_path}"
 

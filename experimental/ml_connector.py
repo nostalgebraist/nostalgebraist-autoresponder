@@ -1127,14 +1127,14 @@ def serve_textpost(data):
         continue_if_cut_off=continue_if_cut_off,
     )
 
-    # v10_2 curiosity
+    # dreams coldstart curiosity
     # TODO: remove later
     qc = 0
     for c in continuations:
-        if "#quotes" in c:
+        if "#dreams" in c:
             qc += 1
             print(c, end='\n----------\n')
-    print(f'{qc} / {len(continuations)} have quotes')
+    print(f'{qc} / {len(continuations)} have dreams')
 
     parsed = data.copy()
     parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]

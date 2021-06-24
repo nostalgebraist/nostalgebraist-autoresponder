@@ -239,7 +239,7 @@ def serve_selection(
     if IMAGE_COLDSTART:
         selection_proba = do_image_coldstart(continuations, selection_proba)
 
-    if IMAGE_COLDSTART:
+    if QUOTES_COLDSTART:
         selection_proba = do_quotes_coldstart(continuations, selection_proba)
 
     sentiment_logit_diffs = data.get("sentiment_logit_diffs")

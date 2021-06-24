@@ -30,11 +30,13 @@ FIC_COLDSTART = False
 REVIEW_COLDSTART = False
 IMAGE_COLDSTART = False
 QUOTES_COLDSTART = False
+DREAMS_COLDSTART = False
 
-FIC_COLDSTART_DELTA = 0.2  # 0.1
+FIC_COLDSTART_DELTA = 0.2
 REVIEW_COLDSTART_DELTA = 0.1
 IMAGE_COLDSTART_DELTA = 0.1
 QUOTES_COLDSTART_DELTA = 0.2
+DREAMS_COLDSTART_DELTA = 0.2
 
 WARN_ABOUT_LOST_KEYS = False
 
@@ -242,6 +244,9 @@ def serve_selection(
     if QUOTES_COLDSTART:
         selection_proba = do_quotes_coldstart(continuations, selection_proba)
 
+    if DREAMS_COLDSTART:
+        selection_proba = do_dreams_coldstart(continuations, selection_proba)
+
     sentiment_logit_diffs = data.get("sentiment_logit_diffs")
 
     autoreview_proba = data.get("autoreview_proba", [None for _ in continuations])
@@ -417,6 +422,7 @@ def do_coldstart(continuations, selection_proba, substring, delta):
     selection_proba_ = []
     for c, p in zip(continuations, selection_proba):
         if substring in c:
+            print(f"coldstarting substring {repr(c)}: {p:.2f} -> {delta + p:.2f}")
             selection_proba_.append(delta + p)
         else:
             selection_proba_.append(p)
@@ -434,6 +440,9 @@ do_image_coldstart = partial(
 )
 do_quotes_coldstart = partial(
     do_coldstart, substring="#quotes", delta=QUOTES_COLDSTART_DELTA
+)
+do_dreams_coldstart = partial(
+    do_coldstart, substring="#dreams", delta=DREAMS_COLDSTART_DELTA
 )
 
 

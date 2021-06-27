@@ -37,6 +37,8 @@ class BotSpecificConstants:
         LIMITED_USERS: Dict[str, float] = dict(),
         LIMITED_SUBSTRINGS: Dict[str, float] = dict(),
         SCREENED_USERS: Set[str] = set(),
+        DEFLECTOR_SERVICE_REMOTE_HOST: str,
+        deflector_service_port: int
     ):
         # TODO: standardize case in names
         self.blogName = blogName
@@ -114,6 +116,9 @@ class BotSpecificConstants:
 
         # write draft instead of auto-publish when responding to these users
         self.SCREENED_USERS = SCREENED_USERS
+
+        self.DEFLECTOR_SERVICE_REMOTE_HOST = DEFLECTOR_SERVICE_REMOTE_HOST
+        self.deflector_service_port = deflector_service_port
 
     @staticmethod
     def load(path: str = "config.json") -> "BotSpecificConstants":

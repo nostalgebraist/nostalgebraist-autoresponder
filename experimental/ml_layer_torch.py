@@ -173,11 +173,14 @@ if "autoreviewer" in MODELS_SERVED:
 
 DEPRECATED_KWARGS = {"mirotarg"}
 
+remote_host = DEFLECTOR_SERVICE_REMOTE_HOST if USE_DEFLECTOR else BRIDGE_SERVICE_REMOTE_HOST
+remote_port = deflector_service_port if USE_DEFLECTOR else bridge_service_port
+
 
 def poll(
     dummy=False,
     ports=[
-        bridge_service_port,
+        remote_port,
     ],
     routes=[
         "pollml",
@@ -188,7 +191,7 @@ def poll(
 
     for port, route in zip(ports, routes):
         r = requests.get(
-            f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
+            f"{remote_host}:{port}/{route}",
         )
 
         PROMPT_STACK = {prompt_id: data for prompt_id, data in r.json().items()}
@@ -296,7 +299,7 @@ def poll(
 
         if len(RESULT_STACK) > 0:
             requests.post(
-                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
+                f"{remote_host}:{port}/{route}",
                 json=RESULT_STACK if not dummy else {},
             )
 
@@ -318,7 +321,7 @@ def loop_poll(
     period=60,
     dummy=False,
     ports=[
-        bridge_service_port,
+        remote_port,
     ],
     routes=[
         "pollml",

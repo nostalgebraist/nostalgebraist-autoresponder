@@ -7,6 +7,8 @@ from bot_config import BotSpecificConstants
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
+USE_DEFLECTOR = True
+
 V8 = True
 V8_2 = True
 V9 = True
@@ -27,7 +29,6 @@ V12_4 = True  # fixed lr schedule for gpt-j + skip nost tuning
 V12_5 = True  # many incremental improvements to gpt-j lr / dataset / etc + fixed "Posts by"
 
 USE_AUTOREVIEWER = True
-
 
 if V12_5:
     # TODO: fill

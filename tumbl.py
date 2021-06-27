@@ -971,8 +971,7 @@ def respond_to_reblogs_replies(
             # this can happen when a previous round of this loop marked the trail tip as handled
             print(f"skipping already handled {reblog_identifier}")
             continue
-        if not roll_for_limited_users(reblog_identifier.blog_name):
-            continue
+
         print(f"\n\t--> {ri_ix+1}/{n_ri} begin handling {reblog_identifier}\n")
         is_reply = reblog_identifier in reply_set
         halloweenize = (
@@ -1012,6 +1011,10 @@ def respond_to_reblogs_replies(
             V10=True,
         )
         question = processed.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
+
+        if not roll_for_limited_users(reblog_identifier.blog_name, text=question):
+            private_client.delete_post(blogName, d_boot["id"])
+            continue
 
         if is_reply:
             question = bootstrap_draft_inject_reply(

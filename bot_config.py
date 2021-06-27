@@ -23,7 +23,7 @@ class BotSpecificConstants:
         BRIDGE_SERVICE_REMOTE_HOST: str,
         BUCKET_NAME: str,
         DEFLECTOR_SERVICE_REMOTE_HOST: str,
-        deflector_service_port: int
+        deflector_service_port: int,
         NO_REBLOG_IDS: Set[int] = set(),
         DEF_REBLOG_IDS: Set[int] = set(),
         FORCE_TRAIL_HACK_IDS: Set[int] = set(),

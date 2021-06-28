@@ -25,12 +25,17 @@ V12_2 = True  # gpt-j nost tuning
 V12_3 = True  # higher lr
 V12_4 = True  # fixed lr schedule for gpt-j + skip nost tuning
 V12_5 = True  # many incremental improvements to gpt-j lr / dataset / etc + fixed "Posts by"
+V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 + batch size 32
 
 USE_AUTOREVIEWER = True
 
 
-if V12_5:
-    # TODO: fill
+if V12_6:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.136,  # v12_6/v1: predict true accept rate: ~39%, false accept rate ~6.7%
+        "reject_above": 0.619,  # v12_6/v1: predict true reject rate: ~47%, false reject rate ~6%
+    }
+elif V12_5:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.121,  # v12_5/v2: predict true accept rate: ~36%, false accept rate ~6.7%
         "reject_above": 0.604,  # v12_5/v2: predict true reject rate: ~47%, false reject rate ~6%
@@ -122,7 +127,10 @@ else:
     final_munge_before_neural = final_munge_before_neural_v10
     final_munge_after_neural = final_munge_after_neural_v10
 
-if V12_5:
+if V12_6:
+    model_name = "arj-v10-3-batch32-alldata-4001"
+    model_path = os.path.join("/", model_name)
+elif V12_5:
     model_name = "arj-merged-minu-shuf-alldata-2001"
     model_path = os.path.join("/", model_name)
 elif V12_4:
@@ -153,7 +161,11 @@ else:
     model_name = "autoresponder_v10"
     model_path = os.path.join("models", model_name, "model-135.hdf5")
 
-if V12_5:
+if V12_6:
+    ckpt_select = "selector/v12_6/v1/"
+    ckpt_sentiment = "sentiment/v12_6/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_6/v1/"
+elif V12_5:
     ckpt_select = "selector/v12_5/v2/"
     ckpt_sentiment = "sentiment/v12_5/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_5/v2/"
@@ -201,7 +213,7 @@ gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/au
 gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/{model_name}/"
 
 if V12:
-    suffix = "_5" if V12_5 else ("_4" if V12_4 else ("_3" if V12_3 else ("_2" if V12_2 else "")))
+    suffix = "_6" if V12_6 else ("_5" if V12_5 else ("_4" if V12_4 else ("_3" if V12_3 else ("_2" if V12_2 else ""))))
 
     gs_command_get_model = f"gsutil -m cp gs://{BUCKET_NAME}/gpt-j-th/{model_name}/* {model_path}"
 

@@ -222,16 +222,35 @@ def sentiment_screen(
     )
 
 
-def serve_selection(
-    data,
-    retention_stack=None,
-):
-    continuations = data["continuations"]
-    selection_proba = data.get("selection_proba")
-    continuation_side_data = data.get(
-        "continuation_side_data", [{} for _ in continuations]
-    )
+def do_coldstart(continuations, selection_proba, substring, delta):
+    selection_proba_ = []
+    for c, p in zip(continuations, selection_proba):
+        if substring in c:
+            print(f"coldstarting substring {repr(c)}: {p:.2f} -> {delta + p:.2f}")
+            selection_proba_.append(delta + p)
+        else:
+            selection_proba_.append(p)
+    return selection_proba_
 
+
+do_fic_coldstart = partial(
+    do_coldstart, substring="#original fiction", delta=FIC_COLDSTART_DELTA
+)
+do_review_coldstart = partial(
+    do_coldstart, substring="Author: <b>", delta=REVIEW_COLDSTART_DELTA
+)
+do_image_coldstart = partial(
+    do_coldstart, substring=IMAGE_DELIMITER_WHITESPACED, delta=IMAGE_COLDSTART_DELTA
+)
+do_quotes_coldstart = partial(
+    do_coldstart, substring="#quotes", delta=QUOTES_COLDSTART_DELTA
+)
+do_dreams_coldstart = partial(
+    do_coldstart, substring="#dreams", delta=DREAMS_COLDSTART_DELTA
+)
+
+
+def do_all_coldstarts(continuations, selection_proba):
     if FIC_COLDSTART:
         selection_proba = do_fic_coldstart(continuations, selection_proba)
 
@@ -246,6 +265,21 @@ def serve_selection(
 
     if DREAMS_COLDSTART:
         selection_proba = do_dreams_coldstart(continuations, selection_proba)
+
+    return selection_proba
+
+
+def serve_selection(
+    data,
+    retention_stack=None,
+):
+    continuations = data["continuations"]
+    selection_proba = data.get("selection_proba")
+    continuation_side_data = data.get(
+        "continuation_side_data", [{} for _ in continuations]
+    )
+
+    selection_proba = do_all_coldstarts(continuations, selection_proba)
 
     sentiment_logit_diffs = data.get("sentiment_logit_diffs")
 
@@ -418,34 +452,6 @@ def serve_selection(
     return parsed, retention_stack
 
 
-def do_coldstart(continuations, selection_proba, substring, delta):
-    selection_proba_ = []
-    for c, p in zip(continuations, selection_proba):
-        if substring in c:
-            print(f"coldstarting substring {repr(c)}: {p:.2f} -> {delta + p:.2f}")
-            selection_proba_.append(delta + p)
-        else:
-            selection_proba_.append(p)
-    return selection_proba_
-
-
-do_fic_coldstart = partial(
-    do_coldstart, substring="#original fiction", delta=FIC_COLDSTART_DELTA
-)
-do_review_coldstart = partial(
-    do_coldstart, substring="Author: <b>", delta=REVIEW_COLDSTART_DELTA
-)
-do_image_coldstart = partial(
-    do_coldstart, substring=IMAGE_DELIMITER_WHITESPACED, delta=IMAGE_COLDSTART_DELTA
-)
-do_quotes_coldstart = partial(
-    do_coldstart, substring="#quotes", delta=QUOTES_COLDSTART_DELTA
-)
-do_dreams_coldstart = partial(
-    do_coldstart, substring="#dreams", delta=DREAMS_COLDSTART_DELTA
-)
-
-
 def get_retention_stack_judgments(retention_stack):
     from experimental.ml_connector import (
         selection_proba_from_gpt2_service,
@@ -470,17 +476,7 @@ def get_retention_stack_judgments(retention_stack):
 def apply_retention_cutoff(retention_stack):
     retention_stack_proba, _, _ = get_retention_stack_judgments(retention_stack)
 
-    if FIC_COLDSTART:
-        retention_stack_proba = do_fic_coldstart(
-            sorted(retention_stack),
-            retention_stack_proba,
-        )
-
-    if REVIEW_COLDSTART:
-        retention_stack_proba = do_review_coldstart(
-            sorted(retention_stack),
-            retention_stack_proba,
-        )
+    retention_stack_proba = do_all_coldstarts(sorted(retention_stack), retention_stack_proba)
 
     n_before_stack, n_before_proba = len(retention_stack), len(retention_stack_proba)
     retain = [p > RETENTION_CUTOFF for p in retention_stack_proba]

@@ -226,7 +226,7 @@ def do_coldstart(continuations, selection_proba, substring, delta):
     selection_proba_ = []
     for c, p in zip(continuations, selection_proba):
         if substring in c:
-            print(f"coldstarting substring {repr(c)}: {p:.2f} -> {delta + p:.2f}")
+            print(f"coldstarting [substring {repr(substring)}] {repr(c)}: {p:.2f} -> {delta + p:.2f}")
             selection_proba_.append(delta + p)
         else:
             selection_proba_.append(p)
@@ -464,6 +464,8 @@ def get_retention_stack_judgments(retention_stack):
     timestamp = timestamp_to_v10_format(datetime.now())
     proba = selection_proba_from_gpt2_service(texts_for_selection, timestamp=timestamp)
 
+    proba = do_all_coldstarts(texts_for_selection, proba)
+
     logit_diffs = sentiment_logit_diffs_from_gpt2_service(sorted(retention_stack))
 
     autoreview_proba = autoreview_proba_from_gpt2_service(
@@ -475,8 +477,6 @@ def get_retention_stack_judgments(retention_stack):
 
 def apply_retention_cutoff(retention_stack):
     retention_stack_proba, _, _ = get_retention_stack_judgments(retention_stack)
-
-    retention_stack_proba = do_all_coldstarts(sorted(retention_stack), retention_stack_proba)
 
     n_before_stack, n_before_proba = len(retention_stack), len(retention_stack_proba)
     retain = [p > RETENTION_CUTOFF for p in retention_stack_proba]

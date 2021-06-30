@@ -74,8 +74,8 @@ EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
 # TODO: move to BotSpecificConstants
-SLEEP_TIME = 120
-SLEEP_TIME_OFFPEAK = 180
+SLEEP_TIME = 150
+SLEEP_TIME_OFFPEAK = 300
 PEAK_HOURS_START = 8
 PEAK_HOURS_END = 24
 PEAK_HOURS_FRAC = (PEAK_HOURS_END - PEAK_HOURS_START) / 24
@@ -143,7 +143,7 @@ REVIEW_COMMAND = "!review"
 REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
-MAX_POSTS_PER_STEP = 5
+MAX_POSTS_PER_STEP = 3
 
 DASH_REBLOG_SELECTION_CUTOFF = 0.35
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15

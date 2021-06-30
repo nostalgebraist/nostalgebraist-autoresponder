@@ -1,12 +1,16 @@
 from datetime import datetime, timedelta, time as dtime
 
 
-BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "SLEEP_TIME_scale": 1., "MAX_POSTS_PER_STEP_scale": 1.}
+BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thresh": 100, "SLEEP_TIME_scale": 1., "MAX_POSTS_PER_STEP_scale": 1.}
+
 SLOWDOWN_LEVELS = [
     BASE_SLOWDOWN_LEVEL,
-    {"name": "slower", "rate_ratio_thresh": 1.5, "SLEEP_TIME_scale": 2.5, "MAX_POSTS_PER_STEP_scale": 3.1/5},
-    {"name": "slowest", "rate_ratio_thresh": 1000., "SLEEP_TIME_scale": 5, "MAX_POSTS_PER_STEP_scale": 1.1/5},
+    {"name": "slower", "rate_ratio_thresh": 1.5, "n_remaining_thresh": 75, "SLEEP_TIME_scale": 2.5, "MAX_POSTS_PER_STEP_scale": 3.1/5},
+    {"name": "slower2", "rate_ratio_thresh": 2.5, "n_remaining_thresh": 50, "SLEEP_TIME_scale": 5, "MAX_POSTS_PER_STEP_scale": 2.1/5},
+    {"name": "slowest", "rate_ratio_thresh": 1000, "n_remaining_thresh": 0, "SLEEP_TIME_scale": 10, "MAX_POSTS_PER_STEP_scale": 1.1/5},
 ]
+
+HARDSTOP_AT_N_REMAINING = 10
 
 
 def post_limit_reset_ts(now=None):
@@ -95,24 +99,30 @@ def review_rates(post_payloads, max_per_24h=250, hour_windows=[1, 2, 4, 12], now
 def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, ref_level=None, now=None, verbose=True):
     max_rate = max_per_24h / (24 * 3600)
 
-    _, rate = compute_rate_over_last_hours(post_payloads, avg_over_hours=avg_over_hours)
+    n, rate = compute_rate_over_last_hours(post_payloads, avg_over_hours=avg_over_hours)
 
     ratio = rate / max_rate
+    n_remaining = max_per_24h - n
 
     selected = None
     for level in SLOWDOWN_LEVELS:
-        if ratio <= level["rate_ratio_thresh"]:
+        if (ratio <= level["rate_ratio_thresh"]) and (n_remaining > level["n_remaining_thresh"]):
             selected = level
             break
     if selected is None:
         selected = sorted(SLOWDOWN_LEVELS, key=lambda d: d["rate_ratio_thresh"])[-1]
 
+    hardstopping = n_remaining <= HARDSTOP_AT_N_REMAINING
+
     if verbose:
         print()
         review_rates(post_payloads, now=now)
-        print(f"\nselected level {repr(selected['name'])} based on {avg_over_hours}-hour ratio {ratio:.1%}")
+        print(f"\nselected level {repr(selected['name'])} based on {avg_over_hours}-hour ratio {ratio:.1%}, n_remaining={n_remaining}")
 
         if ref_level and ref_level['name'] != selected['name']:
             print(f"SWITCHED from {ref_level['name']} to {selected['name']}\n")
 
-    return selected
+        if hardstopping:
+            print("hardstopping!")
+
+    return selected, hardstopping

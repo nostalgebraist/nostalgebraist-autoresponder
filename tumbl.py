@@ -2051,7 +2051,11 @@ def do_reblog_reply_handling(
     print(f"{len(posts)} posts retrieved")
 
     if not is_dashboard:
-        loop_persistent_data.slowdown_level = select_slowdown_level(posts_no_filters, ref_level=loop_persistent_data.slowdown_level)
+        loop_persistent_data.slowdown_level, hardstopping = select_slowdown_level(posts_no_filters, ref_level=loop_persistent_data.slowdown_level)
+
+        while hardstopping:
+            time.sleep(sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale']))
+            loop_persistent_data.slowdown_level, hardstopping = select_slowdown_level(posts_no_filters, ref_level=loop_persistent_data.slowdown_level)
 
     if not is_dashboard:
         print("checking mentions...")

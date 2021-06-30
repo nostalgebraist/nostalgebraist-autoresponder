@@ -5,12 +5,12 @@ BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thr
 
 SLOWDOWN_LEVELS = [
     BASE_SLOWDOWN_LEVEL,
-    {"name": "slower", "rate_ratio_thresh": 1.5, "n_remaining_thresh": 100, "SLEEP_TIME_scale": 2.5, "MAX_POSTS_PER_STEP_scale": 3.1/5},
-    {"name": "slower2", "rate_ratio_thresh": 2.5, "n_remaining_thresh": 75, "SLEEP_TIME_scale": 5, "MAX_POSTS_PER_STEP_scale": 2.1/5},
+    {"name": "slower", "rate_ratio_thresh": 1.5, "n_remaining_thresh": 75, "SLEEP_TIME_scale": 2.5, "MAX_POSTS_PER_STEP_scale": 3.1/5},
+    {"name": "slower2", "rate_ratio_thresh": 2.5, "n_remaining_thresh": 35, "SLEEP_TIME_scale": 5, "MAX_POSTS_PER_STEP_scale": 2.1/5},
     {"name": "slowest", "rate_ratio_thresh": 1000, "n_remaining_thresh": 0, "SLEEP_TIME_scale": 10, "MAX_POSTS_PER_STEP_scale": 1.1/5},
 ]
 
-HARDSTOP_AT_N_REMAINING = 10
+HARDSTOP_AT_N_REMAINING = 5
 
 
 def post_limit_reset_ts(now=None):
@@ -96,7 +96,7 @@ def review_rates(post_payloads, max_per_24h=250, hour_windows=[1, 2, 4, 12], now
         print(msg)
 
 
-def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, ref_level=None, now=None, verbose=True):
+def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hardstop_pad=0, ref_level=None, now=None, verbose=True):
     max_rate = max_per_24h / (24 * 3600)
 
     _, rate = compute_rate_over_last_hours(post_payloads, avg_over_hours=avg_over_hours, now=now)
@@ -113,7 +113,7 @@ def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, ref_
     if selected is None:
         selected = sorted(SLOWDOWN_LEVELS, key=lambda d: d["rate_ratio_thresh"])[-1]
 
-    hardstopping = n_remaining <= HARDSTOP_AT_N_REMAINING
+    hardstopping = n_remaining <= (HARDSTOP_AT_N_REMAINING + hardstop_pad)
 
     if verbose:
         print()

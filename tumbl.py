@@ -1003,6 +1003,7 @@ def respond_to_reblogs_replies(
             print(f"got 403 for {reblog_identifier}\n, skipping")
             print(f"details:")
             print(api_response)
+            response_cache.mark_handled(reblog_identifier)
             continue
 
         try:

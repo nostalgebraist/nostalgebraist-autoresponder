@@ -16,7 +16,8 @@ MILESTONE_TIMES = {
     pd.Timestamp("2021-06-06 17:12"): "v11_2_golive",
     pd.Timestamp("2021-06-13 17:22"): "v12_golive",
     pd.Timestamp("2021-06-14 08:52"): "v12_2_golive",
-    pd.Timestamp("2021-06-23 10:40"): "v12_5_trial_golive",
+    pd.Timestamp("2021-06-23 10:40"): "v12_5_golive",
+    pd.Timestamp("2021-06-28 20:00"): "v12_6_golive",
 }
 
 MAJOR_MILESTONE_TIMES = {

@@ -68,13 +68,15 @@ import traceability_singleton
 import image_analysis_singleton
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
+from post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
+
 from util.error_handling import LogExceptionAndSkip
 
 EOT_WORKAROUND = True
 eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
 # TODO: move to BotSpecificConstants
-SLEEP_TIME = 150
+SLEEP_TIME = 60
 SLEEP_TIME_OFFPEAK = 300
 PEAK_HOURS_START = 8
 PEAK_HOURS_END = 24
@@ -143,7 +145,7 @@ REVIEW_COMMAND = "!review"
 REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
-MAX_POSTS_PER_STEP = 3
+MAX_POSTS_PER_STEP = 5
 
 DASH_REBLOG_SELECTION_CUTOFF = 0.35
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
@@ -269,6 +271,10 @@ def sleep_time(verbose=True, multiplier=1):
     if verbose:
         print(f"sleep time={result}s | is_peak_hours={is_peak_hours} | now={now}")
     return result
+
+
+def max_posts_per_step(slowdown_level):
+    return int(MAX_POSTS_PER_STEP * slowdown_level['MAX_POSTS_PER_STEP_scale'])
 
 
 def next_queued_post_time():
@@ -887,6 +893,7 @@ class LoopPersistentData:
         apriori_requests_per_check=25,
         follower_names=None,
         retention_stack: set = set(),
+        slowdown_level: dict = BASE_SLOWDOWN_LEVEL,
     ):
         self.reblogs_from_me = reblogs_from_me
         self.reblog_worthy_dash_posts = reblog_worthy_dash_posts
@@ -903,6 +910,7 @@ class LoopPersistentData:
         self.apriori_requests_per_check = apriori_requests_per_check
         self.follower_names = follower_names
         self.retention_stack = retention_stack
+        self.slowdown_level = slowdown_level
 
         if len(self.requests_per_check_history) == 0:
             self.requests_per_check_history.extend(
@@ -1004,6 +1012,7 @@ def respond_to_reblogs_replies(
                 f"skipping possibly deleted post: couldn't create bootstrap draft for {reblog_identifier}"
             )
             print(f"full API response:\n\n{repr(api_response)}\n\n")
+            response_cache.mark_handled(reblog_identifier)
             continue
 
         processed = process_post_from_post_payload(
@@ -1668,6 +1677,7 @@ def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
                     response_cache.client = prev_client
         if post2 is None:
             print(f"skipping {reblog_identifier}: non-200 response")
+            response_cache.mark_handled(reblog_identifier)
             continue
         loop_persistent_data.reblog_keys[reblog_identifier] = post2["reblog_key"]
 
@@ -1989,11 +1999,13 @@ def do_reblog_reply_handling(
     ### get posts
     print(f"\nchecking {n_posts_to_check} posts, start_ts={start_ts}...\n")
     posts = []
+    posts_no_filters = []
     updated_last_seen_ts = loop_persistent_data.last_seen_ts
 
     next_posts, next_offset = post_getter(
         limit=limit_, offset=offset_, notes_info=(not is_dashboard)
     )
+    posts_no_filters.extend(next_posts)
     next_ = [
         p
         for p in next_posts
@@ -2015,6 +2027,7 @@ def do_reblog_reply_handling(
         next_posts, next_offset = post_getter(
             limit=limit_, offset=offset_, notes_info=(not is_dashboard)
         )
+        posts_no_filters.extend(next_posts)
         next_ = [
             p
             for p in next_posts
@@ -2035,6 +2048,9 @@ def do_reblog_reply_handling(
         print(f"got {len(next_)}, starting with {next_[0]['id']}, min_ts={min_ts}")
 
     print(f"{len(posts)} posts retrieved")
+
+    if not is_dashboard:
+        loop_persistent_data.slowdown_level = select_slowdown_level(posts_no_filters, ref_level=loop_persistent_data.slowdown_level)
 
     if not is_dashboard:
         print("checking mentions...")
@@ -2217,12 +2233,13 @@ def do_reblog_reply_handling(
         reblog_reply_timestamps.keys(), key=lambda r: reblog_reply_timestamps[r]
     )
 
-    kept = time_ordered_idents[:MAX_POSTS_PER_STEP]
-    excluded = time_ordered_idents[MAX_POSTS_PER_STEP:]
+    max_posts_per_step_with_slowdown = max_posts_per_step(loop_persistent_data.slowdown_level)
+    kept = time_ordered_idents[:max_posts_per_step_with_slowdown]
+    excluded = time_ordered_idents[max_posts_per_step_with_slowdown:]
 
     if len(excluded) > 0:
         print(
-            f"saving {len(excluded)} of {len(time_ordered_idents)} for later with MAX_POSTS_PER_STEP={MAX_POSTS_PER_STEP}"
+            f"saving {len(excluded)} of {len(time_ordered_idents)} for later with MAX_POSTS_PER_STEP={max_posts_per_step_with_slowdown}"
         )
         for r in excluded:
             print(f"\t saving {r} for later...")
@@ -2385,11 +2402,12 @@ def do_ask_handling(loop_persistent_data, response_cache):
             )
             submissions.remove(r)
 
-    kept = submissions[-MAX_POSTS_PER_STEP:]
-    excluded = submissions[:-MAX_POSTS_PER_STEP]
+    max_posts_per_step_with_slowdown = max_posts_per_step(loop_persistent_data.slowdown_level)
+    kept = submissions[-max_posts_per_step_with_slowdown:]
+    excluded = submissions[:-max_posts_per_step_with_slowdown]
     if len(excluded) > 0:
         print(
-            f"saving {len(excluded)} of {len(submissions)} for later with MAX_POSTS_PER_STEP={MAX_POSTS_PER_STEP}"
+            f"saving {len(excluded)} of {len(submissions)} for later with MAX_POSTS_PER_STEP={max_posts_per_step_with_slowdown}"
         )
         for r in excluded:
             print(
@@ -2907,7 +2925,7 @@ if __name__ == "__main__":
             loop_persistent_data, response_cache = mainloop(
                 loop_persistent_data, response_cache
             )
-            time.sleep(sleep_time())
+            time.sleep(sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale']))
             send_alldone()
             # _pr_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
             # pr_main.dump_stats(f"profiling_data/main/{_pr_name}")

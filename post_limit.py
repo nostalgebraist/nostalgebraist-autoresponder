@@ -63,7 +63,7 @@ def compute_rate_over_last_hours(post_payloads, avg_over_hours, now=None):
     return n, rate
 
 
-def review_rates(post_payloads, max_per_24h=250, hour_windows=[1, 2, 4, 12], now=None):
+def review_rates(post_payloads, max_per_24h=250, hour_windows=(1, 2, 4, 12,), now=None):
     max_rate = max_per_24h / (24 * 3600)
 
     if now is None:
@@ -72,7 +72,7 @@ def review_rates(post_payloads, max_per_24h=250, hour_windows=[1, 2, 4, 12], now
     reset_ts = post_limit_reset_ts(now=now)
 
     is_since_reset = [False for _ in hour_windows]
-    hour_windows.append((now - reset_ts).total_seconds() / 3600)
+    hour_windows += (((now - reset_ts).total_seconds() / 3600),)
     is_since_reset.append(True)
 
     ns = []

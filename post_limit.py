@@ -35,6 +35,7 @@ def count_posts_since_ts(post_payloads, ts):
     is_after = [
         (datetime.fromtimestamp(entry['timestamp']) - ts).total_seconds()>0
         for entry in post_payloads
+        if not entry.get('is_pinned')
     ]
 
     if all(is_after):

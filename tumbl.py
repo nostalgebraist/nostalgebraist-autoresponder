@@ -920,7 +920,7 @@ class LoopPersistentData:
 
 def update_follower_names_v1(loop_persistent_data, response_cache):
     offset = 0
-    response = response_cache.client.blog_following(dash_blogName, offset=offset)
+    response = response_cache.client.blog_following(dash_blogName, offset=offset, limit=20)
     total_blogs = response.get("total_blogs")
 
     if total_blogs != len(loop_persistent_data.follower_names):
@@ -935,7 +935,7 @@ def update_follower_names_v1(loop_persistent_data, response_cache):
 
             offset = len(names)
             response = response_cache.client.blog_following(
-                dash_blogName, offset=offset
+                dash_blogName, offset=offset, limit=20
             )
             if "blogs" not in response:
                 pprint(response)

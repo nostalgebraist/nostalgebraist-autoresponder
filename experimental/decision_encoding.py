@@ -10,8 +10,8 @@ orig_poster_regex = DEFAULT_CSC["ORIG_POST_CHAR_NAMED"].format(user_name="([^ ]*
 
 
 def get_orig_poster_name_if_present(doc: str):
-    if DEFAULT_CSC['ORIG_POST_CHAR_FORUMLIKE'] in doc:
-        return DEFAULT_CSC['user_name']
+    if DEFAULT_CSC["ORIG_POST_CHAR_FORUMLIKE"] in doc:
+        return DEFAULT_CSC["user_name"]
 
     for m in re.finditer(orig_poster_regex, doc):
         return " " + m.group(1)
@@ -33,13 +33,16 @@ def get_final_name(doc: str):
 
 
 def simulate_frank_as_final_poster(doc: str):
-    skip_chars = [DEFAULT_CSC['ORIG_FICTION_CHAR_FORUMLIKE'], DEFAULT_CSC['REVIEW_CHAR_FORUMLIKE'], ]
+    skip_chars = [
+        DEFAULT_CSC["ORIG_FICTION_CHAR_FORUMLIKE"],
+        DEFAULT_CSC["REVIEW_CHAR_FORUMLIKE"],
+    ]
     if any([c in doc for c in skip_chars]):
         return doc
 
     final_name = get_final_name(doc)
 
-    return doc.replace(final_name, " " + DEFAULT_CSC['user_name'])
+    return doc.replace(final_name, " " + DEFAULT_CSC["user_name"])
 
 
 def split_forumlike_doc(doc: str, newline_postfix="\n"):
@@ -54,10 +57,18 @@ def split_forumlike_doc(doc: str, newline_postfix="\n"):
     return before, sep, time_segment, sep2, tag_segment, sep3, final_content
 
 
-def patch_time_in_forumlike_doc(doc: str, ts: datetime=now):
+def patch_time_in_forumlike_doc(doc: str, ts: datetime = now):
     ts = timestamp_to_v10_format(ts)
 
-    before, sep, time_segment, sep2, tag_segment, sep3, final_content = split_forumlike_doc(doc)
+    (
+        before,
+        sep,
+        time_segment,
+        sep2,
+        tag_segment,
+        sep3,
+        final_content,
+    ) = split_forumlike_doc(doc)
 
     return before + sep + ts + sep2 + tag_segment + sep3 + final_content
     # time_seg_start = DEFAULT_CSC["posted_at"].format(time_text="")
@@ -71,7 +82,7 @@ def patch_time_in_forumlike_doc(doc: str, ts: datetime=now):
     # return result
 
 
-def prep_for_selector(doc: str, ts: datetime=now):
+def prep_for_selector(doc: str, ts: datetime = now):
     doc = simulate_frank_as_final_poster(doc)
     doc = patch_time_in_forumlike_doc(doc, ts=ts)
     return doc

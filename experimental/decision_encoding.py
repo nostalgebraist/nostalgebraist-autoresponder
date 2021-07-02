@@ -49,7 +49,7 @@ def patch_time_in_forumlike_doc(doc: str, ts: datetime=now):
     before, mid, after = doc.rpartition(time_seg_start)
     result = before + mid
 
-    _, mid2, after2 = after.partition(" |")
+    _, mid2, after2 = after.partition(" | ")
 
     result += ts + mid2 + after2
     return result

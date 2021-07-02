@@ -43,8 +43,8 @@ def run_model_on_docs(
         for d, p in zip(batch, probs):
             results[uids[d]] = p
 
-    with open(save_path, "w") as f:
-        json.dump(results, f)
+        with open(save_path, "w") as f:
+            json.dump(results, f)
 
     return results
 

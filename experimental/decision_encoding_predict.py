@@ -34,7 +34,7 @@ def run_model_on_docs(
     for i in range(0, len(docs), batch_size):
         batches.append(docs[i : i + batch_size])
 
-    if i < len(docs):
+    if sum([len(b) for b in batches]) < len(docs):
         batches.append(docs[i:])
 
     for batch in tqdm(batches, mininterval=1, smoothing=0):
@@ -86,12 +86,17 @@ def run_selector_on_docs_local(
     experimental.ml_layer_torch.sentiment_est.model_.cpu()
     experimental.ml_layer_torch.autoreviewer_est.model_.cpu()
 
-    experimental.ml_connector.selector_est = experimental.ml_layer_torch.selector_est
+    def monkeypatched_selector_do(method, *args, repeat_until_done_signal=False, **kwargs):
+        out = getattr(experimental.ml_layer_torch.selector_est, method)(*args, **kwargs)
+        return [{"result": out}]
+
+    experimental.ml_connector.selector_est.do = monkeypatched_selector_do
+
     return run_selector_on_docs(docs, save_path=save_path, batch_size=batch_size)
 
 
 def run_sentiment_on_docs_local(
-    docs, save_path="selector.json", batch_size=8, device="cuda:0"
+    docs, save_path="sentiment.json", batch_size=8, device="cuda:0"
 ):
     import experimental.ml_layer_torch
     import experimental.ml_connector
@@ -100,5 +105,10 @@ def run_sentiment_on_docs_local(
     experimental.ml_layer_torch.selector_est.model_.cpu()
     experimental.ml_layer_torch.autoreviewer_est.model_.cpu()
 
-    experimental.ml_connector.sentiment_est = experimental.ml_layer_torch.sentiment_est
+    def monkeypatched_sentiment_do(method, *args, repeat_until_done_signal=False, **kwargs):
+        out = getattr(experimental.ml_layer_torch.sentiment_est, method)(*args, **kwargs)
+        return [{"result": out}]
+
+    experimental.ml_connector.sentiment_est.do = monkeypatched_sentiment_do
+
     return run_sentiment_on_docs(docs, save_path=save_path, batch_size=batch_size)

@@ -1194,12 +1194,13 @@ def serve_textpost(data):
     return parsed
 
 
-def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
+def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None, already_forumlike=False):
     if timestamp is None:
         timestamp = ""
 
-    texts = [join_time_sidechannel(s, timestamp) for s in texts]
-    texts = [final_munge_before_neural(s) for s in texts]
+    if not already_forumlike:
+        texts = [join_time_sidechannel(s, timestamp) for s in texts]
+        texts = [final_munge_before_neural(s) for s in texts]
 
     selector_inputs = pd.DataFrame(
         {

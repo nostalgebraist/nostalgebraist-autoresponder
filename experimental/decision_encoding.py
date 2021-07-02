@@ -1,4 +1,5 @@
 import re
+import hashlib
 from datetime import datetime
 
 from autoresponder_static import DEFAULT_CSC
@@ -38,24 +39,48 @@ def simulate_frank_as_final_poster(doc: str):
 
     final_name = get_final_name(doc)
 
-    return doc.replace(final_name, DEFAULT_CSC['user_name'])
+    return doc.replace(final_name, " " + DEFAULT_CSC['user_name'])
+
+
+def split_forumlike_doc(doc: str, newline_postfix="\n"):
+    time_seg_start = DEFAULT_CSC["posted_at"].format(time_text="")
+
+    before, sep, after = doc.rpartition(time_seg_start)
+
+    time_segment, sep2, after2 = after.partition(" | ")
+
+    tag_segment, sep3, final_content = after2.partition(newline_postfix)
+
+    return before, sep, time_segment, sep2, tag_segment, sep3, final_content
 
 
 def patch_time_in_forumlike_doc(doc: str, ts: datetime=now):
     ts = timestamp_to_v10_format(ts)
 
-    time_seg_start = DEFAULT_CSC["posted_at"].format(time_text="")
+    before, sep, time_segment, sep2, tag_segment, sep3, final_content = split_forumlike_doc(doc)
 
-    before, mid, after = doc.rpartition(time_seg_start)
-    result = before + mid
-
-    _, mid2, after2 = after.partition(" | ")
-
-    result += ts + mid2 + after2
-    return result
+    return before + sep + ts + sep2 + tag_segment + sep3 + final_content
+    # time_seg_start = DEFAULT_CSC["posted_at"].format(time_text="")
+    #
+    # before, mid, after = doc.rpartition(time_seg_start)
+    # result = before + mid
+    #
+    # _, mid2, after2 = after.partition(" | ")
+    #
+    # result += ts + mid2 + after2
+    # return result
 
 
 def prep_for_selector(doc: str, ts: datetime=now):
     doc = simulate_frank_as_final_poster(doc)
     doc = patch_time_in_forumlike_doc(doc, ts=ts)
     return doc
+
+
+def prep_for_sentiment(doc: str):
+    segs = split_forumlike_doc(doc)
+    return segs[-1]
+
+
+def unique_id_for_doc(doc: str):
+    return hashlib.md5(doc.encode("utf-8")).hexdigest()

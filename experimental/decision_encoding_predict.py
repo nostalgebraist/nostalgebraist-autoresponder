@@ -5,7 +5,6 @@ from functools import partial
 from tqdm.autonotebook import tqdm
 
 from experimental.decision_encoding import prep_for_selector, prep_for_sentiment, unique_id_for_doc
-from experimental.ml_connector import selection_proba_from_gpt2_service, sentiment_logit_diffs_from_gpt2_service
 
 def run_model_on_docs(docs,
                       prep_fn,
@@ -41,5 +40,39 @@ def run_model_on_docs(docs,
     return results
 
 
-run_selector_on_docs = partial(run_model_on_docs, prep_fn=prep_for_selector, predict_fn=partial(selection_proba_from_gpt2_service, already_forumlike=True), save_path="selector.json")
-run_sentiment_on_docs = partial(run_model_on_docs, prep_fn=prep_for_sentiment, predict_fn=sentiment_logit_diffs_from_gpt2_service, save_path="sentiment.json")
+def run_selector_on_docs(docs, save_path="selector.json"):
+    import experimental.ml_connector
+
+    return run_model_on_docs(docs,
+                             prep_fn=prep_for_selector,
+                             predict_fn=partial(experimental.ml_connector.selection_proba_from_gpt2_service, already_forumlike=True),
+                             save_path=save_path)
+
+
+def run_sentiment_on_docs(docs, save_path="sentiment.json"):
+    import experimental.ml_connector
+
+    return run_model_on_docs(docs,
+                             prep_fn=prep_for_sentiment,
+                             predict_fn=experimental.ml_connector.sentiment_logit_diffs_from_gpt2_service,
+                             save_path=save_path)
+
+
+def run_selector_on_docs_local(docs, save_path="selector.json", device='cuda:0'):
+    import experimental.ml_layer_torch
+    import experimental.ml_connector
+
+    experimental.ml_layer_torch.selector_est.to(device)
+
+    experimental.ml_connector.selector_est = experimental.ml_layer_torch.selector_est
+    return run_selector_on_docs(docs, save_path=save_path)
+
+
+def run_sentiment_on_docs_local(docs, save_path="selector.json", device='cuda:0'):
+    import experimental.ml_layer_torch
+    import experimental.ml_connector
+
+    experimental.ml_layer_torch.sentiment_est.to(device)
+
+    experimental.ml_connector.sentiment_est = experimental.ml_layer_torch.sentiment_est
+    return run_sentiment_on_docs(docs, save_path=save_path)

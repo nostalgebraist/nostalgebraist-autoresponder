@@ -82,9 +82,9 @@ def run_selector_on_docs_local(
     import experimental.ml_layer_torch
     import experimental.ml_connector
 
-    experimental.ml_layer_torch.selector_est.to(device)
-    experimental.ml_layer_torch.sentiment_est.cpu()
-    experimental.ml_layer_torch.autoreviewer_est.cpu()
+    experimental.ml_layer_torch.selector_est.model_.to(device)
+    experimental.ml_layer_torch.sentiment_est.model_.cpu()
+    experimental.ml_layer_torch.autoreviewer_est.model_.cpu()
 
     experimental.ml_connector.selector_est = experimental.ml_layer_torch.selector_est
     return run_selector_on_docs(docs, save_path=save_path, batch_size=batch_size)
@@ -96,9 +96,9 @@ def run_sentiment_on_docs_local(
     import experimental.ml_layer_torch
     import experimental.ml_connector
 
-    experimental.ml_layer_torch.sentiment_est.to(device)
-    experimental.ml_layer_torch.selector_est.cpu()
-    experimental.ml_layer_torch.autoreviewer_est.cpu()
+    experimental.ml_layer_torch.sentiment_est.model_.to(device)
+    experimental.ml_layer_torch.selector_est.model_.cpu()
+    experimental.ml_layer_torch.autoreviewer_est.model_.cpu()
 
     experimental.ml_connector.sentiment_est = experimental.ml_layer_torch.sentiment_est
     return run_sentiment_on_docs(docs, save_path=save_path, batch_size=batch_size)

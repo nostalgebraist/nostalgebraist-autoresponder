@@ -56,6 +56,7 @@ def split_forumlike_doc(doc: str, newline_postfix="\n"):
             _, before, after = doc.partition(c)
             sep, time_segment, sep2 = "", "", ""
             tag_segment, sep3, final_content = after.partition(newline_postfix)
+            return before, sep, time_segment, sep2, tag_segment, sep3, final_content
     else:
         time_seg_start = DEFAULT_CSC["posted_at"].format(time_text="")
 

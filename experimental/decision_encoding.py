@@ -2,8 +2,8 @@ import re
 import hashlib
 from datetime import datetime
 
-from autoresponder_static import DEFAULT_CSC
-from autoresponder_static_v8 import get_ordered_interlocutors, timestamp_to_v10_format, cut_to_final_exchange_forumlike
+from autoresponder_static import DEFAULT_CSC, find_control_chars_forumlike
+from autoresponder_static_v8 import timestamp_to_v10_format, cut_to_final_exchange_forumlike
 
 now = datetime.now()
 orig_poster_regex = DEFAULT_CSC["ORIG_POST_CHAR_NAMED"].format(user_name="([^ ]*)")
@@ -17,8 +17,21 @@ def get_orig_poster_name_if_present(doc: str):
         return " " + m.group(1)
 
 
+def get_non_deduped_ordered_interlocutors(doc, control_seg_config=DEFAULT_CSC):
+    cchars = find_control_chars_forumlike(
+        doc, incl_number=False, control_seg_config=control_seg_config
+    )
+
+    names = []
+    for c in cchars:
+        for ph in control_seg_config["numbered_phrases"]:
+            if ph in c[0]:
+                names.append(c[0].partition(" " + ph)[0])
+    return names
+
+
 def get_final_name(doc: str, verbose=False):
-    names, _ = get_ordered_interlocutors(doc)
+    names = get_non_deduped_ordered_interlocutors(doc)
 
     if len(names) == 0:
         final_name = get_orig_poster_name_if_present(doc)

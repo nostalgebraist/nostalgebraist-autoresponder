@@ -69,6 +69,13 @@ def split_forumlike_doc(doc: str, newline_postfix="\n"):
 
 
 def patch_time_in_forumlike_doc(doc: str, ts: datetime = now):
+    skip_chars = [
+        DEFAULT_CSC["ORIG_FICTION_CHAR_FORUMLIKE"],
+        DEFAULT_CSC["REVIEW_CHAR_FORUMLIKE"],
+    ]
+    if any([c in doc for c in skip_chars]):
+        return doc
+
     ts = timestamp_to_v10_format(ts)
 
     (
@@ -82,15 +89,6 @@ def patch_time_in_forumlike_doc(doc: str, ts: datetime = now):
     ) = split_forumlike_doc(doc)
 
     return before + sep + ts + sep2 + tag_segment + sep3 + final_content
-    # time_seg_start = DEFAULT_CSC["posted_at"].format(time_text="")
-    #
-    # before, mid, after = doc.rpartition(time_seg_start)
-    # result = before + mid
-    #
-    # _, mid2, after2 = after.partition(" | ")
-    #
-    # result += ts + mid2 + after2
-    # return result
 
 
 def prep_for_selector(doc: str, ts: datetime = now):

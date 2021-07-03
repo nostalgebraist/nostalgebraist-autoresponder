@@ -18,6 +18,7 @@ def run_model_on_docs(
     save_path,
     save_dir="data/decision_encoding",
     batch_size=8,
+    recompute_existing=False
 ):
     os.makedirs(save_dir, exist_ok=True)
 
@@ -28,7 +29,8 @@ def run_model_on_docs(
         results = json.load(open(save_path))
 
     uids = {d: unique_id_for_doc(d) for d in docs}
-    docs = [d for d in docs if uids[d] not in results]
+    if not recompute_existing:
+        docs = [d for d in docs if uids[d] not in results]
 
     batches = []
     for i in range(0, len(docs), batch_size):
@@ -49,7 +51,7 @@ def run_model_on_docs(
     return results
 
 
-def run_selector_on_docs(docs, save_path="selector.json", batch_size=8):
+def run_selector_on_docs(docs, save_path="selector.json", batch_size=8, recompute_existing=False):
     import experimental.ml_connector
 
     return run_model_on_docs(
@@ -61,10 +63,11 @@ def run_selector_on_docs(docs, save_path="selector.json", batch_size=8):
         ),
         save_path=save_path,
         batch_size=batch_size,
+        recompute_existing=recompute_existing
     )
 
 
-def run_sentiment_on_docs(docs, save_path="sentiment.json", batch_size=8):
+def run_sentiment_on_docs(docs, save_path="sentiment.json", batch_size=8, recompute_existing=False):
     import experimental.ml_connector
 
     return run_model_on_docs(
@@ -73,11 +76,12 @@ def run_sentiment_on_docs(docs, save_path="sentiment.json", batch_size=8):
         predict_fn=experimental.ml_connector.sentiment_logit_diffs_from_gpt2_service,
         save_path=save_path,
         batch_size=batch_size,
+        recompute_existing=recompute_existing
     )
 
 
 def run_selector_on_docs_local(
-    docs, save_path="selector.json", batch_size=8, device="cuda:0", selector_est=None
+    docs, save_path="selector.json", batch_size=8, recompute_existing=False, device="cuda:0", selector_est=None
 ):
     if not selector_est:
         import experimental.ml_layer_torch
@@ -95,11 +99,11 @@ def run_selector_on_docs_local(
 
     experimental.ml_connector.selector_est.do = monkeypatched_selector_do
 
-    return run_selector_on_docs(docs, save_path=save_path, batch_size=batch_size)
+    return run_selector_on_docs(docs, save_path=save_path, batch_size=batch_size, recompute_existing=recompute_existing)
 
 
 def run_sentiment_on_docs_local(
-    docs, save_path="sentiment.json", batch_size=8, device="cuda:0", sentiment_est=None
+    docs, save_path="sentiment.json", batch_size=8, recompute_existing=False, device="cuda:0", sentiment_est=None
 ):
     if not sentiment_est:
         import experimental.ml_connector
@@ -118,4 +122,4 @@ def run_sentiment_on_docs_local(
 
     experimental.ml_connector.sentiment_est.do = monkeypatched_sentiment_do
 
-    return run_sentiment_on_docs(docs, save_path=save_path, batch_size=batch_size)
+    return run_sentiment_on_docs(docs, save_path=save_path, batch_size=batch_size, recompute_existing=recompute_existing)

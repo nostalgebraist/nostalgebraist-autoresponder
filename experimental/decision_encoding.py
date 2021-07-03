@@ -47,13 +47,23 @@ def simulate_frank_as_final_poster(doc: str):
 
 
 def split_forumlike_doc(doc: str, newline_postfix="\n"):
-    time_seg_start = DEFAULT_CSC["posted_at"].format(time_text="")
+    special_chars = [
+        DEFAULT_CSC["ORIG_FICTION_CHAR_FORUMLIKE"],
+        DEFAULT_CSC["REVIEW_CHAR_FORUMLIKE"],
+    ]
+    for c in special_chars:
+        if doc.startswith(c):
+            _, before, after = doc.partition(c)
+            sep, time_segment, sep2 = "", "", ""
+            tag_segment, sep3, final_content = after.partition(newline_postfix)
+    else:
+        time_seg_start = DEFAULT_CSC["posted_at"].format(time_text="")
 
-    before, sep, after = doc.rpartition(time_seg_start)
+        before, sep, after = doc.rpartition(time_seg_start)
 
-    time_segment, sep2, after2 = after.partition(" | ")
+        time_segment, sep2, after2 = after.partition(" | ")
 
-    tag_segment, sep3, final_content = after2.partition(newline_postfix)
+        tag_segment, sep3, final_content = after2.partition(newline_postfix)
 
     return before, sep, time_segment, sep2, tag_segment, sep3, final_content
 

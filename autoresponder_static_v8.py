@@ -74,16 +74,7 @@ def get_ordered_interlocutors(doc, control_seg_config=DEFAULT_CSC):
         for ph in control_seg_config["numbered_phrases"]:
             if ph in c[0]:
                 names.append(c[0].partition(" " + ph)[0])
-    # chars = [
-    #     c[0]
-    #     for c in find_control_chars_forumlike(doc, incl_number=False, control_seg_config=control_seg_config)
-    #     if any([ph in c[0] for ph in control_seg_config["numbered_phrases"]])
-    #     ]
-    # names = []
-    # for c in chars:
-    #     for ph in control_seg_config["numbered_phrases"]:
-    #         if ph
-    # names = [c.partition(" wrote")[0] for c in chars]
+
     n_names = len(names)
 
     unique_names = []

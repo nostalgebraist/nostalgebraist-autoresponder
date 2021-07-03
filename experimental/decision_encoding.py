@@ -3,7 +3,7 @@ import hashlib
 from datetime import datetime
 
 from autoresponder_static import DEFAULT_CSC
-from autoresponder_static_v8 import get_ordered_interlocutors, timestamp_to_v10_format
+from autoresponder_static_v8 import get_ordered_interlocutors, timestamp_to_v10_format, cut_to_final_exchange_forumlike
 
 now = datetime.now()
 orig_poster_regex = DEFAULT_CSC["ORIG_POST_CHAR_NAMED"].format(user_name="([^ ]*)")
@@ -95,6 +95,7 @@ def patch_time_in_forumlike_doc(doc: str, ts: datetime = now):
 def prep_for_selector(doc: str, ts: datetime = now):
     doc = simulate_frank_as_final_poster(doc)
     doc = patch_time_in_forumlike_doc(doc, ts=ts)
+    doc = cut_to_final_exchange_forumlike(doc)  # imitates selector_cut_to_final_exchange
     return doc
 
 

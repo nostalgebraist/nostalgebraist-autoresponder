@@ -317,6 +317,46 @@ def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC, verb
     return formatted
 
 
+def cut_to_final_exchange_forumlike(to_cut, newline_postfix="\n", verbose=False):
+    cchars = find_control_chars_forumlike(to_cut)
+    if len(cchars) < 2:
+        if verbose:
+            print(f"not cutting: only found cchars {cchars}")
+        return to_cut
+
+    cut_ix = cchars[-2][1]
+    if verbose:
+        print(f"cutting at {cut_ix}")
+    after_cut = to_cut[cut_ix:]
+
+    segs = []
+    last_ix = 0
+    for i, (cchar, ix) in enumerate(find_control_chars_forumlike(after_cut)):
+        segs.append(after_cut[last_ix:ix])
+        last_ix = ix + len(cchar)
+
+        if cchar.startswith("#"):
+            _, sep, after = cchar.partition(" ")
+            cchar = "#" + str(i + 1) + sep + after
+
+        if i == 0:
+            cchar = cchar.replace("commented:", "posted:")
+
+        segs.append(cchar)
+    segs.append(after_cut[last_ix:len(after_cut)])
+
+    after_re_enumerate = "".join(segs)
+
+    interlocutor_string = format_segment_v8_interlocutors(after_re_enumerate)
+    prefix = (
+        " " + interlocutor_string.rstrip(" ") + " |" + newline_postfix
+        if len(interlocutor_string) > 0
+        else ""
+    )
+
+    return prefix + after_re_enumerate
+
+
 def final_munge_after_neural_v8(text, delete_title=False):
     # strip orig post starters
     for cchar in [

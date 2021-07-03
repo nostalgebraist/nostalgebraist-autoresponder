@@ -17,7 +17,7 @@ def get_orig_poster_name_if_present(doc: str):
         return " " + m.group(1)
 
 
-def get_final_name(doc: str):
+def get_final_name(doc: str, verbose=False):
     names, _ = get_ordered_interlocutors(doc)
 
     if len(names) == 0:
@@ -26,7 +26,8 @@ def get_final_name(doc: str):
         final_name = names[-1]
 
     if not final_name:
-        print(f"get_final_name: weirdness: no names found in doc\n{repr(doc)}\n")
+        if verbose:
+            print(f"get_final_name: no names found in doc\n{repr(doc)}\n")
         return ""
 
     return final_name

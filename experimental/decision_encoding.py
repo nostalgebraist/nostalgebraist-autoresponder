@@ -119,3 +119,38 @@ def prep_for_sentiment(doc: str):
 
 def unique_id_for_doc(doc: str):
     return hashlib.md5(doc.encode("utf-8")).hexdigest()
+
+
+### providing the info to the model
+
+def make_sentiment_seg(sentiment):
+    return f"Mood {round(sentiment, 0):+.0f}"
+
+
+def make_select_seg(select):
+    return f"Viral {round(select, 1):.0%}"
+
+
+def inject_side_judgments(doc, sentiment=None, select=None):
+    special_chars = [" Original fiction by nostalgebraist-autoresponder\n\n nostalgebraist-autoresponder's tags: ",
+                     " Book review by nostalgebraist-autoresponder\n\n nostalgebraist-autoresponder's tags:"]
+
+    sent_seg, ssmid, select_seg = "", "", ""
+
+    if sentiment and select:
+        ssmid = ", "
+
+    if sentiment:
+        sent_seg = make_sentiment_seg(sentiment)
+
+    if select:
+        select_seg = make_select_seg(select)
+
+    for c in special_chars:
+        if doc.startswith(c):
+            before, sep, after = doc.partition(" nostalgebraist-autoresponder's tags:")
+            return before + " " + sent_seg + ssmid + select_seg + " |" + sep + after
+
+    before, sep, time_segment, sep2, tag_segment, sep3, final_content = split_forumlike_doc(doc)
+
+    return before + sep + time_segment + sep2 + sent_seg + ssmid + select_seg + " | " + tag_segment + sep3 + final_content

@@ -230,9 +230,34 @@ def inject_side_judgments(doc, sentiment=None, select=None):
         + final_content
     )
 
+def remove_side_judgments(doc):
+    (
+        before,
+        sep,
+        time_segment,
+        sep2,
+        sentiment_segment,
+        sep_sent_sel,
+        select_segment,
+        sep_dec_tag,
+        tag_segment,
+        sep3,
+        final_content,
+    ) = split_forumlike_doc(doc)
+
+    return (
+        before
+        + sep
+        + time_segment
+        + sep2
+        + tag_segment
+        + sep3
+        + final_content
+    )
+
 
 ### reading info off the model
-
+# TODO: validate for fic+review
 
 def make_prompt_mood(doc):
     (

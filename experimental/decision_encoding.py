@@ -3,6 +3,7 @@ import hashlib
 from datetime import datetime
 
 import numpy as np
+from scipy.special import softmax
 
 from autoresponder_static import DEFAULT_CSC, find_control_chars_forumlike
 from autoresponder_static_v8 import (
@@ -259,7 +260,43 @@ def remove_side_judgments(doc):
 ### reading info off the model
 # TODO: validate for fic+review
 
-def make_prompt_mood(doc):
+def get_sampled_mood(doc):
+    (
+        before,
+        sep,
+        time_segment,
+        sep2,
+        sentiment_segment,
+        sep_sent_sel,
+        select_segment,
+        sep_dec_tag,
+        tag_segment,
+        sep3,
+        final_content,
+    ) = split_forumlike_doc(doc)
+
+    return float(sentiment_segment.split(" ")[-1])
+
+
+def get_sampled_select(doc):
+    (
+        before,
+        sep,
+        time_segment,
+        sep2,
+        sentiment_segment,
+        sep_sent_sel,
+        select_segment,
+        sep_dec_tag,
+        tag_segment,
+        sep3,
+        final_content,
+    ) = split_forumlike_doc(doc)
+
+    return float(select_segment.split(" ")[-1][:-1])/100
+
+
+def make_prompts_mood(doc):
     (
         before,
         sep,
@@ -275,7 +312,33 @@ def make_prompt_mood(doc):
     ) = split_forumlike_doc(doc)
 
     target_before, space, target_after = sentiment_segment.partition(" ")
-    return before + sep + time_segment + sep2 + target_before + space + target_after[:1]
+    prefix = before + sep + time_segment + sep2 + target_before + space
+    return prefix + "-", prefix + "+"
+
+
+def get_distribution_mood(doc, enc, model):
+    import torch
+
+    pminus, pplus = make_prompts_mood(s)
+
+    with torch.no_grad():
+        inp = {k: torch.as_tensor(v).to(transformers_model.device) for k, v in tokenizer([pminus]).items()}
+        out_minus = transformers_model(**inp)['logits'][0, -2:, :].cpu().numpy()
+
+    probs = softmax(out_minus, axis=-1)
+    prob_of_minus_sign = probs[0, enc.encode(" -")[0]]
+    prob_of_plus_sign = probs[0, enc.encode(" +")[0]]
+
+    prob_of_minus_x = {i: probs[1, enc.encode(str(i))[0]] for i in range(10)}
+
+    with torch.no_grad():
+        inp = {k: torch.as_tensor(v).to(model.device) for k, v in tokenizer([pplus]).items()}
+        out_plus = model(**inp)['logits'][0, -2:, :].cpu().numpy()
+
+    probs = softmax(out_plus, axis=-1)
+    prob_of_plus_x = {i: probs[1, enc.encode(str(i))[0]] for i in range(10)}
+
+    return prob_of_minus_sign, prob_of_plus_sign, prob_of_minus_x, prob_of_plus_x
 
 
 def make_prompt_select(doc):

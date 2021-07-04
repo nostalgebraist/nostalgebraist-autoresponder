@@ -343,7 +343,7 @@ def get_distribution_mood(doc, enc, model):
 
 def postprocess_distribution_mood(prob_of_minus_sign, prob_of_plus_sign, prob_of_minus_x, prob_of_plus_x):
     out = {-1 * k: prob_of_minus_sign * v for k, v in prob_of_minus_x.items()}
-    out.update({k: prob_of_plus_sign * v for k, v in prob_of_minus_x.items()})
+    out.update({k: prob_of_plus_sign * v for k, v in prob_of_plus_x.items()})
     return out
 
 

@@ -235,25 +235,46 @@ def inject_side_judgments(doc, sentiment=None, select=None):
 
 
 def make_prompt_mood(doc):
-    before, cchar, after = doc.partition(f" | {SENTIMENT_CCHAR}")
+    (
+        before,
+        sep,
+        time_segment,
+        sep2,
+        sentiment_segment,
+        sep_sent_sel,
+        select_segment,
+        sep_dec_tag,
+        tag_segment,
+        sep3,
+        final_content,
+    ) = split_forumlike_doc(doc)
 
-    if cchar == "":
-        return
-
-    return before + cchar + after[:2]
+    target_before, space, target_after = sentiment_segment.partition(" ")
+    return before + sep + time_segment + sep2 + target_before + space + target_after[:1]
 
 
 def make_prompt_select(doc):
-    pm = make_prompt_mood(doc)
+    (
+        before,
+        sep,
+        time_segment,
+        sep2,
+        sentiment_segment,
+        sep_sent_sel,
+        select_segment,
+        sep_dec_tag,
+        tag_segment,
+        sep3,
+        final_content,
+    ) = split_forumlike_doc(doc)
 
-    if not pm:
-        return
-
-    after = doc[len(pm) :]
-
-    before, cchar, after = after.partition(f", {SELECTOR_CCHAR}")
-
-    if cchar == "":
-        return
-
-    return pm + before + cchar
+    target_before, space, target_after = select_segment.partition(" ")
+    return (
+        before
+        + sep
+        + time_segment
+        + sep2
+        + sentiment_segment
+        + sep_sent_sel
+        + target_before
+    )

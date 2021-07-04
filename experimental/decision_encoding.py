@@ -2,8 +2,11 @@ import re
 import hashlib
 from datetime import datetime
 
+import numpy as np
+
 from autoresponder_static import DEFAULT_CSC, find_control_chars_forumlike
 from autoresponder_static_v8 import timestamp_to_v10_format, cut_to_final_exchange_forumlike
+from util.util import chardec
 
 now = datetime.now()
 orig_poster_regex = DEFAULT_CSC["ORIG_POST_CHAR_NAMED"].format(user_name="([^ ]*)")
@@ -154,3 +157,30 @@ def inject_side_judgments(doc, sentiment=None, select=None):
     before, sep, time_segment, sep2, tag_segment, sep3, final_content = split_forumlike_doc(doc)
 
     return before + sep + time_segment + sep2 + sent_seg + ssmid + select_seg + " | " + tag_segment + sep3 + final_content
+
+
+### reading info off the model
+
+def make_prompt_mood(doc):
+    before, cchar, after = doc.partition(" | Mood")
+
+    if cchar == "":
+        return
+
+    return before + cchar + after[:2]
+
+
+def make_prompt_select(doc):
+    pm = make_prompt_mood(doc)
+
+    if not pm:
+        return
+
+    after = doc[len(pm):]
+
+    before, cchar, after = after.partition(", Viral")
+
+    if cchar == "":
+        return
+
+    return pm + before + cchar

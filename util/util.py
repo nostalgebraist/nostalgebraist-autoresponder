@@ -28,3 +28,7 @@ def show_gpu():
     except:
         # not 100% sure i did the above right
         print(s)
+
+
+def chardec(enc, tokens):
+    return [enc.decode([t]) for t in tokens]

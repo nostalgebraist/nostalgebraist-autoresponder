@@ -335,7 +335,7 @@ def get_distribution_mood(doc, enc, model):
         inp = {k: torch.as_tensor(v).to(model.device) for k, v in tokenizer([pplus]).items()}
         out_plus = model(**inp)['logits'][0, -2:, :].cpu().numpy()
 
-    probs = softmax(out_plus, axis=-1)
+    probs = softmax(out_plus, axis=-1).astype(np.float)
     prob_of_plus_x = {i: probs[1, enc.encode(str(i))[0]] for i in range(10)}
 
     return prob_of_minus_sign, prob_of_plus_sign, prob_of_minus_x, prob_of_plus_x
@@ -366,3 +366,19 @@ def make_prompt_select(doc):
         + sep_sent_sel
         + target_before
     )
+
+
+def get_distribution_select(doc, enc, model):
+    import torch
+
+    pr = make_prompt_select(s)
+
+    with torch.no_grad():
+        inp = {k: torch.as_tensor(v).to(transformers_model.device) for k, v in tokenizer([pr]).items()}
+        out = transformers_model(**inp)['logits'][0, -1:, :].cpu().numpy()
+
+    probs = softmax(out, axis=-1).astype(np.float)
+
+    prob_of_x = {i/100: probs[0, enc.encode(" " + str(i))[0]] for i in range(0, 110, 10)}
+
+    return prob_of_x

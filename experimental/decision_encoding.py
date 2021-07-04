@@ -325,7 +325,7 @@ def get_distribution_mood(doc, enc, model):
         inp = {k: torch.as_tensor(v).to(transformers_model.device) for k, v in tokenizer([pminus]).items()}
         out_minus = transformers_model(**inp)['logits'][0, -2:, :].cpu().numpy()
 
-    probs = softmax(out_minus, axis=-1)
+    probs = softmax(out_minus, axis=-1).astype(np.float)
     prob_of_minus_sign = probs[0, enc.encode(" -")[0]]
     prob_of_plus_sign = probs[0, enc.encode(" +")[0]]
 

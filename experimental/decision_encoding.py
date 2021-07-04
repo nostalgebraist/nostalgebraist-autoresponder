@@ -12,6 +12,10 @@ now = datetime.now()
 orig_poster_regex = DEFAULT_CSC["ORIG_POST_CHAR_NAMED"].format(user_name="([^ ]*)")
 
 
+SELECTOR_CCHAR = "Viral"
+SENTIMENT_CCHAR = "Mood"
+
+
 def get_orig_poster_name_if_present(doc: str):
     if DEFAULT_CSC["ORIG_POST_CHAR_FORUMLIKE"] in doc:
         return DEFAULT_CSC["user_name"]
@@ -80,9 +84,13 @@ def split_forumlike_doc(doc: str, newline_postfix="\n"):
 
         time_segment, sep2, after2 = after.partition(" | ")
 
-        tag_segment, sep3, final_content = after2.partition(newline_postfix)
+        decision_tag_segment, sep3, final_content = after2.partition(newline_postfix)
 
-    return before, sep, time_segment, sep2, tag_segment, sep3, final_content
+        decision_segment, sep_dec_tag, tag_segment = decision_tag_segment.partition(" | ")
+        sentiment_segment, sep_sent_sel, select_segment = decision_segment.partition(", ")
+
+    # return before, sep, time_segment, sep2, tag_segment, sep3, final_content
+    return before, sep, time_segment, sep2, sentiment_segment, sep_sent_sel, select_segment, sep_dec_tag, tag_segment, sep3, final_content
 
 
 def patch_time_in_forumlike_doc(doc: str, ts: datetime = now):
@@ -95,17 +103,9 @@ def patch_time_in_forumlike_doc(doc: str, ts: datetime = now):
 
     ts = timestamp_to_v10_format(ts)
 
-    (
-        before,
-        sep,
-        time_segment,
-        sep2,
-        tag_segment,
-        sep3,
-        final_content,
-    ) = split_forumlike_doc(doc)
+    before, sep, time_segment, sep2, sentiment_segment, sep_sent_sel, select_segment, sep_dec_tag, tag_segment, sep3, final_content = split_forumlike_doc(doc)
 
-    return before + sep + ts + sep2 + tag_segment + sep3 + final_content
+    return before + sep + ts + sep2 + sentiment_segment + sep_sent_sel + select_segment + sep_dec_tag + tag_segment + sep3 + final_content
 
 
 def prep_for_selector(doc: str, ts: datetime = now):
@@ -127,11 +127,11 @@ def unique_id_for_doc(doc: str):
 ### providing the info to the model
 
 def make_sentiment_seg(sentiment):
-    return f"Mood {round(sentiment, 0):+.0f}"
+    return f"{SENTIMENT_CCHAR} {round(sentiment, 0):+.0f}"
 
 
 def make_select_seg(select):
-    return f"Viral {round(select, 1):.0%}"
+    return f"{SELECTOR_CCHAR} {round(select, 1):.0%}"
 
 
 def inject_side_judgments(doc, sentiment=None, select=None):
@@ -154,7 +154,7 @@ def inject_side_judgments(doc, sentiment=None, select=None):
             before, sep, after = doc.partition(" nostalgebraist-autoresponder's tags:")
             return before + " " + sent_seg + ssmid + select_seg + " |" + sep + after
 
-    before, sep, time_segment, sep2, tag_segment, sep3, final_content = split_forumlike_doc(doc)
+    before, sep, time_segment, sep2, sentiment_segment, sep_sent_sel, select_segment, sep_dec_tag, tag_segment, sep3, final_content = split_forumlike_doc(doc)
 
     return before + sep + time_segment + sep2 + sent_seg + ssmid + select_seg + " | " + tag_segment + sep3 + final_content
 
@@ -162,7 +162,7 @@ def inject_side_judgments(doc, sentiment=None, select=None):
 ### reading info off the model
 
 def make_prompt_mood(doc):
-    before, cchar, after = doc.partition(" | Mood")
+    before, cchar, after = doc.partition(f" | {SENTIMENT_CCHAR}")
 
     if cchar == "":
         return
@@ -178,7 +178,7 @@ def make_prompt_select(doc):
 
     after = doc[len(pm):]
 
-    before, cchar, after = after.partition(", Viral")
+    before, cchar, after = after.partition(f", {SELECTOR_CCHAR}")
 
     if cchar == "":
         return

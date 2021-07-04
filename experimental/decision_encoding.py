@@ -319,7 +319,7 @@ def make_prompts_mood(doc):
 def get_distribution_mood(doc, enc, model):
     import torch
 
-    pminus, pplus = make_prompts_mood(s)
+    pminus, pplus = make_prompts_mood(doc)
 
     with torch.no_grad():
         inp = {k: torch.as_tensor(v).to(transformers_model.device) for k, v in tokenizer([pminus]).items()}
@@ -339,6 +339,12 @@ def get_distribution_mood(doc, enc, model):
     prob_of_plus_x = {i: probs[1, enc.encode(str(i))[0]] for i in range(10)}
 
     return prob_of_minus_sign, prob_of_plus_sign, prob_of_minus_x, prob_of_plus_x
+
+
+def postprocess_distribution_mood(prob_of_minus_sign, prob_of_plus_sign, prob_of_minus_x, prob_of_plus_x):
+    out = {-1 * k: prob_of_minus_sign * v for k, v in prob_of_minus_x.items()}
+    out.update({k: prob_of_plus_sign * v for k, v in prob_of_minus_x.items()})
+    return out
 
 
 def make_prompt_select(doc):
@@ -371,7 +377,7 @@ def make_prompt_select(doc):
 def get_distribution_select(doc, enc, model):
     import torch
 
-    pr = make_prompt_select(s)
+    pr = make_prompt_select(doc)
 
     with torch.no_grad():
         inp = {k: torch.as_tensor(v).to(transformers_model.device) for k, v in tokenizer([pr]).items()}

@@ -237,7 +237,7 @@ def basic_n_continuations(
     N,
     avoid_if_under=20,
     avoid_half_if_under=40,
-    avoid_if_cut_off=True,
+    avoid_if_cut_off=False,
     split_on_control_char=False,
     use_textpost_prompt=False,
     avoid_initial_blockquote=False,
@@ -941,34 +941,30 @@ def old_bridge_call__answer(data):
 
 
 def old_bridge_call__textpost(data):
+    prompt = ""
     mood = data.get("mood")
     v8_timestamp = data.get("v8_timestamp", "")
     v10_timestamp = data.get("v10_timestamp", "")
     return_all_conts = bool(int(data.get("return_all_conts", False)))
     n_retention = int(data.get("n_retention"))
 
-    kwargs = {
-        "best_of": 10,
-        "prompt_from_dataset": True,  # TODO: remove
-        "verbose": True,
-        "V5": True,
-        "mood": get_mood_by_name(mood),
-        "return_all_conts": return_all_conts,
-    }
+    best_of = 10
+    verbose = True
+    V5 = True
+    mood = get_mood_by_name(mood)
 
-    kwargs["strategy"] = "proportional"
-    kwargs["avoid_if_under"] = 10
-    kwargs["avoid_half_if_under"] = 10
-    kwargs["avoid_if_cut_off"] = False
-    kwargs["avoid_initial_blockquote"] = False
-    kwargs["avoid_if_says_frank"] = False
-    kwargs["random_year_for_generator"] = True
+    avoid_if_under = 10
+    avoid_half_if_under = 10
+    avoid_if_cut_off = False
+    continue_if_cut_off = True
+    split_on_control_char = True
+    avoid_initial_blockquote = False
+    avoid_if_says_frank = False
+    random_year_for_generator = True
 
     # strategy = "proportional_winnowed"
     strategy = "eps_greedy"
     eps = 0.15
-    kwargs["strategy"] = strategy
-    kwargs["eps"] = eps
 
     n_candidates_target = TEXTPOST_N_CANDIDATES_TARGET
 
@@ -999,39 +995,12 @@ def old_bridge_call__textpost(data):
         n_candidates_target = max(1, n_candidates_target - n_retention)
         print(f"with {n_retention} on stack, only need {n_candidates_target}")
 
-    kwargs["best_of"] = n_candidates_target
+    best_of = n_candidates_target
 
-    print(f"n_retention {n_retention}, kwargs {kwargs}")
-
-    generation_id = str(uuid.uuid4())
-    data = {
-        "type": "textpost",
-        "kwargs": kwargs,
-        "v8_timestamp": v8_timestamp,
-        "v10_timestamp": v10_timestamp,
-    }
-    data["n_desired"] = data["kwargs"][
-        "best_of"
-    ]
-    data["kwargs"]["best_of"] = data[
-        "kwargs"
-    ]["best_of"]
-    print(
-        f"desiring {data['n_desired']}, per request {data['kwargs']['best_of']}"
-    )
+    print(f"n_retention {n_retention}")
 
     # old serve_textpost
-    prompt = ""
-    kwargs = data["kwargs"]
-    avoid_if_under = kwargs.get("avoid_if_under", 20)
-    avoid_half_if_under = kwargs.get("avoid_half_if_under", 40)
-    avoid_if_cut_off = kwargs.get("avoid_if_cut_off", True)
-    split_on_control_char = kwargs.get("split_on_control_char", True)
-    avoid_initial_blockquote = kwargs.get("avoid_initial_blockquote", False)
-    avoid_if_says_frank = kwargs.get("avoid_if_says_frank", False)
-    random_year_for_generator = kwargs.get("random_year_for_generator", False)
 
-    v10_timestamp = data.get("v10_timestamp")
     if random_year_for_generator and v10_timestamp is not None:
         generator_v10_timestamp = sample_and_substitute_year_v10(v10_timestamp)
         selector_v10_timestamp = v10_timestamp
@@ -1042,13 +1011,9 @@ def old_bridge_call__textpost(data):
     print(f"generator_v10_timestamp: {repr(generator_v10_timestamp)}")
     print(f"selector_v10_timestamp: {repr(selector_v10_timestamp)}")
 
-    continue_if_cut_off = kwargs.get("continue_if_cut_off", True)
-    if continue_if_cut_off:
-        avoid_if_cut_off = False
-
     continuations, continuation_side_data = basic_n_continuations(
         prompt,
-        N=kwargs["best_of"],
+        N=best_of,
         avoid_if_under=avoid_if_under,
         avoid_half_if_under=avoid_half_if_under,
         avoid_if_cut_off=avoid_if_cut_off,
@@ -1056,7 +1021,7 @@ def old_bridge_call__textpost(data):
         use_textpost_prompt=True,
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_says_frank=avoid_if_says_frank,
-        v8_timestamp=data.get("v8_timestamp"),
+        v8_timestamp=v8_timestamp,
         v10_timestamp=generator_v10_timestamp,
         continue_if_cut_off=continue_if_cut_off,
     )

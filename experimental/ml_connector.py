@@ -52,10 +52,7 @@ FAKE_V10_YEAR_MONTH = "December 2020"
 # TODO: set DEFAULT_CSC using autoresponder_config constants
 CONTROL_SEG_CONFIG = DEFAULT_CSC
 
-if FORUMLIKE:
-    ORIG_POST_CHAR = CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
-else:
-    ORIG_POST_CHAR = ORIG_POST_CHAR_CHINESE
+ORIG_POST_CHAR = CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
 
 SAYS_FRANK_STRINGS = {
     prefix + "Frank" + suffix
@@ -822,23 +819,20 @@ def old_bridge_call__answer(
         else:
             selector_inputs = [prompt + c for c in continuations]
     else:
-        if FORUMLIKE:
-            prompt_forumlike = substitute_forumlike(
-                normalize_for_generator(prompt),
-                shuffle=False,
-                infer_first=False,
-                left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
-            )
-            prompt_finalchar = prompt_forumlike[
-                last_control_char(
-                    prompt_forumlike,
-                    incl_number=False,
-                    control_seg_config=CONTROL_SEG_CONFIG,
-                )[1] :
-            ]
-            selector_inputs = [prompt_finalchar + c for c in continuations]
-        else:
-            selector_inputs = [A_CHAR + c for c in continuations]
+        prompt_forumlike = substitute_forumlike(
+            normalize_for_generator(prompt),
+            shuffle=False,
+            infer_first=False,
+            left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
+        )
+        prompt_finalchar = prompt_forumlike[
+            last_control_char(
+                prompt_forumlike,
+                incl_number=False,
+                control_seg_config=CONTROL_SEG_CONFIG,
+            )[1] :
+        ]
+        selector_inputs = [prompt_finalchar + c for c in continuations]
 
     if DO_ALT_TIMESTAMPS:
         for alt_ts in _make_alt_timestamps(v10_timestamp):
@@ -998,18 +992,15 @@ def old_bridge_call__textpost(
     response_data["generator_v10_timestamp"] = generator_v10_timestamp
     response_data["selector_v10_timestamp"] = selector_v10_timestamp
 
-    if FORUMLIKE:
-        selector_inputs = [c for c in continuations]
-        for alt_char in [
-            CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"],
-            CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"],
-        ]:
-            selector_inputs = [
-                s.replace(alt_char, CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"])
-                for s in selector_inputs
-            ]
-    else:
-        selector_inputs = [A_CHAR + c for c in continuations]
+    selector_inputs = [c for c in continuations]
+    for alt_char in [
+        CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"],
+        CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"],
+    ]:
+        selector_inputs = [
+            s.replace(alt_char, CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"])
+            for s in selector_inputs
+        ]
 
     selector_inputs = [
         s.replace(generator_v10_timestamp, selector_v10_timestamp)

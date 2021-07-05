@@ -2,8 +2,6 @@ import re
 import numpy as np
 from copy import deepcopy
 
-FORUMLIKE = True
-FORUMLIKE_V2 = True
 NORMALIZE = True
 
 GLOBAL_DEBUG = False
@@ -39,10 +37,7 @@ REVIEW_CHAR_FORUMLIKE_V10_1 = (
     " Book review by nostalgebraist-autoresponder\n\n nostalgebraist-autoresponder's tags:\n nostalgebraist-autoresponder tagged this post as:"  # my mistake
 )
 
-if FORUMLIKE_V2:
-    ORIG_FICTION_CHAR_FORUMLIKE = " Original fiction by Frank\n\n"
-else:
-    ORIG_FICTION_CHAR_FORUMLIKE = ORIG_POST_CHAR_CHINESE
+ORIG_FICTION_CHAR_FORUMLIKE = " Original fiction by Frank\n\n"
 
 ORIG_FICTION_CHAR_FORUMLIKE_V10 = (
     " Original fiction by Frank\n\n Frank's tags:\n Frank tagged this post as:"
@@ -51,11 +46,6 @@ ORIG_FICTION_CHAR_FORUMLIKE_V10 = (
 ORIG_FICTION_CHAR_FORUMLIKE_V10_1 = (
     " Original fiction by nostalgebraist-autoresponder\n\n nostalgebraist-autoresponder's tags:\n nostalgebraist-autoresponder tagged this post as:"
 )
-
-# if FORUMLIKE:
-#     ORIG_POST_CHAR = ORIG_POST_CHAR_FORUMLIKE
-# else:
-#     ORIG_POST_CHAR = ORIG_POST_CHAR_CHINESE
 
 
 CONTROL_SEG_CONFIGS = {
@@ -219,10 +209,7 @@ def find_control_chars_forumlike(
     return results
 
 
-if FORUMLIKE:
-    find_control_chars = find_control_chars_forumlike
-else:
-    find_control_chars = find_control_chars_chinese
+find_control_chars = find_control_chars_forumlike
 
 
 def contains_control_chars(
@@ -500,7 +487,7 @@ def final_munge_before_neural_v7(
     text = re.sub(r"\\n", "\n", text)
     if NORMALIZE:
         text = normalize_for_generator(text)
-    if FORUMLIKE and not override_disable_forumlike:
+    if not override_disable_forumlike:
         text = substitute_forumlike(
             text,
             shuffle=False,

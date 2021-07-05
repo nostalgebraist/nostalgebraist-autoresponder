@@ -12,7 +12,7 @@ from autoresponder_static import *
 from autoresponder_static_v8 import *
 
 from experimental.generator_model_torch import GeneratorModelTorch, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
-from selector_model.selector_estimator_neo import NostARHeadEstimator
+from classifier_heads.head_estimator import NostARHeadEstimator
 from experimental.load_gptj import load_gpt_j_split_ckpt
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu

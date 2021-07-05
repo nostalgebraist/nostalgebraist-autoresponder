@@ -351,18 +351,6 @@ def determine_mood(
     return mood
 
 
-def strip_spurious_blognames_from_tags(client, tags, auto_accept_list=set()):
-    def okay_to_keep(tag):
-        if tag in auto_accept_list:
-            return True
-        result = private_client.blog_info(tag)
-        if "errors" not in result:
-            return False
-        return True
-
-    return [tag for tag in tags if okay_to_keep(tag)]
-
-
 def strip_avoid_listed_strings_from_tags(tags):
     return [
         tag
@@ -552,7 +540,7 @@ def augment_screener_output_with_autoreviewer(
 def make_text_post(
     blogname,
     post,
-    tags=[],
+    tags=tuple(),
     to_queue=True,
     to_drafts=False,
     asking_name="",
@@ -629,7 +617,7 @@ def answer_ask(
     asking_name,
     question,
     answer,
-    tags=[],
+    tags=tuple(),
     to_drafts=False,
     is_reblog=False,
     reblog_key=None,

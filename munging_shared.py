@@ -503,14 +503,14 @@ def write_text_for_side_judgment(
     add_tags=False,
     swap_in_frank=False,
     add_empty_response=True,
-    keep_ORIG_POST_CHAR_CHINESE=False,
+    keep_orig_post_char=False,
 ):
     processed = process_post_from_post_payload(post_payload)
     if processed is None:
         return False
 
     if ORIG_POST_CHAR_CHINESE in processed:
-        if keep_ORIG_POST_CHAR_CHINESE:
+        if keep_orig_post_char:
             text = processed
         else:
             text = processed[processed.index(ORIG_POST_CHAR_CHINESE) + 1 :]
@@ -561,7 +561,7 @@ def corpus_doc_from_post_payload(post_payload):
         add_tags=True,
         swap_in_frank=False,
         add_empty_response=False,
-        keep_ORIG_POST_CHAR_CHINESE=True
+        keep_orig_post_char=True
     )
 
     doc_chinese_format = join_time_sidechannel(doc_chinese_format, v10_timestamp)

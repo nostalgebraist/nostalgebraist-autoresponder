@@ -74,16 +74,6 @@ def get_ordered_interlocutors(doc, control_seg_config=DEFAULT_CSC):
         for ph in control_seg_config["numbered_phrases"]:
             if ph in c[0]:
                 names.append(c[0].partition(" " + ph)[0])
-    # chars = [
-    #     c[0]
-    #     for c in find_control_chars_forumlike(doc, incl_number=False, control_seg_config=control_seg_config)
-    #     if any([ph in c[0] for ph in control_seg_config["numbered_phrases"]])
-    #     ]
-    # names = []
-    # for c in chars:
-    #     for ph in control_seg_config["numbered_phrases"]:
-    #         if ph
-    # names = [c.partition(" wrote")[0] for c in chars]
     n_names = len(names)
 
     unique_names = []
@@ -101,13 +91,11 @@ def format_segment_v8_interlocutors(doc, control_seg_config=DEFAULT_CSC):
         return ""
     if len(names) == 1:
         name = names[0]
-        # return f"A series of blog posts by{name}"
         if n_names == 1:
             return ""
         else:
             return control_seg_config["series_of_posts"].format(name=name)
     comma_names = ",".join(names[:-1]) + " and" + names[-1]
-    # return f"A blog conversation between{comma_names} | {n_names} posts"
     return control_seg_config["conversation_between"].format(
         comma_names=comma_names, n_names=n_names
     )

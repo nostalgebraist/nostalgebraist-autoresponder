@@ -1955,14 +1955,7 @@ def do_reblog_reply_handling(
     follower_multipliers = None
 
     # we need follower names for reply relevance v2
-    # hack -- TODO: remove
-    follower_names_reset_none = False
-    if is_nost_dash_scraper:
-        if loop_persistent_data.follower_names is None:
-            loop_persistent_data.follower_names = set()
-            follower_names_reset_none = True
-    else:
-        loop_persistent_data = update_follower_names(loop_persistent_data, response_cache)
+    loop_persistent_data = update_follower_names(loop_persistent_data, response_cache)
 
     replies_to_handle = set()
 
@@ -1997,9 +1990,9 @@ def do_reblog_reply_handling(
     while len(next_) != 0 and len(posts) < n_posts_to_check:
         # TODO: DRY
         min_ts = min([p["timestamp"] for p in next_])
-        print(f"got {len(next_)}, starting with {next_[0]['id']}, min_ts={min_ts}")
+        print(f"got {len(next_)}, starting with {next_[0]['id']}, min_ts={min_ts}, next_offset={next_offset}")
         min_ts = min([p["timestamp"] for p in next_posts])
-        print(f"\t raw: got {len(next_posts)}, starting with {next_posts[0]['id']}, min_ts={min_ts}")
+        print(f"\t raw: got {len(next_posts)}, starting with {next_posts[0]['id']}, min_ts={min_ts}, next_offset={next_offset}")
 
         time.sleep(0.1)
         next_posts, next_offset = post_getter(
@@ -2023,9 +2016,9 @@ def do_reblog_reply_handling(
     if len(next_) > 0:
         # TODO: DRY
         min_ts = min([p["timestamp"] for p in next_])
-        print(f"got {len(next_)}, starting with {next_[0]['id']}, min_ts={min_ts}")
+        print(f"got {len(next_)}, starting with {next_[0]['id']}, min_ts={min_ts}, next_offset={next_offset}")
         min_ts = min([p["timestamp"] for p in next_posts])
-        print(f"\t raw: got {len(next_posts)}, starting with {next_posts[0]['id']}, min_ts={min_ts}")
+        print(f"\t raw: got {len(next_posts)}, starting with {next_posts[0]['id']}, min_ts={min_ts}, next_offset={next_offset}")
 
     print(f"{len(posts)} posts retrieved")
     known_pis = set()
@@ -2294,9 +2287,6 @@ def do_reblog_reply_handling(
         loop_persistent_data.requests_per_check_history.append(
             count_check_requests_diff
         )
-
-    if follower_names_reset_none:
-        loop_persistent_data.follower_names = None
 
     return loop_persistent_data, response_cache
 
@@ -2827,25 +2817,24 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                     image_analysis_cache.save()
         return loop_persistent_data, response_cache
 
-    # DEBUG
-    # ### do asks check
-    # loop_persistent_data, response_cache = _mainloop_asks_block(
-    #     loop_persistent_data, response_cache
-    # )
-    #
-    # ### do reblog/reply check
-    # if n_posts_to_check > 0:
-    #     # reblogs, replies
-    #     loop_persistent_data, response_cache = do_reblog_reply_handling(
-    #         loop_persistent_data, response_cache, n_posts_to_check
-    #     )
-    #     response_cache.save()
-    #     image_analysis_cache.save()
-    #
-    #     ### do another asks check
-    #     loop_persistent_data, response_cache = _mainloop_asks_block(
-    #         loop_persistent_data, response_cache
-    #     )
+    ### do asks check
+    loop_persistent_data, response_cache = _mainloop_asks_block(
+        loop_persistent_data, response_cache
+    )
+
+    ### do reblog/reply check
+    if n_posts_to_check > 0:
+        # reblogs, replies
+        loop_persistent_data, response_cache = do_reblog_reply_handling(
+            loop_persistent_data, response_cache, n_posts_to_check
+        )
+        response_cache.save()
+        image_analysis_cache.save()
+
+        ### do another asks check
+        loop_persistent_data, response_cache = _mainloop_asks_block(
+            loop_persistent_data, response_cache
+        )
 
     if n_posts_to_check > 0:
         # dash check

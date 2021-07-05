@@ -9,9 +9,9 @@ from textwrap import wrap
 
 from bot_config import BotSpecificConstants
 from image_analysis import IMAGE_DELIMITER_WHITESPACED
-from autoresponder_static_v8 import timestamp_to_v10_format
 
-from munging_shared import T_CHAR, ORIG_POST_CHAR
+from autoresponder_static import T_CHAR, ORIG_POST_CHAR_CHINESE
+from autoresponder_static_v8 import timestamp_to_v10_format
 from mood import logit_diff_to_allen_schema
 
 bot_specific_constants = BotSpecificConstants.load()
@@ -104,7 +104,7 @@ def parse_continuation(continuation: str, verbose=False):
             tags = fic_tags + tags
             post = post[: post.index("#original fiction")]
 
-    post = post.lstrip(ORIG_POST_CHAR)
+    post = post.lstrip(ORIG_POST_CHAR_CHINESE)
     parsed = {"post": post, "tags": tags}
     return parsed
 
@@ -437,7 +437,7 @@ def get_retention_stack_judgments(retention_stack):
         autoreview_proba_from_gpt2_service,
     )
 
-    texts_for_selection = [ORIG_POST_CHAR + t for t in sorted(retention_stack)]
+    texts_for_selection = [ORIG_POST_CHAR_CHINESE + t for t in sorted(retention_stack)]
 
     timestamp = timestamp_to_v10_format(datetime.now())
     proba = selection_proba_from_gpt2_service(texts_for_selection, timestamp=timestamp)

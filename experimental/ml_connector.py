@@ -841,96 +841,10 @@ def old_bridge_call__answer(data):
     print(
         f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
     )
-    return serve_answer(PROMPT_STACK[generation_id])
 
+    data = PROMPT_STACK[generation_id]
 
-def old_bridge_call__textpost(data):
-    global PROMPT_STACK
-
-    mood = data.get("mood")
-    v8_timestamp = data.get("v8_timestamp", "")
-    v10_timestamp = data.get("v10_timestamp", "")
-    return_all_conts = bool(int(data.get("return_all_conts", False)))
-    n_retention = int(data.get("n_retention"))
-
-    kwargs = {
-        "best_of": 10,
-        "prompt_from_dataset": True,  # TODO: remove
-        "verbose": True,
-        "V5": True,
-        "mood": get_mood_by_name(mood),
-        "return_all_conts": return_all_conts,
-    }
-
-    kwargs["strategy"] = "proportional"
-    kwargs["avoid_if_under"] = 10
-    kwargs["avoid_half_if_under"] = 10
-    kwargs["avoid_if_cut_off"] = False
-    kwargs["avoid_initial_blockquote"] = False
-    kwargs["avoid_if_says_frank"] = False
-    kwargs["random_year_for_generator"] = True
-    if True:
-        fork = "B" if np.random.rand() > 1 else "A"
-        # strategy = "proportional_winnowed"
-        strategy = "eps_greedy"
-        eps = 0.15
-        kwargs["strategy"] = strategy
-        kwargs["eps"] = eps
-        kwargs["AB_fork"] = fork
-
-    n_candidates_target = TEXTPOST_N_CANDIDATES_TARGET
-
-    # TODO: DRY
-    expected_rejection_frac = estimate_expected_rejections(
-        min_logit_diff=kwargs["mood"]["min_allowed_score"],
-        max_logit_diff=kwargs["mood"]["max_allowed_score"],
-        logit_diff_sample_series=logit_diff_sample_series,
-    )
-
-    raw_extra_best_of = (
-        int(np.round(n_candidates_target / (1 - expected_rejection_frac)))
-        - n_candidates_target
-    )
-    discounted_extra_best_of = int(
-        np.round(raw_extra_best_of * EXPECTED_REJECTION_MULT)
-    )
-
-    print(
-        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over n_candidates_target={n_candidates_target}"
-    )
-    n_candidates_target += discounted_extra_best_of
-    print(
-        f"discounting to {discounted_extra_best_of} --> n_candidates_target={n_candidates_target}"
-    )
-
-    if n_retention is not None:
-        n_candidates_target = max(1, n_candidates_target - n_retention)
-        print(f"with {n_retention} on stack, only need {n_candidates_target}")
-
-    kwargs["best_of"] = n_candidates_target
-
-    print(f"AB test: fork {fork}, n_retention {n_retention}, kwargs {kwargs}")
-
-    generation_id = str(uuid.uuid4())
-    PROMPT_STACK[generation_id] = {
-        "type": "textpost",
-        "kwargs": kwargs,
-        "v8_timestamp": v8_timestamp,
-        "v10_timestamp": v10_timestamp,
-    }
-    PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"][
-        "best_of"
-    ]
-    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = PROMPT_STACK[generation_id][
-        "kwargs"
-    ]["best_of"]
-    print(
-        f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
-    )
-    return serve_textpost(PROMPT_STACK[generation_id])
-
-
-def serve_answer(data):
+    # old serve_answer
     print("\n------------\n")
     prompt = data["prompt"].rstrip(whitespace)
 
@@ -1086,7 +1000,92 @@ def serve_answer(data):
     return parsed
 
 
-def serve_textpost(data):
+def old_bridge_call__textpost(data):
+    global PROMPT_STACK
+
+    mood = data.get("mood")
+    v8_timestamp = data.get("v8_timestamp", "")
+    v10_timestamp = data.get("v10_timestamp", "")
+    return_all_conts = bool(int(data.get("return_all_conts", False)))
+    n_retention = int(data.get("n_retention"))
+
+    kwargs = {
+        "best_of": 10,
+        "prompt_from_dataset": True,  # TODO: remove
+        "verbose": True,
+        "V5": True,
+        "mood": get_mood_by_name(mood),
+        "return_all_conts": return_all_conts,
+    }
+
+    kwargs["strategy"] = "proportional"
+    kwargs["avoid_if_under"] = 10
+    kwargs["avoid_half_if_under"] = 10
+    kwargs["avoid_if_cut_off"] = False
+    kwargs["avoid_initial_blockquote"] = False
+    kwargs["avoid_if_says_frank"] = False
+    kwargs["random_year_for_generator"] = True
+    if True:
+        fork = "B" if np.random.rand() > 1 else "A"
+        # strategy = "proportional_winnowed"
+        strategy = "eps_greedy"
+        eps = 0.15
+        kwargs["strategy"] = strategy
+        kwargs["eps"] = eps
+        kwargs["AB_fork"] = fork
+
+    n_candidates_target = TEXTPOST_N_CANDIDATES_TARGET
+
+    # TODO: DRY
+    expected_rejection_frac = estimate_expected_rejections(
+        min_logit_diff=kwargs["mood"]["min_allowed_score"],
+        max_logit_diff=kwargs["mood"]["max_allowed_score"],
+        logit_diff_sample_series=logit_diff_sample_series,
+    )
+
+    raw_extra_best_of = (
+        int(np.round(n_candidates_target / (1 - expected_rejection_frac)))
+        - n_candidates_target
+    )
+    discounted_extra_best_of = int(
+        np.round(raw_extra_best_of * EXPECTED_REJECTION_MULT)
+    )
+
+    print(
+        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over n_candidates_target={n_candidates_target}"
+    )
+    n_candidates_target += discounted_extra_best_of
+    print(
+        f"discounting to {discounted_extra_best_of} --> n_candidates_target={n_candidates_target}"
+    )
+
+    if n_retention is not None:
+        n_candidates_target = max(1, n_candidates_target - n_retention)
+        print(f"with {n_retention} on stack, only need {n_candidates_target}")
+
+    kwargs["best_of"] = n_candidates_target
+
+    print(f"AB test: fork {fork}, n_retention {n_retention}, kwargs {kwargs}")
+
+    generation_id = str(uuid.uuid4())
+    PROMPT_STACK[generation_id] = {
+        "type": "textpost",
+        "kwargs": kwargs,
+        "v8_timestamp": v8_timestamp,
+        "v10_timestamp": v10_timestamp,
+    }
+    PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"][
+        "best_of"
+    ]
+    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = PROMPT_STACK[generation_id][
+        "kwargs"
+    ]["best_of"]
+    print(
+        f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
+    )
+    data = PROMPT_STACK[generation_id]
+
+    # old serve_textpost
     prompt = ""
     kwargs = data["kwargs"]
     avoid_if_under = kwargs.get("avoid_if_under", 20)

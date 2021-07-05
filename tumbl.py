@@ -1955,7 +1955,14 @@ def do_reblog_reply_handling(
     follower_multipliers = None
 
     # we need follower names for reply relevance v2
-    loop_persistent_data = update_follower_names(loop_persistent_data, response_cache)
+    # hack -- TODO: remove
+    follower_names_reset_none = False
+    if is_nost_dash_scraper:
+        if loop_persistent_data.follower_names is None:
+            loop_persistent_data.follower_names = set()
+            follower_names_reset_none = True
+    else:
+        loop_persistent_data = update_follower_names(loop_persistent_data, response_cache)
 
     replies_to_handle = set()
 
@@ -1988,8 +1995,12 @@ def do_reblog_reply_handling(
     posts.extend(next_)
     offset_ = next_offset
     while len(next_) != 0 and len(posts) < n_posts_to_check:
+        # TODO: DRY
         min_ts = min([p["timestamp"] for p in next_])
         print(f"got {len(next_)}, starting with {next_[0]['id']}, min_ts={min_ts}")
+        min_ts = min([p["timestamp"] for p in next_posts])
+        print(f"\t raw: got {len(next_posts)}, starting with {next_posts[0]['id']}, min_ts={min_ts}")
+
         time.sleep(0.1)
         next_posts, next_offset = post_getter(
             limit=limit_, offset=offset_, notes_info=(not is_dashboard)
@@ -2013,8 +2024,19 @@ def do_reblog_reply_handling(
         # TODO: DRY
         min_ts = min([p["timestamp"] for p in next_])
         print(f"got {len(next_)}, starting with {next_[0]['id']}, min_ts={min_ts}")
+        min_ts = min([p["timestamp"] for p in next_posts])
+        print(f"\t raw: got {len(next_posts)}, starting with {next_posts[0]['id']}, min_ts={min_ts}")
 
     print(f"{len(posts)} posts retrieved")
+    known_pis = set()
+    posts_dedup = []
+    for pp in posts:
+        pi = PostIdentifier(pp["blog_name"], str(pp["id"]))
+        if pi not in known_pis:
+            posts_dedup.append(pp)
+            known_pis.add(pi)
+    posts = posts_dedup
+    print(f"{len(posts)} after dedup")
 
     if not is_dashboard:
         loop_persistent_data.slowdown_level, hardstopping = select_slowdown_level(posts_no_filters, ref_level=loop_persistent_data.slowdown_level, hardstop_pad=WRITE_POSTS_WHEN_QUEUE_BELOW)
@@ -2272,6 +2294,9 @@ def do_reblog_reply_handling(
         loop_persistent_data.requests_per_check_history.append(
             count_check_requests_diff
         )
+
+    if follower_names_reset_none:
+        loop_persistent_data.follower_names = None
 
     return loop_persistent_data, response_cache
 

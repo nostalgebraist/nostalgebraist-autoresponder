@@ -550,6 +550,7 @@ def make_text_post(
     autoreview_proba=None,
     reject_action=None
 ):
+    tags = list(tags)
     screener_result, traced_reasons = autopublish_screener(asking_name, question, post, tags, trace=True)
 
     state_reasons = augment_screener_output_with_autoreviewer(
@@ -638,6 +639,7 @@ def answer_ask(
         valid_options = ["id"] + private_client._post_valid_options("answer")
         valid_options += ["answer"]
 
+    tags = list(tags)
     if asking_name not in tags:
         tags.append(asking_name)
     if asking_name != "Anonymous" and "Anonymous" in tags:

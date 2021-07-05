@@ -1613,33 +1613,6 @@ def is_dynamically_reblog_worthy_on_dash(
     return reblog_worthy
 
 
-def is_reblog_worthy_on_dash(
-    post_payload,
-    response_cache,
-    loop_persistent_data,
-    mood_value,
-    follower_multipliers,
-    verbose=True,
-):
-    statically_reblog_worthy = is_statically_reblog_worthy_on_dash(
-        post_payload, response_cache, loop_persistent_data, verbose=verbose
-    )
-
-    if not statically_reblog_worthy:
-        return False
-
-    dynamically_reblog_worthy = is_dynamically_reblog_worthy_on_dash(
-        post_payload,
-        response_cache,
-        loop_persistent_data,
-        mood_value,
-        follower_multipliers,
-        verbose=verbose,
-    )
-
-    return dynamically_reblog_worthy
-
-
 def review_statically_worthy_dashboard_post(
     post_payload,
     loop_persistent_data,

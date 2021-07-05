@@ -1314,7 +1314,7 @@ def am_i_tagged_in_reblog(post_payload):
 
 
 def is_statically_reblog_worthy_on_dash(
-    post_payload, response_cache, loop_persistent_data, verbose=True
+    post_payload, response_cache, loop_persistent_data, verbose=True, is_nost_dash_scraper=False
 ):
     post_identifier = PostIdentifier(post_payload["blog_name"], str(post_payload["id"]))
 
@@ -1437,7 +1437,11 @@ def is_statically_reblog_worthy_on_dash(
 
     if scrape_worthy:
         print(f"archiving {post_identifier} | ", end="")
-        archive_to_corpus(post_payload, path="data/dash_post_dump.txt")
+        path = "data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "data/dash_post_dump_frank.txt"
+        archive_to_corpus(post_payload, path=path)
+
+    if is_nost_dash_scraper:
+        reblog_worthy = False
 
     return reblog_worthy
 
@@ -1930,15 +1934,22 @@ def do_reblog_reply_handling(
     n_posts_to_check: int,
     is_dashboard: bool = False,
     mood_value: float = None,
+    is_nost_dash_scraper: bool = False
 ):
-    relevant_client = dashboard_client if is_dashboard else response_cache.client
+    relevant_client = response_cache.client
+    if is_dashboard:
+        if is_nost_dash_scraper:
+            relevant_client = private_client
+        else:
+            relevant_client = dashboard_client
+
     count_check_requests_start = relevant_client.get_ratelimit_data()["day"][
         "remaining"
     ]
 
     def dashboard_post_getter(**kwargs):
         response = response_cache.record_response_to_cache(
-            dashboard_client.dashboard(**kwargs), care_about_notes=False
+            relevant_client.dashboard(**kwargs), care_about_notes=False
         )
         posts = response["posts"]
         next_offset = kwargs["offset"] + len(posts)
@@ -1946,7 +1957,7 @@ def do_reblog_reply_handling(
 
     def reblogs_post_getter(**kwargs):
         response = response_cache.record_response_to_cache(
-            response_cache.client.posts(blogName, **kwargs), care_about_notes=False
+            relevant_client.posts(blogName, **kwargs), care_about_notes=False
         )
         posts = response["posts"]
 
@@ -2811,12 +2822,10 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                     image_analysis_cache.save()
         return loop_persistent_data, response_cache
 
-    ### DEBUG
-    n_posts_to_check = 1
-    # ### do asks check
-    # loop_persistent_data, response_cache = _mainloop_asks_block(
-    #     loop_persistent_data, response_cache
-    # )
+    ### do asks check
+    loop_persistent_data, response_cache = _mainloop_asks_block(
+        loop_persistent_data, response_cache
+    )
 
     ### do reblog/reply check
     if n_posts_to_check > 0:
@@ -2834,18 +2843,23 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
 
     if n_posts_to_check > 0:
         # dash check
-        if dashboard_client.get_ratelimit_data()["effective_remaining"] > 0:
-            print("checking dash...")
-            _, mood_value = determine_mood(response_cache, return_mood_value=True)
-            loop_persistent_data, response_cache = do_reblog_reply_handling(
-                loop_persistent_data,
-                response_cache,
-                n_posts_to_check_dash,
-                is_dashboard=True,
-                mood_value=mood_value,
-            )
-        else:
-            print("skipping dash check this time")
+        for is_nost_dash_scraper, relevant_client in [
+            (True, private_client),
+            (False, dashboard_client),
+        ]:
+            if relevant_client.get_ratelimit_data()["effective_remaining"] > 0:
+                print(f"checking dash (is_nost_dash_scraper={is_nost_dash_scraper})...")
+                _, mood_value = determine_mood(response_cache, return_mood_value=True)
+                loop_persistent_data, response_cache = do_reblog_reply_handling(
+                    loop_persistent_data,
+                    response_cache,
+                    n_posts_to_check_dash,
+                    is_dashboard=True,
+                    mood_value=mood_value,
+                    is_nost_dash_scraper=is_nost_dash_scraper
+                )
+            else:
+                print("skipping dash check this time")
 
         ### do another asks check
         loop_persistent_data, response_cache = _mainloop_asks_block(

@@ -1,18 +1,15 @@
 import time
-import uuid
-import re
 import pickle
 from textwrap import wrap, fill
-from datetime import datetime
 from string import whitespace, punctuation
 from itertools import chain, product
 from typing import List
 
 import requests
-import numpy as np
 import pandas as pd
 
 from autoresponder_config import *
+# TODO: [cleanup] remove if safe
 from autoresponder_static import *
 from autoresponder_static_v8 import *
 
@@ -93,6 +90,9 @@ def finalize_prompt_for_neural(
 
 
 class MLModelInterface:
+    name: str
+    uses_bridge_cache: bool
+
     def __init__(self):
         raise NotImplementedError
 
@@ -627,12 +627,7 @@ def _make_alt_timestamps(v10_timestamp):
     return alts
 
 
-def answer_from_gpt2_service(
-    data: dict,
-    loop_persistent_data,
-    ts=None,
-    no_timestamp=False,
-):
+def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
     t1 = time.time()
 
     if ts is None:
@@ -649,8 +644,15 @@ def answer_from_gpt2_service(
 
     result_generator = old_bridge_call__answer(data=data)
 
+    # strategy = "proportional_winnowed"
+    strategy = "eps_greedy"
+    eps = 0.15
+
     result, _ = serve_selection(
         data=result_generator,
+        post_type="answer",
+        strategy=strategy,
+        eps=eps
     )
 
     # for logging, add any input fields that didn't make the round trip
@@ -696,8 +698,15 @@ def text_post_from_gpt2_service(
 
     result_generator = old_bridge_call__textpost(data=data)
 
+    # strategy = "proportional_winnowed"
+    strategy = "eps_greedy"
+    eps = 0.15
+
     result, retention_stack = serve_selection(
         data=result_generator,
+        post_type="textpost",
+        strategy=strategy,
+        eps=eps,
         retention_stack=loop_persistent_data.retention_stack,
     )
 
@@ -778,10 +787,6 @@ def old_bridge_call__answer(data):
     random_year_for_generator = True
     if asking_name == "bukbot":
         avoid_if_profane = True
-
-    # strategy = "proportional_winnowed"
-    strategy = "eps_greedy"
-    eps = 0.15
 
     data = {
         "type": "answer",
@@ -937,10 +942,6 @@ def old_bridge_call__textpost(data):
     avoid_initial_blockquote = False
     avoid_if_says_frank = False
     random_year_for_generator = True
-
-    # strategy = "proportional_winnowed"
-    strategy = "eps_greedy"
-    eps = 0.15
 
     n_candidates_target = TEXTPOST_N_CANDIDATES_TARGET
 

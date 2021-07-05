@@ -998,18 +998,15 @@ def respond_to_reblogs_replies(
             )
         print(f"\n\t--> using question:\n---------\n{question}\n---------\n")
 
-        gpt2_output = answer_from_gpt2_service(
-            data={
-                "question": question,
-                "asking_name": reblog_identifier.blog_name,
-                "exact_prompt": True,
-                "mood": determine_mood(response_cache),
-                "return_all_conts": 1,  # int(halloweenize),
-                "selector_cut_to_final_exchange": 1,  # int(is_reply),
-                "avoid_initial_blockquote": int(is_reply),
-            },
-            loop_persistent_data=loop_persistent_data,
-        )
+        gpt2_output = answer_from_gpt2_service(data={
+            "question": question,
+            "asking_name": reblog_identifier.blog_name,
+            "exact_prompt": True,
+            "mood": determine_mood(response_cache),
+            "return_all_conts": 1,  # int(halloweenize),
+            "selector_cut_to_final_exchange": 1,  # int(is_reply),
+            "avoid_initial_blockquote": int(is_reply),
+        })
 
         if (
             SAVE_USER_INPUT_SENTIMENTS
@@ -2292,19 +2289,15 @@ def handle_review_command(
     user_args, input_ident, asking_url, loop_persistent_data, response_cache
 ):
     question, full_input = construct_review_question(user_args)
-    gpt2_output = answer_from_gpt2_service(
-        data={
-            "question": full_input,
-            "asking_name": input_ident[1],
-            "mood": determine_mood(response_cache),
-            "exact_prompt": True,
-            "forced_tags_string": "",
-            "write_fic_override": 0,
-            "write_review_override": 1,
-        },
-        loop_persistent_data=loop_persistent_data,
-        no_timestamp=True,
-    )
+    gpt2_output = answer_from_gpt2_service(data={
+        "question": full_input,
+        "asking_name": input_ident[1],
+        "mood": determine_mood(response_cache),
+        "exact_prompt": True,
+        "forced_tags_string": "",
+        "write_fic_override": 0,
+        "write_review_override": 1,
+    }, no_timestamp=True)
 
     log_data = gpt2_output
     log_data["post_type"] = "review"
@@ -2509,17 +2502,14 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         f"for {user_input_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
                     )
 
-            gpt2_output = answer_from_gpt2_service(
-                data={
-                    "question": question,
-                    "asking_name": x["asking_name"],
-                    "mood": determine_mood(response_cache),
-                    "forced_tags_string": forced_tags_string,
-                    "write_fic_override": write_fic_override,
-                    "return_all_conts": 1,
-                },
-                loop_persistent_data=loop_persistent_data,
-            )
+            gpt2_output = answer_from_gpt2_service(data={
+                "question": question,
+                "asking_name": x["asking_name"],
+                "mood": determine_mood(response_cache),
+                "forced_tags_string": forced_tags_string,
+                "write_fic_override": write_fic_override,
+                "return_all_conts": 1,
+            })
 
             if (
                 response_cache.get_cached_user_input_sentiment(user_input_identifier)

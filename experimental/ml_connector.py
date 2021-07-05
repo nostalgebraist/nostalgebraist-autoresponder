@@ -649,7 +649,6 @@ def answer_from_gpt2_service(
     loop_persistent_data,
     ts=None,
     no_timestamp=False,
-    BEAMSPLIT_TESTING_FLAG=False,
 ):
     t1 = time.time()
 
@@ -664,9 +663,6 @@ def answer_from_gpt2_service(
     if no_timestamp:
         data["v8_timestamp"] = ""
         data["v10_timestamp"] = ""
-
-    if BEAMSPLIT_TESTING_FLAG:
-        data["na_beamsplit"] = True
 
     result_generator = old_bridge_call__answer(data=data)
 
@@ -698,7 +694,7 @@ def save_retention(retention_stack):
 
 
 def text_post_from_gpt2_service(
-    loop_persistent_data, mood=None, ts=None, BEAMSPLIT_TESTING_FLAG=False
+    loop_persistent_data, mood=None, ts=None,
 ):
     t1 = time.time()
 
@@ -712,9 +708,6 @@ def text_post_from_gpt2_service(
         data["v10_timestamp"] = (
             " ".join(data["v10_timestamp"].split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
         )
-
-    if BEAMSPLIT_TESTING_FLAG:
-        data["na_beamsplit"] = True
 
     data["n_retention"] = len(loop_persistent_data.retention_stack)
 

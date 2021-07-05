@@ -207,7 +207,6 @@ RTS_COMMAND = "rts"
 ACCEPT_COMMAND = "a"
 
 GLOBAL_TESTING_FLAG = False
-BEAMSPLIT_TESTING_FLAG = False
 
 
 def roll_for_limited_users(name, text=""):
@@ -595,8 +594,6 @@ def make_text_post(
         print(f"GLOBAL_TESTING_FLAG --> draft")
         orig_state = state
         state_reasons["must_be_draft"] = True
-        if BEAMSPLIT_TESTING_FLAG:
-            tags = ["BEAMSPLIT dummy branch", f"intended state: {orig_state}"] + tags
 
     post = format_post_for_api(post)
 
@@ -709,8 +706,6 @@ def answer_ask(
         orig_state = state
         state = "draft"
         state_reasons["must_be_draft"] = True
-        if BEAMSPLIT_TESTING_FLAG:
-            tags = ["BEAMSPLIT dummy branch", f"intended state: {orig_state}"] + tags
 
     # finalize state
     state_reasons["should_publish"] = state_reasons["should_publish"] and (not state_reasons["must_be_draft"])
@@ -735,22 +730,7 @@ def answer_ask(
             "state": state,
         }
     else:
-        if BEAMSPLIT_TESTING_FLAG:
-            url = "/v2/blog/{}/post/".format(blogname)
-            beamsplit_testing_body = "".join(
-                [
-                    format_post_for_api(f"ask_id:\n\n{ask_id}\n\n"),
-                    format_post_for_api(f"question:\n\n{question}\n\n"),
-                    answer,
-                ]
-            )
-            data = {
-                "body": beamsplit_testing_body,
-                "tags": tags,
-                "state": state,
-            }
-        else:
-            data = {"id": ask_id, "answer": answer, "tags": tags, "state": state}
+        data = {"id": ask_id, "answer": answer, "tags": tags, "state": state}
 
     api_response = private_client.send_api_request("post", url, data, valid_options)
     if state_reasons["do_not_post"]:
@@ -1030,7 +1010,6 @@ def respond_to_reblogs_replies(
                 "avoid_initial_blockquote": int(is_reply),
             },
             loop_persistent_data=loop_persistent_data,
-            BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
         )
 
         if (
@@ -2326,7 +2305,6 @@ def handle_review_command(
         },
         loop_persistent_data=loop_persistent_data,
         no_timestamp=True,
-        BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
     )
 
     log_data = gpt2_output
@@ -2395,14 +2373,12 @@ def do_ask_handling(loop_persistent_data, response_cache):
         if x.get("summary", "") == FOLLOW_COMMAND:
             with LogExceptionAndSkip("follow"):
                 response_cache.follow(x["asking_name"], dashboard_client)
-                if not BEAMSPLIT_TESTING_FLAG:
-                    private_client.delete_post(blogName, x["id"])
+                private_client.delete_post(blogName, x["id"])
                 print(f"followed {x['asking_name']}")
         elif x.get("summary", "") == UNFOLLOW_COMMAND:
             with LogExceptionAndSkip("unfollow"):
                 response_cache.unfollow(x["asking_name"], dashboard_client)
-                if not BEAMSPLIT_TESTING_FLAG:
-                    private_client.delete_post(blogName, x["id"])
+                private_client.delete_post(blogName, x["id"])
                 print(f"unfollowed {x['asking_name']}")
         elif x.get("summary", "") == MOOD_GRAPH_COMMAND:
             path = create_mood_graph(
@@ -2412,8 +2388,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
             )
             state = "published"
             if x["asking_name"] == "nostalgebraist":
-                state = "draft"
-            if BEAMSPLIT_TESTING_FLAG:
                 state = "draft"
             private_client.create_photo(
                 blogName,
@@ -2425,8 +2399,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     asking_url=x["asking_url"],
                 ),
             )
-            if not BEAMSPLIT_TESTING_FLAG:
-                private_client.delete_post(blogName, x["id"])
+            private_client.delete_post(blogName, x["id"])
         elif x.get("summary", "").startswith(REVIEW_COMMAND):
             with LogExceptionAndSkip("write review"):
                 user_args, user_argstring, is_valid = parse_and_validate_review_command(
@@ -2547,7 +2520,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     "return_all_conts": 1,
                 },
                 loop_persistent_data=loop_persistent_data,
-                BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
             )
 
             if (
@@ -2611,7 +2583,6 @@ def do_queue_handling(loop_persistent_data, response_cache):
                 loop_persistent_data=loop_persistent_data,
                 mood=mood_for_queue_writing,
                 ts=dt,
-                BEAMSPLIT_TESTING_FLAG=BEAMSPLIT_TESTING_FLAG,
             )
 
             log_data = gpt2_output

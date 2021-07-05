@@ -720,6 +720,20 @@ def answer_from_gpt(
     return result
 
 
+def generator_and_selector_timestamps(random_year_for_generator: bool, v10_timestamp: str):
+    if random_year_for_generator and v10_timestamp is not None:
+        generator_v10_timestamp = sample_and_substitute_year_v10(v10_timestamp)
+        selector_v10_timestamp = v10_timestamp
+    else:
+        generator_v10_timestamp = v10_timestamp
+        selector_v10_timestamp = v10_timestamp
+
+    print(f"generator_v10_timestamp: {repr(generator_v10_timestamp)}")
+    print(f"selector_v10_timestamp: {repr(selector_v10_timestamp)}")
+
+    return generator_v10_timestamp, selector_v10_timestamp
+
+
 def old_bridge_call__answer(
         prompt,
         asking_name="",
@@ -770,15 +784,9 @@ def old_bridge_call__answer(
 
     print(f"write_fic_override: {write_fic_override}")
 
-    if random_year_for_generator:
-        generator_v10_timestamp = sample_and_substitute_year_v10(v10_timestamp)
-        selector_v10_timestamp = v10_timestamp
-    else:
-        generator_v10_timestamp = v10_timestamp
-        selector_v10_timestamp = v10_timestamp
-
-    print(f"generator_v10_timestamp: {repr(generator_v10_timestamp)}")
-    print(f"selector_v10_timestamp: {repr(selector_v10_timestamp)}")
+    generator_v10_timestamp, selector_v10_timestamp = generator_and_selector_timestamps(
+        random_year_for_generator, v10_timestamp
+    )
 
     override_disable_forumlike = False
     if prompt.startswith(CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"]):
@@ -960,12 +968,9 @@ def old_bridge_call__textpost(
 
     # old serve_textpost
 
-    if random_year_for_generator and v10_timestamp is not None:
-        generator_v10_timestamp = sample_and_substitute_year_v10(v10_timestamp)
-        selector_v10_timestamp = v10_timestamp
-    else:
-        generator_v10_timestamp = ""
-        selector_v10_timestamp = v10_timestamp
+    generator_v10_timestamp, selector_v10_timestamp = generator_and_selector_timestamps(
+        random_year_for_generator, v10_timestamp
+    )
 
     print(f"generator_v10_timestamp: {repr(generator_v10_timestamp)}")
     print(f"selector_v10_timestamp: {repr(selector_v10_timestamp)}")

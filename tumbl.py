@@ -1929,7 +1929,6 @@ def do_reblog_reply_handling(
     response_cache: ResponseCache,
     n_posts_to_check: int,
     is_dashboard: bool = False,
-    pseudo_dashboard: bool = False,
     mood_value: float = None,
 ):
     relevant_client = dashboard_client if is_dashboard else response_cache.client
@@ -1961,45 +1960,9 @@ def do_reblog_reply_handling(
             )
         return posts, next_offset
 
-    if is_dashboard and not pseudo_dashboard:
+    if is_dashboard:
         post_getter = dashboard_post_getter
         start_ts = max(DASH_START_TS, loop_persistent_data.last_seen_ts)
-    elif is_dashboard:
-        raise ValueError("pseudo-dashboard is deprecated")
-
-        def _get_pseudo_dashboard(**kwargs):
-            psd_limit = 1
-            offsets = {
-                blog_name: 0 for blog_name in loop_persistent_data.follower_names
-            }
-
-            post_payloads = []
-            while len(post_payloads) < n_posts_to_check:
-                shuffled_names = np.random.choice(
-                    list(loop_persistent_data.follower_names),
-                    len(loop_persistent_data.follower_names),
-                    replace=False,
-                )
-                for blog_name in shuffled_names:
-                    print(f"checking {blog_name}")
-                    post_payloads.extend(
-                        response_cache.client.posts(
-                            blog_name, limit=psd_limit, offset=offsets[blog_name]
-                        )["posts"]
-                    )
-                    offsets[blog_name] += psd_limit
-                    print(
-                        f"checked {blog_name} -> offset {offsets[blog_name]}, {len(post_payloads)} on pseudo-dash"
-                    )
-                    time.sleep(0.2)
-            return post_payloads
-
-        post_getter = _get_pseudo_dashboard
-        start_ts = max(DASH_START_TS, loop_persistent_data.last_seen_ts)
-
-        loop_persistent_data = update_follower_names(
-            loop_persistent_data, response_cache
-        )
     else:
         post_getter = reblogs_post_getter
         start_ts = REBLOG_START_TS

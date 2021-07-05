@@ -9,8 +9,6 @@ import requests
 import pandas as pd
 
 from autoresponder_config import *
-# TODO: [cleanup] remove if safe
-from autoresponder_static import *
 from autoresponder_static_v8 import *
 
 from bridge_shared import bridge_service_unique_id, bridge_service_url

@@ -429,7 +429,7 @@ def basic_n_continuations(
             continuation = pr + continuation
             if EOT_PREPEND and continuation.startswith("<|endoftext|>"):
                 continuation = continuation[len("<|endoftext|>") :]
-            if FORUMLIKE and continuation.startswith(ORIG_POST_CHAR_CHINESE):
+            if continuation.startswith(ORIG_POST_CHAR_CHINESE):
                 continuation = CONTROL_SEG_CONFIG[
                     "ORIG_POST_CHAR_FORUMLIKE"
                 ] + continuation.lstrip(ORIG_POST_CHAR_CHINESE)

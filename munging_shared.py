@@ -506,10 +506,16 @@ def write_text_for_side_judgment(
     add_tags=False,
     swap_in_frank=False,
     add_empty_response=True,
+    dump_to_file=True
 ):
     processed = process_post_from_post_payload(post_payload)
     if processed is None:
         return False
+
+    if dump_to_file:
+        with open("data/dash_post_dump.jsonl", "a", encoding="utf-8") as f:
+            json.dump(processed, f)
+            f.write('\n')
 
     if ORIG_POST_CHAR in processed:
         text = processed[processed.index(ORIG_POST_CHAR) + 1 :]

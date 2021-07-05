@@ -1426,8 +1426,10 @@ def is_statically_reblog_worthy_on_dash(
         reblog_worthy = False
 
     if not reblog_worthy:
-        print(f"processing {post_identifier} | ", end="")
-        write_text_for_side_judgment(post_payload, dump_to_file=True)
+        pass
+        # the following logs extra posts:
+        # print(f"processing {post_identifier} | ", end="")
+        # write_text_for_side_judgment(post_payload, dump_to_file=True)
 
     return reblog_worthy
 

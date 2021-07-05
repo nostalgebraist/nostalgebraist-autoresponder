@@ -728,6 +728,7 @@ def text_post_from_gpt2_service(
 
 def old_bridge_call__answer(data):
     prompt = data["question"]
+    asking_name = data.get("asking_name", "")
     mood = data.get("mood")
     exact_prompt = data.get("exact_prompt", False)
     v8_timestamp = data.get("v8_timestamp", "")
@@ -744,7 +745,7 @@ def old_bridge_call__answer(data):
     if not exact_prompt:
         prompt = (
             UNAME_CHAR
-            + data["asking_name"]
+            + asking_name
             + DEFAULT_CSC["ASK_CHAR"]
             + "\n"
             + prompt
@@ -753,107 +754,64 @@ def old_bridge_call__answer(data):
         )
         print(f"formed prompt: {prompt}")
 
-    kwargs = {
-        "best_of": 13 if (not TRADE_QUALITY_FOR_SPEED) else 10,
-        "verbose": True,
-        "V5": True,
-        "mood": get_mood_by_name(mood),
-        "return_all_conts": return_all_conts,
-        "selector_cut_to_final_exchange": selector_cut_to_final_exchange,
-        "forced_tags_string": forced_tags_string,
-        "write_fic_override": write_fic_override,
-        "avoid_initial_blockquote": avoid_initial_blockquote,
-    }
+    best_of = 13 if (not TRADE_QUALITY_FOR_SPEED) else 10
+    verbose = True
+    V5 = True
+    mood = get_mood_by_name(mood)
 
-    if kwargs["write_fic_override"] or write_review_override:
-        kwargs["best_of"] = 6 if not (TRADE_QUALITY_FOR_SPEED) else 4
+    if write_fic_override or write_review_override:
+        best_of = 6 if not (TRADE_QUALITY_FOR_SPEED) else 4
 
     expected_rejection_frac = estimate_expected_rejections(
-        min_logit_diff=kwargs["mood"]["min_allowed_score"],
-        max_logit_diff=kwargs["mood"]["max_allowed_score"],
+        min_logit_diff=mood["min_allowed_score"],
+        max_logit_diff=mood["max_allowed_score"],
         logit_diff_sample_series=logit_diff_sample_series,
     )
 
     raw_extra_best_of = (
-        int(np.round(kwargs["best_of"] / (1 - expected_rejection_frac)))
-        - kwargs["best_of"]
+        int(np.round(best_of / (1 - expected_rejection_frac)))
+        - best_of
     )
     discounted_extra_best_of = int(
         np.round(raw_extra_best_of * EXPECTED_REJECTION_MULT)
     )
 
     print(
-        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over best_of={kwargs['best_of']}"
+        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over best_of={best_of}"
     )
-    kwargs["best_of"] += discounted_extra_best_of
-    print(f"discounting to {discounted_extra_best_of} --> best_of={kwargs['best_of']}")
+    best_of += discounted_extra_best_of
+    print(f"discounting to {discounted_extra_best_of} --> best_of={best_of}")
 
-    kwargs["avoid_if_under"] = 5
-    if kwargs["write_fic_override"]:
-        kwargs["avoid_if_under"] = 50
-    kwargs["avoid_half_if_under"] = 5
-    kwargs["avoid_if_cut_off"] = False
-    kwargs["split_on_control_char"] = True
-    kwargs["avoid_if_profane"] = False
-    kwargs["avoid_if_says_frank"] = False
-    kwargs["random_year_for_generator"] = True
-    if data["asking_name"] == "bukbot":
-        kwargs["avoid_if_profane"] = True
-    if True:
-        fork = "B" if np.random.rand() > 1 else "A"
+    avoid_if_under = 5
+    if write_fic_override:
+        avoid_if_under = 50
+    avoid_half_if_under = 5
+    continue_if_cut_off = True
+    avoid_if_cut_off = False
+    split_on_control_char = True
+    avoid_if_profane = False
+    avoid_if_says_frank = False
+    random_year_for_generator = True
+    if asking_name == "bukbot":
+        avoid_if_profane = True
+
     # strategy = "proportional_winnowed"
     strategy = "eps_greedy"
     eps = 0.15
-    kwargs["strategy"] = strategy
-    kwargs["eps"] = eps
 
-    kwargs["AB_fork"] = fork
-    generation_id = str(uuid.uuid4())
     data = {
         "type": "answer",
         "prompt": prompt,
-        "kwargs": kwargs,
-        "v8_timestamp": v8_timestamp,
-        "v10_timestamp": v10_timestamp,
     }
-    data["n_desired"] = data["kwargs"][
-        "best_of"
-    ]
-    data["kwargs"]["best_of"] = data[
-        "kwargs"
-    ]["best_of"]
-    print(
-        f"desiring {data['n_desired']}, per request {data['kwargs']['best_of']}"
-    )
 
     # old serve_answer
     print("\n------------\n")
-    prompt = data["prompt"].rstrip(whitespace)
+    prompt = prompt.rstrip(whitespace)
 
     if EOT_PREPEND and not V8:
         prompt = "<|endoftext|>" + prompt
 
-    kwargs = data["kwargs"]
-    avoid_if_under = kwargs.get("avoid_if_under", 20)
-    avoid_half_if_under = kwargs.get("avoid_half_if_under", 40)
-    avoid_if_cut_off = kwargs.get("avoid_if_cut_off", True)
-    split_on_control_char = kwargs.get("split_on_control_char", False)
-    avoid_initial_blockquote = kwargs.get("avoid_initial_blockquote", True)
-    avoid_if_profane = kwargs.get("avoid_if_profane", False)
-    avoid_if_says_frank = kwargs.get("avoid_if_says_frank", False)
-    random_year_for_generator = kwargs.get("random_year_for_generator", False)
-
-    continue_if_cut_off = kwargs.get("continue_if_cut_off", True)
-    if continue_if_cut_off:
-        avoid_if_cut_off = False
-
-    selector_cut_to_final_exchange = kwargs.get("selector_cut_to_final_exchange", False)
-    forced_tags_string = kwargs.get("forced_tags_string", None)
-    write_fic_override = kwargs.get("write_fic_override", False)
     print(f"write_fic_override: {write_fic_override}")
-
-    v8_timestamp = data.get("v8_timestamp", "")
-    v10_timestamp = data.get("v10_timestamp", "")
 
     if random_year_for_generator:
         generator_v10_timestamp = sample_and_substitute_year_v10(v10_timestamp)
@@ -871,7 +829,7 @@ def old_bridge_call__answer(data):
 
     continuations, continuation_side_data = basic_n_continuations(
         prompt,
-        N=kwargs["best_of"],
+        N=best_of,
         avoid_if_under=avoid_if_under,
         avoid_half_if_under=avoid_half_if_under,
         avoid_if_cut_off=avoid_if_cut_off,
@@ -1005,21 +963,19 @@ def old_bridge_call__textpost(data):
     kwargs["avoid_initial_blockquote"] = False
     kwargs["avoid_if_says_frank"] = False
     kwargs["random_year_for_generator"] = True
-    if True:
-        fork = "B" if np.random.rand() > 1 else "A"
-        # strategy = "proportional_winnowed"
-        strategy = "eps_greedy"
-        eps = 0.15
-        kwargs["strategy"] = strategy
-        kwargs["eps"] = eps
-        kwargs["AB_fork"] = fork
+
+    # strategy = "proportional_winnowed"
+    strategy = "eps_greedy"
+    eps = 0.15
+    kwargs["strategy"] = strategy
+    kwargs["eps"] = eps
 
     n_candidates_target = TEXTPOST_N_CANDIDATES_TARGET
 
     # TODO: DRY
     expected_rejection_frac = estimate_expected_rejections(
-        min_logit_diff=kwargs["mood"]["min_allowed_score"],
-        max_logit_diff=kwargs["mood"]["max_allowed_score"],
+        min_logit_diff=mood["min_allowed_score"],
+        max_logit_diff=mood["max_allowed_score"],
         logit_diff_sample_series=logit_diff_sample_series,
     )
 
@@ -1045,7 +1001,7 @@ def old_bridge_call__textpost(data):
 
     kwargs["best_of"] = n_candidates_target
 
-    print(f"AB test: fork {fork}, n_retention {n_retention}, kwargs {kwargs}")
+    print(f"n_retention {n_retention}, kwargs {kwargs}")
 
     generation_id = str(uuid.uuid4())
     data = {

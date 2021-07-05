@@ -430,18 +430,6 @@ def serve_selection(
         parsed["all_posts"] = all_posts
         parsed["all_tags"] = all_tags
 
-    if "AB_fork" in kwargs:
-        fork = kwargs["AB_fork"]
-        parsed["AB_fork"] = fork
-
-        post = parsed["post"]
-        non_newline_ixs = [ix for ix, c in enumerate(post) if c != "\n"]
-        if len(non_newline_ixs) > 0:
-            newline_switch_ix = max(non_newline_ixs) + 1
-            post = post[:newline_switch_ix]
-    else:
-        print(f"not AB testing, have kwargs {kwargs}")
-
     lost_keys = [k for k in data.keys() if k not in parsed]
     if WARN_ABOUT_LOST_KEYS and len(lost_keys) > 0:
         print(f"traceability warning: the following fields are not being saved")

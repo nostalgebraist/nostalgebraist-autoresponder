@@ -79,7 +79,7 @@ class ResponseCache:
             self.cache["following_names"] = set()
 
     @staticmethod
-    def load(client, path="data/response_cache.pkl.gz", verbose=True):
+    def load(client=None, path="data/response_cache.pkl.gz", verbose=True):
         cache = None
         if os.path.exists(path):
             with open(path, "rb") as f:

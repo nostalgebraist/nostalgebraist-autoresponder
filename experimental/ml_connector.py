@@ -14,7 +14,7 @@ from autoresponder_static import *
 from autoresponder_static_v8 import *
 
 from bridge_shared import bridge_service_unique_id, bridge_service_url
-from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections
+from mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections, logit_diff_to_pos_sent
 from selector import serve_selection
 
 from experimental.year_munging import sample_and_substitute_year_v10
@@ -426,10 +426,6 @@ def basic_n_continuations(
     continuations = continuations_
 
     return continuations, continuation_side_data
-
-
-def logit_diff_to_pos_sent(x):
-    return 1 / (1 + np.exp(-x))
 
 
 def show_note_probas(texts, probas, sentiment_logit_diffs=None, console_width=110):

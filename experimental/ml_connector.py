@@ -24,13 +24,6 @@ TRADE_QUALITY_FOR_SPEED = True
 logit_diff_sample_series = load_logit_diff_sample()
 EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
 
-# note to self: trying to be more random about textposts / use retention_stack less
-# to give the selector more training signal
-#
-# interventions:
-#   - fewer candidates
-#   - higher eps in eps_greedy
-#   - higher retention_stack proba cutoff (to the point that the stack is usu. small)
 TEXTPOST_N_CANDIDATES_TARGET = 15 if (not TRADE_QUALITY_FOR_SPEED) else 12
 
 Q_CHAR = "会"

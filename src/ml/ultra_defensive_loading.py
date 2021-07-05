@@ -1,7 +1,7 @@
 import torch
 from classifier_heads.head_nn import get_child_module_by_names
 
-from stable_library_code.transformers.gpt_neo import (
+from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import (
     GPTNeoForCausalLM,  # modified to use lazy loading -nost
     GPTNeoModel,  # modified to use lazy loading -nost
 )

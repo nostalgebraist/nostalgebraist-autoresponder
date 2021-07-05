@@ -1425,11 +1425,11 @@ def is_statically_reblog_worthy_on_dash(
             )
         reblog_worthy = False
 
-    if not reblog_worthy:
-        pass
+    if not reblog_worthy and (n_img == 0):
+        # pass
         # the following logs extra posts:
-        # print(f"processing {post_identifier} | ", end="")
-        # write_text_for_side_judgment(post_payload, dump_to_file=True)
+        print(f"processing {post_identifier} | ", end="")
+        write_text_for_side_judgment(post_payload, dump_to_file=True)
 
     return reblog_worthy
 

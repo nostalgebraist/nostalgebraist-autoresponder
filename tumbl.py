@@ -53,8 +53,8 @@ from munging_shared import *
 from bridge_shared import send_alldone
 from selector import apply_retention_cutoff
 from experimental.ml_connector import (
-    answer_from_gpt2_service,
-    text_post_from_gpt2_service,
+    answer_from_gpt,
+    text_post_from_gpt,
     selection_proba_from_gpt2_service,
     sentiment_logit_diffs_from_gpt2_service,
     autoreview_proba_from_gpt2_service,
@@ -998,15 +998,14 @@ def respond_to_reblogs_replies(
             )
         print(f"\n\t--> using question:\n---------\n{question}\n---------\n")
 
-        gpt2_output = answer_from_gpt2_service(data={
-            "question": question,
-            "asking_name": reblog_identifier.blog_name,
-            "exact_prompt": True,
-            "mood": determine_mood(response_cache),
-            "return_all_conts": 1,  # int(halloweenize),
-            "selector_cut_to_final_exchange": 1,  # int(is_reply),
-            "avoid_initial_blockquote": int(is_reply),
-        })
+        gpt2_output = answer_from_gpt(
+            prompt=question,
+            asking_name=reblog_identifier.blog_name,
+            exact_prompt=True,
+            mood_name=determine_mood(response_cache),
+            selector_cut_to_final_exchange=True,  # int(is_reply),
+            avoid_initial_blockquote=is_reply,
+        )
 
         if (
             SAVE_USER_INPUT_SENTIMENTS
@@ -2289,15 +2288,15 @@ def handle_review_command(
     user_args, input_ident, asking_url, loop_persistent_data, response_cache
 ):
     question, full_input = construct_review_question(user_args)
-    gpt2_output = answer_from_gpt2_service(data={
-        "question": full_input,
-        "asking_name": input_ident[1],
-        "mood": determine_mood(response_cache),
-        "exact_prompt": True,
-        "forced_tags_string": "",
-        "write_fic_override": 0,
-        "write_review_override": 1,
-    }, no_timestamp=True)
+    gpt2_output = answer_from_gpt(
+        prompt=full_input,
+        asking_name=input_ident[1],
+        mood_name=determine_mood(response_cache),
+        exact_prompt=True,
+        forced_tags_string="",
+        write_fic_override=False,
+        write_review_override=True,
+        no_timestamp=True)
 
     log_data = gpt2_output
     log_data["post_type"] = "review"
@@ -2502,14 +2501,13 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         f"for {user_input_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
                     )
 
-            gpt2_output = answer_from_gpt2_service(data={
-                "question": question,
-                "asking_name": x["asking_name"],
-                "mood": determine_mood(response_cache),
-                "forced_tags_string": forced_tags_string,
-                "write_fic_override": write_fic_override,
-                "return_all_conts": 1,
-            })
+            gpt2_output = answer_from_gpt(
+                prompt=question,
+                asking_name=x["asking_name"],
+                mood_name=determine_mood(response_cache),
+                forced_tags_string=forced_tags_string,
+                write_fic_override=write_fic_override,
+            )
 
             if (
                 response_cache.get_cached_user_input_sentiment(user_input_identifier)
@@ -2568,7 +2566,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
             print(f"writing new text post... ({textpost_ix}/{N_TO_WRITE})")
 
-            gpt2_output, loop_persistent_data = text_post_from_gpt2_service(
+            gpt2_output, loop_persistent_data = text_post_from_gpt(
                 loop_persistent_data=loop_persistent_data,
                 mood=mood_for_queue_writing,
                 ts=dt,

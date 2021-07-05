@@ -201,12 +201,12 @@ def get_textpost_prompts():
     probs = []
 
     prompts.append(CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"])
-    overrides.append({"v8_timestamp": "", "v10_timestamp": ""})
+    overrides.append({"v10_timestamp": ""})
     probs.append(FORUMLIKE_REVIEW_PROB)
 
     prompts.append(CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"])
     overrides.append(
-        {"v8_timestamp": "", "v10_timestamp": "", "tag_string_raw": "#original fiction"}
+        {"v10_timestamp": "", "tag_string_raw": "#original fiction"}
     )
     probs.append(FORUMLIKE_FIC_PROB)
 
@@ -241,7 +241,6 @@ def basic_n_continuations(
     avoid_initial_blockquote=False,
     avoid_if_profane=False,
     avoid_if_says_frank=False,
-    v8_timestamp="",
     v10_timestamp="",
     mirotarg=None,
     forced_tags_string=None,
@@ -251,18 +250,14 @@ def basic_n_continuations(
 ):
     continuation_side_data = []
 
-    relevant_timestamp = v10_timestamp if V10 else v8_timestamp
-
     if use_textpost_prompt:
         raw_prompts, overrides, probs = get_textpost_prompts()
         prompts = []
         for p, o in zip(raw_prompts, overrides):
-            this_v8_timestamp = o.get("v8_timestamp", v8_timestamp)
             this_v10_timestamp = o.get("v10_timestamp", v10_timestamp)
-            relevant_timestamp = this_v10_timestamp if V10 else this_v8_timestamp
 
             ts_string = format_segment_v8_time(
-                relevant_timestamp, control_seg_config=CONTROL_SEG_CONFIG
+                this_v10_timestamp, control_seg_config=CONTROL_SEG_CONFIG
             )
             if CONTROL_SEG_CONFIG["flags"]["add_control_prefix_to_forced_tag_strings"]:
                 tag_string = format_segment_v8_tags(
@@ -298,7 +293,7 @@ def basic_n_continuations(
             mirotarg=mirotarg,
         )
     elif V8:
-        prompt = join_time_sidechannel(prompt, relevant_timestamp)
+        prompt = join_time_sidechannel(prompt, v10_timestamp)
 
         prompt = finalize_prompt_for_neural(
             prompt,
@@ -627,53 +622,6 @@ def _make_alt_timestamps(v10_timestamp):
     return alts
 
 
-def answer_from_gpt2_service(data: dict, mood=None, ts=None, no_timestamp=False):
-    t1 = time.time()
-
-    if ts is None:
-        ts = datetime.now()
-    data["v8_timestamp"] = timestamp_to_v8_format(ts)
-    data["v10_timestamp"] = timestamp_to_v10_format(ts)
-    if DO_FAKE_V10_YEAR_MONTH:
-        data["v10_timestamp"] = (
-            " ".join(data["v10_timestamp"].split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
-        )
-    if no_timestamp:
-        data["v8_timestamp"] = ""
-        data["v10_timestamp"] = ""
-
-    mood = get_mood_by_name(mood)
-    data["mood"] = mood
-
-    result_generator = old_bridge_call__answer(data=data)
-
-    # strategy = "proportional_winnowed"
-    strategy = "eps_greedy"
-    eps = 0.15
-
-    result, _ = serve_selection(
-        data=result_generator,
-        post_type="answer",
-        mood=mood,
-        strategy=strategy,
-        eps=eps
-    )
-
-    # for logging, add any input fields that didn't make the round trip
-    for k, v in data.items():
-        if k not in result:
-            result[k] = v
-
-    delta_t = time.time() - t1
-    log_prefix = ""
-    write_fic_override = bool(int(data.get("write_fic_override", 0)))
-    if write_fic_override:
-        log_prefix += " (story)"
-    print(f'answer_from_gpt2_service{log_prefix}: served in {delta_t:.1f}s')
-
-    return result
-
-
 def save_retention(retention_stack):
     with open("data/retention_stack.pkl.gz", "wb") as f:
         pickle.dump(retention_stack, f)
@@ -682,7 +630,7 @@ def save_retention(retention_stack):
         pickle.dump(retention_stack, f)
 
 
-def text_post_from_gpt2_service(
+def text_post_from_gpt(
     loop_persistent_data, mood=None, ts=None,
 ):
     t1 = time.time()
@@ -694,7 +642,6 @@ def text_post_from_gpt2_service(
 
     if ts is None:
         ts = datetime.now()
-    data["v8_timestamp"] = timestamp_to_v8_format(ts)
     data["v10_timestamp"] = timestamp_to_v10_format(ts)
     if DO_FAKE_V10_YEAR_MONTH:
         data["v10_timestamp"] = (
@@ -733,21 +680,85 @@ def text_post_from_gpt2_service(
     return result, loop_persistent_data
 
 
-def old_bridge_call__answer(data):
-    prompt = data["question"]
-    asking_name = data.get("asking_name", "")
-    mood = data.get("mood")
-    exact_prompt = data.get("exact_prompt", False)
-    v8_timestamp = data.get("v8_timestamp", "")
-    v10_timestamp = data.get("v10_timestamp", "")
-    forced_tags_string = data.get("forced_tags_string", "")
-    write_fic_override = bool(int(data.get("write_fic_override", 0)))
-    write_review_override = bool(int(data.get("write_review_override", 0)))
-    selector_cut_to_final_exchange = bool(
-        int(data.get("selector_cut_to_final_exchange", False))
-    )
-    avoid_initial_blockquote = bool(int(data.get("avoid_initial_blockquote", False)))
+def answer_from_gpt(
+        prompt,
+        asking_name="",
+        mood_name=None,
+        exact_prompt=False,
+        forced_tags_string="",
+        write_fic_override=False,
+        write_review_override=False,
+        selector_cut_to_final_exchange=False,
+        avoid_initial_blockquote=False,
+        ts=None,
+        no_timestamp=False
+):
+    t1 = time.time()
 
+    if ts is None:
+        ts = datetime.now()
+    v10_timestamp = timestamp_to_v10_format(ts)
+    if DO_FAKE_V10_YEAR_MONTH:
+        v10_timestamp= (
+            " ".join(v10_timestamp.split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
+        )
+    if no_timestamp:
+        v10_timestamp = ""
+
+    mood = get_mood_by_name(mood_name)
+
+    result_generator = old_bridge_call__answer(
+        prompt=prompt,
+        asking_name=asking_name,
+        mood=mood,
+        exact_prompt=exact_prompt,
+        v10_timestamp=v10_timestamp,
+        forced_tags_string=forced_tags_string,
+        write_fic_override=write_fic_override,
+        write_review_override=write_review_override,
+        selector_cut_to_final_exchange=selector_cut_to_final_exchange,
+        avoid_initial_blockquote=avoid_initial_blockquote
+    )
+
+    # strategy = "proportional_winnowed"
+    strategy = "eps_greedy"
+    eps = 0.15
+
+    result, _ = serve_selection(
+        data=result_generator,
+        post_type="answer",
+        mood=mood,
+        strategy=strategy,
+        eps=eps
+    )
+
+    # for logging, add input fields that didn't make the round trip
+    result["question"] = prompt  # TODO [cleanup]: rename if safe
+    result["asking_name"] = asking_name
+    result["v10_timestamp"] = v10_timestamp
+    result["mood"] = mood_name
+
+    delta_t = time.time() - t1
+    log_prefix = ""
+    if write_fic_override:
+        log_prefix += " (story)"
+    print(f'answer_from_gpt{log_prefix}: served in {delta_t:.1f}s')
+
+    return result
+
+
+def old_bridge_call__answer(
+        prompt,
+        asking_name="",
+        mood=None,
+        exact_prompt=False,
+        v10_timestamp="",
+        forced_tags_string="",
+        write_fic_override=False,
+        write_review_override=False,
+        selector_cut_to_final_exchange=False,
+        avoid_initial_blockquote=False
+):
     if not exact_prompt:
         prompt = (
             UNAME_CHAR
@@ -832,7 +843,6 @@ def old_bridge_call__answer(data):
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_profane=avoid_if_profane,
         avoid_if_says_frank=avoid_if_says_frank,
-        v8_timestamp=v8_timestamp,
         v10_timestamp=generator_v10_timestamp,
         forced_tags_string=forced_tags_string,
         write_fic_override=write_fic_override,
@@ -935,7 +945,6 @@ def old_bridge_call__answer(data):
 def old_bridge_call__textpost(data):
     prompt = ""
     mood = data.get("mood")
-    v8_timestamp = data.get("v8_timestamp", "")
     v10_timestamp = data.get("v10_timestamp", "")
     n_retention = int(data.get("n_retention"))
 
@@ -1002,7 +1011,6 @@ def old_bridge_call__textpost(data):
         use_textpost_prompt=True,
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_says_frank=avoid_if_says_frank,
-        v8_timestamp=v8_timestamp,
         v10_timestamp=generator_v10_timestamp,
     )
 

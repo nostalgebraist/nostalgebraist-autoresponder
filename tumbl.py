@@ -2062,7 +2062,7 @@ def do_reblog_reply_handling(
         notifications = check_notifications(
             n_to_check=loop_persistent_data.n_notifications_to_check,
             after_ts=loop_persistent_data.last_seen_ts_notifications,
-            dump_to_file=True
+            dump_to_file=False
         )
 
         if len(notifications) > 0:

@@ -49,13 +49,6 @@ AB_TEST_SELECTOR = True
 AB_TEST_A_SEQUENCE = "\uFFF9"
 AB_TEST_B_SEQUENCE = "\uFFF9\uFFFA\uFFFB"
 
-PROMPT_STACK = {}
-RESULT_STACK = {}
-
-GENERATION_RESULT_STACK = {}
-
-# GENERATIONS_PER_REQUEST = 1
-
 DO_FAKE_V10_YEAR_MONTH = False
 FAKE_V10_YEAR_MONTH = "December 2020"
 
@@ -734,8 +727,6 @@ def text_post_from_gpt2_service(
 
 
 def old_bridge_call__answer(data):
-    global PROMPT_STACK
-
     prompt = data["question"]
     mood = data.get("mood")
     exact_prompt = data.get("exact_prompt", False)
@@ -818,24 +809,22 @@ def old_bridge_call__answer(data):
 
     kwargs["AB_fork"] = fork
     generation_id = str(uuid.uuid4())
-    PROMPT_STACK[generation_id] = {
+    data = {
         "type": "answer",
         "prompt": prompt,
         "kwargs": kwargs,
         "v8_timestamp": v8_timestamp,
         "v10_timestamp": v10_timestamp,
     }
-    PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"][
+    data["n_desired"] = data["kwargs"][
         "best_of"
     ]
-    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = PROMPT_STACK[generation_id][
+    data["kwargs"]["best_of"] = data[
         "kwargs"
     ]["best_of"]
     print(
-        f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
+        f"desiring {data['n_desired']}, per request {data['kwargs']['best_of']}"
     )
-
-    data = PROMPT_STACK[generation_id]
 
     # old serve_answer
     print("\n------------\n")
@@ -994,8 +983,6 @@ def old_bridge_call__answer(data):
 
 
 def old_bridge_call__textpost(data):
-    global PROMPT_STACK
-
     mood = data.get("mood")
     v8_timestamp = data.get("v8_timestamp", "")
     v10_timestamp = data.get("v10_timestamp", "")
@@ -1061,22 +1048,21 @@ def old_bridge_call__textpost(data):
     print(f"AB test: fork {fork}, n_retention {n_retention}, kwargs {kwargs}")
 
     generation_id = str(uuid.uuid4())
-    PROMPT_STACK[generation_id] = {
+    data = {
         "type": "textpost",
         "kwargs": kwargs,
         "v8_timestamp": v8_timestamp,
         "v10_timestamp": v10_timestamp,
     }
-    PROMPT_STACK[generation_id]["n_desired"] = PROMPT_STACK[generation_id]["kwargs"][
+    data["n_desired"] = data["kwargs"][
         "best_of"
     ]
-    PROMPT_STACK[generation_id]["kwargs"]["best_of"] = PROMPT_STACK[generation_id][
+    data["kwargs"]["best_of"] = data[
         "kwargs"
     ]["best_of"]
     print(
-        f"desiring {PROMPT_STACK[generation_id]['n_desired']}, per request {PROMPT_STACK[generation_id]['kwargs']['best_of']}"
+        f"desiring {data['n_desired']}, per request {data['kwargs']['best_of']}"
     )
-    data = PROMPT_STACK[generation_id]
 
     # old serve_textpost
     prompt = ""

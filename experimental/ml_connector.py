@@ -630,6 +630,29 @@ def save_retention(retention_stack):
         pickle.dump(retention_stack, f)
 
 
+def adjust_best_of(best_of, mood):
+    expected_rejection_frac = estimate_expected_rejections(
+        min_logit_diff=mood["min_allowed_score"],
+        max_logit_diff=mood["max_allowed_score"],
+        logit_diff_sample_series=logit_diff_sample_series,
+    )
+
+    raw_extra_best_of = (
+        int(np.round(best_of / (1 - expected_rejection_frac)))
+        - best_of
+    )
+    discounted_extra_best_of = int(
+        np.round(raw_extra_best_of * EXPECTED_REJECTION_MULT)
+    )
+
+    print(
+        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over best_of={best_of}"
+    )
+    best_of += discounted_extra_best_of
+    print(f"discounting to {discounted_extra_best_of} --> best_of={best_of}")
+    return best_of
+
+
 def answer_from_gpt(
         prompt,
         asking_name="",
@@ -726,25 +749,7 @@ def old_bridge_call__answer(
     if write_fic_override or write_review_override:
         best_of = 6 if not (TRADE_QUALITY_FOR_SPEED) else 4
 
-    expected_rejection_frac = estimate_expected_rejections(
-        min_logit_diff=mood["min_allowed_score"],
-        max_logit_diff=mood["max_allowed_score"],
-        logit_diff_sample_series=logit_diff_sample_series,
-    )
-
-    raw_extra_best_of = (
-        int(np.round(best_of / (1 - expected_rejection_frac)))
-        - best_of
-    )
-    discounted_extra_best_of = int(
-        np.round(raw_extra_best_of * EXPECTED_REJECTION_MULT)
-    )
-
-    print(
-        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over best_of={best_of}"
-    )
-    best_of += discounted_extra_best_of
-    print(f"discounting to {discounted_extra_best_of} --> best_of={best_of}")
+    best_of = adjust_best_of(best_of, mood)
 
     avoid_if_under = 5
     if write_fic_override:
@@ -944,36 +949,12 @@ def old_bridge_call__textpost(
     avoid_if_says_frank = False
     random_year_for_generator = True
 
-    n_candidates_target = TEXTPOST_N_CANDIDATES_TARGET
-
-    # TODO: DRY
-    expected_rejection_frac = estimate_expected_rejections(
-        min_logit_diff=mood["min_allowed_score"],
-        max_logit_diff=mood["max_allowed_score"],
-        logit_diff_sample_series=logit_diff_sample_series,
-    )
-
-    raw_extra_best_of = (
-        int(np.round(n_candidates_target / (1 - expected_rejection_frac)))
-        - n_candidates_target
-    )
-    discounted_extra_best_of = int(
-        np.round(raw_extra_best_of * EXPECTED_REJECTION_MULT)
-    )
-
-    print(
-        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over n_candidates_target={n_candidates_target}"
-    )
-    n_candidates_target += discounted_extra_best_of
-    print(
-        f"discounting to {discounted_extra_best_of} --> n_candidates_target={n_candidates_target}"
-    )
+    best_of = TEXTPOST_N_CANDIDATES_TARGET
+    best_of = adjust_best_of(best_of, mood)
 
     if n_retention is not None:
-        n_candidates_target = max(1, n_candidates_target - n_retention)
-        print(f"with {n_retention} on stack, only need {n_candidates_target}")
-
-    best_of = n_candidates_target
+        best_of = max(1, best_of - n_retention)
+        print(f"with {n_retention} on stack, only need {best_of}")
 
     print(f"n_retention {n_retention}")
 

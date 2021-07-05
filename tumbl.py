@@ -1436,8 +1436,8 @@ def is_statically_reblog_worthy_on_dash(
         reblog_worthy = False
 
     if scrape_worthy:
-        print(f"archiving {post_identifier} | ", end="")
         path = "data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "data/dash_post_dump_frank.txt"
+        print(f"archiving {post_identifier} to {path}| ", end="")
         archive_to_corpus(post_payload, path=path)
 
     if is_nost_dash_scraper:
@@ -2102,7 +2102,11 @@ def do_reblog_reply_handling(
         statically_worthy_posts = []
         for post_ix, post in enumerate(tqdm(posts)):  # posts[:n_posts_to_check]
             if is_statically_reblog_worthy_on_dash(
-                post, response_cache, loop_persistent_data, verbose=VERBOSE_LOGS
+                post,
+                response_cache,
+                loop_persistent_data,
+                verbose=VERBOSE_LOGS,
+                is_nost_dash_scraper=is_nost_dash_scraper
             ):
                 statically_worthy_posts.append(post)
         print(f"{len(statically_worthy_posts)}/{len(posts)} statically reblog worthy")

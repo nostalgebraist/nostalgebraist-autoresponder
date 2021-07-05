@@ -28,11 +28,10 @@ import scipy.stats
 import torch
 import torch.nn.functional as F
 
+from autoresponder_static import ORIG_POST_CHAR_CHINESE
 from selector_model.selector_nn_neo import NostARHead, NostARHeadArchitectureParams, GPT2TokenizerType, GPTModelType, prep_inputs
 from selector_model.selector_utils_neo import NostARHeadOptimizerParams, get_nost_ar_head_optimizers, get_nost_ar_head_scheduler, cross_entropy_with_flooding, make_huber_loss_from_logits
 from util.util import typed_namedtuple_to_dict
-
-ORIG_POST_CHAR_CHINESE = "翰"
 
 
 def var_score(y_true, y_pred):

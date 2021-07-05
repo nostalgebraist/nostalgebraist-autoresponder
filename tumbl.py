@@ -4,10 +4,8 @@ Tumblr API layer and main loop of the bot during operation.
 # import cProfile
 import os
 import pickle
-import json
 import urllib.parse
 import argparse
-from datetime import datetime
 from string import punctuation, whitespace
 from itertools import product
 from collections import defaultdict
@@ -28,7 +26,6 @@ from reply_munging import (
     post_body_find_reply_data,
 )
 
-from pytumblr_wrapper import RateLimitClient
 from response_cache import (
     ResponseCache,
     PostIdentifier,
@@ -2566,11 +2563,8 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
             print(f"writing new text post... ({textpost_ix}/{N_TO_WRITE})")
 
-            gpt2_output, loop_persistent_data = text_post_from_gpt(
-                loop_persistent_data=loop_persistent_data,
-                mood=mood_for_queue_writing,
-                ts=dt,
-            )
+            gpt2_output, loop_persistent_data = text_post_from_gpt(loop_persistent_data=loop_persistent_data,
+                                                                   mood_name=mood_for_queue_writing, ts=dt)
 
             log_data = gpt2_output
             log_data["post_type"] = "textpost"

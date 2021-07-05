@@ -630,56 +630,6 @@ def save_retention(retention_stack):
         pickle.dump(retention_stack, f)
 
 
-def text_post_from_gpt(
-    loop_persistent_data, mood=None, ts=None,
-):
-    t1 = time.time()
-
-    data = {}
-
-    mood = get_mood_by_name(mood)
-    data["mood"] = mood
-
-    if ts is None:
-        ts = datetime.now()
-    data["v10_timestamp"] = timestamp_to_v10_format(ts)
-    if DO_FAKE_V10_YEAR_MONTH:
-        data["v10_timestamp"] = (
-            " ".join(data["v10_timestamp"].split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
-        )
-
-    data["n_retention"] = len(loop_persistent_data.retention_stack)
-
-    result_generator = old_bridge_call__textpost(data=data)
-
-    # strategy = "proportional_winnowed"
-    strategy = "eps_greedy"
-    eps = 0.15
-
-    result, retention_stack = serve_selection(
-        data=result_generator,
-        post_type="textpost",
-        mood=mood,
-        strategy=strategy,
-        eps=eps,
-        retention_stack=loop_persistent_data.retention_stack,
-    )
-
-    save_retention(retention_stack)
-
-    loop_persistent_data.retention_stack = retention_stack
-
-    # for logging, add any input fields that didn't make the round trip
-    for k, v in data.items():
-        if k not in result:
-            result[k] = v
-
-    delta_t = time.time() - t1
-    print(f'text_post_from_gpt2_service: served in {delta_t:.1f}s')
-
-    return result, loop_persistent_data
-
-
 def answer_from_gpt(
         prompt,
         asking_name="",
@@ -806,11 +756,6 @@ def old_bridge_call__answer(
     if asking_name == "bukbot":
         avoid_if_profane = True
 
-    data = {
-        "type": "answer",
-        "prompt": prompt,
-    }
-
     # old serve_answer
     print("\n------------\n")
     prompt = prompt.rstrip(whitespace)
@@ -848,12 +793,12 @@ def old_bridge_call__answer(
         write_fic_override=write_fic_override,
         override_disable_forumlike=override_disable_forumlike,
     )
-    parsed = data.copy()
+    response_data = {}
     delete_title = write_fic_override and CONTROL_SEG_CONFIG["flags"].get("fic_override_v2", False)
-    parsed["continuations"] = [final_munge_after_neural(c, delete_title=delete_title) for c in continuations]
-    parsed["continuation_side_data"] = continuation_side_data
-    parsed["generator_v10_timestamp"] = generator_v10_timestamp
-    parsed["selector_v10_timestamp"] = selector_v10_timestamp
+    response_data["continuations"] = [final_munge_after_neural(c, delete_title=delete_title) for c in continuations]
+    response_data["continuation_side_data"] = continuation_side_data
+    response_data["generator_v10_timestamp"] = generator_v10_timestamp
+    response_data["selector_v10_timestamp"] = selector_v10_timestamp
 
     if SELECTOR_CAN_SEE_PROMPTS:
         if selector_cut_to_final_exchange and not override_disable_forumlike:
@@ -893,7 +838,7 @@ def old_bridge_call__answer(
             )
             entry_selection_results = predict_select(alt_selector_inputs)
             listkey = f"alt_selection_proba__{alt_ts.replace(' ', '_')}"
-            parsed[listkey] = [float(p) for p in entry_selection_results]
+            response_data[listkey] = [float(p) for p in entry_selection_results]
 
     selector_inputs = [
         join_time_sidechannel(s, selector_v10_timestamp) for s in selector_inputs
@@ -910,10 +855,10 @@ def old_bridge_call__answer(
         selector_inputs,
         override_disable_forumlike=override_disable_forumlike,
     )
-    parsed["selection_proba"] = [float(p) for p in selection_results]
-    selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
+    response_data["selection_proba"] = [float(p) for p in selection_results]
+    selector_inputs = pd.DataFrame({"selector_input": response_data["continuations"]})
     sentiment_results = predict_sentiment(selector_inputs)
-    parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
+    response_data["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
 
     autoreview_inputs = [
         cut_to_new_since_last_frank_post(prompt + final_munge_after_neural(c, delete_title=delete_title))
@@ -934,24 +879,65 @@ def old_bridge_call__answer(
         autoreview_inputs,
         debug=False,
     )
-    parsed["autoreview_proba"] = [float(p) for p in autoreview_results]
+    response_data["autoreview_proba"] = [float(p) for p in autoreview_results]
 
     if GLOBAL_DEBUG:
-        print(f"sending back: {parsed}")
+        print(f"sending back: {response_data}")
 
-    return parsed
+    return response_data
 
 
-def old_bridge_call__textpost(data):
-    prompt = ""
-    mood = data.get("mood")
-    v10_timestamp = data.get("v10_timestamp", "")
-    n_retention = int(data.get("n_retention"))
+def text_post_from_gpt(loop_persistent_data, mood_name=None, ts=None):
+    t1 = time.time()
 
-    best_of = 10
-    verbose = True
-    V5 = True
+    mood = get_mood_by_name(mood_name)
 
+    if ts is None:
+        ts = datetime.now()
+    v10_timestamp = timestamp_to_v10_format(ts)
+    if DO_FAKE_V10_YEAR_MONTH:
+        v10_timestamp = (
+            " ".join(v10_timestamp.split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
+        )
+
+    n_retention = len(loop_persistent_data.retention_stack)
+
+    result_generator = old_bridge_call__textpost(n_retention=n_retention,
+                                                 mood=mood,
+                                                 v10_timestamp=v10_timestamp)
+
+    # strategy = "proportional_winnowed"
+    strategy = "eps_greedy"
+    eps = 0.15
+
+    result, retention_stack = serve_selection(
+        data=result_generator,
+        post_type="textpost",
+        mood=mood,
+        strategy=strategy,
+        eps=eps,
+        retention_stack=loop_persistent_data.retention_stack,
+    )
+
+    save_retention(retention_stack)
+
+    loop_persistent_data.retention_stack = retention_stack
+
+    # for logging, add input fields that didn't make the round trip
+    result["v10_timestamp"] = v10_timestamp
+    result["mood"] = mood_name
+
+    delta_t = time.time() - t1
+    print(f'text_post_from_gpt: served in {delta_t:.1f}s')
+
+    return result, loop_persistent_data
+
+
+def old_bridge_call__textpost(
+        n_retention,
+        mood=None,
+        v10_timestamp="",
+):
     avoid_if_under = 10
     avoid_half_if_under = 10
     avoid_initial_blockquote = False
@@ -1004,7 +990,7 @@ def old_bridge_call__textpost(data):
     print(f"selector_v10_timestamp: {repr(selector_v10_timestamp)}")
 
     continuations, continuation_side_data = basic_n_continuations(
-        prompt,
+        prompt="",
         N=best_of,
         avoid_if_under=avoid_if_under,
         avoid_half_if_under=avoid_half_if_under,
@@ -1023,11 +1009,11 @@ def old_bridge_call__textpost(data):
             print(c, end='\n----------\n')
     print(f'{qc} / {len(continuations)} have dreams')
 
-    parsed = data.copy()
-    parsed["continuations"] = [final_munge_after_neural(c) for c in continuations]
-    parsed["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
-    parsed["generator_v10_timestamp"] = generator_v10_timestamp
-    parsed["selector_v10_timestamp"] = selector_v10_timestamp
+    response_data = {}
+    response_data["continuations"] = [final_munge_after_neural(c) for c in continuations]
+    response_data["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
+    response_data["generator_v10_timestamp"] = generator_v10_timestamp
+    response_data["selector_v10_timestamp"] = selector_v10_timestamp
 
     if FORUMLIKE:
         selector_inputs = [c for c in continuations]
@@ -1060,11 +1046,11 @@ def old_bridge_call__textpost(data):
         selector_inputs,
         override_disable_forumlike=True,
     )
-    parsed["selection_proba"] = [float(p) for p in selection_results]
+    response_data["selection_proba"] = [float(p) for p in selection_results]
 
-    sentiment_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
+    sentiment_inputs = pd.DataFrame({"selector_input": response_data["continuations"]})
     sentiment_results = predict_sentiment(sentiment_inputs)
-    parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
+    response_data["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
 
     autoreview_inputs = selector_inputs
     autoreview_results = predict_autoreview(
@@ -1072,12 +1058,12 @@ def old_bridge_call__textpost(data):
         override_disable_forumlike=True,
         debug=False,
     )
-    parsed["autoreview_proba"] = [float(p) for p in autoreview_results]
+    response_data["autoreview_proba"] = [float(p) for p in autoreview_results]
 
     if GLOBAL_DEBUG:
-        print(f"sending back: {parsed}")
+        print(f"sending back: {response_data}")
 
-    return parsed
+    return response_data
 
 
 def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):

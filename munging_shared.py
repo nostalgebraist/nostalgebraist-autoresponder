@@ -9,9 +9,10 @@ from bs4 import BeautifulSoup
 from wcwidth import wcwidth
 
 import reblogs_v5
-from autoresponder_static import find_all_control_chars_chinese, CHINESE_CHAR_DELIMITERS
+from autoresponder_static import find_all_control_chars_chinese, CHINESE_CHAR_DELIMITERS, EOT_FULL
 from autoresponder_static_v8 import TIME_SIDECHANNEL_CHAR, timestamp_to_v10_format, join_time_sidechannel
-from autoresponder_config import DEFAULT_CSC, final_munge_before_neural
+from autoresponder_config import final_munge_before_neural
+from util.error_handling import LogExceptionAndSkip
 
 from image_analysis import (
     V9_IMAGE_FORMATTER,
@@ -509,18 +510,10 @@ def write_text_for_side_judgment(
     swap_in_frank=False,
     add_empty_response=True,
     keep_orig_post_char=False,
-    dump_to_file=False
 ):
     processed = process_post_from_post_payload(post_payload)
     if processed is None:
         return False
-
-    if dump_to_file:
-        with open("data/dash_post_dump.jsonl", "a", encoding="utf-8") as f:
-            timestamp = timestamp_to_v10_format(datetime.now())
-            line = {"doc": processed, "ts": timestamp}
-            json.dump(line, f)
-            f.write('\n')
 
     if ORIG_POST_CHAR in processed:
         if keep_orig_post_char:
@@ -582,6 +575,18 @@ def corpus_doc_from_post_payload(post_payload):
     doc = final_munge_before_neural(doc_chinese_format, mode='train', user_name=post_payload['blog_name'])
 
     return doc
+
+
+def archive_to_corpus(post_payload, path="data/dash_post_dump.txt", separator=EOT_FULL):
+    with LogExceptionAndSkip("archive post to corpus"):
+        doc = corpus_doc_from_post_payload(post_payload)
+
+        if EOT_FULL in doc:
+            raise ValueError(f"separator in doc: {repr(doc)}")
+
+        with open(path, "a", encoding="utf-8") as f:
+            line = doc + EOT_FULL
+            json.dump(line, f)
 
 
 class LegacySimulatingClient(RateLimitClient):

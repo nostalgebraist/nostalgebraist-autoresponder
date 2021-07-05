@@ -1397,7 +1397,7 @@ def is_statically_reblog_worthy_on_dash(
             )
         return True
 
-    ### rules that shouldn't be applied to scraping
+    ### rule-out conditions below don't block scraping, just reblog-from-dash
     reblog_worthy = True
     scrape_worthy = True
 
@@ -1435,11 +1435,9 @@ def is_statically_reblog_worthy_on_dash(
             )
         reblog_worthy = False
 
-    if scrape_worthy and (not reblog_worthy):
-        pass
-        # the following logs extra posts:
-        # print(f"processing {post_identifier} | ", end="")
-        # write_text_for_side_judgment(post_payload, dump_to_file=True)
+    if scrape_worthy:
+        print(f"archiving {post_identifier} | ", end="")
+        archive_to_corpus(post_payload, path="data/dash_post_dump.txt")
 
     return reblog_worthy
 

@@ -649,12 +649,17 @@ class TumblrPost(TumblrPostBase):
 
 
 class TumblrThread:
-    def __init__(self, posts: List[TumblrPost]):
+    def __init__(self, posts: List[TumblrPost], timestamp: int):
         self._posts = posts
+        self._timestamp = timestamp
 
     @property
     def posts(self):
         return self._posts
+
+    @property
+    def timestamp(self):
+        return self._timestamp
 
     @staticmethod
     def from_payload(payload: dict) -> 'TumblrThread':
@@ -668,7 +673,9 @@ class TumblrThread:
             for post_payload in post_payloads
         ]
 
-        return TumblrThread(posts)
+        timestamp = payload['timestamp']
+
+        return TumblrThread(posts, timestamp)
 
     @staticmethod
     def _format_post_as_quoting_previous(post: TumblrPost, prev: TumblrPost, quoted: str) -> str:

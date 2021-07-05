@@ -9,7 +9,8 @@ from bs4 import BeautifulSoup
 from wcwidth import wcwidth
 
 import reblogs_v5
-from autoresponder_static import find_all_control_chars_chinese, CHINESE_CHAR_DELIMITERS, EOT_FULL
+from autoresponder_static import find_all_control_chars_chinese, CHINESE_CHAR_DELIMITERS, EOT_FULL, Q_CHAR, A_CHAR, \
+    T_CHAR, UNAME_CHAR, ORIG_POST_CHAR_CHINESE
 from autoresponder_static_v8 import TIME_SIDECHANNEL_CHAR, timestamp_to_v10_format, join_time_sidechannel
 from autoresponder_config import final_munge_before_neural
 from util.error_handling import LogExceptionAndSkip
@@ -38,13 +39,6 @@ AUGUST_2020_TRAIL_HACK_ADDON = True
 FORCE_TRAIL_HACK_IDS = {621279018200760320, 624899848589688832, 645400204942704640, 645854610131714048, 645861728145555456}
 JUNE_2020_LINKPOST_HACK = True
 
-Q_CHAR = "会"
-A_CHAR = "域"
-T_CHAR = "职"
-
-UNAME_CHAR = "友"
-ORIG_POST_CHAR = "翰"
-
 
 def sanitize_user_input_outer_shell(text):
     # to be applied to stuff near the tumblr API level
@@ -62,7 +56,7 @@ def sanitize_user_input_outer_shell(text):
 def format_post_for_api(post):
     # temporary hack
     post = (
-        post.replace(ORIG_POST_CHAR, "")
+        post.replace(ORIG_POST_CHAR_CHINESE, "")
         .replace("Blog post by Frank", "")
         .replace("Book review by Frank", "")
         .replace("Original fiction by Frank", "")
@@ -288,8 +282,8 @@ def process_post_from_post_payload(
             + inverse_format_post_for_api(post["question"])
             + "\n"
         )
-        if ORIG_POST_CHAR in processed:
-            processed = processed.replace(ORIG_POST_CHAR, A_CHAR)
+        if ORIG_POST_CHAR_CHINESE in processed:
+            processed = processed.replace(ORIG_POST_CHAR_CHINESE, A_CHAR)
         processed = ask_prefix + processed
         if VERBOSE_LOGS:
             print(f"ask_prefix: {ask_prefix}")
@@ -509,17 +503,17 @@ def write_text_for_side_judgment(
     add_tags=False,
     swap_in_frank=False,
     add_empty_response=True,
-    keep_orig_post_char=False,
+    keep_ORIG_POST_CHAR_CHINESE=False,
 ):
     processed = process_post_from_post_payload(post_payload)
     if processed is None:
         return False
 
-    if ORIG_POST_CHAR in processed:
-        if keep_orig_post_char:
+    if ORIG_POST_CHAR_CHINESE in processed:
+        if keep_ORIG_POST_CHAR_CHINESE:
             text = processed
         else:
-            text = processed[processed.index(ORIG_POST_CHAR) + 1 :]
+            text = processed[processed.index(ORIG_POST_CHAR_CHINESE) + 1 :]
             if not swap_in_frank:
                 text = UNAME_CHAR + post_payload["blog_name"] + Q_CHAR + text
     elif A_CHAR in processed:
@@ -550,8 +544,8 @@ def write_text_for_side_judgment(
     if not add_tags:
         tags = []
     text += T_CHAR + " ".join(["#" + t for t in tags])
-    if ORIG_POST_CHAR not in text and A_CHAR not in text and UNAME_CHAR not in text:
-        text = ORIG_POST_CHAR + text
+    if ORIG_POST_CHAR_CHINESE not in text and A_CHAR not in text and UNAME_CHAR not in text:
+        text = ORIG_POST_CHAR_CHINESE + text
     return text
 
 
@@ -567,7 +561,7 @@ def corpus_doc_from_post_payload(post_payload):
         add_tags=True,
         swap_in_frank=False,
         add_empty_response=False,
-        keep_orig_post_char=True
+        keep_ORIG_POST_CHAR_CHINESE=True
     )
 
     doc_chinese_format = join_time_sidechannel(doc_chinese_format, v10_timestamp)

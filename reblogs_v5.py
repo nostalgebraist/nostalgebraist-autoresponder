@@ -1,12 +1,18 @@
 """mysterious hacky html parsing that somehow (mostly?) successfully handles tumblr's weird pre-NPF markup format"""
-Q_CHAR = "会"
-A_CHAR = "域"
-T_CHAR = "职"
+from string import whitespace
+from itertools import product
 
-UNAME_CHAR = "友"
-ORIG_POST_CHAR = "翰"
+import bs4
+
+from autoresponder_static import Q_CHAR, A_CHAR, \
+    T_CHAR, UNAME_CHAR, ORIG_POST_CHAR_CHINESE, V10_ASK_CHAR
+from image_analysis import (
+    V9_IMAGE_FORMATTER,
+)
+import image_analysis_singleton
+image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
+
 START_DUMMY = "⭒"
-V10_ASK_CHAR = "要"
 
 V10_CHARS_TO_LEGACY_CHARS = {V10_ASK_CHAR: Q_CHAR}
 
@@ -47,17 +53,6 @@ AVOID = {
     "header",
 }
 USE_IMAGE_ANALYSIS = {"img"}
-
-from string import whitespace
-from itertools import product
-
-import bs4
-
-from image_analysis import (
-    V9_IMAGE_FORMATTER,
-)
-import image_analysis_singleton
-image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
 
 def IMAGE_ANALYSIS_FN(
@@ -626,7 +621,7 @@ def process_post(
         and not post_metadata["is_reblog"]
         and post_metadata["reply_post_url"] is None
     ):
-        processed = ORIG_POST_CHAR + processed
+        processed = ORIG_POST_CHAR_CHINESE + processed
         post_metadata["is_orig"] = True
 
     if not V10:

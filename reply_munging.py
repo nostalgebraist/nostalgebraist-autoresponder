@@ -1,4 +1,4 @@
-from munging_shared import UNAME_CHAR, Q_CHAR, A_CHAR
+from autoresponder_static import UNAME_CHAR, Q_CHAR, A_CHAR
 
 
 def mockup_xkit_reply(

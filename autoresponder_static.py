@@ -2,8 +2,6 @@ import re
 import numpy as np
 from copy import deepcopy
 
-NORMALIZE = True
-
 GLOBAL_DEBUG = False
 
 EOT_FULL = "<|endoftext|>"
@@ -485,8 +483,7 @@ def final_munge_before_neural_v7(
     mode="predict",
 ):
     text = re.sub(r"\\n", "\n", text)
-    if NORMALIZE:
-        text = normalize_for_generator(text)
+    text = normalize_for_generator(text)
     if not override_disable_forumlike:
         text = substitute_forumlike(
             text,

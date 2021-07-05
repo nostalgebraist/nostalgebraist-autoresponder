@@ -525,8 +525,7 @@ def predict_sentiment(data):
         if T_CHAR not in text:
             text = text + T_CHAR
         text = text.partition(T_CHAR)[0]
-        if NORMALIZE:
-            text = normalize_for_generator(text)
+        text = normalize_for_generator(text)
         text = re.sub(r"\<.*?\>", "", text)  # sentiment-specific
 
         if EOT_PREPEND:

@@ -1429,7 +1429,7 @@ def is_statically_reblog_worthy_on_dash(
         # pass
         # the following logs extra posts:
         print(f"processing {post_identifier} | ", end="")
-        write_text_for_side_judgment(post_payload, dump_to_file=True)
+        write_text_for_side_judgment(post_payload, dump_to_file=False)
 
     return reblog_worthy
 

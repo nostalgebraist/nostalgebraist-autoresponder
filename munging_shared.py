@@ -2,6 +2,7 @@
 import re
 import json
 from copy import deepcopy
+from datetime import datetime
 
 import pytumblr
 from bs4 import BeautifulSoup
@@ -9,7 +10,7 @@ from wcwidth import wcwidth
 
 import reblogs_v5
 from autoresponder_static import find_all_control_chars_chinese, CHINESE_CHAR_DELIMITERS
-from autoresponder_static_v8 import TIME_SIDECHANNEL_CHAR
+from autoresponder_static_v8 import TIME_SIDECHANNEL_CHAR, timestamp_to_v10_format
 
 from image_analysis import (
     V9_IMAGE_FORMATTER,
@@ -506,7 +507,7 @@ def write_text_for_side_judgment(
     add_tags=False,
     swap_in_frank=False,
     add_empty_response=True,
-    dump_to_file=True
+    dump_to_file=False
 ):
     processed = process_post_from_post_payload(post_payload)
     if processed is None:
@@ -514,7 +515,9 @@ def write_text_for_side_judgment(
 
     if dump_to_file:
         with open("data/dash_post_dump.jsonl", "a", encoding="utf-8") as f:
-            json.dump(processed, f)
+            timestamp = timestamp_to_v10_format(datetime.now())
+            line = {"doc": processed, "ts": timestamp}
+            json.dump(line, f)
             f.write('\n')
 
     if ORIG_POST_CHAR in processed:

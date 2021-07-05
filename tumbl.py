@@ -6,6 +6,7 @@ import os
 import pickle
 import json
 import urllib.parse
+import argparse
 from datetime import datetime
 from string import punctuation, whitespace
 from itertools import product
@@ -889,7 +890,6 @@ class LoopPersistentData:
         offset_=0,
         requests_per_check_history=[],
         apriori_requests_per_check=25,
-        follower_names=None,
         retention_stack: set = set(),
         slowdown_level: dict = BASE_SLOWDOWN_LEVEL,
     ):
@@ -904,7 +904,6 @@ class LoopPersistentData:
         self.offset_ = offset_
         self.requests_per_check_history = requests_per_check_history
         self.apriori_requests_per_check = apriori_requests_per_check
-        self.follower_names = follower_names
         self.retention_stack = retention_stack
         self.slowdown_level = slowdown_level
 
@@ -914,14 +913,14 @@ class LoopPersistentData:
             )
 
 
-def update_follower_names_v1(loop_persistent_data, response_cache):
+def update_follower_names(response_cache):
     offset = 0
-    response = response_cache.client.blog_following(dash_blogName, offset=offset, limit=20)
+    response = dashboard_client.blog_following(dash_blogName, offset=offset, limit=20)
     total_blogs = response.get("total_blogs")
 
-    if total_blogs != len(loop_persistent_data.follower_names):
+    if total_blogs != len(response_cache.following_names):
         print(
-            f"grabbing followers: total_blogs {response.get('total_blogs')}, we have {len(loop_persistent_data.follower_names)}"
+            f"grabbing followers: total_blogs {response.get('total_blogs')}, we have {len(response_cache.following_names)}"
         )
 
         names = {entry["name"] for entry in response["blogs"]}
@@ -930,7 +929,7 @@ def update_follower_names_v1(loop_persistent_data, response_cache):
             time.sleep(0.5)
 
             offset = len(names)
-            response = response_cache.client.blog_following(
+            response = dashboard_client.blog_following(
                 dash_blogName, offset=offset, limit=20
             )
             if "blogs" not in response:
@@ -945,20 +944,8 @@ def update_follower_names_v1(loop_persistent_data, response_cache):
                     f"could only get {len(names)} followers although tumblr said there were {total_blogs}"
                 )
                 break
-        loop_persistent_data.follower_names = names
-    return loop_persistent_data
-
-
-def update_follower_names_v2(loop_persistent_data, response_cache):
-    if loop_persistent_data.follower_names is None:
-        loop_persistent_data.follower_names = set()
-        loop_persistent_data = update_follower_names_v1(
-            loop_persistent_data, response_cache
-        )
-    return loop_persistent_data
-
-
-update_follower_names = update_follower_names_v2
+        response_cache.set_following_names(names)
+    return response_cache
 
 
 def respond_to_reblogs_replies(
@@ -1424,7 +1411,7 @@ def is_statically_reblog_worthy_on_dash(
                 f"not reblogging {post_identifier} from dash:\n\tcouldn't find post OP in payload\n{post_payload}"
             )
         reblog_worthy = False
-    elif post_OP not in loop_persistent_data.follower_names and post_OP != blogName:
+    elif post_OP not in response_cache.following_names and post_OP != blogName:
         if verbose:
             print(
                 f"not reblogging {post_identifier} from dash:\n\ti don't follow OP {post_OP}"
@@ -1772,7 +1759,7 @@ def get_relevant_replies_from_notes(
         )
 
         # check whether we follow the user
-        am_following_user = n["blog_name"] in loop_persistent_data.follower_names
+        am_following_user = n["blog_name"] in response_cache.following_names
 
         # is user a "frequent replier"
         is_frequent_replier = n["blog_name"] in REPLY_USER_AUTO_ACCEPT_LIST
@@ -1953,9 +1940,6 @@ def do_reblog_reply_handling(
         start_ts = REBLOG_START_TS
 
     follower_multipliers = None
-
-    # we need follower names for reply relevance v2
-    loop_persistent_data = update_follower_names(loop_persistent_data, response_cache)
 
     replies_to_handle = set()
 
@@ -2410,21 +2394,13 @@ def do_ask_handling(loop_persistent_data, response_cache):
     for x in submissions[::-1]:
         if x.get("summary", "") == FOLLOW_COMMAND:
             with LogExceptionAndSkip("follow"):
-                loop_persistent_data = update_follower_names_v2(
-                    loop_persistent_data, response_cache
-                )
-                loop_persistent_data.follower_names.add(x["asking_name"])
-                dashboard_client.follow(x["asking_name"])
+                response_cache.follow(x["asking_name"], dashboard_client)
                 if not BEAMSPLIT_TESTING_FLAG:
                     private_client.delete_post(blogName, x["id"])
                 print(f"followed {x['asking_name']}")
         elif x.get("summary", "") == UNFOLLOW_COMMAND:
             with LogExceptionAndSkip("unfollow"):
-                loop_persistent_data = update_follower_names_v2(
-                    loop_persistent_data, response_cache
-                )
-                loop_persistent_data.follower_names.remove(x["asking_name"])
-                dashboard_client.unfollow(x["asking_name"])
+                response_cache.unfollow(x["asking_name"], dashboard_client)
                 if not BEAMSPLIT_TESTING_FLAG:
                     private_client.delete_post(blogName, x["id"])
                 print(f"unfollowed {x['asking_name']}")
@@ -2898,11 +2874,22 @@ def load_retention():
     return retention_stack
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--regen-following", default=False, action="store_true", help="Pull users we follow from tumblr")
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == "__main__":
     # pr_boot = cProfile.Profile()
     # pr_boot.enable()
 
+    args = parse_args()
+
     response_cache = ResponseCache.load(tank_client)
+    if args.regen_following:
+        response_cache = update_follower_names(response_cache)
 
     retention_stack = load_retention()
 

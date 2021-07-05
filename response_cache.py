@@ -75,6 +75,9 @@ class ResponseCache:
         if "last_seen_ts" not in self.cache:
             self.cache["last_seen_ts"] = defaultdict(int)
 
+        if "following_names" not in self.cache:
+            self.cache["following_names"] = set()
+
     @staticmethod
     def load(client, path="data/response_cache.pkl.gz", verbose=True):
         cache = None
@@ -622,6 +625,17 @@ class ResponseCache:
         )
         self.cache['last_seen_ts'][key] = ts
 
+    def set_following_names(self, following_names):
+        self.cache["following_names"] = following_names
+
+    def follow(self, name, dashboard_client):
+        self.cache["following_names"].add(name)
+        dashboard_client.follow(name)
+
+    def unfollow(self, name, dashboard_client):
+        self.cache["following_names"].remove(name)
+        dashboard_client.unfollow(name)
+
     @property
     def reblogs_handled(self):
         return self.cache["reblogs_handled"]
@@ -645,3 +659,7 @@ class ResponseCache:
     @property
     def blocked_by_users(self):
         return self.cache["blocked_by_users"]
+
+    @property
+    def following_names(self):
+        return self.cache["following_names"]

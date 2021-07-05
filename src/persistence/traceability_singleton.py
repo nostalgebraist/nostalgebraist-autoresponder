@@ -1,4 +1,4 @@
-from traceability import TraceabilityLogs
+from persistence.traceability import TraceabilityLogs
 
 
 TRACE_LOGS = TraceabilityLogs.load()

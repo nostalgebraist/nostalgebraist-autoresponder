@@ -1,4 +1,4 @@
-from image_analysis import ImageAnalysisCache
+from multimodal.image_analysis import ImageAnalysisCache
 
 
 IMAGE_ANALYSIS_CACHE = ImageAnalysisCache.load()

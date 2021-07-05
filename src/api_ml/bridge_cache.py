@@ -5,7 +5,7 @@ from typing import Tuple, NamedTuple
 
 import requests
 
-from bridge_shared import bridge_service_unique_id, bridge_service_url
+from api_ml.bridge_shared import bridge_service_unique_id, bridge_service_url
 from config.autoresponder_config import (
     model_name,
     ckpt_select,

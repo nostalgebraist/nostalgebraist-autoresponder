@@ -2,7 +2,7 @@
 # TODO: refactor this terrible, terrible file
 import subprocess
 
-from bot_config import BotSpecificConstants
+from config.bot_config import BotSpecificConstants
 from munging.autoresponder_static_v8 import *
 
 V8 = True

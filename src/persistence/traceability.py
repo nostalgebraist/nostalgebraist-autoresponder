@@ -7,8 +7,8 @@ from datetime import datetime
 
 import pandas as pd
 
-TRACEABILITY_FN = os.path.join(os.path.dirname(__file__), "data/traceability_logs.pkl.gz")
-TRACEABILITY_COLD_STORAGE_FN = os.path.join(os.path.dirname(__file__), "data/traceability_logs_cold_storage.pkl.gz")
+TRACEABILITY_FN = "data/traceability_logs.pkl.gz"
+TRACEABILITY_COLD_STORAGE_FN = "data/traceability_logs_cold_storage.pkl.gz"
 
 
 def _add_field(logs, fieldname):

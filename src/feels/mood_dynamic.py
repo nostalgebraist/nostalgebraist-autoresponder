@@ -21,7 +21,7 @@ from persistence.response_cache import (
     ResponseCache,
     UserInputIdentifier,
 )
-from mood import (
+from feels.mood import (
     random_mood_at_pst_datetime,
     logit_diff_to_pos_sent,
     pos_sent_to_logit_diff,

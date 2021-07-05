@@ -3,7 +3,7 @@ import os
 import re
 from functools import partial
 from datetime import datetime
-from autoresponder_static import *
+from munging.autoresponder_static import *
 
 TIME_SIDECHANNEL_CHAR = "\U0001f552"  # clock symbol 🕒
 

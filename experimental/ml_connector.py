@@ -175,7 +175,7 @@ sentiment_est = SideJudgmentModelInterface("sentiment")
 autoreviewer_est = SideJudgmentModelInterface("autoreviewer")
 
 
-def parse_continuation(continuation: str, verbose=True, wrap=False):
+def parse_continuation(continuation: str, verbose=True):
     if verbose:
         print(
             f"parsing the following raw output:\n------------------\n{fill(continuation)}\n------------------\n"
@@ -237,16 +237,12 @@ def basic_n_continuations(
     N,
     avoid_if_under=20,
     avoid_half_if_under=40,
-    avoid_if_cut_off=False,
-    split_on_control_char=False,
     use_textpost_prompt=False,
     avoid_initial_blockquote=False,
-    continue_if_cut_off=False,
     avoid_if_profane=False,
     avoid_if_says_frank=False,
     v8_timestamp="",
     v10_timestamp="",
-    max_continue_steps=MAX_CONTINUE_STEPS,
     mirotarg=None,
     forced_tags_string=None,
     write_fic_override=False,
@@ -346,7 +342,7 @@ def basic_n_continuations(
         this_batch_side_data = [
             batch["side_data"]
             for batch in batches_written[n_batches_so_far:]
-            for entry in batch["continuations"]
+            for _ in batch["continuations"]
         ]
 
         this_batch_model_info = [
@@ -354,7 +350,7 @@ def basic_n_continuations(
             for batch, minfo in zip(
                 batches_written[n_batches_so_far:], model_infos[n_batches_so_far:]
             )
-            for entry in batch["continuations"]
+            for _ in batch["continuations"]
         ]
 
         n_batches_so_far = len(batches_written)
@@ -365,7 +361,7 @@ def basic_n_continuations(
 
             tabs = ntab * "\t"
             sep = "\n" + tabs
-            c_ = c.encode("unicode_escape").decode() if escape else c
+            c_ = s.encode("unicode_escape").decode() if escape else s
 
             return sep + sep.join(wrap(c_, **kwargs_))
 
@@ -375,21 +371,17 @@ def basic_n_continuations(
             pr = sdata["prompt_for_neural"]
 
             if contains_control_chars(c, control_seg_config=CONTROL_SEG_CONFIG):
-                if split_on_control_char:
-                    _cchar, min_ix = first_control_char(
-                        c, control_seg_config=CONTROL_SEG_CONFIG
-                    )
-                    csub = c[:min_ix]
-                    print(f"\n\tsplitting on control char {repr(c[min_ix:min_ix+len(_cchar)])}:")
-                    print(
-                        f"\n\t\t{len(c)} chars, {len(c.split(' '))} words-->\n\t{len(csub)} chars, {len(csub.split(' '))} words\n"
-                    )
-                    if len(c) < 1000:
-                        print(f"was originally: {repr(c)}")
-                    c = csub
-                else:
-                    print(f"\n\trejecting because control char: {_tabfill(c)}\n")
-                    continue
+                _cchar, min_ix = first_control_char(
+                    c, control_seg_config=CONTROL_SEG_CONFIG
+                )
+                csub = c[:min_ix]
+                print(f"\n\tsplitting on control char {repr(c[min_ix:min_ix+len(_cchar)])}:")
+                print(
+                    f"\n\t\t{len(c)} chars, {len(c.split(' '))} words-->\n\t{len(csub)} chars, {len(csub.split(' '))} words\n"
+                )
+                if len(c) < 1000:
+                    print(f"was originally: {repr(c)}")
+                c = csub
 
             roll = np.random.rand()
             # NOTE: the < 100 check is for weird posts where the newline doesn't happen
@@ -403,8 +395,6 @@ def basic_n_continuations(
                 print(
                     f"\n\trejecting because length under {avoid_half_if_under} and roll {roll}: {_tabfill(c)}\n"
                 )
-            elif (not c.endswith(eot_end_segment)) and avoid_if_cut_off:
-                print(f"\n\trejecting because cut off: {_tabfill(c)}\n")
             elif (
                 c.partition("\n")[2].lstrip(" \n").startswith("<blockquote")
             ) and avoid_initial_blockquote:
@@ -478,7 +468,7 @@ def show_note_probas(texts, probas, sentiment_logit_diffs=None, console_width=11
             print("\n~_~_~_~_~_\n")
 
 
-def predict_select(data, debug=False, override_disable_forumlike=False):
+def predict_select(data, override_disable_forumlike=False):
     t1 = time.time()
 
     if len(data) == 0:
@@ -524,7 +514,7 @@ def predict_select(data, debug=False, override_disable_forumlike=False):
     return probs
 
 
-def predict_sentiment(data, debug=False):
+def predict_sentiment(data):
     t1 = time.time()
 
     data["prompt_finalchar"] = ["" for _ in data.selector_input.values]
@@ -736,7 +726,6 @@ def old_bridge_call__answer(data):
     forced_tags_string = data.get("forced_tags_string", "")
     write_fic_override = bool(int(data.get("write_fic_override", 0)))
     write_review_override = bool(int(data.get("write_review_override", 0)))
-    return_all_conts = bool(int(data.get("return_all_conts", False)))
     selector_cut_to_final_exchange = bool(
         int(data.get("selector_cut_to_final_exchange", False))
     )
@@ -786,9 +775,6 @@ def old_bridge_call__answer(data):
     if write_fic_override:
         avoid_if_under = 50
     avoid_half_if_under = 5
-    continue_if_cut_off = True
-    avoid_if_cut_off = False
-    split_on_control_char = True
     avoid_if_profane = False
     avoid_if_says_frank = False
     random_year_for_generator = True
@@ -832,11 +818,8 @@ def old_bridge_call__answer(data):
         N=best_of,
         avoid_if_under=avoid_if_under,
         avoid_half_if_under=avoid_half_if_under,
-        avoid_if_cut_off=avoid_if_cut_off,
         use_textpost_prompt=False,
-        split_on_control_char=split_on_control_char,
         avoid_initial_blockquote=avoid_initial_blockquote,
-        continue_if_cut_off=continue_if_cut_off,
         avoid_if_profane=avoid_if_profane,
         avoid_if_says_frank=avoid_if_says_frank,
         v8_timestamp=v8_timestamp,
@@ -888,7 +871,7 @@ def old_bridge_call__answer(data):
                     ]
                 }
             )
-            entry_selection_results = predict_select(alt_selector_inputs, debug=True)
+            entry_selection_results = predict_select(alt_selector_inputs)
             listkey = f"alt_selection_proba__{alt_ts.replace(' ', '_')}"
             parsed[listkey] = [float(p) for p in entry_selection_results]
 
@@ -905,7 +888,6 @@ def old_bridge_call__answer(data):
         print(f"passing to predict_select: {selector_inputs}")
     selection_results = predict_select(
         selector_inputs,
-        debug=True,
         override_disable_forumlike=override_disable_forumlike,
     )
     parsed["selection_proba"] = [float(p) for p in selection_results]
@@ -945,7 +927,6 @@ def old_bridge_call__textpost(data):
     mood = data.get("mood")
     v8_timestamp = data.get("v8_timestamp", "")
     v10_timestamp = data.get("v10_timestamp", "")
-    return_all_conts = bool(int(data.get("return_all_conts", False)))
     n_retention = int(data.get("n_retention"))
 
     best_of = 10
@@ -955,9 +936,6 @@ def old_bridge_call__textpost(data):
 
     avoid_if_under = 10
     avoid_half_if_under = 10
-    avoid_if_cut_off = False
-    continue_if_cut_off = True
-    split_on_control_char = True
     avoid_initial_blockquote = False
     avoid_if_says_frank = False
     random_year_for_generator = True
@@ -1016,14 +994,11 @@ def old_bridge_call__textpost(data):
         N=best_of,
         avoid_if_under=avoid_if_under,
         avoid_half_if_under=avoid_half_if_under,
-        avoid_if_cut_off=avoid_if_cut_off,
-        split_on_control_char=split_on_control_char,
         use_textpost_prompt=True,
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_says_frank=avoid_if_says_frank,
         v8_timestamp=v8_timestamp,
         v10_timestamp=generator_v10_timestamp,
-        continue_if_cut_off=continue_if_cut_off,
     )
 
     # dreams coldstart curiosity
@@ -1070,13 +1045,12 @@ def old_bridge_call__textpost(data):
         print(f"passing to predict_select: {selector_inputs}")
     selection_results = predict_select(
         selector_inputs,
-        debug=True,
         override_disable_forumlike=True,
     )
     parsed["selection_proba"] = [float(p) for p in selection_results]
 
     sentiment_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
-    sentiment_results = predict_sentiment(sentiment_inputs, debug=True)
+    sentiment_results = predict_sentiment(sentiment_inputs)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
 
     autoreview_inputs = selector_inputs
@@ -1107,7 +1081,7 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
         }
     )
     selection_results = predict_select(
-        selector_inputs, debug=True, override_disable_forumlike=True
+        selector_inputs, override_disable_forumlike=True
     )
     results = [float(p) for p in selection_results]
 
@@ -1116,7 +1090,7 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
 
 def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
     sentiment_inputs = pd.DataFrame({"selector_input": texts})
-    sentiment_results = predict_sentiment(sentiment_inputs, debug=True)
+    sentiment_results = predict_sentiment(sentiment_inputs)
     results = [float(p) for p in sentiment_results]
 
     return results

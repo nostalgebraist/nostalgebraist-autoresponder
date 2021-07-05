@@ -1346,11 +1346,6 @@ def is_statically_reblog_worthy_on_dash(
                 if trail[-1].get("blog", {}).get("name", "") == blogName:
                     return False
 
-    if post_payload.get("note_count") >= 1500:
-        if verbose:
-            print(f"\trejecting {post_identifier}: notes >= 1500")
-        return False
-
     if post_payload.get("type") in {
         "video",
     }:
@@ -1400,6 +1395,14 @@ def is_statically_reblog_worthy_on_dash(
             )
         return True
 
+    ### rules that shouldn't be applied to scraping
+    reblog_worthy = True
+
+    if post_payload.get("note_count") >= 1500:
+        if verbose:
+            print(f"\trejecting {post_identifier}: notes >= 1500")
+        reblog_worthy = False
+
     # must follow OP
     post_OP = None
     if "source_title" in post_payload:
@@ -1414,14 +1417,19 @@ def is_statically_reblog_worthy_on_dash(
             print(
                 f"not reblogging {post_identifier} from dash:\n\tcouldn't find post OP in payload\n{post_payload}"
             )
-        return False
+        reblog_worthy = False
     elif post_OP not in loop_persistent_data.follower_names and post_OP != blogName:
         if verbose:
             print(
                 f"not reblogging {post_identifier} from dash:\n\ti don't follow OP {post_OP}"
             )
-        return False
-    return True
+        reblog_worthy = False
+
+    if not reblog_worthy:
+        print(f"processing {post_identifier} | ", end="")
+        write_text_for_side_judgment(post_payload, dump_to_file=True)
+
+    return reblog_worthy
 
 
 def batch_judge_dash_posts(post_payloads, response_cache):

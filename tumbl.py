@@ -1326,8 +1326,10 @@ def is_statically_reblog_worthy_on_dash(
         if trail[-2].get("blog", {}).get("name", "") == blogName:
             return False
 
-    comment_ = post_payload.get("reblog", {}).get("comment", "")
-    has_comment = len(comment_) > 0
+    has_comment = True
+    if "reblog" in post_payload:
+        comment_ = post_payload["reblog"].get("comment", "")
+        has_comment = len(comment_) > 0
 
     if DASH_REBLOG_NO_BOT:
         trail = post_payload.get("trail", [])
@@ -1397,6 +1399,14 @@ def is_statically_reblog_worthy_on_dash(
 
     ### rules that shouldn't be applied to scraping
     reblog_worthy = True
+    scrape_worthy = True
+
+    if not has_comment:
+        # isn't orig, is reblog, no commentary
+        scrape_worthy = False
+
+    if n_img > 0:
+        scrape_worthy = False
 
     if post_payload.get("note_count") >= 1500:
         if verbose:
@@ -1425,7 +1435,7 @@ def is_statically_reblog_worthy_on_dash(
             )
         reblog_worthy = False
 
-    if not reblog_worthy and (n_img == 0):
+    if scrape_worthy and (not reblog_worthy):
         pass
         # the following logs extra posts:
         # print(f"processing {post_identifier} | ", end="")

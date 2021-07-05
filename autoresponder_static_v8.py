@@ -235,6 +235,7 @@ def final_munge_before_neural_v8(
         tag_string,
         newline_postfix=newline_postfix,
         strip_final_newlines=strip_final_newlines,
+        extra_names=[user_name] if mode == "train" else "",
         control_seg_config=control_seg_config,
     )
     if write_fic_override:
@@ -346,11 +347,11 @@ def final_munge_before_neural_v10(doc, **kwargs):
 
 
 def final_munge_before_neural_v10_1(doc, **kwargs):
-    kwargs = {k: v for k, v in kwargs.items() if k != "user_name"}
+    if kwargs.get('mode') != 'train':
+        kwargs["user_name"] = "nostalgebraist-autoresponder"
     return final_munge_before_neural_v8(
         doc,
         control_seg_config=CONTROL_SEG_CONFIGS["V10_1"],
-        user_name="nostalgebraist-autoresponder",
         **kwargs
     )
 
@@ -364,12 +365,12 @@ def v10_1_to_v10_2(doc):
 
 
 def final_munge_before_neural_v10_2(doc, **kwargs):
-    kwargs = {k: v for k, v in kwargs.items() if k != "user_name"}
+    if kwargs.get('mode') != 'train':
+        kwargs["user_name"] = "nostalgebraist-autoresponder"
     return v10_1_to_v10_2(
         final_munge_before_neural_v8(
             doc,
             control_seg_config=CONTROL_SEG_CONFIGS["V10_2"],
-            user_name="nostalgebraist-autoresponder",
             **kwargs
         )
     )

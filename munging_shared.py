@@ -10,7 +10,8 @@ from wcwidth import wcwidth
 
 import reblogs_v5
 from autoresponder_static import find_all_control_chars_chinese, CHINESE_CHAR_DELIMITERS
-from autoresponder_static_v8 import TIME_SIDECHANNEL_CHAR, timestamp_to_v10_format
+from autoresponder_static_v8 import TIME_SIDECHANNEL_CHAR, timestamp_to_v10_format, join_time_sidechannel
+from autoresponder_config import DEFAULT_CSC, final_munge_before_neural
 
 from image_analysis import (
     V9_IMAGE_FORMATTER,
@@ -507,6 +508,7 @@ def write_text_for_side_judgment(
     add_tags=False,
     swap_in_frank=False,
     add_empty_response=True,
+    keep_orig_post_char=False,
     dump_to_file=False
 ):
     processed = process_post_from_post_payload(post_payload)
@@ -521,9 +523,12 @@ def write_text_for_side_judgment(
             f.write('\n')
 
     if ORIG_POST_CHAR in processed:
-        text = processed[processed.index(ORIG_POST_CHAR) + 1 :]
-        if not swap_in_frank:
-            text = UNAME_CHAR + post_payload["blog_name"] + Q_CHAR + text
+        if keep_orig_post_char:
+            text = processed
+        else:
+            text = processed[processed.index(ORIG_POST_CHAR) + 1 :]
+            if not swap_in_frank:
+                text = UNAME_CHAR + post_payload["blog_name"] + Q_CHAR + text
     elif A_CHAR in processed:
         if chop_on_a_char:
             text = processed[
@@ -555,6 +560,28 @@ def write_text_for_side_judgment(
     if ORIG_POST_CHAR not in text and A_CHAR not in text and UNAME_CHAR not in text:
         text = ORIG_POST_CHAR + text
     return text
+
+
+# corpus (re)construction
+
+def corpus_doc_from_post_payload(post_payload):
+    ts = datetime.fromtimestamp(post_payload['timestamp'])
+    v10_timestamp = timestamp_to_v10_format(ts)
+
+    doc_chinese_format = write_text_for_side_judgment(
+        post_payload,
+        chop_on_a_char=False,
+        add_tags=True,
+        swap_in_frank=False,
+        add_empty_response=False,
+        keep_orig_post_char=True
+    )
+
+    doc_chinese_format = join_time_sidechannel(doc_chinese_format, v10_timestamp)
+
+    doc = final_munge_before_neural(doc_chinese_format, mode='train', user_name=post_payload['blog_name'])
+
+    return doc
 
 
 class LegacySimulatingClient(RateLimitClient):

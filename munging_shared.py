@@ -586,7 +586,7 @@ def archive_to_corpus(post_payload, path="data/dash_post_dump.txt", separator=EO
 
         with open(path, "a", encoding="utf-8") as f:
             line = doc + EOT_FULL
-            json.dump(line, f)
+            f.write(line)
 
 
 class LegacySimulatingClient(RateLimitClient):

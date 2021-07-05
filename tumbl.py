@@ -2822,24 +2822,25 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                     image_analysis_cache.save()
         return loop_persistent_data, response_cache
 
-    ### do asks check
-    loop_persistent_data, response_cache = _mainloop_asks_block(
-        loop_persistent_data, response_cache
-    )
-
-    ### do reblog/reply check
-    if n_posts_to_check > 0:
-        # reblogs, replies
-        loop_persistent_data, response_cache = do_reblog_reply_handling(
-            loop_persistent_data, response_cache, n_posts_to_check
-        )
-        response_cache.save()
-        image_analysis_cache.save()
-
-        ### do another asks check
-        loop_persistent_data, response_cache = _mainloop_asks_block(
-            loop_persistent_data, response_cache
-        )
+    # DEBUG
+    # ### do asks check
+    # loop_persistent_data, response_cache = _mainloop_asks_block(
+    #     loop_persistent_data, response_cache
+    # )
+    #
+    # ### do reblog/reply check
+    # if n_posts_to_check > 0:
+    #     # reblogs, replies
+    #     loop_persistent_data, response_cache = do_reblog_reply_handling(
+    #         loop_persistent_data, response_cache, n_posts_to_check
+    #     )
+    #     response_cache.save()
+    #     image_analysis_cache.save()
+    #
+    #     ### do another asks check
+    #     loop_persistent_data, response_cache = _mainloop_asks_block(
+    #         loop_persistent_data, response_cache
+    #     )
 
     if n_posts_to_check > 0:
         # dash check

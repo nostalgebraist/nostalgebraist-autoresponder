@@ -592,7 +592,6 @@ def make_text_post(
 
     if GLOBAL_TESTING_FLAG:
         print(f"GLOBAL_TESTING_FLAG --> draft")
-        orig_state = state
         state_reasons["must_be_draft"] = True
 
     post = format_post_for_api(post)

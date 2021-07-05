@@ -593,10 +593,7 @@ def make_text_post(
 
     if GLOBAL_TESTING_FLAG:
         print(f"GLOBAL_TESTING_FLAG --> draft")
-        orig_state = state
         state_reasons["must_be_draft"] = True
-        if BEAMSPLIT_TESTING_FLAG:
-            tags = ["BEAMSPLIT dummy branch", f"intended state: {orig_state}"] + tags
 
     post = format_post_for_api(post)
 

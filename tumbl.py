@@ -885,6 +885,7 @@ class LoopPersistentData:
         reblog_keys={},
         last_seen_ts=0,
         last_seen_ts_notifications=0,
+        last_seen_ts_nost_dash_scraper=0,
         n_posts_to_check_base=250,
         n_posts_to_check_dash=690,
         n_notifications_to_check=1000,
@@ -902,6 +903,7 @@ class LoopPersistentData:
         self.reblog_keys = reblog_keys
         self.last_seen_ts = last_seen_ts
         self.last_seen_ts_notifications = last_seen_ts_notifications
+        self.last_seen_ts_nost_dash_scraper = last_seen_ts_nost_dash_scraper
         self.n_posts_to_check_base = n_posts_to_check_base
         self.n_posts_to_check_dash = n_posts_to_check_dash
         self.n_notifications_to_check = n_notifications_to_check
@@ -1617,7 +1619,6 @@ def review_statically_worthy_dashboard_post(
     post_payload,
     loop_persistent_data,
     response_cache,
-    updated_last_seen_ts,
     mood_value,
     follower_multipliers=None,
 ):
@@ -1637,8 +1638,7 @@ def review_statically_worthy_dashboard_post(
         loop_persistent_data.reblog_worthy_dash_posts.add(post_identifier)
         loop_persistent_data.timestamps[post_identifier] = post_payload["timestamp"]
 
-    updated_last_seen_ts = max(updated_last_seen_ts, post_payload["timestamp"])
-    return loop_persistent_data, response_cache, updated_last_seen_ts
+    return loop_persistent_data, response_cache
 
 
 def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
@@ -1910,11 +1910,18 @@ def do_reblog_reply_handling(
     is_nost_dash_scraper: bool = False
 ):
     relevant_client = response_cache.client
+
     if is_dashboard:
         if is_nost_dash_scraper:
             relevant_client = private_client
+            relevant_last_seen_ts_attr = "last_seen_ts_nost_dash_scraper"
         else:
             relevant_client = dashboard_client
+            relevant_last_seen_ts_attr = "last_seen_ts"
+    else:
+          relevant_last_seen_ts_attr = "last_seen_ts_notifications"
+
+    relevant_last_seen_ts = getattr(loop_persistent_data, relevant_last_seen_ts_attr)
 
     count_check_requests_start = relevant_client.get_ratelimit_data()["day"][
         "remaining"
@@ -1946,7 +1953,7 @@ def do_reblog_reply_handling(
 
     if is_dashboard:
         post_getter = dashboard_post_getter
-        start_ts = max(DASH_START_TS, loop_persistent_data.last_seen_ts)
+        start_ts = max(DASH_START_TS, relevant_last_seen_ts)
     else:
         post_getter = reblogs_post_getter
         start_ts = REBLOG_START_TS
@@ -1966,7 +1973,7 @@ def do_reblog_reply_handling(
     print(f"\nchecking {n_posts_to_check} posts, start_ts={start_ts}...\n")
     posts = []
     posts_no_filters = []
-    updated_last_seen_ts = loop_persistent_data.last_seen_ts
+    updated_last_seen_ts = relevant_last_seen_ts
 
     next_posts, next_offset = post_getter(
         limit=limit_, offset=offset_, notes_info=(not is_dashboard)
@@ -2026,7 +2033,7 @@ def do_reblog_reply_handling(
         print("checking mentions...")
         notifications = check_notifications(
             n_to_check=loop_persistent_data.n_notifications_to_check,
-            after_ts=loop_persistent_data.last_seen_ts_notifications,
+            after_ts=relevant_last_seen_ts,
             dump_to_file=False
         )
 
@@ -2064,13 +2071,15 @@ def do_reblog_reply_handling(
             )
 
             print(
-                f"updating last_seen_ts_notifications: {loop_persistent_data.last_seen_ts_notifications} --> {updated_last_seen_ts_notifications} (+{updated_last_seen_ts_notifications-loop_persistent_data.last_seen_ts_notifications})"
+                f"updating {relevant_last_seen_ts_attr}: {relevant_last_seen_ts} --> {updated_last_seen_ts_notifications} (+{updated_last_seen_ts_notifications-relevant_last_seen_ts})"
             )
-            loop_persistent_data.last_seen_ts_notifications = (
-                updated_last_seen_ts_notifications
-            )
+            setattr(loop_persistent_data, relevant_last_seen_ts_attr, updated_last_seen_ts_notifications)
 
     if is_dashboard:
+        updated_last_seen_ts = max(
+            [updated_last_seen_ts] + [post_payload["timestamp"] for post_payload in posts]
+        )
+
         # batch up dash posts for side judgment computation
         statically_worthy_posts = []
         for post_ix, post in enumerate(tqdm(posts)):  # posts[:n_posts_to_check]
@@ -2100,12 +2109,10 @@ def do_reblog_reply_handling(
             (
                 loop_persistent_data,
                 response_cache,
-                updated_last_seen_ts,
             ) = review_statically_worthy_dashboard_post(
                 post,
                 loop_persistent_data,
                 response_cache,
-                updated_last_seen_ts,
                 mood_value,
                 follower_multipliers,
             )
@@ -2261,9 +2268,9 @@ def do_reblog_reply_handling(
 
         # update last_seen_ts
         print(
-            f"updating last_seen_ts: {loop_persistent_data.last_seen_ts} --> {updated_last_seen_ts} (+{updated_last_seen_ts-loop_persistent_data.last_seen_ts})"
+            f"updating {relevant_last_seen_ts_attr}: {relevant_last_seen_ts} --> {updated_last_seen_ts} (+{updated_last_seen_ts-relevant_last_seen_ts})"
         )
-        loop_persistent_data.last_seen_ts = updated_last_seen_ts
+        setattr(loop_persistent_data, relevant_last_seen_ts_attr, updated_last_seen_ts)
     else:
         # record calls for this check
         loop_persistent_data.requests_per_check_history.append(

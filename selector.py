@@ -272,6 +272,7 @@ def do_all_coldstarts(continuations, selection_proba):
 def serve_selection(
     data,
     post_type,
+    mood,
     retention_stack=None,
     strategy="proportional",
     eps=0.1,
@@ -287,9 +288,6 @@ def serve_selection(
     sentiment_logit_diffs = data.get("sentiment_logit_diffs")
 
     autoreview_proba = data.get("autoreview_proba", [None for _ in continuations])
-
-    kwargs = data["kwargs"]
-    mood = kwargs.get("mood")
 
     if (post_type == "textpost") and (strategy != "uniform"):
         continuations += sorted(retention_stack)
@@ -310,9 +308,7 @@ def serve_selection(
                 selection_proba += [None for _ in retention_stack]
             continuation_side_data += [{} for _ in retention_stack]
 
-    do_mood_screen = False
-    if mood is not None:
-        do_mood_screen = mood.get("name") != "unrestricted"
+    do_mood_screen = mood.get("name") != "unrestricted"
 
     if do_mood_screen:
         (

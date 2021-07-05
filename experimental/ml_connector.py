@@ -627,7 +627,7 @@ def _make_alt_timestamps(v10_timestamp):
     return alts
 
 
-def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
+def answer_from_gpt2_service(data: dict, mood=None, ts=None, no_timestamp=False):
     t1 = time.time()
 
     if ts is None:
@@ -642,6 +642,9 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
         data["v8_timestamp"] = ""
         data["v10_timestamp"] = ""
 
+    mood = get_mood_by_name(mood)
+    data["mood"] = mood
+
     result_generator = old_bridge_call__answer(data=data)
 
     # strategy = "proportional_winnowed"
@@ -651,6 +654,7 @@ def answer_from_gpt2_service(data: dict, ts=None, no_timestamp=False):
     result, _ = serve_selection(
         data=result_generator,
         post_type="answer",
+        mood=mood,
         strategy=strategy,
         eps=eps
     )
@@ -683,7 +687,10 @@ def text_post_from_gpt2_service(
 ):
     t1 = time.time()
 
-    data = {"mood": mood}
+    data = {}
+
+    mood = get_mood_by_name(mood)
+    data["mood"] = mood
 
     if ts is None:
         ts = datetime.now()
@@ -705,6 +712,7 @@ def text_post_from_gpt2_service(
     result, retention_stack = serve_selection(
         data=result_generator,
         post_type="textpost",
+        mood=mood,
         strategy=strategy,
         eps=eps,
         retention_stack=loop_persistent_data.retention_stack,
@@ -753,7 +761,6 @@ def old_bridge_call__answer(data):
         print(f"formed prompt: {prompt}")
 
     best_of = 13 if (not TRADE_QUALITY_FOR_SPEED) else 10
-    mood = get_mood_by_name(mood)
 
     if write_fic_override or write_review_override:
         best_of = 6 if not (TRADE_QUALITY_FOR_SPEED) else 4
@@ -935,7 +942,6 @@ def old_bridge_call__textpost(data):
     best_of = 10
     verbose = True
     V5 = True
-    mood = get_mood_by_name(mood)
 
     avoid_if_under = 10
     avoid_half_if_under = 10

@@ -972,9 +972,6 @@ def old_bridge_call__textpost(
         random_year_for_generator, v10_timestamp
     )
 
-    print(f"generator_v10_timestamp: {repr(generator_v10_timestamp)}")
-    print(f"selector_v10_timestamp: {repr(selector_v10_timestamp)}")
-
     continuations, continuation_side_data = basic_n_continuations(
         prompt="",
         N=best_of,

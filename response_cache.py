@@ -6,7 +6,7 @@ holds a lot of stuff needed for persistent-over-time elements of bot operation, 
 the mood feature.
 """
 import subprocess
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from enum import Enum
 from datetime import datetime, timedelta
 
@@ -71,6 +71,9 @@ class ResponseCache:
 
         if "dash_post_judgments" not in self.cache:
             self.cache["dash_post_judgments"] = {}
+
+        if "last_seen_ts" not in self.cache:
+            self.cache["last_seen_ts"] = defaultdict(int)
 
     @staticmethod
     def load(client, path="data/response_cache.pkl.gz", verbose=True):
@@ -608,6 +611,16 @@ class ResponseCache:
             notes_ts = [n.get("timestamp") for n in notes if "timestamp" in n]
             return -1 if len(notes_ts) == 0 else max(notes_ts)
         return -1
+
+    def get_last_seen_ts(self, key):
+        return self.cache['last_seen_ts'][key]
+
+    def update_last_seen_ts(self, key, ts):
+        prev = self.get_last_seen_ts(key)
+        print(
+            f"updating {key}: {prev} --> {ts} (+{ts-prev})"
+        )
+        self.cache['last_seen_ts'][key] = ts
 
     @property
     def reblogs_handled(self):

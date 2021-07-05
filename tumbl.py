@@ -883,9 +883,6 @@ class LoopPersistentData:
         reply_metadata={},
         timestamps={},
         reblog_keys={},
-        last_seen_ts=0,
-        last_seen_ts_notifications=0,
-        last_seen_ts_nost_dash_scraper=0,
         n_posts_to_check_base=250,
         n_posts_to_check_dash=690,
         n_notifications_to_check=1000,
@@ -901,9 +898,6 @@ class LoopPersistentData:
         self.reply_metadata = reply_metadata
         self.timestamps = timestamps
         self.reblog_keys = reblog_keys
-        self.last_seen_ts = last_seen_ts
-        self.last_seen_ts_notifications = last_seen_ts_notifications
-        self.last_seen_ts_nost_dash_scraper = last_seen_ts_nost_dash_scraper
         self.n_posts_to_check_base = n_posts_to_check_base
         self.n_posts_to_check_dash = n_posts_to_check_dash
         self.n_notifications_to_check = n_notifications_to_check
@@ -1914,14 +1908,14 @@ def do_reblog_reply_handling(
     if is_dashboard:
         if is_nost_dash_scraper:
             relevant_client = private_client
-            relevant_last_seen_ts_attr = "last_seen_ts_nost_dash_scraper"
+            relevant_last_seen_ts_key = "last_seen_ts_nost_dash_scraper"
         else:
             relevant_client = dashboard_client
-            relevant_last_seen_ts_attr = "last_seen_ts"
+            relevant_last_seen_ts_key = "last_seen_ts"
     else:
-          relevant_last_seen_ts_attr = "last_seen_ts_notifications"
+          relevant_last_seen_ts_key = "last_seen_ts_notifications"
 
-    relevant_last_seen_ts = getattr(loop_persistent_data, relevant_last_seen_ts_attr)
+    relevant_last_seen_ts = response_cache.get_last_seen_ts(relevant_last_seen_ts_key)
 
     count_check_requests_start = relevant_client.get_ratelimit_data()["day"][
         "remaining"
@@ -2066,14 +2060,15 @@ def do_reblog_reply_handling(
                     loop_persistent_data.reblog_keys[pi] = mp["reblog_key"]
 
             # update last_seen_ts_notifications
-            updated_last_seen_ts_notifications = max(
+            updated_last_seen_ts = max(
                 [item["timestamp"] for item in notifications]
             )
+            response_cache.update_last_seen_ts(relevant_last_seen_ts_key, updated_last_seen_ts)
 
-            print(
-                f"updating {relevant_last_seen_ts_attr}: {relevant_last_seen_ts} --> {updated_last_seen_ts_notifications} (+{updated_last_seen_ts_notifications-relevant_last_seen_ts})"
-            )
-            setattr(loop_persistent_data, relevant_last_seen_ts_attr, updated_last_seen_ts_notifications)
+            # print(
+            #     f"updating {relevant_last_seen_ts_key}: {relevant_last_seen_ts} --> {updated_last_seen_ts} (+{updated_last_seen_ts-relevant_last_seen_ts})"
+            # )
+            # setattr(loop_persistent_data, relevant_last_seen_ts_key, updated_last_seen_ts)
 
     if is_dashboard:
         updated_last_seen_ts = max(
@@ -2267,10 +2262,11 @@ def do_reblog_reply_handling(
         loop_persistent_data.requests_per_check_history[-1] += count_check_requests_diff
 
         # update last_seen_ts
-        print(
-            f"updating {relevant_last_seen_ts_attr}: {relevant_last_seen_ts} --> {updated_last_seen_ts} (+{updated_last_seen_ts-relevant_last_seen_ts})"
-        )
-        setattr(loop_persistent_data, relevant_last_seen_ts_attr, updated_last_seen_ts)
+        response_cache.update_last_seen_ts(relevant_last_seen_ts_key, updated_last_seen_ts)
+        # print(
+        #     f"updating {relevant_last_seen_ts_key}: {relevant_last_seen_ts} --> {updated_last_seen_ts} (+{updated_last_seen_ts-relevant_last_seen_ts})"
+        # )
+        # setattr(loop_persistent_data, relevant_last_seen_ts_key, updated_last_seen_ts)
     else:
         # record calls for this check
         loop_persistent_data.requests_per_check_history.append(
@@ -2781,7 +2777,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     )
 
     print(
-        f"using checkprob: {checkprob:.1%}, with last_seen_ts={loop_persistent_data.last_seen_ts}"
+        f"using checkprob: {checkprob:.1%}"
     )
 
     check_roll = np.random.rand()

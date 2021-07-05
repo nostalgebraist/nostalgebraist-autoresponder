@@ -994,7 +994,7 @@ def old_bridge_call__textpost(
 
     response_data = {}
     response_data["continuations"] = [final_munge_after_neural(c) for c in continuations]
-    response_data["mirotarg"] = [cd.get("mirotarg") for cd in continuation_side_data]
+    response_data["continuation_side_data"] = continuation_side_data
     response_data["generator_v10_timestamp"] = generator_v10_timestamp
     response_data["selector_v10_timestamp"] = selector_v10_timestamp
 

@@ -170,9 +170,6 @@ class GeneratorModelTorch:
             },
         }
 
-    def done_writing(self, prompt: str):
-        pass
-
     @staticmethod
     def load(
         transformers_model,

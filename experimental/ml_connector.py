@@ -135,14 +135,6 @@ class GeneratorModelInterface(MLModelInterface):
             **kwargs,
         )
 
-    def done_writing(self, *args, repeat_until_done_signal=False, **kwargs):
-        return self.do(
-            "done_writing",
-            repeat_until_done_signal=repeat_until_done_signal,
-            *args,
-            **kwargs,
-        )
-
 
 class SideJudgmentModelInterface(MLModelInterface):
     def __init__(self, name):
@@ -419,9 +411,6 @@ def basic_n_continuations(
             print(f"have {len(continuations)} of {N}... ", end="", flush=True)
 
     requests.post(bridge_service_url + "/done", json={"id": bridge_id})
-
-    for pr in set(all_prompts):
-        bridge_id = generator_model.done_writing(pr)
 
     continuations_ = []
     for continuation, pr in zip(continuations, all_prompts):

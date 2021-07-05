@@ -271,7 +271,10 @@ def do_all_coldstarts(continuations, selection_proba):
 
 def serve_selection(
     data,
+    post_type,
     retention_stack=None,
+    strategy="proportional",
+    eps=0.1,
 ):
     continuations = data["continuations"]
     selection_proba = data.get("selection_proba")
@@ -287,16 +290,8 @@ def serve_selection(
 
     kwargs = data["kwargs"]
     mood = kwargs.get("mood")
-    return_all_conts = kwargs.get("return_all_conts", False)
 
-    strategy = "proportional"
-    if "strategy" in kwargs:
-        strategy = kwargs["strategy"]
-    eps = 0.1
-    if "eps" in kwargs:
-        eps = kwargs["eps"]
-
-    if (data["type"] == "textpost") and (strategy != "uniform"):
+    if (post_type == "textpost") and (strategy != "uniform"):
         continuations += sorted(retention_stack)
         if selection_proba is not None:
             (
@@ -386,7 +381,7 @@ def serve_selection(
         f"\nselecting #{choice_ix} with pred {chosen_proba:.1%}, pos_sent {chosen_pos_sent:.1%}, autorev {autorev_for_display}, mirotarg {chosen_mirotarg}:\n{continuation}"
     )
 
-    if data["type"] == "textpost":
+    if post_type == "textpost":
         for i, p in enumerate(selection_proba):
             if p > RETENTION_CUTOFF and continuations[i] not in retention_stack:
                 retention_stack.add(continuations[i])
@@ -422,13 +417,12 @@ def serve_selection(
 
     parsed["choice_ix"] = int(choice_ix)
     parsed["mood"] = mood
-    if return_all_conts:
-        parsed["all_continuations"] = continuations
-        all_parsed = [parse_continuation(c) for c in continuations]
-        all_posts = [p["post"] for p in all_parsed]
-        all_tags = [p["tags"] for p in all_parsed]
-        parsed["all_posts"] = all_posts
-        parsed["all_tags"] = all_tags
+    parsed["all_continuations"] = continuations
+    all_parsed = [parse_continuation(c) for c in continuations]
+    all_posts = [p["post"] for p in all_parsed]
+    all_tags = [p["tags"] for p in all_parsed]
+    parsed["all_posts"] = all_posts
+    parsed["all_tags"] = all_tags
 
     lost_keys = [k for k in data.keys() if k not in parsed]
     if WARN_ABOUT_LOST_KEYS and len(lost_keys) > 0:

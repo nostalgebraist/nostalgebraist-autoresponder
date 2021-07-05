@@ -744,8 +744,6 @@ def old_bridge_call__answer(data):
         print(f"formed prompt: {prompt}")
 
     best_of = 13 if (not TRADE_QUALITY_FOR_SPEED) else 10
-    verbose = True
-    V5 = True
     mood = get_mood_by_name(mood)
 
     if write_fic_override or write_review_override:
@@ -892,7 +890,7 @@ def old_bridge_call__answer(data):
     )
     parsed["selection_proba"] = [float(p) for p in selection_results]
     selector_inputs = pd.DataFrame({"selector_input": parsed["continuations"]})
-    sentiment_results = predict_sentiment(selector_inputs, debug=True)
+    sentiment_results = predict_sentiment(selector_inputs)
     parsed["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
 
     autoreview_inputs = [

@@ -7,25 +7,15 @@ For some context, see:
 - the bot's [About/FAQ page](https://nostalgebraist-autoresponder.tumblr.com/about)
 - [my tumblr tag for posts about the bot](https://nostalgebraist.tumblr.com/tagged/nostalgebraist-autoresponder-meta)
 
-### Status of the repo (last updated 5/6/21)
+### Status of the repo (last updated 7/5/21)
 
-_Update 5/6/21:_ I have recently made two large changes to the bot:
+_Update 7/5/21:_ This README is chronically out of date. Caveat lector!
 
-- switched to pytorch
-- switched the generator model to a fine-tuned [GPT-Neo 2.7B](https://www.eleuther.ai/projects/gpt-neo/)
+A recent refactor of the file structure means all file paths referenced in this README are probably wrong until I update them here. 
 
-The code for these changes is complete, but I haven't yet updated any documentation, removed any now-unused code, or updated the Jupyter Notebooks.  Caveat lector!
+----
 
----
-
-This README used to include a note explaining that I run the bot in practice from a separate, private repo.
-
-This is no longer true: since [this merge](https://github.com/nostalgebraist/nostalgebraist-autoresponder/pull/1), I have been running the bot from the `main` branch of this repo.
-
-This repo includes code to run the bot and code to train the generator, selector, sentiment models.  It is currently missing the following pieces:
-
-- Tumblr scraping scripts used in generator and selector training
-- Data prep script used in generator training
+This repo includes most of the code necessary to run and operate the bot.
 
 ### Disclaimers
 
@@ -40,8 +30,6 @@ In principle, you could adapt this codebase to run a similar bot of your own, bu
 ### Documentation
 
 This README is the main documentation at this time.
-
-Some of the machine learning functionality provided by this repo is described in a separate file [`gpt-2/README.md`](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/gpt-2/README.md).
 
 There are [some visualizations](https://github.com/nostalgebraist/nostalgebraist-autoresponder/tree/visualizations/visualizations) on a branch called `visualizations`, in a subdirectory called (you guessed it) `visualizations`.  Check these out if you want to learn more about how the selector works.
 

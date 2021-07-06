@@ -805,7 +805,8 @@ def old_bridge_call__answer(
 
 
 # TODO: (nwo) textpost in nwo
-def text_post_from_gpt(loop_persistent_data, mood_name=None, ts=None):
+def text_post_from_gpt(loop_persistent_data, mood_name=None, ts=None,
+                       prompts=None, prompts_selector=None, prompts_autoreviewer=None):
     t1 = time.time()
 
     mood = get_mood_by_name(mood_name)
@@ -818,7 +819,11 @@ def text_post_from_gpt(loop_persistent_data, mood_name=None, ts=None):
 
     result_generator = old_bridge_call__textpost(n_retention=n_retention,
                                                  mood=mood,
-                                                 v10_timestamp=v10_timestamp)
+                                                 v10_timestamp=v10_timestamp,
+                                                 prompts=prompts,
+                                                 prompts_selector=prompts_selector,
+                                                 prompts_autoreviewer=prompts_autoreviewer
+                                                 )
 
     # strategy = "proportional_winnowed"
     strategy = "eps_greedy"
@@ -851,7 +856,12 @@ def old_bridge_call__textpost(
         n_retention,
         mood=None,
         v10_timestamp="",
+        prompts=None,
+        prompts_selector=None,
+        prompts_autoreviewer=None
 ):
+    using_nwo = (prompts is not None) and (prompts_selector is not None) and (prompts_autoreviewer is not None)
+
     avoid_if_under = 10
     avoid_half_if_under = 10
     avoid_initial_blockquote = False
@@ -869,9 +879,19 @@ def old_bridge_call__textpost(
 
     # old serve_textpost
 
-    generator_v10_timestamp, selector_v10_timestamp = generator_and_selector_timestamps(
-        random_year_for_generator, v10_timestamp
-    )
+    if using_nwo:
+        generator_v10_timestamp, selector_v10_timestamp = None, None
+    else:
+        generator_v10_timestamp, selector_v10_timestamp = generator_and_selector_timestamps(
+            random_year_for_generator, v10_timestamp
+        )
+
+    # TODO: (nwo) figure out a nice way to pass prompt_selector etc around with the randomly chosen prompt
+    override_disable_forumlike = False
+    use_textpost_prompt = True
+    if using_nwo:
+        override_disable_forumlike = True
+        use_textpost_prompt = False
 
     continuations, continuation_side_data = basic_n_continuations(
         prompt="",
@@ -882,6 +902,7 @@ def old_bridge_call__textpost(
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_says_frank=avoid_if_says_frank,
         v10_timestamp=generator_v10_timestamp,
+        override_disable_forumlike=override_disable_forumlike,
     )
 
     # dreams coldstart curiosity
@@ -900,19 +921,20 @@ def old_bridge_call__textpost(
     response_data["selector_v10_timestamp"] = selector_v10_timestamp
 
     selector_inputs = [c for c in continuations]
-    for alt_char in [
-        CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"],
-        CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"],
-    ]:
+    if not using_nwo:
+        for alt_char in [
+            CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"],
+            CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"],
+        ]:
+            selector_inputs = [
+                s.replace(alt_char, CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"])
+                for s in selector_inputs
+            ]
+
         selector_inputs = [
-            s.replace(alt_char, CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"])
+            s.replace(generator_v10_timestamp, selector_v10_timestamp)
             for s in selector_inputs
         ]
-
-    selector_inputs = [
-        s.replace(generator_v10_timestamp, selector_v10_timestamp)
-        for s in selector_inputs
-    ]
     selector_inputs = pd.DataFrame(
         {
             "selector_input": selector_inputs,

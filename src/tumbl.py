@@ -970,11 +970,13 @@ def respond_to_reblogs_replies(
         if USE_NWO and not is_reply:
             # TODO: NWO for reply
             processed = post_payload_to_formatted_text(d_boot)
+            no_timestamp = True
         else:
             processed = process_post_from_post_payload(
                 d_boot,
                 V10=True,
             )
+            no_timestamp = False
         question = processed.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
 
         if not roll_for_limited_users(reblog_identifier.blog_name, text=question):
@@ -995,6 +997,7 @@ def respond_to_reblogs_replies(
             prompt=question,
             asking_name=reblog_identifier.blog_name,
             exact_prompt=True,
+            no_timestamp=no_timestamp,
             mood_name=determine_mood(response_cache),
             selector_cut_to_final_exchange=True,  # int(is_reply),
             avoid_initial_blockquote=is_reply,
@@ -1356,7 +1359,8 @@ def is_statically_reblog_worthy_on_dash(
         scrape_worthy = False
 
     if n_img > 0:
-        scrape_worthy = False
+        pass
+        # scrape_worthy = False
 
     if post_payload.get("note_count") >= 1500:
         if verbose:

@@ -661,6 +661,8 @@ def old_bridge_call__answer(
         selector_cut_to_final_exchange=False,
         avoid_initial_blockquote=False
 ):
+    using_nwo = (prompt_selector is not None) and (prompt_autoreviewer is not None)
+
     if not exact_prompt:
         prompt = (
             UNAME_CHAR
@@ -696,7 +698,7 @@ def old_bridge_call__answer(
 
     print(f"write_fic_override: {write_fic_override}")
 
-    if USE_NWO:
+    if using_nwo:
         generator_v10_timestamp, selector_v10_timestamp = None, None
     else:
         generator_v10_timestamp, selector_v10_timestamp = generator_and_selector_timestamps(
@@ -707,7 +709,7 @@ def old_bridge_call__answer(
     if prompt.startswith(CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"]):
         override_disable_forumlike = True
 
-    if USE_NWO:
+    if using_nwo:
         override_disable_forumlike = True
 
     continuations, continuation_side_data = basic_n_continuations(

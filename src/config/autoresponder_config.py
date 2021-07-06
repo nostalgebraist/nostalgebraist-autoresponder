@@ -26,6 +26,7 @@ V12_5 = True  # many incremental improvements to gpt-j lr / dataset / etc + fixe
 V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 + batch size 32
 
 USE_AUTOREVIEWER = True
+USE_NWO = False
 
 
 if V12_6:
@@ -120,6 +121,9 @@ elif V10_1:
 else:
     final_munge_before_neural = final_munge_before_neural_v10
     final_munge_after_neural = final_munge_after_neural_v10
+
+if USE_NWO:
+    final_munge_before_neural = lambda text, *args, **kwargs: text
 
 if V12_6:
     model_name = "arj-v10-3-batch32-alldata-4001"

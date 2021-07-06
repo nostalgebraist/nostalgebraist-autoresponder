@@ -18,7 +18,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from config.bot_config import BotSpecificConstants
-from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS
+from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS, USE_NWO
 
 from munging.reply_munging import (
     mockup_xkit_reply,
@@ -70,6 +70,7 @@ from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
 
 from util.error_handling import LogExceptionAndSkip
 
+from experimental.nwo import post_payload_to_formatted_text
 from experimental.dash_archive import archive_to_corpus
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
@@ -966,10 +967,14 @@ def respond_to_reblogs_replies(
             response_cache.mark_handled(reblog_identifier)
             continue
 
-        processed = process_post_from_post_payload(
-            d_boot,
-            V10=True,
-        )
+        if USE_NWO and not is_reply:
+            # TODO: NWO for reply
+            processed = post_payload_to_formatted_text(d_boot)
+        else:
+            processed = process_post_from_post_payload(
+                d_boot,
+                V10=True,
+            )
         question = processed.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
 
         if not roll_for_limited_users(reblog_identifier.blog_name, text=question):
@@ -2489,8 +2494,16 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         f"for {user_input_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
                     )
 
+            if USE_NWO:
+                prompt = post_payload_to_formatted_text(x)
+                exact_prompt = True
+            else:
+                prompt = question
+                exact_prompt = False
+
             gpt2_output = answer_from_gpt(
-                prompt=question,
+                prompt=prompt,
+                exact_prompt=exact_prompt,
                 asking_name=x["asking_name"],
                 mood_name=determine_mood(response_cache),
                 forced_tags_string=forced_tags_string,

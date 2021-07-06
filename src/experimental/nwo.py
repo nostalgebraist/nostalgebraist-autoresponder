@@ -1,13 +1,21 @@
 import datetime
 
 from api_tumblr.tumblr_parsing import *
+
+# TODO: (cleanup) break dependency on old munging code files
 from munging.autoresponder_static_v8 import *
 from munging.munging_shared import find_images_and_sub_text
 import munging.reblogs_v5
 
 
-def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict = DEFAULT_CSC,
-                                 ):
+def post_payload_to_formatted_text(post_payload: dict, control_seg_config: dict = DEFAULT_CSC):
+    return npf_thread_to_formatted_text(
+        TumblrThread.from_payload(post_payload),
+        control_seg_config=control_seg_config
+    )
+
+
+def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict = DEFAULT_CSC):
     is_ask = [False for _ in thread.posts]
 
     has_ask = thread.ask_content is not None
@@ -29,7 +37,7 @@ def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict 
             is_single_original_post=is_single_original_post,
             is_final_post_in_thread=thread_index == len(posts_with_ask) - 1,
             control_seg_config=control_seg_config,
-            )
+        )
         for thread_index, (post, is_ask) in enumerate(zip(posts_with_ask, is_ask))
     ]
 
@@ -192,5 +200,3 @@ def _format_and_normalize_post_html(content):
         content = " " + content
 
     return content
-
-

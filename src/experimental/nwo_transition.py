@@ -20,8 +20,6 @@ def infer_using_nwo_from_text(text: str, verbose=True) -> bool:
 
 
 def final_munge_before_neural_nwo_transition(doc, *args, **kwargs):
-    _, _, _, caller, _, _ = inspect.stack()[1]
-    print(f'called by {caller} with\nargs {args}\nkwargs{kwargs}\n')
     using_nwo = infer_using_nwo_from_text(doc)
 
     if using_nwo:

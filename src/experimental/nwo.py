@@ -72,9 +72,6 @@ def _npf_post_to_formatted_text(post: TumblrPost,
 
     content = post.to_html()
 
-    # strips or modifies certain html tags, adds whitespace after certain html tags
-    content = _format_and_normalize_post_html(content)
-
     tags = getattr(post, 'tags', [])
 
     return _post_structural_elements_to_text(
@@ -103,6 +100,9 @@ def _post_structural_elements_to_text(
         is_final_post_in_thread: bool,
         control_seg_config: dict = DEFAULT_CSC,
 ):
+    # strips or modifies certain html tags, adds whitespace after certain html tags
+    content = _format_and_normalize_post_html(content)
+
     if is_single_original_post:
         name_formatted = control_seg_config['ORIG_POST_CHAR_NAMED'].format(user_name=user_name)
     else:

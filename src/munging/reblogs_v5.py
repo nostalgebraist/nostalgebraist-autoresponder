@@ -21,7 +21,7 @@ ALWAYS_USE_A_CHAR_OPERATIONAL = True
 TRY_LINKS_FOR_IMAGES = False
 INCLUDE_HREF_FOR_A = True
 
-EOT_FULL = "<|endoftext|>"
+EOT = "<|endoftext|>"
 
 RECURSE_INTO = {
     "p",
@@ -614,7 +614,7 @@ def process_post(
 
     text_units = ask_prefix_text_units + text_units
     # print(text_units)
-    processed = "".join(text_units).rstrip(" ") + EOT_FULL
+    processed = "".join(text_units).rstrip(" ") + EOT
 
     # orig stuff
     if (

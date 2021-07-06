@@ -59,20 +59,20 @@ from api_ml.ml_connector import (
 
 from multimodal.image_analysis import IMAGE_DELIMITER
 
-from munging.autoresponder_static import DEFAULT_CSC
+from munging.autoresponder_static import DEFAULT_CSC, EOT
 from munging.autoresponder_static_v8 import timestamp_to_v10_format
 
 from persistence import traceability_singleton
 from multimodal import image_analysis_singleton
 
-image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
 from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
 
 from util.error_handling import LogExceptionAndSkip
 
-EOT_WORKAROUND = True
-eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
+from experimental.dash_archive import archive_to_corpus
+
+image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
 # TODO: move to BotSpecificConstants
 SLEEP_TIME = 60
@@ -583,7 +583,7 @@ def make_text_post(
 
     post = format_post_for_api(post)
 
-    tags = [t.partition(eot_end_segment)[0] for t in tags]
+    tags = [t.partition(EOT)[0] for t in tags]
     tags = [t.partition("<|")[0] for t in tags]  # temporarily support old EOT format
 
     tags = strip_avoid_listed_strings_from_tags(tags)
@@ -645,7 +645,7 @@ def answer_ask(
     if asking_name != "Anonymous" and "Anonymous" in tags:
         tags.pop(tags.index("Anonymous"))
 
-    tags = [t.partition(eot_end_segment)[0] for t in tags]
+    tags = [t.partition(EOT)[0] for t in tags]
     tags = [t.partition("<|")[0] for t in tags]  # temporarily support old EOT format
     tags = [t.strip(",") for t in tags]  # V8
 

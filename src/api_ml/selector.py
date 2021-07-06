@@ -10,7 +10,7 @@ from textwrap import wrap
 from config.bot_config import BotSpecificConstants
 from multimodal.image_analysis import IMAGE_DELIMITER_WHITESPACED
 
-from munging.autoresponder_static import T_CHAR, ORIG_POST_CHAR_CHINESE
+from munging.autoresponder_static import T_CHAR, ORIG_POST_CHAR_CHINESE, EOT
 from munging.autoresponder_static_v8 import timestamp_to_v10_format
 from feels.mood import logit_diff_to_allen_schema
 
@@ -22,9 +22,6 @@ RESULT_STACK = {}
 
 RETENTION_CUTOFF = 0.6
 ENFORCE_RETENTION_CUTOFF = True
-
-EOT_WORKAROUND = True
-eot_end_segment = "<|endoftext|>" if EOT_WORKAROUND else "<|"
 
 FIC_COLDSTART = False
 REVIEW_COLDSTART = False
@@ -86,9 +83,9 @@ def parse_continuation(continuation: str, verbose=False):
 
     # split out tags, if present
     post, _, tag_text = continuation.partition(T_CHAR)
-    tag_text = tag_text.partition(eot_end_segment)[
+    tag_text = tag_text.partition(EOT)[
         0
-    ]  # drop stuff after eot_end_segment
+    ]  # drop stuff after EOT
     tag_text = tag_text.partition("<|")[0]  # temporarily support old EOT format
 
     tags = []

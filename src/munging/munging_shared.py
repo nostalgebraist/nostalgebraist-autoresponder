@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from wcwidth import wcwidth
 
 from munging import reblogs_v5
-from munging.autoresponder_static import find_all_control_chars_chinese, CHINESE_CHAR_DELIMITERS, EOT_FULL, Q_CHAR, A_CHAR, \
+from munging.autoresponder_static import find_all_control_chars_chinese, CHINESE_CHAR_DELIMITERS, EOT, Q_CHAR, A_CHAR, \
     T_CHAR, UNAME_CHAR, ORIG_POST_CHAR_CHINESE
 from munging.autoresponder_static_v8 import TIME_SIDECHANNEL_CHAR, timestamp_to_v10_format, join_time_sidechannel
 from config.autoresponder_config import final_munge_before_neural
@@ -552,6 +552,7 @@ def write_text_for_side_judgment(
 
 # corpus (re)construction
 
+# TODO: remove (currently used for validation)
 def corpus_doc_from_post_payload(post_payload):
     ts = datetime.fromtimestamp(post_payload['timestamp'])
     v10_timestamp = timestamp_to_v10_format(ts)
@@ -576,15 +577,16 @@ def corpus_doc_from_post_payload(post_payload):
     return doc
 
 
-def archive_to_corpus(post_payload, path="data/dash_post_dump.txt", separator=EOT_FULL):
+# TODO: remove (currently used for validation)
+def archive_to_corpus(post_payload, path="data/dash_post_dump.txt", separator=EOT):
     with LogExceptionAndSkip("archive post to corpus"):
         doc = corpus_doc_from_post_payload(post_payload)
 
-        if EOT_FULL in doc:
+        if separator in doc:
             raise ValueError(f"separator in doc: {repr(doc)}")
 
         with open(path, "a", encoding="utf-8") as f:
-            line = doc + EOT_FULL
+            line = doc + EOT
             f.write(line)
 
 

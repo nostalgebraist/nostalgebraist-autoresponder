@@ -62,9 +62,9 @@ def finalize_prompt_for_neural(
         forced_tags_string=forced_tags_string,
         write_fic_override=write_fic_override,
     )
-    prompt = prompt.replace(EOT_FULL, "")
+    prompt = prompt.replace(EOT, "")
     if EOT_PREPEND:
-        prompt = EOT_FULL + prompt
+        prompt = EOT + prompt
     if GLOBAL_DEBUG:
         print(f"finalize_prompt_for_neural, using prompt (munged): {repr(prompt)}")
     return prompt
@@ -454,10 +454,10 @@ def predict_select(data, override_disable_forumlike=False):
         )
 
         if EOT_PREPEND:
-            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
-                text = text[len(EOT_FULL) :]
-            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
-                text = EOT_FULL + text
+            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT):
+                text = text[len(EOT) :]
+            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT)):
+                text = EOT + text
 
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
@@ -498,10 +498,10 @@ def predict_sentiment(data):
         text = re.sub(r"\<.*?\>", "", text)  # sentiment-specific
 
         if EOT_PREPEND:
-            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
-                text = text[len(EOT_FULL) :]
-            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
-                text = EOT_FULL + text
+            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT):
+                text = text[len(EOT) :]
+            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT)):
+                text = EOT + text
 
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
@@ -533,10 +533,10 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
         )
 
         if EOT_PREPEND:
-            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT_FULL):
-                text = text[len(EOT_FULL) :]
-            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT_FULL)):
-                text = EOT_FULL + text
+            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT):
+                text = text[len(EOT) :]
+            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT)):
+                text = EOT + text
 
         selector_input.append(text)
     if debug:

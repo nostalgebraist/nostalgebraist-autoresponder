@@ -4,7 +4,7 @@ from copy import deepcopy
 
 GLOBAL_DEBUG = False
 
-EOT_FULL = "<|endoftext|>"
+EOT = "<|endoftext|>"
 T_CHAR = "职"
 Q_CHAR = "会"
 A_CHAR = "域"
@@ -273,7 +273,7 @@ def substitute_forumlike(
     control_seg_config=DEFAULT_CSC,
     debug=False,
 ):
-    segments = [s for s in text.split(EOT_FULL)]
+    segments = [s for s in text.split(EOT)]
 
     segments_subbed = []
     accum = []
@@ -420,7 +420,7 @@ def substitute_forumlike(
         np.random.shuffle(segments_subbed)
     if debug:
         print(f"joining segs {segments_subbed}")
-    text_subbed = EOT_FULL.join(segments_subbed)
+    text_subbed = EOT.join(segments_subbed)
     return text_subbed
 
 

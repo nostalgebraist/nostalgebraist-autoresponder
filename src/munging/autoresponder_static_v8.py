@@ -106,7 +106,7 @@ def format_segment_v8_interlocutors(doc, control_seg_config=DEFAULT_CSC):
 
 def split_off_tags_v8(doc):
     doc_tagless, _, tag_string_raw = doc.partition(T_CHAR)
-    tag_string_raw = tag_string_raw.partition(EOT_FULL)[0].partition("<|")[0]
+    tag_string_raw = tag_string_raw.partition(EOT)[0].partition("<|")[0]
     return doc_tagless, tag_string_raw
 
 
@@ -319,8 +319,8 @@ def final_munge_after_neural_v8(text, delete_title=False):
     tag_text, _, post = text.partition("\n")
     tag_text = tag_text.rpartition("|")[2].rpartition("tagged this post as:")[2]
 
-    post = post.replace(EOT_FULL, "")
-    tag_text = tag_text.replace(EOT_FULL, "") + EOT_FULL
+    post = post.replace(EOT, "")
+    tag_text = tag_text.replace(EOT, "") + EOT
 
     if delete_title:
         post = re.sub(r"<h2>.+</h2>[\n]*", "", post)
@@ -380,8 +380,8 @@ def _final_munge_after_neural_v10(text, delete_title=False, control_seg_config=D
     if f" | {control_seg_config}'s tags:" in tag_text:
         tag_text = tag_text.rpartition("|")[2].rpartition("tags:")[2]
 
-    post = post.replace(EOT_FULL, "")
-    tag_text = tag_text.replace(EOT_FULL, "") + EOT_FULL
+    post = post.replace(EOT, "")
+    tag_text = tag_text.replace(EOT, "") + EOT
 
     if delete_title:
         post = re.sub(r"<h2>.+</h2>[\n]*", "", post)

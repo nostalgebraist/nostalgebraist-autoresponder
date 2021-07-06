@@ -619,7 +619,7 @@ def answer_from_gpt(
     )
 
     # for logging, add input fields that didn't make the round trip
-    result["question"] = prompt  # TODO [cleanup]: rename if safe
+    result["question"] = prompt  # TODO: (cleanup): rename if safe
     result["asking_name"] = asking_name
     result["v10_timestamp"] = v10_timestamp
     result["mood"] = mood_name
@@ -804,7 +804,7 @@ def old_bridge_call__answer(
     return response_data
 
 
-# TODO (nwo): textpost in nwo
+# TODO: (nwo) textpost in nwo
 def text_post_from_gpt(loop_persistent_data, mood_name=None, ts=None):
     t1 = time.time()
 

@@ -7,7 +7,7 @@ import munging.reblogs_v5
 
 
 def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict = DEFAULT_CSC,
-                                 verbose=False):
+                                 ):
     is_ask = [False for _ in thread.posts]
 
     has_ask = thread.ask_content is not None
@@ -27,9 +27,9 @@ def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict 
             is_ask=is_ask,
             is_ask_reply=has_ask and thread_index == 1,
             is_single_original_post=is_single_original_post,
-            is_final_post_in_thread=thread_index == len(posts_with_ask)-1,
+            is_final_post_in_thread=thread_index == len(posts_with_ask) - 1,
             control_seg_config=control_seg_config,
-            verbose=verbose)
+            )
         for thread_index, (post, is_ask) in enumerate(zip(posts_with_ask, is_ask))
     ]
 
@@ -52,73 +52,20 @@ def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict 
 
 
 def _npf_post_to_formatted_text(post: TumblrPost,
-                               thread_index: int,
-                               timestamp: int,
-                               is_ask: bool,
-                               is_ask_reply: bool,
-                               is_single_original_post: bool,
-                               is_final_post_in_thread: bool,
-                               control_seg_config: dict = DEFAULT_CSC,
-                               verbose=False):
-    def vprint(*args):
-        if verbose:
-            print(*args)
-
+                                thread_index: int,
+                                timestamp: int,
+                                is_ask: bool,
+                                is_ask_reply: bool,
+                                is_single_original_post: bool,
+                                is_final_post_in_thread: bool,
+                                control_seg_config: dict = DEFAULT_CSC,
+                                ):
     user_name = post.blog_name
-    # vprint(repr(post.to_html()))
 
     content = post.to_html()
 
-    NEWLINE_AFTER = munging.reblogs_v5.NEWLINE_AFTER
-
-
-    no_href_classes = {
-        "tmblr-truncated-link",
-        "tumblr_blog",
-        "notification_target",
-        "post_info_link",
-        "tumblelog",
-    }
-    def strip_no_href_classes(m):
-        # print((m.group(0), m.group(1)))
-        if any([c in m.group(1) for c in no_href_classes]):
-            return m.group(2)
-        return m.group(0)
-
-    content = re.sub(r'(<a [^>]+)>(.*?)</a>', strip_no_href_classes, content)
-
-    content = re.sub(r'<a href=("[^\"]*")[^>]*>', r'<a href=\g<1>>', content)
-
-    for tag in NEWLINE_AFTER:
-        content = content.replace(f"</{tag}>", f"</{tag}>\n")
-    for tag in munging.reblogs_v5.DOUBLE_NEWLINE_AFTER:
-        content = content.replace(f"</{tag}>", f"</{tag}>\n\n")
-    for tag in munging.reblogs_v5.INCLUDE_TAGNAME:
-        content = re.sub(fr"<{tag} [^>]*>", tag, content)
-
-    vprint(repr(content))
-
-    approved_tags = munging.reblogs_v5.INCLUDE_VERBATIM.union(munging.reblogs_v5.INCLUDE_TAGNAME).union({"img", "figure", "a"})
-    def strip_non_approved_tags(m):
-        # print((m.group(0), m.group(1)))
-        if m.group(1) in approved_tags:
-            return m.group(0)
-        return ""
-
-    content = re.sub(r"<[/]*([a-z0-9]*)[^><]*>",
-                     strip_non_approved_tags,
-                     content)
-
-    content = find_images_and_sub_text(content)
-    content = content.rstrip("\n")
-    if not any(content.startswith(pre) for pre in {"[", "<", "\n"}):
-        content = " " + content
-
-    content = re.sub(r"</h2>[\n]+", "</h2>\n", content)
-
-    vprint(repr(content))
-
-    # vprint(repr(content))
+    # strips or modifies certain html tags, adds whitespace after certain html tags
+    content = _format_and_normalize_post_html(content)
 
     tags = getattr(post, 'tags', [])
 
@@ -161,7 +108,7 @@ def _post_structural_elements_to_text(
             verb = control_seg_config['reblogger_word']
 
         # TODO: [cleanup] include in csc
-        name_formatted = f"#{thread_index+1} {user_name} {verb}:\n\n"
+        name_formatted = f"#{thread_index + 1} {user_name} {verb}:\n\n"
 
     if is_final_post_in_thread:
         v10_timestamp = timestamp_to_v10_format(datetime.fromtimestamp(timestamp))
@@ -183,3 +130,67 @@ def _post_structural_elements_to_text(
     formatted_text = name_formatted + final_post_content_formatted + content
 
     return formatted_text
+
+
+def _format_and_normalize_post_html(content):
+    no_href_classes = {
+        "tmblr-truncated-link",
+        "tumblr_blog",
+        "notification_target",
+        "post_info_link",
+        "tumblelog",
+    }
+
+    def _strip_no_href_classes(m):
+        if any([c in m.group(1) for c in no_href_classes]):
+            return m.group(2)
+        return m.group(0)
+
+    # remove certain classes of <a> tags
+    content = re.sub(r'(<a [^>]+)>(.*?)</a>', _strip_no_href_classes, content)
+
+    # strip classes other than "href" from remaining <a> tags
+    content = re.sub(r'<a href=("[^\"]*")[^>]*>', r'<a href=\g<1>>', content)
+
+    # add newline after certain tags
+    for tag in munging.reblogs_v5.NEWLINE_AFTER:
+        content = content.replace(f"</{tag}>", f"</{tag}>\n")
+
+    # add two newlines after certain tags
+    for tag in munging.reblogs_v5.DOUBLE_NEWLINE_AFTER:
+        content = content.replace(f"</{tag}>", f"</{tag}>\n\n")
+
+    # strip classes from some tags
+    for tag in munging.reblogs_v5.INCLUDE_TAGNAME:
+        content = re.sub(fr"<{tag} [^>]*>", tag, content)
+
+    # TODO [cleanup]: just make a new set for this
+    approved_tags = munging.reblogs_v5.INCLUDE_VERBATIM.union(
+        munging.reblogs_v5.INCLUDE_TAGNAME
+    ).union(
+        {"img", "figure", "a"}
+    )
+
+    def _strip_non_approved_tags(m):
+        if m.group(1) in approved_tags:
+            return m.group(0)
+        return ""
+
+    # removes tags not specified in `approved_tags`
+    content = re.sub(r"<[/]*([a-z0-9]*)[^><]*>",
+                     _strip_non_approved_tags,
+                     content)
+
+    # apply OCR and replaces <img> and <figure> tags with text from the image
+    content = find_images_and_sub_text(content)
+
+    # the following lines make whitespace tweaks to match quirks of the previous implementation
+
+    content = content.rstrip("\n")
+
+    if not any(content.startswith(pre) for pre in {"[", "<", "\n"}):
+        content = " " + content
+
+    return content
+
+

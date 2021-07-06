@@ -23,14 +23,15 @@ def expand_asks(thread: TumblrThread) -> Tuple[bool, List[PostOrAsk]]:
     return has_ask, posts_with_ask
 
 
-def post_payload_to_formatted_text(post_payload: dict, control_seg_config: dict = DEFAULT_CSC):
+def post_payload_to_formatted_text(post_payload: dict, ml_prompt_format: bool = False, control_seg_config: dict = DEFAULT_CSC):
     return npf_thread_to_formatted_text(
         TumblrThread.from_payload(post_payload),
+        ml_prompt_format=ml_prompt_format,
         control_seg_config=control_seg_config
     )
 
 
-def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict = DEFAULT_CSC):
+def npf_thread_to_formatted_text(thread: TumblrThread,, ml_prompt_format: bool = False, control_seg_config: dict = DEFAULT_CSC):
     is_ask = [False for _ in thread.posts]
 
     has_ask, posts_with_ask = expand_asks(thread)
@@ -49,6 +50,7 @@ def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict 
             is_ask_reply=has_ask and thread_index == 1,
             is_single_original_post=is_single_original_post,
             is_final_post_in_thread=thread_index == len(posts_with_ask) - 1,
+            ml_prompt_format=ml_prompt_format,
             control_seg_config=control_seg_config,
         )
         for thread_index, (post, is_ask) in enumerate(zip(posts_with_ask, is_ask))
@@ -79,6 +81,7 @@ def _npf_post_to_formatted_text(post: TumblrPost,
                                 is_ask_reply: bool,
                                 is_single_original_post: bool,
                                 is_final_post_in_thread: bool,
+                                ml_prompt_format: bool,
                                 control_seg_config: dict = DEFAULT_CSC,
                                 ):
     user_name = post.blog_name
@@ -97,6 +100,7 @@ def _npf_post_to_formatted_text(post: TumblrPost,
         is_ask_reply=is_ask_reply,
         is_single_original_post=is_single_original_post,
         is_final_post_in_thread=is_final_post_in_thread,
+        ml_prompt_format=ml_prompt_format,
         control_seg_config=control_seg_config
     )
 
@@ -111,6 +115,7 @@ def _post_structural_elements_to_text(
         is_ask_reply: bool,
         is_single_original_post: bool,
         is_final_post_in_thread: bool,
+        ml_prompt_format: bool,
         control_seg_config: dict = DEFAULT_CSC,
 ):
     # strips or modifies certain html tags, adds whitespace after certain html tags
@@ -144,11 +149,20 @@ def _post_structural_elements_to_text(
         # we need it because "tags: " has a training space in the 0 tags case
         tags_formatted = tags_formatted.rstrip(" ")
 
-        final_post_content_formatted = " " + timestamp_formatted + " | " + tags_formatted + "\n"
+        final_post_content_formatted = " " + timestamp_formatted + " | " + tags_formatted
+
+        # a newline indicates the end of the tags -- if prompting the model, we want it to (optionally) write tags
+        tag_suffix = "" if ml_prompt_format else "\n"
+        final_post_content_formatted = final_post_content_formatted + tag_suffix
     else:
         final_post_content_formatted = ""
 
-    formatted_text = name_formatted + final_post_content_formatted + content
+    formatted_text = name_formatted + final_post_content_formatted
+
+    if not ml_prompt_format:
+        # if prompting, we want the model to write the content of the final post
+        # if not prompting, okay to add the content of the final post
+        formatted_text += content
 
     return formatted_text
 

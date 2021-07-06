@@ -919,23 +919,18 @@ def update_follower_names(response_cache):
     return response_cache
 
 
-def make_nwo_prompts(post_payload, strip_bootstrip_text=False, debug=True):
+def make_nwo_prompts(post_payload, debug=True):
     prompt = post_payload_to_formatted_text(
-        sample_year_and_set_payload_timestamp(post_payload)
+        sample_year_and_set_payload_timestamp(post_payload), ml_prompt_format=True
     )
 
     thread = TumblrThread.from_payload(post_payload)
 
     thread_selector = cut_to_final_exchange(thread)
-    prompt_selector = npf_thread_to_formatted_text(thread_selector)
+    prompt_selector = npf_thread_to_formatted_text(thread_selector, ml_prompt_format=True)
 
     thread_autoreviewer = cut_to_new_since_last_post_by_user(thread, blogName)
-    prompt_autoreviewer = npf_thread_to_formatted_text(thread_autoreviewer)
-
-    if strip_bootstrip_text:
-        prompt = prompt.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
-        prompt_selector = prompt_selector.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
-        prompt_autoreviewer = prompt_autoreviewer.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
+    prompt_autoreviewer = npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=True)
 
     if debug:
         print(f"prompt: {repr(prompt)}")
@@ -998,7 +993,7 @@ def respond_to_reblogs_replies(
 
         if USE_NWO and not is_reply:
             # TODO: NWO for reply
-            prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(d_boot, strip_bootstrip_text=True)
+            prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(d_boot)
 
             no_timestamp = True
         else:
@@ -2532,7 +2527,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         f"for {user_input_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
                     )
 
-            # TODO (nwo): write_fic_override in nwo
+            # TODO: (nwo) write_fic_override in nwo
             if USE_NWO and not write_fic_override:
                 prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(x)
                 exact_prompt = True

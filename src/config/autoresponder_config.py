@@ -4,6 +4,7 @@ import subprocess
 
 from config.bot_config import BotSpecificConstants
 from munging.autoresponder_static_v8 import *
+from experimental.nwo_transition import final_munge_before_neural_nwo_transition
 
 V8 = True
 V8_2 = True
@@ -118,9 +119,8 @@ else:
     final_munge_before_neural = final_munge_before_neural_v10
     final_munge_after_neural = final_munge_after_neural_v10
 
-# TODO: (nwo) figure out an easy way to pass use_nwo bool to the many fns that call final_munge_before_neural
-# if USE_NWO:
-#     final_munge_before_neural = lambda text, *args, **kwargs: text
+if USE_NWO:
+    final_munge_before_neural = final_munge_before_neural_nwo_transition
 
 if V12_6:
     model_name = "arj-v10-3-batch32-alldata-4001"

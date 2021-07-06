@@ -569,8 +569,6 @@ def corpus_doc_from_post_payload(post_payload):
 
     doc_chinese_format = join_time_sidechannel(doc_chinese_format, v10_timestamp)
 
-    print(doc_chinese_format)
-
     kwargs = dict(mode='train', user_name=user_name)
 
     doc = final_munge_before_neural(doc_chinese_format, **kwargs)

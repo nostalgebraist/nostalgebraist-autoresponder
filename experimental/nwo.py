@@ -6,7 +6,8 @@ from munging.munging_shared import find_images_and_sub_text
 import munging.reblogs_v5
 
 
-def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict = DEFAULT_CSC):
+def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict = DEFAULT_CSC,
+                                 verbose=False):
     is_ask = [False for _ in thread.posts]
 
     has_ask = thread.ask_content is not None
@@ -27,7 +28,8 @@ def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict 
             is_ask_reply=has_ask and thread_index == 1,
             is_single_original_post=is_single_original_post,
             is_final_post_in_thread=thread_index == len(posts_with_ask)-1,
-            control_seg_config=control_seg_config)
+            control_seg_config=control_seg_config,
+            verbose=verbose)
         for thread_index, (post, is_ask) in enumerate(zip(posts_with_ask, is_ask))
     ]
 
@@ -44,6 +46,7 @@ def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict 
 
     formatted_text = conversational_prefix + formatted_text
     formatted_text = normalize_for_generator(formatted_text)
+    formatted_text = formatted_text.rstrip(" ")
 
     return formatted_text
 
@@ -55,44 +58,67 @@ def _npf_post_to_formatted_text(post: TumblrPost,
                                is_ask_reply: bool,
                                is_single_original_post: bool,
                                is_final_post_in_thread: bool,
-                               control_seg_config: dict = DEFAULT_CSC):
+                               control_seg_config: dict = DEFAULT_CSC,
+                               verbose=False):
+    def vprint(*args):
+        if verbose:
+            print(*args)
+
     user_name = post.blog_name
-    print(repr(post.to_html()))
+    # vprint(repr(post.to_html()))
 
     content = post.to_html()
 
-    for tag in munging.reblogs_v5.NEWLINE_AFTER:
+    NEWLINE_AFTER = munging.reblogs_v5.NEWLINE_AFTER
+
+
+    no_href_classes = {
+        "tmblr-truncated-link",
+        "tumblr_blog",
+        "notification_target",
+        "post_info_link",
+        "tumblelog",
+    }
+    def strip_no_href_classes(m):
+        # print((m.group(0), m.group(1)))
+        if any([c in m.group(1) for c in no_href_classes]):
+            return m.group(2)
+        return m.group(0)
+
+    content = re.sub(r'(<a [^>]+)>(.*?)</a>', strip_no_href_classes, content)
+
+    content = re.sub(r'<a href=("[^\"]*")[^>]*>', r'<a href=\g<1>>', content)
+
+    for tag in NEWLINE_AFTER:
         content = content.replace(f"</{tag}>", f"</{tag}>\n")
     for tag in munging.reblogs_v5.DOUBLE_NEWLINE_AFTER:
         content = content.replace(f"</{tag}>", f"</{tag}>\n\n")
     for tag in munging.reblogs_v5.INCLUDE_TAGNAME:
         content = re.sub(fr"<{tag} [^>]*>", tag, content)
 
-    approved_tags = munging.reblogs_v5.INCLUDE_VERBATIM.union(munging.reblogs_v5.INCLUDE_TAGNAME).union({"img", "figure"})
+    vprint(repr(content))
+
+    approved_tags = munging.reblogs_v5.INCLUDE_VERBATIM.union(munging.reblogs_v5.INCLUDE_TAGNAME).union({"img", "figure", "a"})
     def strip_non_approved_tags(m):
         # print((m.group(0), m.group(1)))
         if m.group(1) in approved_tags:
             return m.group(0)
         return ""
 
-    content = re.sub(r"<[/]*([a-z]*)[^>]*>",
+    content = re.sub(r"<[/]*([a-z0-9]*)[^><]*>",
                      strip_non_approved_tags,
                      content)
 
-    # content = content.replace("</p><p>", "\n")
-    # content = content.replace("<p>", "")
-    # content = content.replace("</p>", "")
-    # content = content.replace("<br>", "\n")
     content = find_images_and_sub_text(content)
     content = content.rstrip("\n")
-    content = " " + content
-    print(repr(content))
+    if not any(content.startswith(pre) for pre in {"[", "<", "\n"}):
+        content = " " + content
 
-    # TODO: [cleanup] cleanup
-    # if content.startswith(" \n"):
-    #     content = content[1:]
-    # content = content.replace("\n \n", "\n\n")
-    # print(repr(content))
+    content = re.sub(r"</h2>[\n]+", "</h2>\n", content)
+
+    vprint(repr(content))
+
+    # vprint(repr(content))
 
     tags = getattr(post, 'tags', [])
 

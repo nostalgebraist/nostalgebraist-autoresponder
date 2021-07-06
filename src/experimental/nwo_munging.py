@@ -1,8 +1,9 @@
 from copy import deepcopy
 from datetime import datetime
 
-from api_tumblr.tumblr_parsing import TumblrThread
+from api_tumblr.tumblr_parsing import NPFContent, TumblrPost, TumblrThread
 from munging.year_munging import sample_year
+from munging.autoresponder_static import DEFAULT_CSC
 from experimental.nwo import post_payload_to_formatted_text, npf_thread_to_formatted_text
 
 
@@ -12,10 +13,14 @@ def replace_payload_timestamp(post_payload: dict, timestamp: int) -> dict:
     return post_payload
 
 
+def sample_year_and_set(timestamp: datetime):
+    return timestamp.replace(year=int(sample_year()))
+
+
 def sample_year_and_set_payload_timestamp(post_payload: dict) -> dict:
     timestamp = datetime.fromtimestamp(post_payload["timestamp"])
 
-    timestamp = timestamp.replace(year=int(sample_year()))
+    timestamp = sample_year_and_set(timestamp)
 
     timestamp_posix = int(timestamp.timestamp())
 
@@ -81,3 +86,45 @@ def make_nwo_prompts(post_payload, blogName, debug=True):
     return prompt, prompt_selector, prompt_autoreviewer
 
 
+def make_nwo_textpost_prompts(blogName, timestamp, control_seg_config=DEFAULT_CSC, debug=True):
+    prompts, prompts_selector, prompts_autoreviewer = [], [], []
+    probs = []
+
+    # regular
+    probs.append(0.7)
+    fake_post = TumblrPost(blog_name=blogName,
+                           content=NPFContent(blocks=[], layout=[], blog_name=blogName),
+                           tags=[])
+
+    timestamp_posix = int(timestamp.timestamp())
+    timestamp_sampled_posix = int(sample_year_and_set(timestamp).timestamp())
+
+    fake_thread_real_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_posix)
+    fake_thread_sampled_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_sampled_posix)
+
+    prompts.append(npf_thread_to_formatted_text(fake_thread_sampled_ts,
+                                                ml_prompt_format=True))  # generator
+    prompts_selector.append(npf_thread_to_formatted_text(fake_thread_real_ts,
+                                                         ml_prompt_format=True))  # selector sees real ts
+    prompts_autoreviewer.append(npf_thread_to_formatted_text(fake_thread_real_ts,
+                                                             ml_prompt_format=True))  # autoreviewer sees real ts
+
+    # fic
+    probs.append(0.15)
+    prompts.append(control_seg_config["ORIG_FICTION_CHAR_FORUMLIKE"])  # generator
+    prompts_selector.append(control_seg_config["ORIG_POST_CHAR_FORUMLIKE"])  # selector sees regular post char
+    prompts_autoreviewer.append(control_seg_config["ORIG_POST_CHAR_FORUMLIKE"])  # autoreviewer sees regular post char
+
+    # review
+    probs.append(0.15)
+    prompts.append(control_seg_config["REVIEW_CHAR_FORUMLIKE"])  # generator
+    prompts_selector.append(control_seg_config["ORIG_POST_CHAR_FORUMLIKE"])  # selector sees regular post char
+    prompts_autoreviewer.append(control_seg_config["ORIG_POST_CHAR_FORUMLIKE"])  # autoreviewer sees regular post char
+
+    if debug:
+        print(f"prompts: {repr(prompts)}")
+        print(f"prompts_selector: {repr(prompts_selector)}")
+        print(f"prompts_autoreviewer: {repr(prompts_autoreviewer)}")
+        print(f"probs: {repr(probs)}")
+
+    return prompts, prompts_selector, prompts_autoreviewer, probs

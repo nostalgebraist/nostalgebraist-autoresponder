@@ -205,7 +205,7 @@ def basic_n_continuations(
     avoid_initial_blockquote=False,
     avoid_if_profane=False,
     avoid_if_says_frank=False,
-    v10_timestamp="",
+    v10_timestamp=None,
     mirotarg=None,
     forced_tags_string=None,
     write_fic_override=False,
@@ -257,7 +257,8 @@ def basic_n_continuations(
             mirotarg=mirotarg,
         )
     elif V8:
-        prompt = join_time_sidechannel(prompt, v10_timestamp)
+        if v10_timestamp:
+            prompt = join_time_sidechannel(prompt, v10_timestamp)
 
         prompt = finalize_prompt_for_neural(
             prompt,
@@ -567,6 +568,8 @@ def adjust_best_of(best_of, mood):
 
 def answer_from_gpt(
         prompt,
+        prompt_selector=None,
+        prompt_autoreviewer=None,
         asking_name="",
         mood_name=None,
         exact_prompt=False,
@@ -590,6 +593,8 @@ def answer_from_gpt(
 
     result_generator = old_bridge_call__answer(
         prompt=prompt,
+        prompt_selector=prompt_selector,
+        prompt_autoreviewer=prompt_autoreviewer,
         asking_name=asking_name,
         mood=mood,
         exact_prompt=exact_prompt,
@@ -644,6 +649,8 @@ def generator_and_selector_timestamps(random_year_for_generator: bool, v10_times
 
 def old_bridge_call__answer(
         prompt,
+        prompt_selector=None,
+        prompt_autoreviewer=None,
         asking_name="",
         mood=None,
         exact_prompt=False,
@@ -689,12 +696,18 @@ def old_bridge_call__answer(
 
     print(f"write_fic_override: {write_fic_override}")
 
-    generator_v10_timestamp, selector_v10_timestamp = generator_and_selector_timestamps(
-        random_year_for_generator, v10_timestamp
-    )
+    if USE_NWO:
+        generator_v10_timestamp, selector_v10_timestamp = None, None
+    else:
+        generator_v10_timestamp, selector_v10_timestamp = generator_and_selector_timestamps(
+            random_year_for_generator, v10_timestamp
+        )
 
     override_disable_forumlike = False
     if prompt.startswith(CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"]):
+        override_disable_forumlike = True
+
+    if USE_NWO:
         override_disable_forumlike = True
 
     continuations, continuation_side_data = basic_n_continuations(
@@ -718,17 +731,24 @@ def old_bridge_call__answer(
     response_data["generator_v10_timestamp"] = generator_v10_timestamp
     response_data["selector_v10_timestamp"] = selector_v10_timestamp
 
-    if selector_cut_to_final_exchange and not override_disable_forumlike:
-        prompt_cut = cut_to_final_exchange_chinese(prompt)
-        selector_inputs = [
-            prompt_cut + final_munge_after_neural(c, delete_title=delete_title) for c in continuations
-        ]
-    else:
-        selector_inputs = [prompt + c for c in continuations]
+    # selector
 
-    selector_inputs = [
-        join_time_sidechannel(s, selector_v10_timestamp) for s in selector_inputs
-    ]
+    if prompt_selector:
+        # TODO: (nwo) delete_title for stories in nwo
+        selector_inputs = [prompt_selector + c for c in continuations]
+    else:
+        if selector_cut_to_final_exchange and not override_disable_forumlike:
+            prompt_cut = cut_to_final_exchange_chinese(prompt)
+            selector_inputs = [
+                prompt_cut + final_munge_after_neural(c, delete_title=delete_title) for c in continuations
+            ]
+        else:
+            selector_inputs = [prompt + c for c in continuations]
+
+        selector_inputs = [
+            join_time_sidechannel(s, selector_v10_timestamp) for s in selector_inputs
+        ]
+
     selector_inputs = pd.DataFrame(
         {
             "selector_input": selector_inputs,
@@ -742,18 +762,27 @@ def old_bridge_call__answer(
         override_disable_forumlike=override_disable_forumlike,
     )
     response_data["selection_proba"] = [float(p) for p in selection_results]
-    selector_inputs = pd.DataFrame({"selector_input": response_data["continuations"]})
-    sentiment_results = predict_sentiment(selector_inputs)
+
+    # sentiment
+
+    sentiment_inputs = pd.DataFrame({"selector_input": response_data["continuations"]})
+    sentiment_results = predict_sentiment(sentiment_inputs)
     response_data["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
 
-    autoreview_inputs = [
-        cut_to_new_since_last_frank_post(prompt + final_munge_after_neural(c, delete_title=delete_title))
-        for c in continuations
-    ]
+    # autoreview
 
-    autoreview_inputs = [
-        join_time_sidechannel(s, selector_v10_timestamp) for s in autoreview_inputs
-    ]
+    if prompt_autoreviewer:
+        # TODO: (nwo) delete_title for stories in nwo
+        autoreview_inputs = [prompt_autoreviewer + c for c in continuations]
+    else:
+        autoreview_inputs = [
+            cut_to_new_since_last_frank_post(prompt + final_munge_after_neural(c, delete_title=delete_title))
+            for c in continuations
+        ]
+
+        autoreview_inputs = [
+            join_time_sidechannel(s, selector_v10_timestamp) for s in autoreview_inputs
+        ]
 
     autoreview_inputs = pd.DataFrame(
         {
@@ -773,6 +802,7 @@ def old_bridge_call__answer(
     return response_data
 
 
+# TODO (nwo): textpost in nwo
 def text_post_from_gpt(loop_persistent_data, mood_name=None, ts=None):
     t1 = time.time()
 

@@ -168,6 +168,7 @@ def find_all_control_chars_chinese(
     return results
 
 
+# TODO: (cleanup) (nwo) fix double-matching on "#1 xx posted" and "xx posted"
 def find_control_chars_forumlike(
     text,
     incl_number=True,

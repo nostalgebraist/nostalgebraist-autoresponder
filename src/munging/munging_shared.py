@@ -301,6 +301,7 @@ def process_post_from_post_payload(
 
 
 def screener_string_from_bootstrap_draft(d):
+    # TODO: [nwo] nwo-ify this
     processed = process_post_from_post_payload(d)
     cchars = find_all_control_chars_chinese(processed)
 

@@ -1,11 +1,26 @@
-import datetime
+from typing import Tuple, List, Union
+import re
+from datetime import datetime
 
-from api_tumblr.tumblr_parsing import *
+from api_tumblr.tumblr_parsing import NPFAsk, TumblrPost, TumblrThread
 
 # TODO: (cleanup) break dependency on old munging code files
-from munging.autoresponder_static_v8 import *
+from munging.autoresponder_static import DEFAULT_CSC, normalize_for_generator
+from munging.autoresponder_static_v8 import format_segment_v8_interlocutors, timestamp_to_v10_format
 from munging.munging_shared import find_images_and_sub_text
 import munging.reblogs_v5
+
+PostOrAsk = Union[TumblrPost, NPFAsk]
+
+
+def expand_asks(thread: TumblrThread) -> Tuple[bool, List[PostOrAsk]]:
+    has_ask = thread.ask_content is not None
+    posts_with_ask = thread.posts
+
+    if has_ask:
+        posts_with_ask = [thread.ask_content] + posts_with_ask
+
+    return has_ask, posts_with_ask
 
 
 def post_payload_to_formatted_text(post_payload: dict, control_seg_config: dict = DEFAULT_CSC):
@@ -18,11 +33,9 @@ def post_payload_to_formatted_text(post_payload: dict, control_seg_config: dict 
 def npf_thread_to_formatted_text(thread: TumblrThread, control_seg_config: dict = DEFAULT_CSC):
     is_ask = [False for _ in thread.posts]
 
-    has_ask = thread.ask_content is not None
-    posts_with_ask = thread.posts
+    has_ask, posts_with_ask = expand_asks(thread)
 
     if has_ask:
-        posts_with_ask = [thread.ask_content] + posts_with_ask
         is_ask = [True] + is_ask
 
     is_single_original_post = len(posts_with_ask) == 1

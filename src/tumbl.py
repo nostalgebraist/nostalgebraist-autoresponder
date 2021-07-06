@@ -70,7 +70,10 @@ from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
 
 from util.error_handling import LogExceptionAndSkip
 
-from experimental.nwo import post_payload_to_formatted_text
+from api_tumblr.tumblr_parsing import TumblrThread
+from experimental.nwo import post_payload_to_formatted_text, npf_thread_to_formatted_text
+from experimental.nwo_munging import sample_year_and_set_payload_timestamp, cut_to_final_exchange, \
+    cut_to_new_since_last_post_by_user
 from experimental.dash_archive import archive_to_corpus
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
@@ -916,6 +919,22 @@ def update_follower_names(response_cache):
     return response_cache
 
 
+def make_nwo_prompts(post_payload):
+    prompt = post_payload_to_formatted_text(
+        sample_year_and_set_payload_timestamp(post_payload)
+    )
+
+    thread = TumblrThread.from_payload(post_payload)
+
+    thread_selector = cut_to_final_exchange(thread)
+    prompt_selector = npf_thread_to_formatted_text(thread_selector)
+
+    thread_autoreviewer = cut_to_new_since_last_post_by_user(thread, blogName)
+    prompt_autoreviewer = npf_thread_to_formatted_text(thread_autoreviewer)
+
+    return prompt, prompt_selector, prompt_autoreviewer
+
+
 def respond_to_reblogs_replies(
     identifiers,
     reply_set,
@@ -969,7 +988,12 @@ def respond_to_reblogs_replies(
 
         if USE_NWO and not is_reply:
             # TODO: NWO for reply
-            processed = post_payload_to_formatted_text(d_boot)
+            prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(d_boot)
+
+            prompt = prompt.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
+            prompt_selector = prompt_selector.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
+            prompt_autoreviewer = prompt_autoreviewer.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
+
             no_timestamp = True
         else:
             processed = process_post_from_post_payload(
@@ -977,24 +1001,29 @@ def respond_to_reblogs_replies(
                 V10=True,
             )
             no_timestamp = False
-        question = processed.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
 
-        if not roll_for_limited_users(reblog_identifier.blog_name, text=question):
+            prompt = processed.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
+            prompt_selector = None
+            prompt_autoreviewer = None
+
+        if not roll_for_limited_users(reblog_identifier.blog_name, text=prompt):
             private_client.delete_post(blogName, d_boot["id"])
             continue
 
         if is_reply:
-            question = bootstrap_draft_inject_reply(
-                question,
+            prompt = bootstrap_draft_inject_reply(
+                prompt,
                 reply_blog_name=reblog_identifier.blog_name,
                 reply_body=loop_persistent_data.reply_metadata[reblog_identifier][
                     "reply_note"
                 ]["reply_text"],
             )
-        print(f"\n\t--> using question:\n---------\n{question}\n---------\n")
+        print(f"\n\t--> using question:\n---------\n{prompt}\n---------\n")
 
         gpt2_output = answer_from_gpt(
-            prompt=question,
+            prompt=prompt,
+            prompt_selector=prompt_selector,
+            prompt_autoreviewer=prompt_autoreviewer,
             asking_name=reblog_identifier.blog_name,
             exact_prompt=True,
             no_timestamp=no_timestamp,
@@ -1077,7 +1106,7 @@ def respond_to_reblogs_replies(
         log_data = gpt2_output
         log_data["post_type"] = "reply" if is_reply else "reblog"
         log_data["input_ident"] = reblog_identifier
-        log_data["question"] = question
+        log_data["question"] = prompt
 
         post_specifiers_from_gpt2 = [gpt2_output]
 
@@ -1141,7 +1170,7 @@ def respond_to_reblogs_replies(
                     tags=post_specifier["tags"],
                     to_queue=False,
                     asking_name=reblog_identifier.blog_name,
-                    question=question,
+                    question=prompt,
                     log_data=log_data if i == 0 else None,
                     to_drafts=to_drafts,
                     autoreview_proba=post_specifier["autoreview_proba"],
@@ -2499,16 +2528,20 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     )
 
             if USE_NWO:
-                prompt = post_payload_to_formatted_text(x)
+                prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(x)
                 exact_prompt = True
                 no_timestamp = True
             else:
                 prompt = question
+                prompt_selector = None
+                prompt_autoreviewer = None
                 exact_prompt = False
                 no_timestamp = False
 
             gpt2_output = answer_from_gpt(
                 prompt=prompt,
+                prompt_selector=prompt_selector,
+                prompt_autoreviewer=prompt_autoreviewer,
                 exact_prompt=exact_prompt,
                 no_timestamp=no_timestamp,
                 asking_name=x["asking_name"],

@@ -26,13 +26,6 @@ EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
 
 TEXTPOST_N_CANDIDATES_TARGET = 15 if (not TRADE_QUALITY_FOR_SPEED) else 12
 
-AB_TEST_SELECTOR = True
-AB_TEST_A_SEQUENCE = "\uFFF9"
-AB_TEST_B_SEQUENCE = "\uFFF9\uFFFA\uFFFB"
-
-DO_FAKE_V10_YEAR_MONTH = False
-FAKE_V10_YEAR_MONTH = "December 2020"
-
 # TODO: set DEFAULT_CSC using autoresponder_config constants
 CONTROL_SEG_CONFIG = DEFAULT_CSC
 
@@ -628,10 +621,6 @@ def answer_from_gpt(
     if ts is None:
         ts = datetime.now()
     v10_timestamp = timestamp_to_v10_format(ts)
-    if DO_FAKE_V10_YEAR_MONTH:
-        v10_timestamp= (
-            " ".join(v10_timestamp.split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
-        )
     if no_timestamp:
         v10_timestamp = ""
 
@@ -862,10 +851,6 @@ def text_post_from_gpt(loop_persistent_data, mood_name=None, ts=None):
     if ts is None:
         ts = datetime.now()
     v10_timestamp = timestamp_to_v10_format(ts)
-    if DO_FAKE_V10_YEAR_MONTH:
-        v10_timestamp = (
-            " ".join(v10_timestamp.split(" ")[:2]) + " " + FAKE_V10_YEAR_MONTH
-        )
 
     n_retention = len(loop_persistent_data.retention_stack)
 

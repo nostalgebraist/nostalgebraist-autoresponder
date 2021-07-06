@@ -89,8 +89,6 @@ bridge_service_port = bot_specific_constants.bridge_service_port
 startdir = os.getcwd()
 os.chdir("/")
 
-EOT_PREPEND = True
-SELECTOR_CAN_SEE_PROMPTS = True
 SELECTOR_LR_CALIB_INPUT = "logit_diff"
 SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE = False
 
@@ -102,8 +100,6 @@ EVEN_BETTER_LENGTH = True
 BATCHONE = True
 
 RANDOM_SAMPLING_PARAMS_ON_STARTUP = False  # True = experimental
-
-DO_ALT_TIMESTAMPS = False  # True is for analytics
 
 if V12_5:
     # CSC v10_1 doesn't use the "Posts by" glitch, CSC v10_2 does
@@ -205,7 +201,6 @@ else:
     ckpt_autoreviewer = "draft_autoreviewer/v10/v3/.hdf5"
 
 TRUNCATE_AT_RIGHT = False
-SELECTOR_EOT_PREPEND = True
 
 gs_command_get_encoder = f"gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/encoder.json /models/{model_name}/"
 gs_command_get_encoder += f"; gsutil -m cp gs://{BUCKET_NAME}/checkpoint_gs_sync/autoresponder_v10_nost_tuning_f/vocab.bpe /models/{model_name}/"

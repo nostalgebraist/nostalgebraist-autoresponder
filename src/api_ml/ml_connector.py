@@ -55,9 +55,7 @@ def finalize_prompt_for_neural(
         forced_tags_string=forced_tags_string,
         write_fic_override=write_fic_override,
     )
-    prompt = prompt.replace(EOT, "")
-    if EOT_PREPEND:
-        prompt = EOT + prompt
+    prompt = EOT + prompt.replace(EOT, "")
     if GLOBAL_DEBUG:
         print(f"finalize_prompt_for_neural, using prompt (munged): {repr(prompt)}")
     return prompt
@@ -393,7 +391,7 @@ def basic_n_continuations(
     for continuation, pr in zip(continuations, all_prompts):
         if use_textpost_prompt:
             continuation = pr + continuation
-            if EOT_PREPEND and continuation.startswith(EOT):
+            if continuation.startswith(EOT):
                 continuation = continuation[len(EOT):]
             if continuation.startswith(ORIG_POST_CHAR_CHINESE):
                 continuation = CONTROL_SEG_CONFIG[
@@ -442,11 +440,8 @@ def predict_select(data, override_disable_forumlike=False):
             left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
         )
 
-        if EOT_PREPEND:
-            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT):
-                text = text[len(EOT) :]
-            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT)):
-                text = EOT + text
+        if not text.startswith(EOT):
+            text = EOT + text
 
         selector_input.append(text)
     data.loc[:, "selector_input"] = selector_input
@@ -482,13 +477,11 @@ def predict_sentiment(data):
         text = normalize_for_generator(text)
         text = re.sub(r"\<.*?\>", "", text)  # sentiment-specific
 
-        if EOT_PREPEND:
-            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT):
-                text = text[len(EOT) :]
-            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT)):
-                text = EOT + text
+        if not text.startswith(EOT):
+            text = EOT + text
 
         selector_input.append(text)
+
     data.loc[:, "selector_input"] = selector_input
 
     data = data.to_dict(orient="records")
@@ -517,11 +510,8 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
             text, override_disable_forumlike=override_disable_forumlike
         )
 
-        if EOT_PREPEND:
-            if (not SELECTOR_EOT_PREPEND) and text.startswith(EOT):
-                text = text[len(EOT) :]
-            if SELECTOR_EOT_PREPEND and (not text.startswith(EOT)):
-                text = EOT + text
+        if not text.startswith(EOT):
+            text = EOT + text
 
         selector_input.append(text)
     if debug:
@@ -542,34 +532,6 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
     print(f'predict_autoreview: served in {delta_t:.1f}s')
 
     return probs
-
-
-RESULT_STACK = {}
-
-
-def _make_alt_timestamps(v10_timestamp):
-    if v10_timestamp is None:
-        return []
-
-    alts = []
-    months = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "November",
-        "December",
-    ]
-    years = ["2019", "2020", "2021"][::-1]
-    for year in years:
-        for month in months:
-            alts.append(v10_timestamp.replace("January", month).replace("2021", year))
-    return alts
 
 
 def save_retention(retention_stack):
@@ -725,9 +687,6 @@ def old_bridge_call__answer(
     print("\n------------\n")
     prompt = prompt.rstrip(whitespace)
 
-    if EOT_PREPEND and not V8:
-        prompt = EOT + prompt
-
     print(f"write_fic_override: {write_fic_override}")
 
     generator_v10_timestamp, selector_v10_timestamp = generator_and_selector_timestamps(
@@ -759,42 +718,13 @@ def old_bridge_call__answer(
     response_data["generator_v10_timestamp"] = generator_v10_timestamp
     response_data["selector_v10_timestamp"] = selector_v10_timestamp
 
-    if SELECTOR_CAN_SEE_PROMPTS:
-        if selector_cut_to_final_exchange and not override_disable_forumlike:
-            prompt_cut = cut_to_final_exchange_chinese(prompt)
-            selector_inputs = [
-                prompt_cut + final_munge_after_neural(c, delete_title=delete_title) for c in continuations
-            ]
-        else:
-            selector_inputs = [prompt + c for c in continuations]
-    else:
-        prompt_forumlike = substitute_forumlike(
-            normalize_for_generator(prompt),
-            shuffle=False,
-            infer_first=False,
-            left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
-        )
-        prompt_finalchar = prompt_forumlike[
-            last_control_char(
-                prompt_forumlike,
-                incl_number=False,
-                control_seg_config=CONTROL_SEG_CONFIG,
-            )[1] :
+    if selector_cut_to_final_exchange and not override_disable_forumlike:
+        prompt_cut = cut_to_final_exchange_chinese(prompt)
+        selector_inputs = [
+            prompt_cut + final_munge_after_neural(c, delete_title=delete_title) for c in continuations
         ]
-        selector_inputs = [prompt_finalchar + c for c in continuations]
-
-    if DO_ALT_TIMESTAMPS:
-        for alt_ts in _make_alt_timestamps(v10_timestamp):
-            alt_selector_inputs = pd.DataFrame(
-                {
-                    "selector_input": [
-                        join_time_sidechannel(s, alt_ts) for s in selector_inputs
-                    ]
-                }
-            )
-            entry_selection_results = predict_select(alt_selector_inputs)
-            listkey = f"alt_selection_proba__{alt_ts.replace(' ', '_')}"
-            response_data[listkey] = [float(p) for p in entry_selection_results]
+    else:
+        selector_inputs = [prompt + c for c in continuations]
 
     selector_inputs = [
         join_time_sidechannel(s, selector_v10_timestamp) for s in selector_inputs

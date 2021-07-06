@@ -898,7 +898,7 @@ def old_bridge_call__textpost(
         N=best_of,
         avoid_if_under=avoid_if_under,
         avoid_half_if_under=avoid_half_if_under,
-        use_textpost_prompt=True,
+        use_textpost_prompt=use_textpost_prompt,
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_says_frank=avoid_if_says_frank,
         v10_timestamp=generator_v10_timestamp,

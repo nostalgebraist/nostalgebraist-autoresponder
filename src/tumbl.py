@@ -70,10 +70,7 @@ from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
 
 from util.error_handling import LogExceptionAndSkip
 
-from api_tumblr.tumblr_parsing import TumblrThread
-from experimental.nwo import post_payload_to_formatted_text, npf_thread_to_formatted_text
-from experimental.nwo_munging import sample_year_and_set_payload_timestamp, cut_to_final_exchange, \
-    cut_to_new_since_last_post_by_user
+from experimental.nwo_munging import make_nwo_prompts
 from experimental.dash_archive import archive_to_corpus
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
@@ -919,27 +916,6 @@ def update_follower_names(response_cache):
     return response_cache
 
 
-def make_nwo_prompts(post_payload, debug=True):
-    prompt = post_payload_to_formatted_text(
-        sample_year_and_set_payload_timestamp(post_payload), ml_prompt_format=True
-    )
-
-    thread = TumblrThread.from_payload(post_payload)
-
-    thread_selector = cut_to_final_exchange(thread)
-    prompt_selector = npf_thread_to_formatted_text(thread_selector, ml_prompt_format=True)
-
-    thread_autoreviewer = cut_to_new_since_last_post_by_user(thread, blogName)
-    prompt_autoreviewer = npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=True)
-
-    if debug:
-        print(f"prompt: {repr(prompt)}")
-        print(f"prompt_selector: {repr(prompt_selector)}")
-        print(f"prompt_autoreviewer: {repr(prompt_autoreviewer)}")
-
-    return prompt, prompt_selector, prompt_autoreviewer
-
-
 def respond_to_reblogs_replies(
     identifiers,
     reply_set,
@@ -993,7 +969,7 @@ def respond_to_reblogs_replies(
 
         if USE_NWO and not is_reply:
             # TODO: NWO for reply
-            prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(d_boot)
+            prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(d_boot, blogName)
 
             no_timestamp = True
         else:
@@ -2529,7 +2505,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
             # TODO: (nwo) write_fic_override in nwo
             if USE_NWO and not write_fic_override:
-                prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(x)
+                prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(x, blogName)
                 exact_prompt = True
                 no_timestamp = True
             else:

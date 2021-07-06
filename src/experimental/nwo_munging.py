@@ -3,6 +3,7 @@ from datetime import datetime
 
 from api_tumblr.tumblr_parsing import TumblrThread
 from munging.year_munging import sample_year
+from experimental.nwo import post_payload_to_formatted_text, npf_thread_to_formatted_text
 
 
 def replace_payload_timestamp(post_payload: dict, timestamp: int) -> dict:
@@ -57,3 +58,26 @@ def cut_to_new_since_last_post_by_user(thread: TumblrThread, user_name: str) -> 
 
     posts = posts_reversed_cut[::-1]
     return TumblrThread(posts=posts, timestamp=thread.timestamp)
+
+
+def make_nwo_prompts(post_payload, blogName, debug=True):
+    prompt = post_payload_to_formatted_text(
+        sample_year_and_set_payload_timestamp(post_payload), ml_prompt_format=True
+    )
+
+    thread = TumblrThread.from_payload(post_payload)
+
+    thread_selector = cut_to_final_exchange(thread)
+    prompt_selector = npf_thread_to_formatted_text(thread_selector, ml_prompt_format=True)
+
+    thread_autoreviewer = cut_to_new_since_last_post_by_user(thread, blogName)
+    prompt_autoreviewer = npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=True)
+
+    if debug:
+        print(f"prompt: {repr(prompt)}")
+        print(f"prompt_selector: {repr(prompt_selector)}")
+        print(f"prompt_autoreviewer: {repr(prompt_autoreviewer)}")
+
+    return prompt, prompt_selector, prompt_autoreviewer
+
+

@@ -439,7 +439,7 @@ def predict_select(data, override_disable_forumlike=False):
     selector_input = []
     for text in data.selector_input:
         for end_segment in {
-            eot_end_segment,
+            EOT_FULL,
             "<|",
         }:  # explicitly support old <| thing, for now
             if text.endswith(end_segment):
@@ -486,7 +486,7 @@ def predict_sentiment(data):
     selector_input = []
     for text in data.selector_input:
         for end_segment in {
-            eot_end_segment,
+            EOT_FULL,
             "<|",
         }:  # explicitly support old <| thing, for now
             if text.endswith(end_segment):
@@ -525,8 +525,8 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
 
     selector_input = []
     for text in data.selector_input:
-        if text.endswith(eot_end_segment):
-            text = text[: -len(eot_end_segment)]
+        if text.endswith(EOT_FULL):
+            text = text[: -len(EOT_FULL)]
 
         text = final_munge_before_neural(
             text, override_disable_forumlike=override_disable_forumlike

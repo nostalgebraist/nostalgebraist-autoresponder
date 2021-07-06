@@ -98,7 +98,7 @@ def load_selector(path, base_model, tokenizer, retries=False, **kwargs):
 
 def make_sample_done_criterion(control_seg_config):
     def sample_done_criterion(text, unique_token_frac):
-        has_EOT = eot_end_segment in text
+        has_EOT = EOT in text
 
         has_control_chars = contains_control_chars(
             text, control_seg_config=control_seg_config

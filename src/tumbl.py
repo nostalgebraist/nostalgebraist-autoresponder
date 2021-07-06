@@ -919,7 +919,7 @@ def update_follower_names(response_cache):
     return response_cache
 
 
-def make_nwo_prompts(post_payload):
+def make_nwo_prompts(post_payload, debug=True):
     prompt = post_payload_to_formatted_text(
         sample_year_and_set_payload_timestamp(post_payload)
     )
@@ -931,6 +931,11 @@ def make_nwo_prompts(post_payload):
 
     thread_autoreviewer = cut_to_new_since_last_post_by_user(thread, blogName)
     prompt_autoreviewer = npf_thread_to_formatted_text(thread_autoreviewer)
+
+    if debug:
+        print(f"prompt: {repr(prompt)}")
+        print(f"prompt_selector: {repr(prompt_selector)}")
+        print(f"prompt_autoreviewer: {repr(prompt_autoreviewer)}")
 
     return prompt, prompt_selector, prompt_autoreviewer
 
@@ -2481,7 +2486,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
                 if fic_trigger_criterion:
                     print("fic_trigger_criterion passed")
-                    # forced_tags_string += " #original fiction"
                     write_fic_override = 1
 
             user_input_identifier = UserInputIdentifier(
@@ -2527,7 +2531,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         f"for {user_input_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
                     )
 
-            if USE_NWO:
+            # TODO (nwo): write_fic_override in nwo
+            if USE_NWO and not write_fic_override:
                 prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(x)
                 exact_prompt = True
                 no_timestamp = True

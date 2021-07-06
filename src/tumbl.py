@@ -2497,13 +2497,16 @@ def do_ask_handling(loop_persistent_data, response_cache):
             if USE_NWO:
                 prompt = post_payload_to_formatted_text(x)
                 exact_prompt = True
+                no_timestamp = True
             else:
                 prompt = question
                 exact_prompt = False
+                no_timestamp = False
 
             gpt2_output = answer_from_gpt(
                 prompt=prompt,
                 exact_prompt=exact_prompt,
+                no_timestamp=no_timestamp,
                 asking_name=x["asking_name"],
                 mood_name=determine_mood(response_cache),
                 forced_tags_string=forced_tags_string,

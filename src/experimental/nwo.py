@@ -31,7 +31,7 @@ def post_payload_to_formatted_text(post_payload: dict, ml_prompt_format: bool = 
     )
 
 
-def npf_thread_to_formatted_text(thread: TumblrThread,, ml_prompt_format: bool = False, control_seg_config: dict = DEFAULT_CSC):
+def npf_thread_to_formatted_text(thread: TumblrThread, ml_prompt_format: bool = False, control_seg_config: dict = DEFAULT_CSC):
     is_ask = [False for _ in thread.posts]
 
     has_ask, posts_with_ask = expand_asks(thread)

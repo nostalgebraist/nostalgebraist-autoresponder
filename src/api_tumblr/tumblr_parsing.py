@@ -90,6 +90,8 @@ class NPFSubtype:
             return f"<li>{text}</li>"
         elif self.subtype == "unordered-list-item":
             return f"<li>{text}</li>"
+        elif len(text) == 0:
+            return ""
         else:
             return f"<p>{text_or_break}</p>"
 
@@ -461,7 +463,6 @@ class NPFContent(TumblrContentBase):
                 if raise_on_unimplemented:
                     raise e
                 # generic default/fake filler block
-                # TODO: make these generate no text rather than <p><br></p>
                 blocks.append(NPFTextBlock(""))
 
         layout = []

@@ -68,14 +68,14 @@ def _npf_post_to_formatted_text(post: TumblrPost,
     for tag in munging.reblogs_v5.INCLUDE_TAGNAME:
         content = re.sub(fr"<{tag} [^>]*>", tag, content)
 
-    approved_tags = munging.reblogs_v5.INCLUDE_VERBATIM.union({"img", "figure"})
+    approved_tags = munging.reblogs_v5.INCLUDE_VERBATIM.union(munging.reblogs_v5.INCLUDE_TAGNAME).union({"img", "figure"})
     def strip_non_approved_tags(m):
-        print((m.group(0), m.group(1)))
+        # print((m.group(0), m.group(1)))
         if m.group(1) in approved_tags:
             return m.group(0)
         return ""
 
-    content = re.sub(r"<([a-z]*)[^>]*>",
+    content = re.sub(r"<[/]*([a-z]*)[^>]*>",
                      strip_non_approved_tags,
                      content)
 
@@ -85,6 +85,7 @@ def _npf_post_to_formatted_text(post: TumblrPost,
     # content = content.replace("<br>", "\n")
     content = find_images_and_sub_text(content)
     content = content.rstrip("\n")
+    content = " " + content
     print(repr(content))
 
     # TODO: [cleanup] cleanup

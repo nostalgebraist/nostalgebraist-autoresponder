@@ -560,14 +560,20 @@ def corpus_doc_from_post_payload(post_payload):
         post_payload,
         chop_on_a_char=False,
         add_tags=True,
-        swap_in_frank=False,
+        swap_in_frank=True,
         add_empty_response=False,
         keep_orig_post_char=True
     )
 
+    user_name = post_payload['blog_name']
+
     doc_chinese_format = join_time_sidechannel(doc_chinese_format, v10_timestamp)
 
-    doc = final_munge_before_neural(doc_chinese_format, mode='train', user_name=post_payload['blog_name'])
+    print(doc_chinese_format)
+
+    kwargs = dict(mode='train', user_name=user_name)
+
+    doc = final_munge_before_neural(doc_chinese_format, **kwargs)
 
     return doc
 

@@ -118,8 +118,9 @@ else:
     final_munge_before_neural = final_munge_before_neural_v10
     final_munge_after_neural = final_munge_after_neural_v10
 
-if USE_NWO:
-    final_munge_before_neural = lambda text, *args, **kwargs: text
+# TODO: (nwo) figure out an easy way to pass use_nwo bool to the many fns that call final_munge_before_neural
+# if USE_NWO:
+#     final_munge_before_neural = lambda text, *args, **kwargs: text
 
 if V12_6:
     model_name = "arj-v10-3-batch32-alldata-4001"

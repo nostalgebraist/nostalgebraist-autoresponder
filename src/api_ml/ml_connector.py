@@ -199,6 +199,8 @@ profane_substrings = {
 def basic_n_continuations(
     prompt,
     N,
+    random_prompts=None,
+    random_prompts_probs=None,
     avoid_if_under=20,
     avoid_half_if_under=40,
     use_textpost_prompt=False,
@@ -214,7 +216,19 @@ def basic_n_continuations(
 ):
     continuation_side_data = []
 
-    if use_textpost_prompt:
+    if random_prompts is not None and random_prompts_probs is not None:
+        # nwo random prompting
+        print(f"using prompts:")
+        for _p in random_prompts:
+            print(repr(_p))
+        bridge_id = generator_model.write_random_prompt(
+            random_prompts,
+            random_prompts_probs,
+            repeat_until_done_signal=True,
+            verbose=verbose,
+            mirotarg=mirotarg,
+        )
+    elif use_textpost_prompt:
         raw_prompts, overrides, probs = get_textpost_prompts()
         prompts = []
         for p, o in zip(raw_prompts, overrides):
@@ -804,9 +818,9 @@ def old_bridge_call__answer(
     return response_data
 
 
-# TODO: (nwo) textpost in nwo
 def text_post_from_gpt(loop_persistent_data, mood_name=None, ts=None,
-                       prompts=None, prompts_selector=None, prompts_autoreviewer=None):
+                       prompts=None, prompts_selector=None, prompts_autoreviewer=None,
+                       prompts_probs=None):
     t1 = time.time()
 
     mood = get_mood_by_name(mood_name)
@@ -822,7 +836,8 @@ def text_post_from_gpt(loop_persistent_data, mood_name=None, ts=None,
                                                  v10_timestamp=v10_timestamp,
                                                  prompts=prompts,
                                                  prompts_selector=prompts_selector,
-                                                 prompts_autoreviewer=prompts_autoreviewer
+                                                 prompts_autoreviewer=prompts_autoreviewer,
+                                                 prompts_probs=prompts_probs
                                                  )
 
     # strategy = "proportional_winnowed"
@@ -858,7 +873,8 @@ def old_bridge_call__textpost(
         v10_timestamp="",
         prompts=None,
         prompts_selector=None,
-        prompts_autoreviewer=None
+        prompts_autoreviewer=None,
+        prompts_probs=None
 ):
     using_nwo = (prompts is not None) and (prompts_selector is not None) and (prompts_autoreviewer is not None)
 
@@ -895,6 +911,8 @@ def old_bridge_call__textpost(
 
     continuations, continuation_side_data = basic_n_continuations(
         prompt="",
+        random_prompts=prompts,
+        random_prompts_probs=prompts_probs,
         N=best_of,
         avoid_if_under=avoid_if_under,
         avoid_half_if_under=avoid_half_if_under,
@@ -921,7 +939,9 @@ def old_bridge_call__textpost(
     response_data["selector_v10_timestamp"] = selector_v10_timestamp
 
     selector_inputs = [c for c in continuations]
-    if not using_nwo:
+    if using_nwo:
+        selector_inputs = [prompts_selector[sdata["prompt_for_neural"]] for sdata in continuation_side_data]
+    else:
         for alt_char in [
             CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"],
             CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"],
@@ -955,7 +975,11 @@ def old_bridge_call__textpost(
     sentiment_results = predict_sentiment(sentiment_inputs)
     response_data["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
 
-    autoreview_inputs = selector_inputs
+    if using_nwo:
+        # TODO: (nwo) maybe combine prompts_autoreviewer with prompts_selector?
+        autoreview_inputs = [prompts_autoreviewer[sdata["prompt_for_neural"]] for sdata in continuation_side_data]
+    else:
+        autoreview_inputs = selector_inputs
     autoreview_results = predict_autoreview(
         autoreview_inputs,
         override_disable_forumlike=True,

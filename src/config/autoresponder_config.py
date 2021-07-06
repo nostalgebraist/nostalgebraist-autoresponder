@@ -28,6 +28,7 @@ V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 
 
 USE_AUTOREVIEWER = True
 USE_NWO = True
+USE_NWO_TEXTPOST = False
 print(("USE_NWO", USE_NWO))
 
 

@@ -18,7 +18,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from config.bot_config import BotSpecificConstants
-from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS, USE_NWO
+from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS, USE_NWO, USE_NWO_TEXTPOST
 
 from munging.reply_munging import (
     mockup_xkit_reply,
@@ -70,7 +70,7 @@ from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
 
 from util.error_handling import LogExceptionAndSkip
 
-from experimental.nwo_munging import make_nwo_prompts
+from experimental.nwo_munging import make_nwo_prompts, make_nwo_textpost_prompts
 from experimental.dash_archive import archive_to_corpus
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
@@ -2579,13 +2579,28 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
     if n_posts_in_queue < WRITE_POSTS_WHEN_QUEUE_BELOW:
         for textpost_ix in range(N_TO_WRITE):
-            dt = next_queued_post_time()
-            mood_for_queue_writing = determine_mood(response_cache, dt=dt)
+            timestamp = next_queued_post_time()
+            mood_for_queue_writing = determine_mood(response_cache, dt=timestamp)
 
             print(f"writing new text post... ({textpost_ix}/{N_TO_WRITE})")
 
+            if USE_NWO_TEXTPOST:
+                prompts, prompts_selector, prompts_autoreviewer, prompts_probs = make_nwo_textpost_prompts(
+                    blogName=blogName,
+                    timestamp=timestamp,
+                )
+            else:
+                prompts = None
+                prompts_selector = None
+                prompts_autoreviewer = None
+
             gpt2_output, loop_persistent_data = text_post_from_gpt(loop_persistent_data=loop_persistent_data,
-                                                                   mood_name=mood_for_queue_writing, ts=dt)
+                                                                   mood_name=mood_for_queue_writing,
+                                                                   ts=timestamp,
+                                                                   prompts=prompts,
+                                                                   prompts_selector=prompts_selector,
+                                                                   prompts_autoreviewer=prompts_autoreviewer,
+                                                                   prompts_probs=prompts_probs)
 
             log_data = gpt2_output
             log_data["post_type"] = "textpost"

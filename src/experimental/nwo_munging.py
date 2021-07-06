@@ -87,7 +87,7 @@ def make_nwo_prompts(post_payload, blogName, debug=True):
 
 
 def make_nwo_textpost_prompts(blogName, timestamp, control_seg_config=DEFAULT_CSC, debug=True):
-    prompts, prompts_selector, prompts_autoreviewer = [], [], []
+    prompts, prompts_selector, prompts_autoreviewer = [], {}, {}
     probs = []
 
     # regular
@@ -102,24 +102,29 @@ def make_nwo_textpost_prompts(blogName, timestamp, control_seg_config=DEFAULT_CS
     fake_thread_real_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_posix)
     fake_thread_sampled_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_sampled_posix)
 
-    prompts.append(npf_thread_to_formatted_text(fake_thread_sampled_ts,
-                                                ml_prompt_format=True))  # generator
-    prompts_selector.append(npf_thread_to_formatted_text(fake_thread_real_ts,
-                                                         ml_prompt_format=True))  # selector sees real ts
-    prompts_autoreviewer.append(npf_thread_to_formatted_text(fake_thread_real_ts,
-                                                             ml_prompt_format=True))  # autoreviewer sees real ts
+    prompt_regular = npf_thread_to_formatted_text(fake_thread_sampled_ts,
+                                                  ml_prompt_format=True)  # generator
+    prompts.append(prompt_regular)
+    prompts_selector[prompt_regular] = npf_thread_to_formatted_text(fake_thread_real_ts,
+                                                                    ml_prompt_format=True)  # selector sees real ts
+    prompts_autoreviewer[prompt_regular] = npf_thread_to_formatted_text(fake_thread_real_ts,
+                                                                        ml_prompt_format=True)  # autoreviewer sees real ts
 
     # fic
     probs.append(0.15)
-    prompts.append(control_seg_config["ORIG_FICTION_CHAR_FORUMLIKE"])  # generator
-    prompts_selector.append(control_seg_config["ORIG_POST_CHAR_FORUMLIKE"])  # selector sees regular post char
-    prompts_autoreviewer.append(control_seg_config["ORIG_POST_CHAR_FORUMLIKE"])  # autoreviewer sees regular post char
+    prompt_fic = control_seg_config["ORIG_FICTION_CHAR_FORUMLIKE"]
+    prompts.append(prompt_fic)
+    prompts_selector[prompt_fic] = control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]  # selector sees regular post char
+    prompts_autoreviewer[prompt_fic] = control_seg_config[
+        "ORIG_POST_CHAR_FORUMLIKE"]  # autoreviewer sees regular post char
 
     # review
     probs.append(0.15)
-    prompts.append(control_seg_config["REVIEW_CHAR_FORUMLIKE"])  # generator
-    prompts_selector.append(control_seg_config["ORIG_POST_CHAR_FORUMLIKE"])  # selector sees regular post char
-    prompts_autoreviewer.append(control_seg_config["ORIG_POST_CHAR_FORUMLIKE"])  # autoreviewer sees regular post char
+    prompt_review = control_seg_config["REVIEW_CHAR_FORUMLIKE"]
+    prompts.append(prompt_review)
+    prompts_selector[prompt_review] = control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]  # selector sees regular post char
+    prompts_autoreviewer[prompt_review] = control_seg_config[
+        "ORIG_POST_CHAR_FORUMLIKE"]  # autoreviewer sees regular post char
 
     if debug:
         print(f"prompts: {repr(prompts)}")

@@ -2,7 +2,7 @@
 
 import inspect
 from munging.autoresponder_static import find_all_control_chars_chinese
-from munging.autoresponder_static_v8 import final_munge_after_neural_v10_1
+from munging.autoresponder_static_v8 import final_munge_before_neural_v10_1
 
 
 def infer_using_nwo_from_text(text: str, verbose=True) -> bool:
@@ -20,10 +20,12 @@ def infer_using_nwo_from_text(text: str, verbose=True) -> bool:
 
 
 def final_munge_before_neural_nwo_transition(doc, *args, **kwargs):
+    _, _, _, caller, _, _ = inspect.stack()[1]
+    print(f'called by {caller} with\nargs {args}\nkwargs{kwargs}\n')
     using_nwo = infer_using_nwo_from_text(doc)
 
     if using_nwo:
         return doc
 
-    return final_munge_after_neural_v10_1(doc, *args, **kwargs)
+    return final_munge_before_neural_v10_1(doc, *args, **kwargs)
 

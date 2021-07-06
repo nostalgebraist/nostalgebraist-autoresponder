@@ -156,15 +156,14 @@ def _post_structural_elements_to_text(
         # a newline indicates the end of the tags -- if prompting the model, we want it to (optionally) write tags
         tag_suffix = "" if ml_prompt_format else "\n"
         final_post_content_formatted = final_post_content_formatted + tag_suffix
+
+        if ml_prompt_format:
+            # if prompting, we want the model to write the content of the final post
+            content = ""
     else:
         final_post_content_formatted = ""
 
-    formatted_text = name_formatted + final_post_content_formatted
-
-    if not ml_prompt_format:
-        # if prompting, we want the model to write the content of the final post
-        # if not prompting, okay to add the content of the final post
-        formatted_text += content
+    formatted_text = name_formatted + final_post_content_formatted + content
 
     return formatted_text
 

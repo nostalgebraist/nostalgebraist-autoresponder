@@ -120,8 +120,14 @@ def _post_structural_elements_to_text(
         ml_prompt_format: bool,
         control_seg_config: dict = DEFAULT_CSC,
 ):
-    # strips or modifies certain html tags, adds whitespace after certain html tags
-    content = _format_and_normalize_post_html(content)
+    if ml_prompt_format:
+        # if prompting, we want the model to write the content of the final post
+        content = ""
+        # if prompting, we want the model to write the tags
+        tags = []
+    else:
+        # strips or modifies certain html tags, adds whitespace after certain html tags
+        content = _format_and_normalize_post_html(content)
 
     if is_single_original_post:
         name_formatted = control_seg_config['ORIG_POST_CHAR_NAMED'].format(user_name=user_name)
@@ -156,10 +162,6 @@ def _post_structural_elements_to_text(
         # a newline indicates the end of the tags -- if prompting the model, we want it to (optionally) write tags
         tag_suffix = "" if ml_prompt_format else "\n"
         final_post_content_formatted = final_post_content_formatted + tag_suffix
-
-        if ml_prompt_format:
-            # if prompting, we want the model to write the content of the final post
-            content = ""
     else:
         final_post_content_formatted = ""
 

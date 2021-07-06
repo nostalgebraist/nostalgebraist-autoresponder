@@ -400,8 +400,8 @@ def basic_n_continuations(
     for continuation, pr in zip(continuations, all_prompts):
         if use_textpost_prompt:
             continuation = pr + continuation
-            if EOT_PREPEND and continuation.startswith("<|endoftext|>"):
-                continuation = continuation[len("<|endoftext|>") :]
+            if EOT_PREPEND and continuation.startswith(EOT):
+                continuation = continuation[len(EOT):]
             if continuation.startswith(ORIG_POST_CHAR_CHINESE):
                 continuation = CONTROL_SEG_CONFIG[
                     "ORIG_POST_CHAR_FORUMLIKE"
@@ -438,12 +438,8 @@ def predict_select(data, override_disable_forumlike=False):
 
     selector_input = []
     for text in data.selector_input:
-        for end_segment in {
-            EOT_FULL,
-            "<|",
-        }:  # explicitly support old <| thing, for now
-            if text.endswith(end_segment):
-                text = text[: -len(end_segment)]
+        if text.endswith(EOT):
+            text = text[: -len(EOT)]
         if T_CHAR not in text and (not V8):
             text = text + T_CHAR
 
@@ -485,12 +481,8 @@ def predict_sentiment(data):
 
     selector_input = []
     for text in data.selector_input:
-        for end_segment in {
-            EOT_FULL,
-            "<|",
-        }:  # explicitly support old <| thing, for now
-            if text.endswith(end_segment):
-                text = text[: -len(end_segment)]
+        if text.endswith(EOT):
+            text = text[: -len(EOT)]
         if T_CHAR not in text:
             text = text + T_CHAR
         text = text.partition(T_CHAR)[0]
@@ -525,8 +517,8 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
 
     selector_input = []
     for text in data.selector_input:
-        if text.endswith(EOT_FULL):
-            text = text[: -len(EOT_FULL)]
+        if text.endswith(EOT):
+            text = text[: -len(EOT)]
 
         text = final_munge_before_neural(
             text, override_disable_forumlike=override_disable_forumlike
@@ -745,7 +737,7 @@ def old_bridge_call__answer(
     prompt = prompt.rstrip(whitespace)
 
     if EOT_PREPEND and not V8:
-        prompt = "<|endoftext|>" + prompt
+        prompt = EOT + prompt
 
     print(f"write_fic_override: {write_fic_override}")
 

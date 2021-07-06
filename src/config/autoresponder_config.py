@@ -27,7 +27,8 @@ V12_5 = True  # many incremental improvements to gpt-j lr / dataset / etc + fixe
 V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 + batch size 32
 
 USE_AUTOREVIEWER = True
-USE_NWO = False
+USE_NWO = True
+print(("USE_NWO", USE_NWO))
 
 
 if V12_6:

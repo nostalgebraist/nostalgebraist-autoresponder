@@ -427,6 +427,7 @@ def serve_selection(
     return parsed, retention_stack
 
 
+# TODO: (nwo) nwo-ify this
 def get_retention_stack_judgments(retention_stack):
     from api_ml.ml_connector import (
         selection_proba_from_gpt2_service,

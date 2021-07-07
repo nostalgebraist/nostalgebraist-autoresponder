@@ -2431,9 +2431,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
         else:
             for k in [
                 "id",
-                "timestamp",
                 "asking_name",
-                "summary",
                 "question",
             ]:
                 print(f"{k}: {post_payload[k]}")

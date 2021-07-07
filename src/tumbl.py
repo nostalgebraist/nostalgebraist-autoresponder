@@ -1296,7 +1296,7 @@ def am_i_tagged_in_reblog(post_payload):
 
 
 def is_statically_reblog_worthy_on_dash(
-    post_payload, response_cache, loop_persistent_data, verbose=True, is_nost_dash_scraper=False
+    post_payload, response_cache, verbose=True, is_nost_dash_scraper=False, slow_scraping_ok=True
 ):
     post_identifier = PostIdentifier(post_payload["blog_name"], str(post_payload["id"]))
 
@@ -1375,6 +1375,9 @@ def is_statically_reblog_worthy_on_dash(
         scrape_worthy = False
 
     if n_img > 2:
+        scrape_worthy = False
+
+    if (not slow_scraping_ok) and (n_img > 0):
         scrape_worthy = False
 
     # tag avoid list
@@ -2075,6 +2078,7 @@ def do_reblog_reply_handling(
 
         # batch up dash posts for side judgment computation
         statically_worthy_posts = []
+        slow_scraping_ok = len(posts) < 100
         iter_ = tqdm(posts)
         for post_ix, post in enumerate(iter_):
             p_body = get_body(post)
@@ -2086,7 +2090,8 @@ def do_reblog_reply_handling(
                 response_cache,
                 loop_persistent_data,
                 verbose=VERBOSE_LOGS,
-                is_nost_dash_scraper=is_nost_dash_scraper
+                is_nost_dash_scraper=is_nost_dash_scraper,
+                slow_scraping_ok=slow_scraping_ok
             ):
                 statically_worthy_posts.append(post)
         print(f"{len(statically_worthy_posts)}/{len(posts)} statically reblog worthy")

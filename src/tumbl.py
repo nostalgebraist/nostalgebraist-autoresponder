@@ -941,37 +941,44 @@ def respond_to_reblogs_replies(
         if halloweenize:
             print(f"\t🎃 halloweenizing {reblog_identifier} 🎃")
 
-        # TODO: (nwo) replace bootstrap draft with add_empty_reblog
-        api_response = answer_ask(
-            blogName,
-            ask_id=reblog_identifier.id_,
-            asking_name=blogName if is_reply else reblog_identifier.blog_name,
-            question="",
-            answer=REBLOG_BOOTSTRAP_TEXT,
-            is_reblog=True,
-            to_drafts=True,
-            reblog_key=loop_persistent_data.reblog_keys[reblog_identifier],
-        )
-
-        if api_response.get("meta", {}).get("status") == 403:
-            print(f"got 403 for {reblog_identifier}\n, skipping")
-            print(f"details:")
-            print(api_response)
-            response_cache.mark_handled(reblog_identifier)
-            continue
-
-        try:
-            d_boot = private_client.posts(blogName, id=api_response["id"])["posts"][0]
-        except KeyError:
-            print(
-                f"skipping possibly deleted post: couldn't create bootstrap draft for {reblog_identifier}"
+        # [WIP] TODO: (nwo) replace bootstrap draft with add_empty_reblog
+        if not USE_NWO:
+            api_response = answer_ask(
+                blogName,
+                ask_id=reblog_identifier.id_,
+                asking_name=blogName if is_reply else reblog_identifier.blog_name,
+                question="",
+                answer=REBLOG_BOOTSTRAP_TEXT,
+                is_reblog=True,
+                to_drafts=True,
+                reblog_key=loop_persistent_data.reblog_keys[reblog_identifier],
             )
-            print(f"full API response:\n\n{repr(api_response)}\n\n")
-            response_cache.mark_handled(reblog_identifier)
-            continue
+
+            if api_response.get("meta", {}).get("status") == 403:
+                print(f"got 403 for {reblog_identifier}\n, skipping")
+                print(f"details:")
+                print(api_response)
+                response_cache.mark_handled(reblog_identifier)
+                continue
+
+            try:
+                d_boot = private_client.posts(blogName, id=api_response["id"])["posts"][0]
+            except KeyError:
+                print(
+                    f"skipping possibly deleted post: couldn't create bootstrap draft for {reblog_identifier}"
+                )
+                print(f"full API response:\n\n{repr(api_response)}\n\n")
+                response_cache.mark_handled(reblog_identifier)
+                continue
 
         if USE_NWO and (not is_reply or USE_NWO_REPLY):
-            thread = TumblrThread.from_payload(d_boot)
+            post_payload = response_cache.query(
+                CachedResponseType.POSTS, reblog_identifier, care_about_notes=False
+            )
+
+            thread = TumblrThread.from_payload(post_payload)
+            thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
+
             if is_reply:
                 thread = insert_reply_before_final_post(thread,
                                                         reply_blog_name=reblog_identifier.blog_name,
@@ -995,7 +1002,8 @@ def respond_to_reblogs_replies(
             prompt_autoreviewer = None
 
         if not roll_for_limited_users(reblog_identifier.blog_name, text=prompt):
-            private_client.delete_post(blogName, d_boot["id"])
+            if not USE_NWO:
+                private_client.delete_post(blogName, d_boot["id"])
             continue
 
         if not USE_NWO and is_reply:
@@ -1175,7 +1183,6 @@ def respond_to_reblogs_replies(
 
                 try:
                     # nwo
-                    thread = TumblrThread.from_payload(d_boot)
                     thread = cut_to_n_most_recent_by_user(thread,
                                                           user_name=blogName,
                                                           n_most_recent=2,
@@ -1213,8 +1220,9 @@ def respond_to_reblogs_replies(
                     reject_action="rts" if is_user_input else "do_not_post",
                 )
 
-        time.sleep(0.5)
-        private_client.delete_post(blogName, d_boot["id"])
+        if not USE_NWO:
+            time.sleep(0.5)
+            private_client.delete_post(blogName, d_boot["id"])
         if is_reply:
             if not HALLOWEEN_2K20_BEHAVIOR_TESTING:
                 response_cache.mark_reply_handled(reblog_identifier)

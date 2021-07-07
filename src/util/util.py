@@ -34,7 +34,7 @@ def show_gpu():
 def render_call_stack():
     calling_names = []
     for _, fname, _, name, _, _ in inspect.stack()[::-1][:-1]:
-        _, valid, suffix = fname.partition("nostalgebraist-autoresponder/src/")
+        _, valid, suffix = fname.partition("src/")
         if valid:
             calling_names.append(name)
     return " --> ".join(calling_names)

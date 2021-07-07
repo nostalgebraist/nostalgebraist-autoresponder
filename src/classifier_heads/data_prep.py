@@ -8,7 +8,6 @@ from bs4 import BeautifulSoup
 
 from tqdm.autonotebook import tqdm
 
-from munging.reblogs_v5 import *
 from munging.autoresponder_static_v8 import *
 from munging.munging_shared import *
 

@@ -14,7 +14,7 @@ from config.autoresponder_config import LOGGING_FLAGS
 from munging.autoresponder_static import EOT
 from feels.mood import logit_diff_to_allen_schema
 
-from munging.nwo import make_nwo_textpost_prompts
+from munging.nwo.nwo_munging import make_nwo_textpost_prompts
 
 bot_specific_constants = BotSpecificConstants.load()
 selector_url = bot_specific_constants.bridge_service_url + "/pollselector"

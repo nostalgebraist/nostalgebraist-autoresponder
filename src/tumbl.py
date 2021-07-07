@@ -164,7 +164,7 @@ MOOD_BUFFS_V2 = True
 MOOD_STALE_SECONDS = 60 * 10
 mood_computed_most_recently = None
 
-WRITE_POSTS_WHEN_QUEUE_BELOW = 10 # 8  # 5
+WRITE_POSTS_WHEN_QUEUE_BELOW = 11 # 8  # 5
 N_TO_WRITE = 1
 
 INDIRECT_REBLOGS = False
@@ -2594,6 +2594,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
                 prompts = None
                 prompts_selector = None
                 prompts_autoreviewer = None
+                prompts_probs = None
 
             gpt2_output, loop_persistent_data = text_post_from_gpt(loop_persistent_data=loop_persistent_data,
                                                                    mood_name=mood_for_queue_writing,

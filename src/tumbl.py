@@ -1361,6 +1361,9 @@ def is_statically_reblog_worthy_on_dash(
     if '.gif' in p_body:
         scrape_worthy = False
 
+    if n_img > 2:
+        scrape_worthy = False
+
     # tag avoid list
     tags = post_payload.get("tags", [])
     trail = post_payload.get("trail", [])

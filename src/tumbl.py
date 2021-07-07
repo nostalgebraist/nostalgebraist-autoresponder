@@ -941,6 +941,7 @@ def respond_to_reblogs_replies(
         if halloweenize:
             print(f"\t🎃 halloweenizing {reblog_identifier} 🎃")
 
+        # TODO: (nwo) replace bootstrap draft with add_empty_reblog
         api_response = answer_ask(
             blogName,
             ask_id=reblog_identifier.id_,

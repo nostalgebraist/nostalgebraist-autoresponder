@@ -645,6 +645,10 @@ class TumblrPost(TumblrPostBase):
     def tags(self):
         return self._tags
 
+    @property
+    def id(self):
+        return self._content.id
+
     def to_html(self) -> str:
         return self._content.to_html()
 

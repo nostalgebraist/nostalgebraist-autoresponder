@@ -470,6 +470,7 @@ def get_retention_stack_judgments(retention_stack):
 
     if using_nwo:
         timestamp = None
+        texts_for_selection = sorted(retention_stack)
     else:
         texts_for_selection = [ORIG_POST_CHAR_CHINESE + t for t in sorted(retention_stack)]
 

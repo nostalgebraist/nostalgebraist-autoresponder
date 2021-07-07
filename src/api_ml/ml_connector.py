@@ -464,7 +464,7 @@ def predict_select(data, override_disable_forumlike=False):
 
     if LOGGING_FLAGS["side_judg_inputs"]:
         print(f"predict_select innards: model will see\n{repr(selector_input)}")
-    
+
     data.loc[:, "selector_input"] = selector_input
 
     data = data.to_dict(orient="records")
@@ -908,7 +908,6 @@ def old_bridge_call__textpost(
             random_year_for_generator, v10_timestamp
         )
 
-    # TODO: (nwo) figure out a nice way to pass prompt_selector etc around with the randomly chosen prompt
     override_disable_forumlike = False
     use_textpost_prompt = True
     if using_nwo:

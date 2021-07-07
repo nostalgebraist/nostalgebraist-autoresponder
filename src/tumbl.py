@@ -2523,7 +2523,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         f"for {user_input_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
                     )
 
-            # TODO: (nwo) write_fic_override in nwo
             if USE_NWO and (not write_fic_override or USE_NWO_FIC):
                 thread = TumblrThread.from_payload(post_payload)
                 if write_fic_override:

@@ -96,6 +96,10 @@ def add_reblog(thread: TumblrThread,
     return fake_thread
 
 
+def add_empty_reblog(thread: TumblrThread, blog_name: str, timestamp: datetime):
+    return add_reblog(thread, blog_name=blog_name, text_blocks=[], tags=[], timestamp=timestamp)
+
+
 def insert_reply_before_final_post(
     thread: TumblrThread, reply_blog_name: str, reply_body: str
 ) -> TumblrThread:

@@ -71,7 +71,8 @@ from api_tumblr.tumblr_parsing import TumblrThread
 
 from util.error_handling import LogExceptionAndSkip
 
-from experimental.nwo_munging import make_nwo_prompts, make_nwo_textpost_prompts, insert_reply_before_final_post
+# TODO: (cleanup) replace * import once file contents are stable?
+from experimental.nwo_munging import *
 from experimental.dash_archive import archive_to_corpus
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
@@ -1420,7 +1421,13 @@ def batch_judge_dash_posts(post_payloads, response_cache):
 
         text = response_cache.get_cached_post_body(pi)
         if text is None:
-            text = write_text_for_side_judgment(pp)
+            # nwo
+            thread = TumblrThread.from_payload(pp)
+            thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
+            text = npf_thread_to_formatted_text(thread, ml_prompt_format=True)
+
+            # pre-nwo
+            # text = write_text_for_side_judgment(pp)
             response_cache.mark_post_body(pi, text)
             if not text:
                 print(f"skipping judgments for {pi}: bad parse?")

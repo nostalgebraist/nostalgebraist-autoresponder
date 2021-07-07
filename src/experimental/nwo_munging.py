@@ -18,14 +18,15 @@ def sample_year_and_set(timestamp: datetime):
     return timestamp.replace(year=int(sample_year()))
 
 
-def sample_year_and_set_payload_timestamp(post_payload: dict) -> dict:
-    timestamp = datetime.fromtimestamp(post_payload["timestamp"])
+def sample_year_and_set_timestamp(thread: TumblrThread) -> TumblrThread:
+    timestamp = datetime.fromtimestamp(thread.timestamp)
 
     timestamp = sample_year_and_set(timestamp)
 
     timestamp_posix = int(timestamp.timestamp())
 
-    return replace_payload_timestamp(post_payload, timestamp_posix)
+    new_thread = TumblrThread(posts=thread.posts, timestamp=timestamp_posix)
+    return new_thread
 
 
 def cut_to_final_exchange(thread: TumblrThread) -> TumblrThread:
@@ -86,12 +87,12 @@ def insert_reply_before_final_post(
     return fake_thread
 
 
-def make_nwo_prompts(post_payload, blogName, debug=True):
-    prompt = post_payload_to_formatted_text(
-        sample_year_and_set_payload_timestamp(post_payload), ml_prompt_format=True
-    )
-
+def make_nwo_prompts(post_payload: dict, blogName: str, debug=True):
     thread = TumblrThread.from_payload(post_payload)
+
+    prompt = npf_thread_to_formatted_text(
+        sample_year_and_set_timestamp(thread), ml_prompt_format=True
+    )
 
     thread_selector = cut_to_final_exchange(thread)
     prompt_selector = npf_thread_to_formatted_text(thread_selector, ml_prompt_format=True)
@@ -114,9 +115,6 @@ def make_nwo_textpost_prompts(blogName, timestamp, control_seg_config=DEFAULT_CS
     # regular
     probs.append(0.7)
     fake_post = fake_tumblr_post(blog_name=blogName, text_blocks=[], tags=[])
-    # fake_post = TumblrPost(blog_name=blogName,
-    #                        content=NPFContent(blocks=[], layout=[], blog_name=blogName),
-    #                        tags=[])
 
     timestamp_posix = int(timestamp.timestamp())
     timestamp_sampled_posix = int(sample_year_and_set(timestamp).timestamp())

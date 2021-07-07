@@ -1,5 +1,6 @@
 import gc
 import subprocess
+import inspect
 from typing import NamedTuple
 
 
@@ -28,3 +29,12 @@ def show_gpu():
     except:
         # not 100% sure i did the above right
         print(s)
+
+
+def render_call_stack():
+    calling_names = []
+    for _, fname, _, name, _, _ in inspect.stack()[::-1][:-1]:
+        _, valid, suffix = fname.partition("nostalgebraist-autoresponder/src/")
+        if valid:
+            calling_names.append(name)
+    return " --> ".join(calling_names)

@@ -2345,9 +2345,6 @@ def handle_review_command(
 def do_ask_handling(loop_persistent_data, response_cache):
     submissions = private_client.submission(blogName)["posts"]
 
-    # TODO: find a good way to ensure this happens in general for all consumption
-    submissions = [simulate_legacy_payload(p) for p in submissions]
-
     n_asks = len(submissions)
     print(f"processing {n_asks} new asks")
     print()

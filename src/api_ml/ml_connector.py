@@ -1026,7 +1026,7 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
 
 
 def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
-    print(f"selection_proba_from_gpt2_service: got texts\n{repr(texts)}")
+    print(f"sentiment_logit_diffs_from_gpt2_service: got texts\n{repr(texts)}")
 
     sentiment_inputs = pd.DataFrame({"selector_input": texts})
     sentiment_results = predict_sentiment(sentiment_inputs)

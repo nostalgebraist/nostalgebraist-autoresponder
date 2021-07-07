@@ -975,11 +975,13 @@ def old_bridge_call__textpost(
     sentiment_results = predict_sentiment(sentiment_inputs)
     response_data["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
 
+    autoreview_inputs = selector_inputs
     if using_nwo:
         # TODO: (nwo) maybe combine prompts_autoreviewer with prompts_selector?
-        autoreview_inputs = [prompts_autoreviewer[sdata["prompt_for_neural"]] for sdata in continuation_side_data]
-    else:
-        autoreview_inputs = selector_inputs
+        autoreview_inputs["selector_input"] = [
+            prompts_autoreviewer[sdata["prompt_for_neural"]] for sdata in continuation_side_data
+        ]
+
     autoreview_results = predict_autoreview(
         autoreview_inputs,
         override_disable_forumlike=True,

@@ -18,7 +18,8 @@ import pandas as pd
 from tqdm import tqdm
 
 from config.bot_config import BotSpecificConstants
-from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS, USE_NWO, USE_NWO_TEXTPOST
+from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS, USE_NWO, USE_NWO_TEXTPOST, \
+    USE_NWO_REPLY
 
 from munging.reply_munging import (
     mockup_xkit_reply,
@@ -967,8 +968,8 @@ def respond_to_reblogs_replies(
             response_cache.mark_handled(reblog_identifier)
             continue
 
+        # TODO: (nwo) refactor thread/payload/ts structure so reply isn't hard
         if USE_NWO and not is_reply:
-            # TODO: NWO for reply
             prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(d_boot, blogName)
 
             no_timestamp = True

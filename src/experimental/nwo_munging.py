@@ -76,21 +76,14 @@ def fake_tumblr_post(blog_name: str, text_blocks: List[str], tags: List[str]):
     return fake_post
 
 
-def replace_final_post_with_reply(
+def insert_reply_before_final_post(
     thread: TumblrThread, reply_blog_name: str, reply_body: str
-):
-    fake_post = TumblrPost(blog_name=reply_blog_name,
-                           content=NPFContent(blocks=[], layout=[], blog_name=reply_blog_name),
-                           tags=[])
+) -> TumblrThread:
+    fake_post = fake_tumblr_post(blog_name=reply_blog_name, text_blocks=[reply_body], tags=[])
 
-    result = ""
+    fake_thread = TumblrThread(posts=thread.posts + [fake_post], timestamp=thread.timestamp)
 
-    # result += processed_bootstrap_draft.rpartition(A_CHAR)[0]  # strip prompting A_CHAR
-    #
-    # postpend = UNAME_CHAR + reply_blog_name + Q_CHAR + reply_body + "\n\n" + A_CHAR
-    # result += postpend
-
-    return result
+    return fake_thread
 
 
 def make_nwo_prompts(post_payload, blogName, debug=True):

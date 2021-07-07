@@ -600,9 +600,8 @@ class NPFAsk(NPFContent):
     def from_parent_content(parent_content: NPFContent) -> Optional['NPFAsk']:
         if parent_content.has_ask:
             return NPFAsk(
-                blocks=parent_content.ask_blocks,
-                ask_layout=parent_content.ask_layout,
-
+                blocks=deepcopy(parent_content.ask_blocks),
+                ask_layout=deepcopy(parent_content.ask_layout),
             )
 
 

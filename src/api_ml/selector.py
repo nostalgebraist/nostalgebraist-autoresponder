@@ -16,6 +16,7 @@ from munging.autoresponder_static_v8 import timestamp_to_v10_format
 from feels.mood import logit_diff_to_allen_schema
 
 from experimental.nwo_transition import infer_using_nwo_from_text
+from experimental.nwo_munging import make_nwo_textpost_prompts
 
 bot_specific_constants = BotSpecificConstants.load()
 selector_url = bot_specific_constants.bridge_service_url + "/pollselector"
@@ -458,12 +459,18 @@ def serve_selection(
     return parsed, retention_stack
 
 
-def get_retention_stack_judgments(retention_stack):
+def get_retention_stack_judgments(retention_stack,
+                                  blog_name="nostalgebraist-autoresponder",  # TODO (cleanup): improve
+                                  timestamp=None
+                                  ):
     from api_ml.ml_connector import (
         selection_proba_from_gpt,
         sentiment_logit_diffs_from_gpt,
         autoreview_proba_from_gpt,
     )
+
+    if timestamp is None:
+        timestamp = datetime.now()
 
     if len(retention_stack) == 0:
         proba, logit_diffs, autoreview_proba = [], [], []
@@ -472,21 +479,35 @@ def get_retention_stack_judgments(retention_stack):
     using_nwo = all(infer_using_nwo_from_text(t) for t in retention_stack)
 
     if using_nwo:
-        timestamp = None
-        texts_for_selection = sorted(retention_stack)
+        base_texts = sorted(retention_stack)
+
+        prompts, prompts_selector, prompts_autoreviewer, _ = make_nwo_textpost_prompts(
+            blog_name=blog_name,
+            timestamp=datetime.now()
+        )
+
+        selector_texts = [prompts_selector[prompts[0]] + c for c in base_texts]
+        sentiment_texts = base_texts
+        autoreviewer_texts = [prompts_autoreviewer[prompts[0]] + c for c in base_texts]
+
+        v10_timestamp = None
     else:
-        texts_for_selection = [ORIG_POST_CHAR_CHINESE + t for t in sorted(retention_stack)]
+        base_texts = [ORIG_POST_CHAR_CHINESE + t for t in sorted(retention_stack)]
 
-        timestamp = timestamp_to_v10_format(datetime.now())
+        selector_texts = base_texts
+        sentiment_texts = base_texts
+        autoreviewer_texts = base_texts
 
-    proba = selection_proba_from_gpt(texts_for_selection, timestamp=timestamp)
+        v10_timestamp = timestamp_to_v10_format(timestamp)
 
-    proba = do_all_coldstarts(texts_for_selection, proba)
+    proba = selection_proba_from_gpt(selector_texts, timestamp=v10_timestamp)
 
-    logit_diffs = sentiment_logit_diffs_from_gpt(sorted(retention_stack))
+    proba = do_all_coldstarts(base_texts, proba)
+
+    logit_diffs = sentiment_logit_diffs_from_gpt(sentiment_texts)
 
     autoreview_proba = autoreview_proba_from_gpt(
-        texts_for_selection, timestamp=timestamp
+        autoreviewer_texts, timestamp=v10_timestamp
     )
 
     return proba, logit_diffs, autoreview_proba

@@ -25,7 +25,7 @@ def handle_no_commentary_and_populate_tags(thread: TumblrThread, client: Optiona
         try:
             tags = client.posts(final_post.blog_name, id=final_post.id)['posts'][0]['tags']
             thread = set_tags(thread, tags)
-        except KeyError:
+        except (KeyError, IndexError):
             print("archive: skipping, OP deleted?", end=" ")
             skip = True
 

@@ -10,18 +10,35 @@ from experimental.nwo_munging import pop_reblog_without_commentary, set_tags
 from util.error_handling import LogExceptionAndSkip
 
 
-def archive_to_corpus(post_payload, path, separator=EOT, client: Optional[TumblrRestClient]=None):
+def handle_no_commentary_and_populate_tags(thread: TumblrThread, client: Optional[TumblrRestClient] = None):
+    skip = False
+
+    if not client:
+        skip = True
+        return thread, skip
+
+    final_post = thread.posts[-1]
+    if len(thread.posts) > 1 and len(final_post.content.blocks) == 0:
+        # reblog w/o comment
+        thread = pop_reblog_without_commentary(thread)
+        final_post = thread.posts[-1]
+        try:
+            tags = client.posts(final_post.blog_name, id=final_post.id)['posts'][0]['tags']
+            thread = set_tags(thread, tags)
+        except KeyError:
+            print("archive: skipping, OP deleted?", end=" ")
+            skip = True
+
+    return thread, skip
+
+
+def archive_to_corpus(post_payload, path, separator=EOT, client: Optional[TumblrRestClient] = None):
     with LogExceptionAndSkip("archive post to corpus"):
         thread = TumblrThread.from_payload(post_payload)
 
-        final_post = thread.posts[-1]
-        if len(thread.posts) > 1 and len(final_post.content.blocks) == 0:
-            # reblog w/o comment
-            thread = pop_reblog_without_commentary(thread)
-            if client:
-                final_post = thread.posts[-1]
-                tags = client.posts(final_post.blog_name, id=final_post.id)['posts'][0]['tags']
-                thread = set_tags(thread, tags)
+        thread, skip = handle_no_commentary_and_populate_tags(thread, client)
+        if skip:
+            return
 
         doc = npf_thread_to_formatted_text(thread)
 

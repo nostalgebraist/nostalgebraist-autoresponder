@@ -65,13 +65,11 @@ from persistence import traceability_singleton
 from multimodal import image_analysis_singleton
 
 from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
-from api_tumblr.tumblr_parsing import TumblrThread
 
 from util.error_handling import LogExceptionAndSkip
 
 # TODO: (cleanup) replace * import once file contents are stable?
-from experimental.nwo_munging import *
-from experimental.dash_archive import archive_to_corpus
+from corpus.dash_archive import archive_to_corpus
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 

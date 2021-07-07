@@ -8,7 +8,7 @@ from api_tumblr.tumblr_parsing import NPFAsk, TumblrPost, TumblrThread
 from munging.autoresponder_static import DEFAULT_CSC, normalize_for_generator
 from munging.autoresponder_static_v8 import format_segment_v8_interlocutors, timestamp_to_v10_format
 from munging.munging_shared import find_images_and_sub_text
-import experimental.nwo_html_config
+import munging.nwo.nwo_html_config
 
 PostOrAsk = Union[TumblrPost, NPFAsk]
 
@@ -191,20 +191,20 @@ def format_and_normalize_post_html(content):
     content = re.sub(r'<a href=("[^\"]*")[^>]*>', r'<a href=\g<1>>', content)
 
     # add newline after certain tags
-    for tag in experimental.nwo_html_config.NEWLINE_AFTER:
+    for tag in munging.experimental.nwo_html_config.NEWLINE_AFTER:
         content = content.replace(f"</{tag}>", f"</{tag}>\n")
 
     # add two newlines after certain tags
-    for tag in experimental.nwo_html_config.DOUBLE_NEWLINE_AFTER:
+    for tag in munging.experimental.nwo_html_config.DOUBLE_NEWLINE_AFTER:
         content = content.replace(f"</{tag}>", f"</{tag}>\n\n")
 
     # strip classes from some tags
-    for tag in experimental.nwo_html_config.INCLUDE_TAGNAME:
+    for tag in munging.experimental.nwo_html_config.INCLUDE_TAGNAME:
         content = re.sub(fr"<{tag} [^>]*>", tag, content)
 
     # TODO [cleanup]: just make a new set for this
-    approved_tags = experimental.nwo_html_config.INCLUDE_VERBATIM.union(
-        experimental.nwo_html_config.INCLUDE_TAGNAME
+    approved_tags = munging.experimental.nwo_html_config.INCLUDE_VERBATIM.union(
+        munging.experimental.nwo_html_config.INCLUDE_TAGNAME
     ).union(
         {"img", "figure", "a"}
     )

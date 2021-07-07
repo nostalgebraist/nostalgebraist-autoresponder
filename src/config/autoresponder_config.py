@@ -103,7 +103,7 @@ EVEN_BETTER_LENGTH = True
 
 BATCHONE = True
 
-RANDOM_SAMPLING_PARAMS_ON_STARTUP = False  # True = experimental
+RANDOM_SAMPLING_PARAMS_ON_STARTUP = False
 
 if V12_6:
     model_name = "arj-v10-3-batch32-alldata-4001"

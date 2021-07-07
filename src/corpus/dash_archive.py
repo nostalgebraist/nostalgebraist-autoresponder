@@ -4,8 +4,8 @@ from pytumblr import TumblrRestClient
 from munging.autoresponder_static import EOT
 
 from api_tumblr.tumblr_parsing import TumblrThread
-from experimental.nwo import npf_thread_to_formatted_text
-from experimental.nwo_munging import pop_reblog_without_commentary, set_tags
+from munging.nwo.nwo import npf_thread_to_formatted_text
+from munging.nwo.nwo_munging import pop_reblog_without_commentary, set_tags
 
 from util.error_handling import LogExceptionAndSkip
 

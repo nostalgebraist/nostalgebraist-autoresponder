@@ -461,7 +461,10 @@ def predict_select(data, override_disable_forumlike=False):
             text = EOT + text
 
         selector_input.append(text)
-    print(f"predict_select innards: model will see\n{repr(selector_input)}")
+
+    if LOGGING_FLAGS["side_judg_inputs"]:
+        print(f"predict_select innards: model will see\n{repr(selector_input)}")
+    
     data.loc[:, "selector_input"] = selector_input
 
     data = data.to_dict(orient="records")
@@ -499,7 +502,10 @@ def predict_sentiment(data):
             text = EOT + text
 
         selector_input.append(text)
-    print(f"predict_sentiment innards: model will see\n{repr(selector_input)}")
+
+    if LOGGING_FLAGS["side_judg_inputs"]:
+        print(f"predict_sentiment innards: model will see\n{repr(selector_input)}")
+
     data.loc[:, "selector_input"] = selector_input
 
     data = data.to_dict(orient="records")
@@ -532,7 +538,10 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
             text = EOT + text
 
         selector_input.append(text)
-    print(f"predict_autoreview innards: model will see\n{repr(selector_input)}")
+
+    if LOGGING_FLAGS["side_judg_inputs"]:
+        print(f"predict_autoreview innards: model will see\n{repr(selector_input)}")
+
     data.loc[:, "selector_input"] = selector_input
 
     data = data.to_dict(orient="records")

@@ -2446,6 +2446,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
                 question = inverse_format_post_for_api(question)
 
+            # TODO: (cleanup) get rid of "forced_tags_string"
             forced_tags_string = ""
             write_fic_override = 0
 

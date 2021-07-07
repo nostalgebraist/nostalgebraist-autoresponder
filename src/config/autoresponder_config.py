@@ -38,6 +38,11 @@ print(("USE_NWO_REPLY", USE_NWO_REPLY))
 print(("USE_NWO_MUNGE_AFTER", USE_NWO_MUNGE_AFTER))
 print(("USE_NWO_FIC", USE_NWO_FIC))
 
+LOGGING_FLAGS = {
+    "side_judg_inputs": False,
+    "parse_continuation": False
+}
+
 
 if V12_6:
     AUTOREVIEWER_CUTOFFS = {

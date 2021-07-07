@@ -10,7 +10,7 @@ from textwrap import wrap
 from config.bot_config import BotSpecificConstants
 from multimodal.image_analysis import IMAGE_DELIMITER_WHITESPACED
 
-from config.autoresponder_config import USE_NWO_MUNGE_AFTER
+from config.autoresponder_config import USE_NWO_MUNGE_AFTER, LOGGING_FLAGS
 from munging.autoresponder_static import T_CHAR, ORIG_POST_CHAR_CHINESE, EOT
 from munging.autoresponder_static_v8 import timestamp_to_v10_format
 from feels.mood import logit_diff_to_allen_schema
@@ -79,7 +79,7 @@ def show_note_probas(texts, probas, continuation_sentiments=None, other_proba=No
         print("\n~_~_~_~_~_\n")
 
 
-def parse_continuation_nwo(continuation: str, verbose=False):
+def parse_continuation_nwo(continuation: str, verbose=LOGGING_FLAGS["parse_continuation"]):
     if verbose:
         msg = "parse_continuation_nwo: "
         msg += f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"
@@ -99,7 +99,7 @@ def parse_continuation_nwo(continuation: str, verbose=False):
     return parsed
 
 
-def parse_continuation_legacy(continuation: str, verbose=False):
+def parse_continuation_legacy(continuation: str, verbose=LOGGING_FLAGS["parse_continuation"]):
     if verbose:
         msg = "parse_continuation_legacy: "
         msg += f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"

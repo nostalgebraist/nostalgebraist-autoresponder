@@ -2353,9 +2353,9 @@ def do_ask_handling(loop_persistent_data, response_cache):
     print()
 
     submissions = [
-        x
-        for x in submissions
-        if roll_for_limited_users(x["asking_name"], text=x["question"])
+        post_payload
+        for post_payload in submissions
+        if roll_for_limited_users(post_payload["asking_name"], text=post_payload["question"])
     ]
 
     blog_names_to_asks = defaultdict(list)
@@ -2382,25 +2382,25 @@ def do_ask_handling(loop_persistent_data, response_cache):
             )
     submissions = kept
 
-    for x in submissions[::-1]:
-        if x.get("summary", "") == FOLLOW_COMMAND:
+    for post_payload in submissions[::-1]:
+        if post_payload.get("summary", "") == FOLLOW_COMMAND:
             with LogExceptionAndSkip("follow"):
-                response_cache.follow(x["asking_name"], dashboard_client)
-                private_client.delete_post(blogName, x["id"])
-                print(f"followed {x['asking_name']}")
-        elif x.get("summary", "") == UNFOLLOW_COMMAND:
+                response_cache.follow(post_payload["asking_name"], dashboard_client)
+                private_client.delete_post(blogName, post_payload["id"])
+                print(f"followed {post_payload['asking_name']}")
+        elif post_payload.get("summary", "") == UNFOLLOW_COMMAND:
             with LogExceptionAndSkip("unfollow"):
-                response_cache.unfollow(x["asking_name"], dashboard_client)
-                private_client.delete_post(blogName, x["id"])
-                print(f"unfollowed {x['asking_name']}")
-        elif x.get("summary", "") == MOOD_GRAPH_COMMAND:
+                response_cache.unfollow(post_payload["asking_name"], dashboard_client)
+                private_client.delete_post(blogName, post_payload["id"])
+                print(f"unfollowed {post_payload['asking_name']}")
+        elif post_payload.get("summary", "") == MOOD_GRAPH_COMMAND:
             path = create_mood_graph(
                 response_cache,
                 start_time=datetime.now() - pd.Timedelta(days=MOOD_GRAPH_N_DAYS),
                 end_time=datetime.now(),
             )
             state = "published"
-            if x["asking_name"] == "nostalgebraist":
+            if post_payload["asking_name"] == "nostalgebraist":
                 state = "draft"
             private_client.create_photo(
                 blogName,
@@ -2408,29 +2408,29 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 data=path,
                 caption=MOOD_GRAPH_EXPLAINER_STRING.format(
                     days_string=MOOD_GRAPH_DAYS_STRING,
-                    asking_name=x["asking_name"],
-                    asking_url=x["asking_url"],
+                    asking_name=post_payload["asking_name"],
+                    asking_url=post_payload["asking_url"],
                 ),
             )
-            private_client.delete_post(blogName, x["id"])
-        elif x.get("summary", "").startswith(REVIEW_COMMAND):
+            private_client.delete_post(blogName, post_payload["id"])
+        elif post_payload.get("summary", "").startswith(REVIEW_COMMAND):
             with LogExceptionAndSkip("write review"):
                 user_args, user_argstring, is_valid = parse_and_validate_review_command(
-                    inverse_format_post_for_api(x["summary"])
+                    inverse_format_post_for_api(post_payload["summary"])
                 )
 
                 if not is_valid:
                     print(f"malformed_review_command: {user_argstring} --> {user_args}")
                 else:
-                    input_ident = (x["id"], x["asking_name"])
+                    input_ident = (post_payload["id"], post_payload["asking_name"])
                     handle_review_command(
                         user_args,
                         input_ident,
-                        x["asking_url"],
+                        post_payload["asking_url"],
                         loop_persistent_data,
                         response_cache,
                     )
-                    private_client.delete_post(blogName, x["id"])
+                    private_client.delete_post(blogName, post_payload["id"])
         else:
             for k in [
                 "id",
@@ -2439,10 +2439,10 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 "summary",
                 "question",
             ]:
-                print(f"{k}: {x[k]}")
+                print(f"{k}: {post_payload[k]}")
 
             # TODO: (nwo) get rid of "question"
-            question = x["question"]
+            question = post_payload["question"]
 
             question = find_images_and_sub_text(question)
 
@@ -2454,7 +2454,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
             if FIC_TRIGGER:
                 fic_trigger_criterion = any(
                     [
-                        subs in x["question"].lower()
+                        subs in post_payload["question"].lower()
                         for subs in [
                             "tell me a story",
                             "tell me the story of",
@@ -2466,14 +2466,14 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     ]
                 )
                 print(
-                    f"fic_trigger_criterion: {fic_trigger_criterion} with x['question']: {x['question']}"
+                    f"fic_trigger_criterion: {fic_trigger_criterion} with post_payload['question']: {post_payload['question']}"
                 )
                 if FIC_TRIGGER_TESTING:
                     fic_trigger_criterion = fic_trigger_criterion and (
-                        x["asking_name"] == "nostalgebraist"
+                        post_payload["asking_name"] == "nostalgebraist"
                     )
                     print(
-                        f"fic_trigger_criterion: {fic_trigger_criterion} with x['asking_name']: {x['asking_name']}"
+                        f"fic_trigger_criterion: {fic_trigger_criterion} with post_payload['asking_name']: {post_payload['asking_name']}"
                     )
 
                 if fic_trigger_criterion:
@@ -2482,9 +2482,9 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
             user_input_identifier = UserInputIdentifier(
                 input_type=UserInputType.ASK,
-                blog_name=x["asking_name"],
-                id_=x["id"],
-                timestamp=x["timestamp"],
+                blog_name=post_payload["asking_name"],
+                id_=post_payload["id"],
+                timestamp=post_payload["timestamp"],
             )
             do_get_sentiment = False
             if (
@@ -2509,7 +2509,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         print(
                             f"couldn't find text for sentiment (question) in {user_input_identifier}"
                         )
-                        print(f"have submission payload {x}")
+                        print(f"have submission payload {post_payload}")
                 elif response_cache.get_cached_user_input_sentiment(user_input_identifier) is None:
                     logit_diff = sentiment_logit_diffs_from_gpt(
                         [text_for_sentiment]
@@ -2525,7 +2525,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
             # TODO: (nwo) write_fic_override in nwo
             if USE_NWO and (not write_fic_override or USE_NWO_FIC):
-                thread = TumblrThread.from_payload(x)
+                thread = TumblrThread.from_payload(post_payload)
                 if write_fic_override:
                     prompt, prompt_selector, prompt_autoreviewer = make_nwo_fic_override_prompts(thread)
                 else:
@@ -2546,7 +2546,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 prompt_autoreviewer=prompt_autoreviewer,
                 exact_prompt=exact_prompt,
                 no_timestamp=no_timestamp,
-                asking_name=x["asking_name"],
+                asking_name=post_payload["asking_name"],
                 mood_name=determine_mood(response_cache),
                 forced_tags_string=forced_tags_string,
                 write_fic_override=write_fic_override,
@@ -2580,12 +2580,12 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     show_unit_mood_inputs(response_cache, user_input_identifier)
             log_data = gpt2_output
             log_data["post_type"] = "ask"
-            log_data["input_ident"] = (x["id"], x["asking_name"])
+            log_data["input_ident"] = (post_payload["id"], post_payload["asking_name"])
             log_data["question"] = question
             answer_ask(
                 blogName,
-                ask_id=x["id"],
-                asking_name=x["asking_name"],
+                ask_id=post_payload["id"],
+                asking_name=post_payload["asking_name"],
                 question=question,
                 answer=gpt2_output["post"],
                 tags=gpt2_output["tags"],

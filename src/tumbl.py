@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 from config.bot_config import BotSpecificConstants
 from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS, USE_NWO, USE_NWO_TEXTPOST, \
-    USE_NWO_REPLY
+    USE_NWO_REPLY, USE_NWO_FIC
 
 from munging.reply_munging import (
     mockup_xkit_reply,
@@ -2528,8 +2528,13 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     )
 
             # TODO: (nwo) write_fic_override in nwo
-            if USE_NWO and not write_fic_override:
-                prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(TumblrThread.from_payload(x), blogName)
+            if USE_NWO and (not write_fic_override or USE_NWO_FIC):
+                thread = TumblrThread.from_payload(x)
+                if write_fic_override:
+                    prompt, prompt_selector, prompt_autoreviewer = make_nwo_fic_override_prompts(thread)
+                else:
+                    prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(thread, blogName)
+
                 exact_prompt = True
                 no_timestamp = True
             else:

@@ -32,6 +32,8 @@ from api_tumblr.tumblr_parsing import TumblrThread
 
 from api_tumblr.pytumblr_wrapper import RateLimitClient
 
+from experimental.nwo_deprecated import nwo_deprecated
+
 VERBOSE_LOGS = False
 
 MAY_2020_TRAIL_HACK = True
@@ -69,6 +71,7 @@ def format_post_for_api(post):
     return post
 
 
+@nwo_deprecated
 def inverse_format_post_for_api(post):
     if post.startswith("<p>"):
         post = post[len("<p>") :]
@@ -236,6 +239,7 @@ def body_via_trail_hack(post: dict):
     return "".join(my_units)
 
 
+@nwo_deprecated
 def process_post_from_html_body(
     body: str, debug=False, V10=True,
 ) -> str:
@@ -256,6 +260,7 @@ def process_post_from_html_body(
     return processed
 
 
+@nwo_deprecated
 def process_post_from_post_payload(
     post: dict, debug=False, V10=True,
 ) -> str:
@@ -300,8 +305,8 @@ def process_post_from_post_payload(
     return processed
 
 
+@nwo_deprecated
 def screener_string_from_bootstrap_draft(d):
-    # TODO: [nwo] nwo-ify this
     processed = process_post_from_post_payload(d)
     cchars = find_all_control_chars_chinese(processed)
 
@@ -498,7 +503,7 @@ def load_wash_lists():
 
 # "pretending the post is by me" tools
 
-
+@nwo_deprecated
 def write_text_for_side_judgment(
     post_payload,
     chop_on_a_char=False,

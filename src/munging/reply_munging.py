@@ -1,5 +1,7 @@
 from munging.autoresponder_static import UNAME_CHAR, Q_CHAR, A_CHAR
 
+from experimental.nwo_deprecated import nwo_deprecated
+
 
 def mockup_xkit_reply(
     post_url: str,
@@ -14,6 +16,7 @@ def mockup_xkit_reply(
     return reply_body
 
 
+@nwo_deprecated
 def bootstrap_draft_inject_reply(
     processed_bootstrap_draft: str, reply_blog_name: str, reply_body: str
 ):

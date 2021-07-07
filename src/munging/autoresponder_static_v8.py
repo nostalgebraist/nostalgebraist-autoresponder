@@ -4,6 +4,7 @@ import re
 from functools import partial
 from datetime import datetime
 from munging.autoresponder_static import *
+from experimental.nwo_deprecated import nwo_deprecated
 
 TIME_SIDECHANNEL_CHAR = "\U0001f552"  # clock symbol 🕒
 
@@ -39,15 +40,18 @@ def timestamp_to_v10_format(ts):
         return ""
 
 
+@nwo_deprecated
 def join_time_sidechannel(doc, time_text):
     return doc + TIME_SIDECHANNEL_CHAR + time_text
 
 
+@nwo_deprecated
 def post_and_time_to_v8_sidechannel_format(doc, ts):
     time_text = timestamp_to_v8_format(ts)
     return join_time_sidechannel(doc, time_text)
 
 
+@nwo_deprecated
 # utilities for compute side
 def split_off_times_v8(doc):
     normal_text, _, time_text = doc.partition(TIME_SIDECHANNEL_CHAR)
@@ -104,12 +108,14 @@ def format_segment_v8_interlocutors(doc, control_seg_config=DEFAULT_CSC):
 """V8 format: tags"""
 
 
+@nwo_deprecated
 def split_off_tags_v8(doc):
     doc_tagless, _, tag_string_raw = doc.partition(T_CHAR)
     tag_string_raw = tag_string_raw.partition(EOT)[0].partition("<|")[0]
     return doc_tagless, tag_string_raw
 
 
+@nwo_deprecated
 def format_segment_v8_tags(
     tag_string_raw, user_name="Frank", control_seg_config=DEFAULT_CSC
 ):
@@ -127,6 +133,7 @@ def format_segment_v8_tags(
 """V8 format: full thing"""
 
 
+@nwo_deprecated
 def globally_format_v8(
     doc_tagless,
     ts_string,
@@ -166,6 +173,7 @@ def globally_format_v8(
     return formatted
 
 
+@nwo_deprecated
 def final_munge_before_neural_v8(
     doc,
     newline_postfix="\n",  # was "\n\n" in very first version of v8
@@ -259,6 +267,7 @@ def final_munge_before_neural_v8(
     return formatted
 
 
+@nwo_deprecated
 def extract_core_from_forumlike_ask_prompt(text, control_seg_config=DEFAULT_CSC):
     ccs = find_control_chars(text, control_seg_config=control_seg_config)
     if len(ccs) >= 2:
@@ -306,6 +315,7 @@ def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC, verb
     return formatted
 
 
+@nwo_deprecated
 def final_munge_after_neural_v8(text, delete_title=False):
     # strip orig post starters
     for cchar in [
@@ -328,12 +338,14 @@ def final_munge_after_neural_v8(text, delete_title=False):
     return post + T_CHAR + tag_text
 
 
+@nwo_deprecated
 def final_munge_before_neural_v10(doc, **kwargs):
     return final_munge_before_neural_v8(
         doc, control_seg_config=CONTROL_SEG_CONFIGS["V10"], **kwargs
     )
 
 
+@nwo_deprecated
 def final_munge_before_neural_v10_1(doc, **kwargs):
     if kwargs.get('mode') != 'train':
         kwargs["user_name"] = "nostalgebraist-autoresponder"
@@ -344,6 +356,7 @@ def final_munge_before_neural_v10_1(doc, **kwargs):
     )
 
 
+@nwo_deprecated
 def v10_1_to_v10_2(doc):
     bad = CONTROL_SEG_CONFIGS['V10_1']['ORIG_POST_CHAR_FORUMLIKE']
     good = CONTROL_SEG_CONFIGS['V10_2']['ORIG_POST_CHAR_FORUMLIKE']
@@ -364,6 +377,7 @@ def final_munge_before_neural_v10_2(doc, **kwargs):
     )
 
 
+@nwo_deprecated
 def _final_munge_after_neural_v10(text, delete_title=False, control_seg_config=DEFAULT_CSC):
     # strip orig post starters
 

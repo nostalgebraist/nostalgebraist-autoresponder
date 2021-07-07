@@ -10,7 +10,8 @@ from multimodal.image_analysis import (
     V9_IMAGE_FORMATTER,
 )
 from multimodal import image_analysis_singleton
-from util.util import render_call_stack
+
+from experimental.nwo_deprecated import nwo_deprecated
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
@@ -454,6 +455,7 @@ def _process_elem(
     return text_units, meta
 
 
+@nwo_deprecated
 def process_post(
     soup,
     debug=False,
@@ -465,8 +467,6 @@ def process_post(
     user_defined_image_formatter=V9_IMAGE_FORMATTER,
     V10=True,
 ):
-    stack_string = render_call_stack()
-    print(f"!! NWO failure, process_post was called. call stack:\n{stack_string}\n")
     text_processor_maps = make_text_processor_maps(uname_config)
 
     text_units = []

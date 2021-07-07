@@ -66,12 +66,12 @@ from munging.autoresponder_static_v8 import timestamp_to_v10_format
 from persistence import traceability_singleton
 from multimodal import image_analysis_singleton
 
-
 from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
+from api_tumblr.tumblr_parsing import TumblrThread
 
 from util.error_handling import LogExceptionAndSkip
 
-from experimental.nwo_munging import make_nwo_prompts, make_nwo_textpost_prompts
+from experimental.nwo_munging import make_nwo_prompts, make_nwo_textpost_prompts, insert_reply_before_final_post
 from experimental.dash_archive import archive_to_corpus
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
@@ -968,9 +968,17 @@ def respond_to_reblogs_replies(
             response_cache.mark_handled(reblog_identifier)
             continue
 
-        # TODO: (nwo) refactor thread/payload/ts structure so reply isn't hard
-        if USE_NWO and not is_reply:
-            prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(d_boot, blogName)
+        if USE_NWO and (not is_reply or USE_NWO_REPLY):
+            thread = TumblrThread.from_payload(d_boot)
+            if is_reply:
+                thread = insert_reply_before_final_post(thread,
+                                                        reply_blog_name=reblog_identifier.blog_name,
+                                                        reply_body=
+                                                        loop_persistent_data.reply_metadata[reblog_identifier][
+                                                            "reply_note"
+                                                        ]["reply_text"],
+                                                        )
+            prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(thread, blogName)
 
             no_timestamp = True
         else:
@@ -988,7 +996,7 @@ def respond_to_reblogs_replies(
             private_client.delete_post(blogName, d_boot["id"])
             continue
 
-        if is_reply:
+        if not USE_NWO and is_reply:
             prompt = bootstrap_draft_inject_reply(
                 prompt,
                 reply_blog_name=reblog_identifier.blog_name,
@@ -2506,7 +2514,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
             # TODO: (nwo) write_fic_override in nwo
             if USE_NWO and not write_fic_override:
-                prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(x, blogName)
+                prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(TumblrThread.from_payload(x), blogName)
                 exact_prompt = True
                 no_timestamp = True
             else:

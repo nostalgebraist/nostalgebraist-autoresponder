@@ -5,7 +5,7 @@ from datetime import datetime
 from api_tumblr.tumblr_parsing import NPFTextBlock, NPFContent, TumblrPost, TumblrThread
 from munging.year_munging import sample_year
 from munging.autoresponder_static import DEFAULT_CSC
-from experimental.nwo import post_payload_to_formatted_text, npf_thread_to_formatted_text
+from experimental.nwo import npf_thread_to_formatted_text
 
 
 def replace_payload_timestamp(post_payload: dict, timestamp: int) -> dict:
@@ -82,14 +82,14 @@ def insert_reply_before_final_post(
 ) -> TumblrThread:
     fake_post = fake_tumblr_post(blog_name=reply_blog_name, text_blocks=[reply_body], tags=[])
 
-    fake_thread = TumblrThread(posts=thread.posts + [fake_post], timestamp=thread.timestamp)
+    new_posts = thread.posts[:-1] + [fake_post] + thread.posts[-1:]
+
+    fake_thread = TumblrThread(posts=new_posts, timestamp=thread.timestamp)
 
     return fake_thread
 
 
-def make_nwo_prompts(post_payload: dict, blogName: str, debug=True):
-    thread = TumblrThread.from_payload(post_payload)
-
+def make_nwo_prompts(thread: TumblrThread, blogName: str, debug=True):
     prompt = npf_thread_to_formatted_text(
         sample_year_and_set_timestamp(thread), ml_prompt_format=True
     )

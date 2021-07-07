@@ -939,7 +939,8 @@ def old_bridge_call__textpost(
 
     selector_inputs = [c for c in continuations]
     if using_nwo:
-        selector_inputs = [prompts_selector[sdata["prompt_for_neural"]] for sdata in continuation_side_data]
+        selector_inputs = [prompts_selector[sdata["prompt_for_neural"]] + c
+                           for c, sdata in zip(continuations, continuation_side_data)]
     else:
         for alt_char in [
             CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"],
@@ -977,8 +978,9 @@ def old_bridge_call__textpost(
     autoreview_inputs = selector_inputs
     if using_nwo:
         # TODO: (nwo) maybe combine prompts_autoreviewer with prompts_selector?
-        autoreview_inputs["selector_input"] = [
-            prompts_autoreviewer[sdata["prompt_for_neural"]] for sdata in continuation_side_data
+        autoreview_inputs = [
+            prompts_autoreviewer[sdata["prompt_for_neural"]] + c
+            for c, sdata in zip(continuations, continuation_side_data)
         ]
 
     autoreview_results = predict_autoreview(

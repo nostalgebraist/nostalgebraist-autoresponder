@@ -1357,6 +1357,9 @@ def is_statically_reblog_worthy_on_dash(
     reblog_worthy = True
     scrape_worthy = True
 
+    if '.gif' in p_body:
+        scrape_worthy = False
+
     # tag avoid list
     tags = post_payload.get("tags", [])
     trail = post_payload.get("trail", [])
@@ -2049,7 +2052,12 @@ def do_reblog_reply_handling(
 
         # batch up dash posts for side judgment computation
         statically_worthy_posts = []
-        for post_ix, post in enumerate(tqdm(posts)):  # posts[:n_posts_to_check]
+        iter_ = tqdm(posts)
+        for post_ix, post in enumerate(iter_):
+            p_body = get_body(post)
+            n_img = len(p_body.split("<img")) - 1
+            iter_.set_postfix(pi=(post["blog_name"], post["id"]), n_img=n_img)
+
             if is_statically_reblog_worthy_on_dash(
                 post,
                 response_cache,

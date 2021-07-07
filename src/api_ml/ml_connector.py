@@ -6,6 +6,7 @@ from itertools import chain, product
 from typing import List
 
 import requests
+import numpy as np
 import pandas as pd
 
 from config.autoresponder_config import *

@@ -53,9 +53,9 @@ from api_ml.selector import apply_retention_cutoff
 from api_ml.ml_connector import (
     answer_from_gpt,
     text_post_from_gpt,
-    selection_proba_from_gpt2_service,
-    sentiment_logit_diffs_from_gpt2_service,
-    autoreview_proba_from_gpt2_service,
+    selection_proba_from_gpt,
+    sentiment_logit_diffs_from_gpt,
+    autoreview_proba_from_gpt,
 )
 
 from multimodal.image_analysis import IMAGE_DELIMITER
@@ -1434,9 +1434,9 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         timestamp = timestamp_to_v10_format(datetime.now())
 
         t1 = time.time()
-        probs = selection_proba_from_gpt2_service(texts, timestamp=timestamp)
-        sentiments = sentiment_logit_diffs_from_gpt2_service(texts)
-        autoreview_probs = autoreview_proba_from_gpt2_service(texts, timestamp=timestamp)
+        probs = selection_proba_from_gpt(texts, timestamp=timestamp)
+        sentiments = sentiment_logit_diffs_from_gpt(texts)
+        autoreview_probs = autoreview_proba_from_gpt(texts, timestamp=timestamp)
         delta = time.time() - t1
         print(f"got {len(texts)} judgments in {delta:.2f}s")
 
@@ -1678,7 +1678,7 @@ def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
                     )
                     print(f"have note payload {r}")
             elif response_cache.get_cached_user_input_sentiment(user_input_identifier) is None:
-                logit_diff = sentiment_logit_diffs_from_gpt2_service(
+                logit_diff = sentiment_logit_diffs_from_gpt(
                     [text_for_sentiment]
                 )[0]
                 sent = logit_diff_to_allen_schema(logit_diff)
@@ -1797,7 +1797,7 @@ def get_relevant_replies_from_notes(
                     )
                     print(f"have note payload {n}")
             elif response_cache.get_cached_user_input_sentiment(user_input_identifier) is None:
-                logit_diff = sentiment_logit_diffs_from_gpt2_service(
+                logit_diff = sentiment_logit_diffs_from_gpt(
                     [text_for_sentiment]
                 )[0]
                 sent = logit_diff_to_allen_schema(logit_diff)
@@ -2495,7 +2495,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         )
                         print(f"have submission payload {x}")
                 elif response_cache.get_cached_user_input_sentiment(user_input_identifier) is None:
-                    logit_diff = sentiment_logit_diffs_from_gpt2_service(
+                    logit_diff = sentiment_logit_diffs_from_gpt(
                         [text_for_sentiment]
                     )[0]
                     sent = logit_diff_to_allen_schema(logit_diff)

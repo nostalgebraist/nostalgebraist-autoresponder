@@ -996,7 +996,8 @@ def old_bridge_call__textpost(
     return response_data
 
 
-def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
+# TODO (cleanup): call these fns inside the answer/textpost fns
+def selection_proba_from_gpt(texts: List[str], timestamp: str = None):
     if timestamp is None:
         timestamp = ""
 
@@ -1020,7 +1021,7 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
     return results
 
 
-def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
+def sentiment_logit_diffs_from_gpt(texts: List[str]):
     sentiment_inputs = pd.DataFrame({"selector_input": texts})
     sentiment_results = predict_sentiment(sentiment_inputs)
     results = [float(p) for p in sentiment_results]
@@ -1028,7 +1029,7 @@ def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
     return results
 
 
-def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
+def autoreview_proba_from_gpt(texts: List[str], timestamp: str = None):
     if timestamp is None:
         timestamp = ""
 

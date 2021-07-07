@@ -430,21 +430,21 @@ def serve_selection(
 # TODO: (nwo) nwo-ify this
 def get_retention_stack_judgments(retention_stack):
     from api_ml.ml_connector import (
-        selection_proba_from_gpt2_service,
-        sentiment_logit_diffs_from_gpt2_service,
-        autoreview_proba_from_gpt2_service,
+        selection_proba_from_gpt,
+        sentiment_logit_diffs_from_gpt,
+        autoreview_proba_from_gpt,
     )
 
     texts_for_selection = [ORIG_POST_CHAR_CHINESE + t for t in sorted(retention_stack)]
 
     timestamp = timestamp_to_v10_format(datetime.now())
-    proba = selection_proba_from_gpt2_service(texts_for_selection, timestamp=timestamp)
+    proba = selection_proba_from_gpt(texts_for_selection, timestamp=timestamp)
 
     proba = do_all_coldstarts(texts_for_selection, proba)
 
-    logit_diffs = sentiment_logit_diffs_from_gpt2_service(sorted(retention_stack))
+    logit_diffs = sentiment_logit_diffs_from_gpt(sorted(retention_stack))
 
-    autoreview_proba = autoreview_proba_from_gpt2_service(
+    autoreview_proba = autoreview_proba_from_gpt(
         texts_for_selection, timestamp=timestamp
     )
 

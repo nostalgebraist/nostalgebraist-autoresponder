@@ -551,46 +551,6 @@ def write_text_for_side_judgment(
     return text
 
 
-# corpus (re)construction
-
-# TODO: remove (currently used for validation)
-def corpus_doc_from_post_payload(post_payload):
-    ts = datetime.fromtimestamp(post_payload['timestamp'])
-    v10_timestamp = timestamp_to_v10_format(ts)
-
-    doc_chinese_format = write_text_for_side_judgment(
-        post_payload,
-        chop_on_a_char=False,
-        add_tags=True,
-        swap_in_frank=True,
-        add_empty_response=False,
-        keep_orig_post_char=True
-    )
-
-    user_name = post_payload['blog_name']
-
-    doc_chinese_format = join_time_sidechannel(doc_chinese_format, v10_timestamp)
-
-    kwargs = dict(mode='train', user_name=user_name)
-
-    doc = final_munge_before_neural(doc_chinese_format, **kwargs)
-
-    return doc
-
-
-# TODO: remove (currently used for validation)
-def archive_to_corpus(post_payload, path="data/dash_post_dump.txt", separator=EOT):
-    with LogExceptionAndSkip("archive post to corpus"):
-        doc = corpus_doc_from_post_payload(post_payload)
-
-        if separator in doc:
-            raise ValueError(f"separator in doc: {repr(doc)}")
-
-        with open(path, "a", encoding="utf-8") as f:
-            line = doc + EOT
-            f.write(line)
-
-
 class LegacySimulatingClient(RateLimitClient):
     def send_api_request(
         self, method, url, params={}, valid_parameters=[], needs_api_key=False

@@ -2088,7 +2088,6 @@ def do_reblog_reply_handling(
             if is_statically_reblog_worthy_on_dash(
                 post,
                 response_cache,
-                loop_persistent_data,
                 verbose=VERBOSE_LOGS,
                 is_nost_dash_scraper=is_nost_dash_scraper,
                 slow_scraping_ok=slow_scraping_ok

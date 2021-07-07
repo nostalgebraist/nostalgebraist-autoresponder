@@ -115,6 +115,16 @@ def insert_reply_before_final_post(
     return fake_thread
 
 
+def get_normalized_ask_text(thread: TumblrThread):
+    if not thread.ask_content:
+        raise ValueError(f"get_normalized_ask_text: no ask_content on thread")
+
+    ask_text = thread.ask_content.to_html()
+    ask_text = format_and_normalize_post_html(ask_text)
+
+    return ask_text
+
+
 def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=True):
     prompt = npf_thread_to_formatted_text(
         sample_year_and_set_timestamp(thread), ml_prompt_format=True
@@ -135,11 +145,7 @@ def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=True):
 
 
 def make_nwo_fic_override_prompts(thread: TumblrThread, control_seg_config=DEFAULT_CSC, debug=True):
-    if not thread.ask_content:
-        raise ValueError(f"make_nwo_fic_override_prompts: no ask_content on thread")
-
-    ask_text = thread.ask_content.to_html()
-    ask_text = format_and_normalize_post_html(ask_text)
+    ask_text = get_normalized_ask_text(thread)
 
     prompt = construct_fic_override_v2(ask_text, control_seg_config=control_seg_config)
     prompt_selector = control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]

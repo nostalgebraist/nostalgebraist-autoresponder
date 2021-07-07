@@ -2437,15 +2437,18 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 print(f"{k}: {post_payload[k]}")
 
             # TODO: (nwo) get rid of "question"
-            question = post_payload["question"]
+            if USE_NWO:
+                question = get_normalized_ask_text(post_payload["question"])
+            else:
+                question = post_payload["question"]
 
-            question = find_images_and_sub_text(question)
+                question = find_images_and_sub_text(question)
 
-            question = inverse_format_post_for_api(question)
+                question = inverse_format_post_for_api(question)
 
             forced_tags_string = ""
-
             write_fic_override = 0
+
             if FIC_TRIGGER:
                 fic_trigger_criterion = any(
                     [

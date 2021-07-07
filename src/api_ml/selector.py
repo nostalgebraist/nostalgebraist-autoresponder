@@ -458,13 +458,16 @@ def serve_selection(
     return parsed, retention_stack
 
 
-# TODO: (nwo) nwo-ify this
 def get_retention_stack_judgments(retention_stack):
     from api_ml.ml_connector import (
         selection_proba_from_gpt,
         sentiment_logit_diffs_from_gpt,
         autoreview_proba_from_gpt,
     )
+
+    if len(retention_stack) == 0:
+        proba, logit_diffs, autoreview_proba = [], [], []
+        return proba, logit_diffs, autoreview_proba
 
     using_nwo = all(infer_using_nwo_from_text(t) for t in retention_stack)
 
@@ -490,8 +493,6 @@ def get_retention_stack_judgments(retention_stack):
 
 
 def apply_retention_cutoff(retention_stack):
-    if len(retention_stack) == 0:
-        return retention_stack
     retention_stack_proba, _, _ = get_retention_stack_judgments(retention_stack)
 
     n_before_stack, n_before_proba = len(retention_stack), len(retention_stack_proba)

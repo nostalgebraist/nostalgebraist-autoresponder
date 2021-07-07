@@ -2438,7 +2438,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
             # TODO: (nwo) get rid of "question"
             if USE_NWO:
-                question = get_normalized_ask_text(post_payload["question"])
+                thread = TumblrThread.from_payload(post_payload)
+                question = get_normalized_ask_text(thread)
             else:
                 question = post_payload["question"]
 

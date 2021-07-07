@@ -2346,7 +2346,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
     submissions = private_client.submission(blogName)["posts"]
 
     n_asks = len(submissions)
-    print(f"processing {n_asks} new asks")
+    print(f"processing {n_asks} asks")
     print()
 
     submissions = [

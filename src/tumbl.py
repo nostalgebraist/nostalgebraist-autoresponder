@@ -2868,9 +2868,12 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     return loop_persistent_data, response_cache
 
 
-def load_retention():
-    with open("data/retention_stack.pkl.gz", "rb") as f:
-        retention_stack = pickle.load(f)
+def load_retention(path="data/retention_stack.pkl.gz"):
+    retention_stack = set()
+
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            retention_stack = pickle.load(f)
 
     retention_stack = apply_retention_cutoff(retention_stack)
 

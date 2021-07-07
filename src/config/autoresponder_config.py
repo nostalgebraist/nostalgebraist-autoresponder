@@ -4,7 +4,8 @@ import subprocess
 
 from config.bot_config import BotSpecificConstants
 from munging.autoresponder_static_v8 import *
-from experimental.nwo_transition import final_munge_before_neural_nwo_transition
+from experimental.nwo_transition import final_munge_before_neural_nwo_transition, \
+    final_munge_after_neural_nwo_transition, USE_NWO_MUNGE_AFTER
 
 V8 = True
 V8_2 = True
@@ -30,7 +31,6 @@ USE_AUTOREVIEWER = True
 USE_NWO = True
 USE_NWO_TEXTPOST = True
 USE_NWO_REPLY = True
-USE_NWO_MUNGE_AFTER = True
 print(("USE_NWO", USE_NWO))
 print(("USE_NWO_TEXTPOST", USE_NWO_TEXTPOST))
 print(("USE_NWO_REPLY", USE_NWO_REPLY))
@@ -128,6 +128,9 @@ else:
 
 if USE_NWO:
     final_munge_before_neural = final_munge_before_neural_nwo_transition
+
+if USE_NWO and USE_NWO_MUNGE_AFTER:
+    final_munge_after_neural = final_munge_after_neural_nwo_transition
 
 if V12_6:
     model_name = "arj-v10-3-batch32-alldata-4001"

@@ -4,7 +4,8 @@ from datetime import datetime
 from api_tumblr.tumblr_parsing import NPFTextBlock, NPFContent, TumblrPost, TumblrThread
 from munging.year_munging import sample_year
 from munging.autoresponder_static import DEFAULT_CSC
-from experimental.nwo import npf_thread_to_formatted_text
+from munging.autoresponder_static_v8 import construct_fic_override_v2
+from experimental.nwo import npf_thread_to_formatted_text, format_and_normalize_post_html
 
 
 def sample_year_and_set(timestamp: datetime):
@@ -124,6 +125,25 @@ def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=True):
 
     thread_autoreviewer = cut_to_n_most_recent_by_user(thread, blog_name, n_most_recent=2)
     prompt_autoreviewer = npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=True)
+
+    if debug:
+        print(f"prompt: {repr(prompt)}")
+        print(f"prompt_selector: {repr(prompt_selector)}")
+        print(f"prompt_autoreviewer: {repr(prompt_autoreviewer)}")
+
+    return prompt, prompt_selector, prompt_autoreviewer
+
+
+def make_nwo_fic_override_prompts(thread: TumblrThread, control_seg_config=DEFAULT_CSC, debug=True):
+    if not thread.ask_content:
+        raise ValueError(f"make_nwo_fic_override_prompts: no ask_content on thread")
+
+    ask_text = thread.ask_content.to_html()
+    ask_text = format_and_normalize_post_html(ask_text)
+
+    prompt = construct_fic_override_v2(ask_text, control_seg_config=control_seg_config)
+    prompt_selector = control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
+    prompt_autoreviewer = control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
 
     if debug:
         print(f"prompt: {repr(prompt)}")

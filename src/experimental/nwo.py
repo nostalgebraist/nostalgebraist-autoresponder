@@ -127,7 +127,7 @@ def _post_structural_elements_to_text(
         tags = []
     else:
         # strips or modifies certain html tags, adds whitespace after certain html tags
-        content = _format_and_normalize_post_html(content)
+        content = format_and_normalize_post_html(content)
 
     if is_single_original_post:
         name_formatted = control_seg_config['ORIG_POST_CHAR_NAMED'].format(user_name=user_name)
@@ -170,7 +170,7 @@ def _post_structural_elements_to_text(
     return formatted_text
 
 
-def _format_and_normalize_post_html(content):
+def format_and_normalize_post_html(content):
     no_href_classes = {
         "tmblr-truncated-link",
         "tumblr_blog",

@@ -749,7 +749,6 @@ def old_bridge_call__answer(
     # selector
 
     if prompt_selector:
-        # TODO: (nwo) delete_title for stories in nwo
         selector_inputs = [prompt_selector + c for c in continuations]
     else:
         if selector_cut_to_final_exchange and not override_disable_forumlike:
@@ -787,7 +786,6 @@ def old_bridge_call__answer(
     # autoreview
 
     if prompt_autoreviewer:
-        # TODO: (nwo) delete_title for stories in nwo
         autoreview_inputs = [prompt_autoreviewer + c for c in continuations]
     else:
         autoreview_inputs = [

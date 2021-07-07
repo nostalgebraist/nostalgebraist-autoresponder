@@ -78,7 +78,7 @@ def show_note_probas(texts, probas, continuation_sentiments=None, other_proba=No
         print("\n~_~_~_~_~_\n")
 
 
-def parse_continuation_nwo(continuation: str, verbose=True):
+def parse_continuation_nwo(continuation: str, verbose=False):
     if verbose:
         msg = "parse_continuation_nwo: "
         msg += f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"
@@ -98,7 +98,7 @@ def parse_continuation_nwo(continuation: str, verbose=True):
     return parsed
 
 
-def parse_continuation_legacy(continuation: str, verbose=True):
+def parse_continuation_legacy(continuation: str, verbose=False):
     if verbose:
         msg = "parse_continuation_legacy: "
         msg += f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"

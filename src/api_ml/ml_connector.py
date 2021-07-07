@@ -461,6 +461,7 @@ def predict_select(data, override_disable_forumlike=False):
             text = EOT + text
 
         selector_input.append(text)
+    print(f"predict_select innards: model will see\n{repr(selector_input)}")
     data.loc[:, "selector_input"] = selector_input
 
     data = data.to_dict(orient="records")
@@ -498,7 +499,7 @@ def predict_sentiment(data):
             text = EOT + text
 
         selector_input.append(text)
-
+    print(f"predict_sentiment innards: model will see\n{repr(selector_input)}")
     data.loc[:, "selector_input"] = selector_input
 
     data = data.to_dict(orient="records")
@@ -531,11 +532,7 @@ def predict_autoreview(data, debug=False, override_disable_forumlike=False):
             text = EOT + text
 
         selector_input.append(text)
-    if debug:
-        print("autoreviewer model will see exactly the following:\n")
-        for s in selector_input:
-            print(repr(s))
-        print()
+    print(f"predict_autoreview innards: model will see\n{repr(selector_input)}")
     data.loc[:, "selector_input"] = selector_input
 
     data = data.to_dict(orient="records")
@@ -1001,15 +998,11 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
     if timestamp is None:
         timestamp = ""
 
-    print(f"selection_proba_from_gpt2_service: got texts\n{repr(texts)}")
-
     using_nwo = infer_using_nwo_from_text(texts[0])
 
     if not using_nwo:
         texts = [join_time_sidechannel(s, timestamp) for s in texts]
         texts = [final_munge_before_neural(s) for s in texts]
-
-        print(f"selection_proba_from_gpt2_service: munged texts to\n{repr(texts)}")
 
     selector_inputs = pd.DataFrame(
         {
@@ -1026,8 +1019,6 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
 
 
 def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
-    print(f"sentiment_logit_diffs_from_gpt2_service: got texts\n{repr(texts)}")
-
     sentiment_inputs = pd.DataFrame({"selector_input": texts})
     sentiment_results = predict_sentiment(sentiment_inputs)
     results = [float(p) for p in sentiment_results]
@@ -1036,8 +1027,6 @@ def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
 
 
 def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
-    print(f"autoreview_proba_from_gpt2_service: got texts\n{repr(texts)}")
-
     if timestamp is None:
         timestamp = ""
 
@@ -1047,8 +1036,6 @@ def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
         texts = [cut_to_new_since_last_frank_post(s) for s in texts]
 
         texts = [join_time_sidechannel(s, timestamp) for s in texts]
-
-        print(f"autoreview_proba_from_gpt2_service: munged texts to\n{repr(texts)}")
 
     autoreview_inputs = pd.DataFrame(
         {

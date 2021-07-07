@@ -978,7 +978,7 @@ def old_bridge_call__textpost(
     autoreview_inputs = selector_inputs
     if using_nwo:
         # TODO: (nwo) maybe combine prompts_autoreviewer with prompts_selector?
-        autoreview_inputs = [
+        autoreview_inputs["selector_input"] = [
             prompts_autoreviewer[sdata["prompt_for_neural"]] + c
             for c, sdata in zip(continuations, continuation_side_data)
         ]

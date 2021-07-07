@@ -490,6 +490,8 @@ def get_retention_stack_judgments(retention_stack):
 
 
 def apply_retention_cutoff(retention_stack):
+    if len(retention_stack) == 0:
+        return retention_stack
     retention_stack_proba, _, _ = get_retention_stack_judgments(retention_stack)
 
     n_before_stack, n_before_proba = len(retention_stack), len(retention_stack_proba)

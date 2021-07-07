@@ -2749,11 +2749,6 @@ def do_rts(response_cache):
 
 
 def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseCache):
-    # DEBUG
-    loop_persistent_data, response_cache = do_queue_handling(
-        loop_persistent_data, response_cache
-    )
-
     response_cache = do_rts(response_cache)
 
     ### decide whether we'll do the reblog/reply check

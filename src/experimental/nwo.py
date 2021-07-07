@@ -120,7 +120,7 @@ def _post_structural_elements_to_text(
         ml_prompt_format: bool,
         control_seg_config: dict = DEFAULT_CSC,
 ):
-    if ml_prompt_format:
+    if ml_prompt_format and is_final_post_in_thread:
         # if prompting, we want the model to write the content of the final post
         content = ""
         # if prompting, we want the model to write the tags

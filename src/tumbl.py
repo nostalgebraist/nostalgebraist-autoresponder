@@ -1402,7 +1402,7 @@ def is_statically_reblog_worthy_on_dash(
     if scrape_worthy:
         path = "data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "data/dash_post_dump_frank.txt"
         print(f"archiving {post_identifier} | ", end="")
-        archive_to_corpus(post_payload, path=path)
+        archive_to_corpus(post_payload, path=path, client=response_cache.client)
 
     if is_nost_dash_scraper:
         reblog_worthy = False
@@ -2590,7 +2590,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
             if USE_NWO_TEXTPOST:
                 prompts, prompts_selector, prompts_autoreviewer, prompts_probs = make_nwo_textpost_prompts(
-                    blogName=blogName,
+                    blog_name=blogName,
                     timestamp=timestamp,
                 )
             else:

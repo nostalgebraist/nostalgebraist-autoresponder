@@ -1,17 +1,10 @@
 from typing import List
-from copy import deepcopy
 from datetime import datetime
 
 from api_tumblr.tumblr_parsing import NPFTextBlock, NPFContent, TumblrPost, TumblrThread
 from munging.year_munging import sample_year
 from munging.autoresponder_static import DEFAULT_CSC
 from experimental.nwo import npf_thread_to_formatted_text
-
-
-def replace_payload_timestamp(post_payload: dict, timestamp: int) -> dict:
-    post_payload = deepcopy(post_payload)
-    post_payload["timestamp"] = timestamp
-    return post_payload
 
 
 def sample_year_and_set(timestamp: datetime):
@@ -70,7 +63,14 @@ def cut_to_new_since_last_post_by_user(thread: TumblrThread, user_name: str) -> 
 def pop_reblog_without_commentary(thread: TumblrThread):
     if len(thread.posts[-1].content.blocks) > 0:
         return thread
+
     return TumblrThread(posts=thread.posts[:-1], timestamp=thread.timestamp)
+
+
+def set_tags(thread: TumblrThread, tags: List[str]):
+    final_post = thread.posts[-1]
+    final_post = TumblrPost(blog_name=final_post.blog_name, content=final_post.content, tags=tags)
+    return TumblrThread(posts=thread.posts[:-1] + [final_post], timestamp=thread.timestamp)
 
 
 def fake_tumblr_post(blog_name: str, text_blocks: List[str], tags: List[str]):
@@ -81,6 +81,19 @@ def fake_tumblr_post(blog_name: str, text_blocks: List[str], tags: List[str]):
                            content=content,
                            tags=tags)
     return fake_post
+
+
+def add_reblog(thread: TumblrThread,
+               blog_name: str,
+               text_blocks: List[str],
+               tags: List[str],
+               timestamp: datetime):
+    fake_post = fake_tumblr_post(blog_name=blog_name, text_blocks=text_blocks, tags=tags)
+
+    timestamp_posix = int(timestamp.timestamp())
+    fake_thread = TumblrThread(posts=thread.posts + [fake_post], timestamp=timestamp_posix)
+
+    return fake_thread
 
 
 def insert_reply_before_final_post(
@@ -95,7 +108,7 @@ def insert_reply_before_final_post(
     return fake_thread
 
 
-def make_nwo_prompts(thread: TumblrThread, blogName: str, debug=True):
+def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=True):
     prompt = npf_thread_to_formatted_text(
         sample_year_and_set_timestamp(thread), ml_prompt_format=True
     )
@@ -103,7 +116,7 @@ def make_nwo_prompts(thread: TumblrThread, blogName: str, debug=True):
     thread_selector = cut_to_final_exchange(thread)
     prompt_selector = npf_thread_to_formatted_text(thread_selector, ml_prompt_format=True)
 
-    thread_autoreviewer = cut_to_new_since_last_post_by_user(thread, blogName)
+    thread_autoreviewer = cut_to_new_since_last_post_by_user(thread, blog_name)
     prompt_autoreviewer = npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=True)
 
     if debug:
@@ -114,13 +127,13 @@ def make_nwo_prompts(thread: TumblrThread, blogName: str, debug=True):
     return prompt, prompt_selector, prompt_autoreviewer
 
 
-def make_nwo_textpost_prompts(blogName, timestamp, control_seg_config=DEFAULT_CSC, debug=True):
+def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_CSC, debug=True):
     prompts, prompts_selector, prompts_autoreviewer = [], {}, {}
     probs = []
 
     # regular
     probs.append(0.7)
-    fake_post = fake_tumblr_post(blog_name=blogName, text_blocks=[], tags=[])
+    fake_post = fake_tumblr_post(blog_name=blog_name, text_blocks=[], tags=[])
 
     timestamp_posix = int(timestamp.timestamp())
     timestamp_sampled_posix = int(sample_year_and_set(timestamp).timestamp())

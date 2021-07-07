@@ -1174,18 +1174,13 @@ def respond_to_reblogs_replies(
                     )
 
                 try:
-                    # # nwo
-                    # thread = TumblrThread.from_payload(d_boot)
-                    # thread = cut_to_n_most_recent_by_user(thread,
-                    #                                       user_name=blogName,
-                    #                                       n_most_recent=2,
-                    #                                       keep_first=False)  # bootstrap text + prev
-                    # screener_question = npf_thread_to_formatted_text(thread)
-
-                    # pre-nwo
-                    screener_question = screener_string_from_bootstrap_draft(
-                        d_boot,
-                    )
+                    # nwo
+                    thread = TumblrThread.from_payload(d_boot)
+                    thread = cut_to_n_most_recent_by_user(thread,
+                                                          user_name=blogName,
+                                                          n_most_recent=2,
+                                                          keep_first=False)  # bootstrap text + prev
+                    screener_question = npf_thread_to_formatted_text(thread)
                 except Exception as e:
                     eargs = getattr(e, "args", "?")
                     print(
@@ -2446,6 +2441,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
             ]:
                 print(f"{k}: {x[k]}")
 
+            # TODO: (nwo) get rid of "question"
             question = x["question"]
 
             question = find_images_and_sub_text(question)

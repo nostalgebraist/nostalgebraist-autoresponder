@@ -1174,13 +1174,22 @@ def respond_to_reblogs_replies(
                     )
 
                 try:
+                    # # nwo
+                    # thread = TumblrThread.from_payload(d_boot)
+                    # thread = cut_to_n_most_recent_by_user(thread,
+                    #                                       user_name=blogName,
+                    #                                       n_most_recent=2,
+                    #                                       keep_first=False)  # bootstrap text + prev
+                    # screener_question = npf_thread_to_formatted_text(thread)
+
+                    # pre-nwo
                     screener_question = screener_string_from_bootstrap_draft(
                         d_boot,
                     )
                 except Exception as e:
                     eargs = getattr(e, "args", "?")
                     print(
-                        f"tried to use screener_string_from_bootstrap_draft, encountered {e}: {eargs}"
+                        f"tried to make screener string, encountered {e}: {eargs}"
                     )
                     screener_question = (
                         response_cache.query(

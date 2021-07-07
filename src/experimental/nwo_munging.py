@@ -41,7 +41,7 @@ def cut_to_final_exchange(thread: TumblrThread) -> TumblrThread:
     return TumblrThread(posts=posts, timestamp=thread.timestamp)
 
 
-def cut_to_new_since_last_post_by_user(thread: TumblrThread, user_name: str) -> TumblrThread:
+def cut_to_n_most_recent_by_user(thread: TumblrThread, user_name: str, n_most_recent: int, keep_first=True) -> TumblrThread:
     posts_reversed = thread.posts[::-1]
 
     posts_reversed_cut = []
@@ -53,10 +53,12 @@ def cut_to_new_since_last_post_by_user(thread: TumblrThread, user_name: str) -> 
         if post.blog_name == user_name:
             n_by_user += 1
 
-        if n_by_user >= 2:
+        if n_by_user >= n_most_recent:
             break
 
     posts = posts_reversed_cut[::-1]
+    if not keep_first:
+        posts = posts[1:]
     return TumblrThread(posts=posts, timestamp=thread.timestamp)
 
 
@@ -120,7 +122,7 @@ def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=True):
     thread_selector = cut_to_final_exchange(thread)
     prompt_selector = npf_thread_to_formatted_text(thread_selector, ml_prompt_format=True)
 
-    thread_autoreviewer = cut_to_new_since_last_post_by_user(thread, blog_name)
+    thread_autoreviewer = cut_to_n_most_recent_by_user(thread, blog_name, n_most_recent=2)
     prompt_autoreviewer = npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=True)
 
     if debug:

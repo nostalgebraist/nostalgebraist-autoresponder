@@ -2,18 +2,11 @@
 import re
 import json
 from copy import deepcopy
-from datetime import datetime
 
 import pytumblr
-from bs4 import BeautifulSoup
 from wcwidth import wcwidth
 
-from munging import reblogs_v5
-from munging.autoresponder_static import find_all_control_chars_chinese, CHINESE_CHAR_DELIMITERS, EOT, Q_CHAR, A_CHAR, \
-    T_CHAR, UNAME_CHAR, ORIG_POST_CHAR_CHINESE
-from munging.autoresponder_static_v8 import TIME_SIDECHANNEL_CHAR, timestamp_to_v10_format, join_time_sidechannel
-from config.autoresponder_config import final_munge_before_neural
-from util.error_handling import LogExceptionAndSkip
+from munging.autoresponder_static import CHINESE_CHAR_DELIMITERS, ORIG_POST_CHAR_CHINESE
 
 from multimodal.image_analysis import (
     V9_IMAGE_FORMATTER,
@@ -32,8 +25,6 @@ from api_tumblr.tumblr_parsing import TumblrThread
 
 from api_tumblr.pytumblr_wrapper import RateLimitClient
 
-from experimental.nwo_deprecated import nwo_deprecated
-
 VERBOSE_LOGS = False
 
 MAY_2020_TRAIL_HACK = True
@@ -50,7 +41,7 @@ def sanitize_user_input_outer_shell(text):
     # zero-width joiners etc
     sanitized_text = "".join([c for c in sanitized_text if wcwidth(c) != 0])
 
-    for delimiter in CHINESE_CHAR_DELIMITERS + [IMAGE_DELIMITER, TIME_SIDECHANNEL_CHAR]:
+    for delimiter in CHINESE_CHAR_DELIMITERS + [IMAGE_DELIMITER]:
         sanitized_text = sanitized_text.replace(delimiter, "")
 
     return sanitized_text
@@ -68,20 +59,6 @@ def format_post_for_api(post):
 
     post = "<p>" + post + "</p>"
     post = re.sub("\n", "</p><p>", post)
-    return post
-
-
-@nwo_deprecated
-def inverse_format_post_for_api(post):
-    if post.startswith("<p>"):
-        post = post[len("<p>") :]
-    if post.endswith("</p>"):
-        post = post[: -len("</p>")]
-    post = re.sub(r"</p><p>", "\n", post)
-    post = re.sub(r"<br>", "\n", post)
-    post = sanitize_user_input_outer_shell(post)
-    if VERBOSE_LOGS:
-        print(post)
     return post
 
 
@@ -237,95 +214,6 @@ def body_via_trail_hack(post: dict):
             final_unit = item["content_raw"]
     my_units = uname_units[::-1] + content_units + [final_unit]
     return "".join(my_units)
-
-
-@nwo_deprecated
-def process_post_from_html_body(
-    body: str, debug=False, V10=True,
-) -> str:
-    # warning: doesn't handle ask prefixes
-    # if you want to go from an API payload to text, use process_post_from_post_payload
-
-    if body is None or len(body) == 0:
-        return body
-
-    soup = BeautifulSoup(body, features="lxml")
-    processed, _ = reblogs_v5.process_post(
-        soup,
-        use_article=False,
-        debug=debug,
-        V10=V10,
-    )
-
-    return processed
-
-
-@nwo_deprecated
-def process_post_from_post_payload(
-    post: dict, debug=False, V10=True,
-) -> str:
-    post = simulate_legacy_payload(post)
-
-    body = get_body(post)
-    if body is None:
-        return None
-
-    processed = process_post_from_html_body(
-        body, debug=debug, V10=V10,
-    )
-
-    if len(processed) == 0:
-        # assume we should use A_CHAR here, we should never write a textpost of length 0
-        processed = A_CHAR + "<|endoftext|>"
-
-    if "question" in post and "asking_name" in post:
-        ask_char = reblogs_v5.V10_ASK_CHAR if V10 else Q_CHAR
-        ask_prefix = (
-            UNAME_CHAR
-            + post["asking_name"]
-            + ask_char
-            + "\n"
-            + inverse_format_post_for_api(post["question"])
-            + "\n"
-        )
-        if ORIG_POST_CHAR_CHINESE in processed:
-            processed = processed.replace(ORIG_POST_CHAR_CHINESE, A_CHAR)
-        processed = ask_prefix + processed
-        if VERBOSE_LOGS:
-            print(f"ask_prefix: {ask_prefix}")
-    else:
-        if VERBOSE_LOGS:
-            print(f"didn't find ask keys; have keys {post.keys()}")
-    if post.get("title") is not None and len(post["title"]) > 0:
-        # TODO: fix this to put the title after the initial control char(s)
-        title_prefix = f"<h2>{post['title']}</h2>\n"
-        processed = title_prefix + processed
-        if VERBOSE_LOGS:
-            print(f"title_prefix: {title_prefix}")
-    return processed
-
-
-@nwo_deprecated
-def screener_string_from_bootstrap_draft(d):
-    processed = process_post_from_post_payload(d)
-    cchars = find_all_control_chars_chinese(processed)
-
-    if len(cchars) == 0:
-        msg = f"screener_string_from_bootstrap_draft:\n\tweirdness: couldn't find control chars in {processed} for {d}"
-        print(msg)
-        return ""
-    if cchars[-1][0] == A_CHAR:
-        # should always be true for bootstrap drafts, but just for generality
-        cchars = cchars[:-1]
-
-    start_ix = 0
-    for cc1, cc2 in zip(cchars[:-1], cchars[1:]):
-        if cc1[0] == A_CHAR:
-            # if we wrote the post in cc1, we know everything's good until the start of cc2
-            start_ix = cc2[1]
-
-    screener_string = processed[start_ix:]
-    return screener_string
 
 
 # image stuff
@@ -501,60 +389,7 @@ def load_wash_lists():
     return wash_lists
 
 
-# "pretending the post is by me" tools
-
-@nwo_deprecated
-def write_text_for_side_judgment(
-    post_payload,
-    chop_on_a_char=False,
-    add_tags=False,
-    swap_in_frank=False,
-    add_empty_response=True,
-    keep_orig_post_char=False,
-):
-    processed = process_post_from_post_payload(post_payload)
-    if processed is None:
-        return False
-
-    if ORIG_POST_CHAR_CHINESE in processed:
-        if keep_orig_post_char:
-            text = processed
-        else:
-            text = processed[processed.index(ORIG_POST_CHAR_CHINESE) + 1 :]
-            if not swap_in_frank:
-                text = UNAME_CHAR + post_payload["blog_name"] + Q_CHAR + text
-    elif A_CHAR in processed:
-        if chop_on_a_char:
-            text = processed[
-                [ix for ix, c in enumerate(processed) if c == A_CHAR][-1] + 1 :
-            ]
-            if not swap_in_frank:
-                text = UNAME_CHAR + post_payload["blog_name"] + Q_CHAR + text
-        else:
-            text = processed
-            if not swap_in_frank:
-                text = text.replace(
-                    A_CHAR, UNAME_CHAR + post_payload["blog_name"] + Q_CHAR
-                )
-    else:
-        print("\trejecting: parse fail")
-        return False
-    if T_CHAR in text:
-        text = text.partition(T_CHAR)[0]
-    if text.endswith("<|endoftext|>"):
-        text = text[: -len("<|endoftext|>")].rstrip("\n")
-
-    if add_empty_response:
-        text = text + A_CHAR
-
-    tags = post_payload.get("tags", [])
-    if not add_tags:
-        tags = []
-    text += T_CHAR + " ".join(["#" + t for t in tags])
-    if ORIG_POST_CHAR_CHINESE not in text and A_CHAR not in text and UNAME_CHAR not in text:
-        text = ORIG_POST_CHAR_CHINESE + text
-    return text
-
+# npf --> legacy client
 
 class LegacySimulatingClient(RateLimitClient):
     def send_api_request(

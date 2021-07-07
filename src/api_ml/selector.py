@@ -10,12 +10,10 @@ from textwrap import wrap
 from config.bot_config import BotSpecificConstants
 from multimodal.image_analysis import IMAGE_DELIMITER_WHITESPACED
 
-from config.autoresponder_config import USE_NWO_MUNGE_AFTER, LOGGING_FLAGS
-from munging.autoresponder_static import T_CHAR, ORIG_POST_CHAR_CHINESE, EOT
-from munging.autoresponder_static_v8 import timestamp_to_v10_format
+from config.autoresponder_config import LOGGING_FLAGS
+from munging.autoresponder_static import EOT
 from feels.mood import logit_diff_to_allen_schema
 
-from experimental.nwo_transition import infer_using_nwo_from_text
 from experimental.nwo_munging import make_nwo_textpost_prompts
 
 bot_specific_constants = BotSpecificConstants.load()
@@ -79,7 +77,7 @@ def show_note_probas(texts, probas, continuation_sentiments=None, other_proba=No
         print("\n~_~_~_~_~_\n")
 
 
-def parse_continuation_nwo(continuation: str, verbose=LOGGING_FLAGS["parse_continuation"]):
+def parse_continuation(continuation: str, verbose=LOGGING_FLAGS["parse_continuation"]):
     if verbose:
         msg = "parse_continuation_nwo: "
         msg += f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"
@@ -97,45 +95,6 @@ def parse_continuation_nwo(continuation: str, verbose=LOGGING_FLAGS["parse_conti
     if verbose:
         print(f"parsed to:\n{parsed}")
     return parsed
-
-
-def parse_continuation_legacy(continuation: str, verbose=LOGGING_FLAGS["parse_continuation"]):
-    if verbose:
-        msg = "parse_continuation_legacy: "
-        msg += f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"
-        print(msg)
-
-    # split out tags, if present
-    post, _, tag_text = continuation.partition(T_CHAR)
-    tag_text = tag_text.partition(EOT)[
-        0
-    ]  # drop stuff after EOT
-    tag_text = tag_text.partition("<|")[0]  # temporarily support old EOT format
-
-    tags = []
-    if len(tag_text) > 0:
-        tags = [s.rstrip(" ") for s in tag_text.split("#")]
-
-    # handle mistake i made in AR V6 :(
-    if "#original fiction" in post:
-        post_after_fic_tag = post[post.index("#original fiction") :]
-        if len(post_after_fic_tag.split()) < 10:
-            fic_tags = [s.rstrip(" ") for s in post_after_fic_tag.split("#")]
-            print(f"converting {post_after_fic_tag} to {fic_tags}")
-            tags = fic_tags + tags
-            post = post[: post.index("#original fiction")]
-
-    post = post.lstrip(ORIG_POST_CHAR_CHINESE)
-    parsed = {"post": post, "tags": tags}
-    if verbose:
-        print(f"parsed to:\n{parsed}")
-    return parsed
-
-
-if USE_NWO_MUNGE_AFTER:
-    parse_continuation = parse_continuation_nwo
-else:
-    parse_continuation = parse_continuation_legacy
 
 
 def winndow_probabilities(proba, lower=0.167, upper=0.833):
@@ -426,8 +385,6 @@ def serve_selection(
     parsed["miro_traces"] = chosen_miro_traces
     parsed["prompt_for_neural"] = chosen_prompt_for_neural
     parsed["model_info"] = chosen_model_info
-    parsed["generator_v10_timestamp"] = data.get("generator_v10_timestamp")
-    parsed["selector_v10_timestamp"] = data.get("selector_v10_timestamp")
     parsed["all_pos_sentiment"] = [
         float(pos_sent(s)) for s in all_continuation_sentiments
     ]
@@ -476,38 +433,25 @@ def get_retention_stack_judgments(retention_stack,
         proba, logit_diffs, autoreview_proba = [], [], []
         return proba, logit_diffs, autoreview_proba
 
-    using_nwo = all(infer_using_nwo_from_text(t) for t in retention_stack)
+    base_texts = sorted(retention_stack)
 
-    if using_nwo:
-        base_texts = sorted(retention_stack)
+    prompts, prompts_selector, prompts_autoreviewer, _ = make_nwo_textpost_prompts(
+        blog_name=blog_name,
+        timestamp=datetime.now()
+    )
 
-        prompts, prompts_selector, prompts_autoreviewer, _ = make_nwo_textpost_prompts(
-            blog_name=blog_name,
-            timestamp=datetime.now()
-        )
+    selector_texts = [prompts_selector[prompts[0]] + c for c in base_texts]
+    sentiment_texts = base_texts
+    autoreviewer_texts = [prompts_autoreviewer[prompts[0]] + c for c in base_texts]
 
-        selector_texts = [prompts_selector[prompts[0]] + c for c in base_texts]
-        sentiment_texts = base_texts
-        autoreviewer_texts = [prompts_autoreviewer[prompts[0]] + c for c in base_texts]
-
-        v10_timestamp = None
-    else:
-        base_texts = [ORIG_POST_CHAR_CHINESE + t for t in sorted(retention_stack)]
-
-        selector_texts = base_texts
-        sentiment_texts = base_texts
-        autoreviewer_texts = base_texts
-
-        v10_timestamp = timestamp_to_v10_format(timestamp)
-
-    proba = selection_proba_from_gpt(selector_texts, timestamp=v10_timestamp)
+    proba = selection_proba_from_gpt(selector_texts)
 
     proba = do_all_coldstarts(base_texts, proba)
 
     logit_diffs = sentiment_logit_diffs_from_gpt(sentiment_texts)
 
     autoreview_proba = autoreview_proba_from_gpt(
-        autoreviewer_texts, timestamp=v10_timestamp
+        autoreviewer_texts,
     )
 
     return proba, logit_diffs, autoreview_proba

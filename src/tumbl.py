@@ -18,12 +18,10 @@ import pandas as pd
 from tqdm import tqdm
 
 from config.bot_config import BotSpecificConstants
-from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS, USE_NWO, USE_NWO_TEXTPOST, \
-    USE_NWO_REPLY, USE_NWO_FIC
+from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS
 
 from munging.reply_munging import (
     mockup_xkit_reply,
-    bootstrap_draft_inject_reply,
     post_body_find_reply_data,
 )
 
@@ -60,7 +58,7 @@ from api_ml.ml_connector import (
 
 from multimodal.image_analysis import IMAGE_DELIMITER
 
-from munging.autoresponder_static import DEFAULT_CSC, EOT
+from munging.autoresponder_static import EOT
 from munging.autoresponder_static_v8 import timestamp_to_v10_format
 
 from persistence import traceability_singleton
@@ -941,79 +939,28 @@ def respond_to_reblogs_replies(
         if halloweenize:
             print(f"\t🎃 halloweenizing {reblog_identifier} 🎃")
 
-        # [WIP] TODO: (nwo) replace bootstrap draft with add_empty_reblog
-        if not USE_NWO:
-            api_response = answer_ask(
-                blogName,
-                ask_id=reblog_identifier.id_,
-                asking_name=blogName if is_reply else reblog_identifier.blog_name,
-                question="",
-                answer=REBLOG_BOOTSTRAP_TEXT,
-                is_reblog=True,
-                to_drafts=True,
-                reblog_key=loop_persistent_data.reblog_keys[reblog_identifier],
-            )
+        post_payload = response_cache.query(
+            CachedResponseType.POSTS, reblog_identifier, care_about_notes=False
+        )
 
-            if api_response.get("meta", {}).get("status") == 403:
-                print(f"got 403 for {reblog_identifier}\n, skipping")
-                print(f"details:")
-                print(api_response)
-                response_cache.mark_handled(reblog_identifier)
-                continue
+        thread = TumblrThread.from_payload(post_payload)
+        thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
 
-            try:
-                d_boot = private_client.posts(blogName, id=api_response["id"])["posts"][0]
-            except KeyError:
-                print(
-                    f"skipping possibly deleted post: couldn't create bootstrap draft for {reblog_identifier}"
-                )
-                print(f"full API response:\n\n{repr(api_response)}\n\n")
-                response_cache.mark_handled(reblog_identifier)
-                continue
+        if is_reply:
+            thread = insert_reply_before_final_post(thread,
+                                                    reply_blog_name=reblog_identifier.blog_name,
+                                                    reply_body=
+                                                    loop_persistent_data.reply_metadata[reblog_identifier][
+                                                        "reply_note"
+                                                    ]["reply_text"],
+                                                    )
+        prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(thread, blogName)
 
-        if USE_NWO and (not is_reply or USE_NWO_REPLY):
-            post_payload = response_cache.query(
-                CachedResponseType.POSTS, reblog_identifier, care_about_notes=False
-            )
-
-            thread = TumblrThread.from_payload(post_payload)
-            thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
-
-            if is_reply:
-                thread = insert_reply_before_final_post(thread,
-                                                        reply_blog_name=reblog_identifier.blog_name,
-                                                        reply_body=
-                                                        loop_persistent_data.reply_metadata[reblog_identifier][
-                                                            "reply_note"
-                                                        ]["reply_text"],
-                                                        )
-            prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(thread, blogName)
-
-            no_timestamp = True
-        else:
-            processed = process_post_from_post_payload(
-                d_boot,
-                V10=True,
-            )
-            no_timestamp = False
-
-            prompt = processed.rpartition(REBLOG_BOOTSTRAP_TEXT)[0]
-            prompt_selector = None
-            prompt_autoreviewer = None
+        no_timestamp = True
 
         if not roll_for_limited_users(reblog_identifier.blog_name, text=prompt):
-            if not USE_NWO:
-                private_client.delete_post(blogName, d_boot["id"])
             continue
 
-        if not USE_NWO and is_reply:
-            prompt = bootstrap_draft_inject_reply(
-                prompt,
-                reply_blog_name=reblog_identifier.blog_name,
-                reply_body=loop_persistent_data.reply_metadata[reblog_identifier][
-                    "reply_note"
-                ]["reply_text"],
-            )
         print(f"\n\t--> using question:\n---------\n{prompt}\n---------\n")
 
         gpt2_output = answer_from_gpt(
@@ -1021,10 +968,7 @@ def respond_to_reblogs_replies(
             prompt_selector=prompt_selector,
             prompt_autoreviewer=prompt_autoreviewer,
             asking_name=reblog_identifier.blog_name,
-            exact_prompt=True,
-            no_timestamp=no_timestamp,
             mood_name=determine_mood(response_cache),
-            selector_cut_to_final_exchange=True,  # int(is_reply),
             avoid_initial_blockquote=is_reply,
         )
 
@@ -1182,7 +1126,6 @@ def respond_to_reblogs_replies(
                     )
 
                 try:
-                    # nwo
                     thread = cut_to_n_most_recent_by_user(thread,
                                                           user_name=blogName,
                                                           n_most_recent=2,
@@ -1220,9 +1163,6 @@ def respond_to_reblogs_replies(
                     reject_action="rts" if is_user_input else "do_not_post",
                 )
 
-        if not USE_NWO:
-            time.sleep(0.5)
-            private_client.delete_post(blogName, d_boot["id"])
         if is_reply:
             if not HALLOWEEN_2K20_BEHAVIOR_TESTING:
                 response_cache.mark_reply_handled(reblog_identifier)
@@ -1254,40 +1194,6 @@ def is_reblog_worthy_when_responding(post_payload, note_payload, verbose=True):
             is_reblog_worthy = False
 
     return is_reblog_worthy
-
-
-def text_for_side_judgments(
-    post_identifier,
-    post_payload,
-    response_cache,
-    loop_persistent_data,
-    verbose=True,
-    legacy_config=False,
-):
-    text = response_cache.get_cached_post_body(post_identifier)
-
-    if legacy_config:
-        write_config = {
-            "chop_on_a_char": True,
-            "add_tags": True,
-            "swap_in_frank": True,
-            "add_empty_response": False,
-        }
-    else:
-        write_config = {
-            "chop_on_a_char": False,
-            "add_tags": False,
-            "swap_in_frank": False,
-            "add_empty_response": True,
-        }
-
-    if text is None:
-        text = write_text_for_side_judgment(
-            post_payload,
-            **write_config,
-        )
-        response_cache.mark_post_body(post_identifier, text)
-    return text
 
 
 def am_i_tagged_in_reblog(post_payload):
@@ -1460,9 +1366,9 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         timestamp = timestamp_to_v10_format(datetime.now())
 
         t1 = time.time()
-        probs = selection_proba_from_gpt(texts, timestamp=timestamp)
+        probs = selection_proba_from_gpt(texts)
         sentiments = sentiment_logit_diffs_from_gpt(texts)
-        autoreview_probs = autoreview_proba_from_gpt(texts, timestamp=timestamp)
+        autoreview_probs = autoreview_proba_from_gpt(texts)
         delta = time.time() - t1
         print(f"got {len(texts)} judgments in {delta:.2f}s")
 
@@ -2424,8 +2330,10 @@ def do_ask_handling(loop_persistent_data, response_cache):
             private_client.delete_post(blogName, post_payload["id"])
         elif post_payload.get("summary", "").startswith(REVIEW_COMMAND):
             with LogExceptionAndSkip("write review"):
+                thread = TumblrThread.from_payload(post_payload)
+                ask_text = get_normalized_ask_text(thread)
                 user_args, user_argstring, is_valid = parse_and_validate_review_command(
-                    inverse_format_post_for_api(post_payload["summary"])
+                    ask_text
                 )
 
                 if not is_valid:
@@ -2449,15 +2357,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 print(f"{k}: {post_payload[k]}")
 
             # TODO: (nwo) get rid of "question"
-            if USE_NWO:
-                thread = TumblrThread.from_payload(post_payload)
-                question = get_normalized_ask_text(thread)
-            else:
-                question = post_payload["question"]
-
-                question = find_images_and_sub_text(question)
-
-                question = inverse_format_post_for_api(question)
+            thread = TumblrThread.from_payload(post_payload)
+            question = get_normalized_ask_text(thread)
 
             # TODO: (cleanup) get rid of "forced_tags_string"
             forced_tags_string = ""
@@ -2535,31 +2436,18 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         f"for {user_input_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
                     )
 
-            if USE_NWO and (not write_fic_override or USE_NWO_FIC):
-                thread = TumblrThread.from_payload(post_payload)
-                if write_fic_override:
-                    prompt, prompt_selector, prompt_autoreviewer = make_nwo_fic_override_prompts(thread)
-                else:
-                    prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(thread, blogName)
-
-                exact_prompt = True
-                no_timestamp = True
+            thread = TumblrThread.from_payload(post_payload)
+            if write_fic_override:
+                prompt, prompt_selector, prompt_autoreviewer = make_nwo_fic_override_prompts(thread)
             else:
-                prompt = question
-                prompt_selector = None
-                prompt_autoreviewer = None
-                exact_prompt = False
-                no_timestamp = False
+                prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(thread, blogName)
 
             gpt2_output = answer_from_gpt(
                 prompt=prompt,
                 prompt_selector=prompt_selector,
                 prompt_autoreviewer=prompt_autoreviewer,
-                exact_prompt=exact_prompt,
-                no_timestamp=no_timestamp,
                 asking_name=post_payload["asking_name"],
                 mood_name=determine_mood(response_cache),
-                forced_tags_string=forced_tags_string,
                 write_fic_override=write_fic_override,
             )
 
@@ -2620,20 +2508,13 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
             print(f"writing new text post... ({textpost_ix}/{N_TO_WRITE})")
 
-            if USE_NWO_TEXTPOST:
-                prompts, prompts_selector, prompts_autoreviewer, prompts_probs = make_nwo_textpost_prompts(
-                    blog_name=blogName,
-                    timestamp=timestamp,
-                )
-            else:
-                prompts = None
-                prompts_selector = None
-                prompts_autoreviewer = None
-                prompts_probs = None
+            prompts, prompts_selector, prompts_autoreviewer, prompts_probs = make_nwo_textpost_prompts(
+                blog_name=blogName,
+                timestamp=timestamp,
+            )
 
             gpt2_output, loop_persistent_data = text_post_from_gpt(loop_persistent_data=loop_persistent_data,
                                                                    mood_name=mood_for_queue_writing,
-                                                                   ts=timestamp,
                                                                    prompts=prompts,
                                                                    prompts_selector=prompts_selector,
                                                                    prompts_autoreviewer=prompts_autoreviewer,

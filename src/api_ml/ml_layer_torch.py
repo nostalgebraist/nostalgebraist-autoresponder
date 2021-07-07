@@ -1,4 +1,5 @@
 import time
+from functools import partial
 
 import requests
 from transformers import AutoTokenizer

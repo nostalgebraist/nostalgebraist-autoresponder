@@ -15,11 +15,7 @@ from api_ml.bridge_shared import bridge_service_unique_id, bridge_service_url
 from feels.mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections, logit_diff_to_pos_sent
 from api_ml.selector import serve_selection
 
-from munging.year_munging import sample_and_substitute_year_v10
-
 from api_ml import bridge_cache_singleton
-
-from experimental.nwo_transition import infer_using_nwo_from_text
 
 TRADE_QUALITY_FOR_SPEED = True
 
@@ -40,27 +36,6 @@ SAYS_FRANK_STRINGS = {
         product(whitespace, whitespace),
     )
 }
-
-
-def finalize_prompt_for_neural(
-    prompt,
-    override_disable_forumlike=False,
-    forced_tags_string=None,
-    write_fic_override=False,
-):
-    if GLOBAL_DEBUG:
-        print(f"in finalize_prompt_for_neural, got prompt: {repr(prompt)}")
-    prompt = final_munge_before_neural(
-        prompt,
-        override_disable_forumlike=override_disable_forumlike,
-        left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
-        forced_tags_string=forced_tags_string,
-        write_fic_override=write_fic_override,
-    )
-    prompt = EOT + prompt.replace(EOT, "")
-    if GLOBAL_DEBUG:
-        print(f"finalize_prompt_for_neural, using prompt (munged): {repr(prompt)}")
-    return prompt
 
 
 class MLModelInterface:
@@ -205,15 +180,10 @@ def basic_n_continuations(
     random_prompts_probs=None,
     avoid_if_under=20,
     avoid_half_if_under=40,
-    use_textpost_prompt=False,
     avoid_initial_blockquote=False,
     avoid_if_profane=False,
     avoid_if_says_frank=False,
-    v10_timestamp=None,
     mirotarg=None,
-    forced_tags_string=None,
-    write_fic_override=False,
-    override_disable_forumlike=False,
     verbose=False,
 ):
     continuation_side_data = []
@@ -230,60 +200,7 @@ def basic_n_continuations(
             verbose=verbose,
             mirotarg=mirotarg,
         )
-    elif use_textpost_prompt:
-        raw_prompts, overrides, probs = get_textpost_prompts()
-        prompts = []
-        for p, o in zip(raw_prompts, overrides):
-            this_v10_timestamp = o.get("v10_timestamp", v10_timestamp)
-
-            ts_string = format_segment_v8_time(
-                this_v10_timestamp, control_seg_config=CONTROL_SEG_CONFIG
-            )
-            if CONTROL_SEG_CONFIG["flags"]["add_control_prefix_to_forced_tag_strings"]:
-                tag_string = format_segment_v8_tags(
-                    o.get("tag_string_raw", ""),
-                    control_seg_config=CONTROL_SEG_CONFIG,
-                )
-            else:
-                tag_string = o.get("tag_string_raw", "")
-            prompt = globally_format_v8(
-                doc_tagless=p,
-                ts_string=ts_string,
-                interlocutor_string=format_segment_v8_interlocutors(""),
-                tag_string=tag_string,
-                control_seg_config=CONTROL_SEG_CONFIG,
-            )
-            prompt = finalize_prompt_for_neural(
-                prompt,
-                override_disable_forumlike=use_textpost_prompt
-                or override_disable_forumlike,
-                forced_tags_string=forced_tags_string,
-                write_fic_override=write_fic_override,
-            )
-            prompts.append(prompt)
-
-        print(f"formed prompts:")
-        for _p in prompts:
-            print(repr(_p))
-        bridge_id = generator_model.write_random_prompt(
-            prompts,
-            probs,
-            repeat_until_done_signal=True,
-            verbose=verbose,
-            mirotarg=mirotarg,
-        )
-    elif V8:
-        if v10_timestamp:
-            prompt = join_time_sidechannel(prompt, v10_timestamp)
-
-        prompt = finalize_prompt_for_neural(
-            prompt,
-            override_disable_forumlike=use_textpost_prompt
-            or override_disable_forumlike,
-            forced_tags_string=forced_tags_string,
-            write_fic_override=write_fic_override,
-        )
-
+    else:
         print(f"neural model will see:\n\n{repr(prompt)}")
 
         bridge_id = generator_model.write(
@@ -404,19 +321,6 @@ def basic_n_continuations(
 
     requests.post(bridge_service_url + "/done", json={"id": bridge_id})
 
-    continuations_ = []
-    for continuation, pr in zip(continuations, all_prompts):
-        if use_textpost_prompt:
-            continuation = pr + continuation
-            if continuation.startswith(EOT):
-                continuation = continuation[len(EOT):]
-            if continuation.startswith(ORIG_POST_CHAR_CHINESE):
-                continuation = CONTROL_SEG_CONFIG[
-                    "ORIG_POST_CHAR_FORUMLIKE"
-                ] + continuation.lstrip(ORIG_POST_CHAR_CHINESE)
-        continuations_.append(continuation)
-    continuations = continuations_
-
     return continuations, continuation_side_data
 
 
@@ -437,7 +341,7 @@ def show_note_probas(texts, probas, sentiment_logit_diffs=None, console_width=11
             print("\n~_~_~_~_~_\n")
 
 
-def predict_select(data, override_disable_forumlike=False):
+def predict_select(data):
     t1 = time.time()
 
     if len(data) == 0:
@@ -450,12 +354,6 @@ def predict_select(data, override_disable_forumlike=False):
             text = text[: -len(EOT)]
         if T_CHAR not in text and (not V8):
             text = text + T_CHAR
-
-        text = final_munge_before_neural(
-            text,
-            override_disable_forumlike=override_disable_forumlike,
-            left_strip_newline=SELECTOR_LEFT_STRIP_NEWLINE_IN_FORUMLIKE,
-        )
 
         if not text.startswith(EOT):
             text = EOT + text
@@ -522,17 +420,13 @@ def predict_sentiment(data):
     return logit_diffs
 
 
-def predict_autoreview(data, debug=False, override_disable_forumlike=False):
+def predict_autoreview(data):
     t1 = time.time()
 
     selector_input = []
     for text in data.selector_input:
         if text.endswith(EOT):
             text = text[: -len(EOT)]
-
-        text = final_munge_before_neural(
-            text, override_disable_forumlike=override_disable_forumlike
-        )
 
         if not text.startswith(EOT):
             text = EOT + text
@@ -590,26 +484,15 @@ def adjust_best_of(best_of, mood):
 
 def answer_from_gpt(
         prompt,
-        prompt_selector=None,
-        prompt_autoreviewer=None,
+        prompt_selector,
+        prompt_autoreviewer,
         asking_name="",
         mood_name=None,
-        exact_prompt=False,
-        forced_tags_string="",
         write_fic_override=False,
         write_review_override=False,
-        selector_cut_to_final_exchange=False,
         avoid_initial_blockquote=False,
-        ts=None,
-        no_timestamp=False
 ):
     t1 = time.time()
-
-    if ts is None:
-        ts = datetime.now()
-    v10_timestamp = timestamp_to_v10_format(ts)
-    if no_timestamp:
-        v10_timestamp = ""
 
     mood = get_mood_by_name(mood_name)
 
@@ -619,12 +502,8 @@ def answer_from_gpt(
         prompt_autoreviewer=prompt_autoreviewer,
         asking_name=asking_name,
         mood=mood,
-        exact_prompt=exact_prompt,
-        v10_timestamp=v10_timestamp,
-        forced_tags_string=forced_tags_string,
         write_fic_override=write_fic_override,
         write_review_override=write_review_override,
-        selector_cut_to_final_exchange=selector_cut_to_final_exchange,
         avoid_initial_blockquote=avoid_initial_blockquote
     )
 
@@ -643,7 +522,6 @@ def answer_from_gpt(
     # for logging, add input fields that didn't make the round trip
     result["question"] = prompt  # TODO: (cleanup): rename if safe
     result["asking_name"] = asking_name
-    result["v10_timestamp"] = v10_timestamp
     result["mood"] = mood_name
 
     delta_t = time.time() - t1
@@ -655,48 +533,16 @@ def answer_from_gpt(
     return result
 
 
-def generator_and_selector_timestamps(random_year_for_generator: bool, v10_timestamp: str):
-    if random_year_for_generator and v10_timestamp is not None:
-        generator_v10_timestamp = sample_and_substitute_year_v10(v10_timestamp)
-        selector_v10_timestamp = v10_timestamp
-    else:
-        generator_v10_timestamp = v10_timestamp
-        selector_v10_timestamp = v10_timestamp
-
-    print(f"generator_v10_timestamp: {repr(generator_v10_timestamp)}")
-    print(f"selector_v10_timestamp: {repr(selector_v10_timestamp)}")
-
-    return generator_v10_timestamp, selector_v10_timestamp
-
-
 def old_bridge_call__answer(
         prompt,
-        prompt_selector=None,
-        prompt_autoreviewer=None,
+        prompt_selector,
+        prompt_autoreviewer,
         asking_name="",
         mood=None,
-        exact_prompt=False,
-        v10_timestamp="",
-        forced_tags_string="",
         write_fic_override=False,
         write_review_override=False,
-        selector_cut_to_final_exchange=False,
         avoid_initial_blockquote=False
 ):
-    using_nwo = (prompt_selector is not None) and (prompt_autoreviewer is not None)
-
-    if not exact_prompt:
-        prompt = (
-            UNAME_CHAR
-            + asking_name
-            + DEFAULT_CSC["ASK_CHAR"]
-            + "\n"
-            + prompt
-            + "\n"
-            + A_CHAR
-        )
-        print(f"formed prompt: {prompt}")
-
     best_of = 13 if (not TRADE_QUALITY_FOR_SPEED) else 10
 
     if write_fic_override or write_review_override:
@@ -720,57 +566,24 @@ def old_bridge_call__answer(
 
     print(f"write_fic_override: {write_fic_override}")
 
-    if using_nwo:
-        generator_v10_timestamp, selector_v10_timestamp = None, None
-    else:
-        generator_v10_timestamp, selector_v10_timestamp = generator_and_selector_timestamps(
-            random_year_for_generator, v10_timestamp
-        )
-
-    override_disable_forumlike = False
-    if prompt.startswith(CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"]):
-        override_disable_forumlike = True
-
-    if using_nwo:
-        override_disable_forumlike = True
-
     continuations, continuation_side_data = basic_n_continuations(
         prompt,
         N=best_of,
         avoid_if_under=avoid_if_under,
         avoid_half_if_under=avoid_half_if_under,
-        use_textpost_prompt=False,
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_profane=avoid_if_profane,
         avoid_if_says_frank=avoid_if_says_frank,
-        v10_timestamp=generator_v10_timestamp,
-        forced_tags_string=forced_tags_string,
-        write_fic_override=write_fic_override,
-        override_disable_forumlike=override_disable_forumlike,
+
     )
+
     response_data = {}
-    delete_title = write_fic_override and CONTROL_SEG_CONFIG["flags"].get("fic_override_v2", False)
-    response_data["continuations"] = [final_munge_after_neural(c, delete_title=delete_title) for c in continuations]
+    response_data["continuations"] = continuations
     response_data["continuation_side_data"] = continuation_side_data
-    response_data["generator_v10_timestamp"] = generator_v10_timestamp
-    response_data["selector_v10_timestamp"] = selector_v10_timestamp
 
     # selector
 
-    if prompt_selector:
-        selector_inputs = [prompt_selector + c for c in continuations]
-    else:
-        if selector_cut_to_final_exchange and not override_disable_forumlike:
-            prompt_cut = cut_to_final_exchange_chinese(prompt)
-            selector_inputs = [
-                prompt_cut + final_munge_after_neural(c, delete_title=delete_title) for c in continuations
-            ]
-        else:
-            selector_inputs = [prompt + c for c in continuations]
-
-        selector_inputs = [
-            join_time_sidechannel(s, selector_v10_timestamp) for s in selector_inputs
-        ]
+    selector_inputs = [prompt_selector + c for c in continuations]
 
     selector_inputs = pd.DataFrame(
         {
@@ -778,11 +591,9 @@ def old_bridge_call__answer(
             "prompt_finalchar": [f"{A_CHAR}a" for _ in range(len(selector_inputs))],
         }
     )
-    if GLOBAL_DEBUG:
-        print(f"passing to predict_select: {selector_inputs}")
+
     selection_results = predict_select(
         selector_inputs,
-        override_disable_forumlike=override_disable_forumlike,
     )
     response_data["selection_proba"] = [float(p) for p in selection_results]
 
@@ -794,17 +605,7 @@ def old_bridge_call__answer(
 
     # autoreview
 
-    if prompt_autoreviewer:
-        autoreview_inputs = [prompt_autoreviewer + c for c in continuations]
-    else:
-        autoreview_inputs = [
-            cut_to_new_since_last_frank_post(prompt + final_munge_after_neural(c, delete_title=delete_title))
-            for c in continuations
-        ]
-
-        autoreview_inputs = [
-            join_time_sidechannel(s, selector_v10_timestamp) for s in autoreview_inputs
-        ]
+    autoreview_inputs = [prompt_autoreviewer + c for c in continuations]
 
     autoreview_inputs = pd.DataFrame(
         {
@@ -814,32 +615,27 @@ def old_bridge_call__answer(
     )
     autoreview_results = predict_autoreview(
         autoreview_inputs,
-        debug=False,
     )
     response_data["autoreview_proba"] = [float(p) for p in autoreview_results]
-
-    if GLOBAL_DEBUG:
-        print(f"sending back: {response_data}")
 
     return response_data
 
 
-def text_post_from_gpt(loop_persistent_data, mood_name=None, ts=None,
-                       prompts=None, prompts_selector=None, prompts_autoreviewer=None,
-                       prompts_probs=None):
+def text_post_from_gpt(loop_persistent_data,
+                       prompts,
+                       prompts_selector,
+                       prompts_autoreviewer,
+                       prompts_probs,
+                       mood_name=None,
+                       ):
     t1 = time.time()
 
     mood = get_mood_by_name(mood_name)
-
-    if ts is None:
-        ts = datetime.now()
-    v10_timestamp = timestamp_to_v10_format(ts)
 
     n_retention = len(loop_persistent_data.retention_stack)
 
     result_generator = old_bridge_call__textpost(n_retention=n_retention,
                                                  mood=mood,
-                                                 v10_timestamp=v10_timestamp,
                                                  prompts=prompts,
                                                  prompts_selector=prompts_selector,
                                                  prompts_autoreviewer=prompts_autoreviewer,
@@ -864,7 +660,6 @@ def text_post_from_gpt(loop_persistent_data, mood_name=None, ts=None,
     loop_persistent_data.retention_stack = retention_stack
 
     # for logging, add input fields that didn't make the round trip
-    result["v10_timestamp"] = v10_timestamp
     result["mood"] = mood_name
 
     delta_t = time.time() - t1
@@ -875,20 +670,16 @@ def text_post_from_gpt(loop_persistent_data, mood_name=None, ts=None,
 
 def old_bridge_call__textpost(
         n_retention,
+        prompts,
+        prompts_selector,
+        prompts_autoreviewer,
+        prompts_probs,
         mood=None,
-        v10_timestamp="",
-        prompts=None,
-        prompts_selector=None,
-        prompts_autoreviewer=None,
-        prompts_probs=None
 ):
-    using_nwo = (prompts is not None) and (prompts_selector is not None) and (prompts_autoreviewer is not None)
-
     avoid_if_under = 10
     avoid_half_if_under = 10
     avoid_initial_blockquote = False
     avoid_if_says_frank = False
-    random_year_for_generator = True
 
     best_of = TEXTPOST_N_CANDIDATES_TARGET
     best_of = adjust_best_of(best_of, mood)
@@ -901,19 +692,6 @@ def old_bridge_call__textpost(
 
     # old serve_textpost
 
-    if using_nwo:
-        generator_v10_timestamp, selector_v10_timestamp = None, None
-    else:
-        generator_v10_timestamp, selector_v10_timestamp = generator_and_selector_timestamps(
-            random_year_for_generator, v10_timestamp
-        )
-
-    override_disable_forumlike = False
-    use_textpost_prompt = True
-    if using_nwo:
-        override_disable_forumlike = True
-        use_textpost_prompt = False
-
     continuations, continuation_side_data = basic_n_continuations(
         prompt="",
         random_prompts=prompts,
@@ -921,11 +699,8 @@ def old_bridge_call__textpost(
         N=best_of,
         avoid_if_under=avoid_if_under,
         avoid_half_if_under=avoid_half_if_under,
-        use_textpost_prompt=use_textpost_prompt,
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_says_frank=avoid_if_says_frank,
-        v10_timestamp=generator_v10_timestamp,
-        override_disable_forumlike=override_disable_forumlike,
     )
 
     # dreams coldstart curiosity
@@ -938,29 +713,14 @@ def old_bridge_call__textpost(
     print(f'{qc} / {len(continuations)} have dreams')
 
     response_data = {}
-    response_data["continuations"] = [final_munge_after_neural(c) for c in continuations]
+    response_data["continuations"] = continuations
     response_data["continuation_side_data"] = continuation_side_data
-    response_data["generator_v10_timestamp"] = generator_v10_timestamp
-    response_data["selector_v10_timestamp"] = selector_v10_timestamp
 
     selector_inputs = [c for c in continuations]
-    if using_nwo:
-        selector_inputs = [prompts_selector[sdata["prompt_for_neural"]] + c
-                           for c, sdata in zip(continuations, continuation_side_data)]
-    else:
-        for alt_char in [
-            CONTROL_SEG_CONFIG["REVIEW_CHAR_FORUMLIKE"],
-            CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"],
-        ]:
-            selector_inputs = [
-                s.replace(alt_char, CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"])
-                for s in selector_inputs
-            ]
 
-        selector_inputs = [
-            s.replace(generator_v10_timestamp, selector_v10_timestamp)
-            for s in selector_inputs
-        ]
+    selector_inputs = [prompts_selector[sdata["prompt_for_neural"]] + c
+                       for c, sdata in zip(continuations, continuation_side_data)]
+
     selector_inputs = pd.DataFrame(
         {
             "selector_input": selector_inputs,
@@ -969,11 +729,9 @@ def old_bridge_call__textpost(
             ],
         }
     )
-    if GLOBAL_DEBUG:
-        print(f"passing to predict_select: {selector_inputs}")
+
     selection_results = predict_select(
         selector_inputs,
-        override_disable_forumlike=True,
     )
     response_data["selection_proba"] = [float(p) for p in selection_results]
 
@@ -982,17 +740,15 @@ def old_bridge_call__textpost(
     response_data["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
 
     autoreview_inputs = selector_inputs
-    if using_nwo:
-        # TODO: (nwo) maybe combine prompts_autoreviewer with prompts_selector?
-        autoreview_inputs["selector_input"] = [
-            prompts_autoreviewer[sdata["prompt_for_neural"]] + c
-            for c, sdata in zip(continuations, continuation_side_data)
-        ]
+
+    # TODO: (nwo) maybe combine prompts_autoreviewer with prompts_selector?
+    autoreview_inputs["selector_input"] = [
+        prompts_autoreviewer[sdata["prompt_for_neural"]] + c
+        for c, sdata in zip(continuations, continuation_side_data)
+    ]
 
     autoreview_results = predict_autoreview(
         autoreview_inputs,
-        override_disable_forumlike=True,
-        debug=False,
     )
     response_data["autoreview_proba"] = [float(p) for p in autoreview_results]
 
@@ -1003,16 +759,7 @@ def old_bridge_call__textpost(
 
 
 # TODO (cleanup): call these fns inside the answer/textpost fns
-def selection_proba_from_gpt(texts: List[str], timestamp: str = None):
-    if timestamp is None:
-        timestamp = ""
-
-    using_nwo = infer_using_nwo_from_text(texts[0])
-
-    if not using_nwo:
-        texts = [join_time_sidechannel(s, timestamp) for s in texts]
-        texts = [final_munge_before_neural(s) for s in texts]
-
+def selection_proba_from_gpt(texts: List[str]):
     selector_inputs = pd.DataFrame(
         {
             "selector_input": texts,
@@ -1020,7 +767,7 @@ def selection_proba_from_gpt(texts: List[str], timestamp: str = None):
         }
     )
     selection_results = predict_select(
-        selector_inputs, override_disable_forumlike=True
+        selector_inputs,
     )
     results = [float(p) for p in selection_results]
 
@@ -1035,17 +782,7 @@ def sentiment_logit_diffs_from_gpt(texts: List[str]):
     return results
 
 
-def autoreview_proba_from_gpt(texts: List[str], timestamp: str = None):
-    if timestamp is None:
-        timestamp = ""
-
-    using_nwo = infer_using_nwo_from_text(texts[0])
-
-    if not using_nwo:
-        texts = [cut_to_new_since_last_frank_post(s) for s in texts]
-
-        texts = [join_time_sidechannel(s, timestamp) for s in texts]
-
+def autoreview_proba_from_gpt(texts: List[str]):
     autoreview_inputs = pd.DataFrame(
         {
             "selector_input": texts,
@@ -1054,7 +791,6 @@ def autoreview_proba_from_gpt(texts: List[str], timestamp: str = None):
     )
     autoreview_results = predict_autoreview(
         autoreview_inputs,
-        debug=False,
     )
     results = [float(p) for p in autoreview_results]
 

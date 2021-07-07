@@ -4,8 +4,6 @@ import subprocess
 
 from config.bot_config import BotSpecificConstants
 from munging.autoresponder_static_v8 import *
-from experimental.nwo_transition import final_munge_before_neural_nwo_transition, \
-    final_munge_after_neural_nwo_transition, USE_NWO_MUNGE_AFTER
 
 V8 = True
 V8_2 = True
@@ -28,15 +26,6 @@ V12_5 = True  # many incremental improvements to gpt-j lr / dataset / etc + fixe
 V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 + batch size 32
 
 USE_AUTOREVIEWER = True
-USE_NWO = True
-USE_NWO_TEXTPOST = True
-USE_NWO_REPLY = True
-USE_NWO_FIC = True
-print(("USE_NWO", USE_NWO))
-print(("USE_NWO_TEXTPOST", USE_NWO_TEXTPOST))
-print(("USE_NWO_REPLY", USE_NWO_REPLY))
-print(("USE_NWO_MUNGE_AFTER", USE_NWO_MUNGE_AFTER))
-print(("USE_NWO_FIC", USE_NWO_FIC))
 
 LOGGING_FLAGS = {
     "side_judg_inputs": False,
@@ -115,29 +104,6 @@ EVEN_BETTER_LENGTH = True
 BATCHONE = True
 
 RANDOM_SAMPLING_PARAMS_ON_STARTUP = False  # True = experimental
-
-if V12_5:
-    # CSC v10_1 doesn't use the "Posts by" glitch, CSC v10_2 does
-    #
-    # model version v12_5 was trained on data w/o the glitch
-    # so it can go back to CSC v10_1 safely
-    final_munge_before_neural = final_munge_before_neural_v10_1
-    final_munge_after_neural = final_munge_after_neural_v10_1
-elif V11_2:
-    final_munge_before_neural = final_munge_before_neural_v10_2
-    final_munge_after_neural = final_munge_after_neural_v10_2
-elif V10_1:
-    final_munge_before_neural = final_munge_before_neural_v10_1
-    final_munge_after_neural = final_munge_after_neural_v10_1
-else:
-    final_munge_before_neural = final_munge_before_neural_v10
-    final_munge_after_neural = final_munge_after_neural_v10
-
-if USE_NWO:
-    final_munge_before_neural = final_munge_before_neural_nwo_transition
-
-if USE_NWO and USE_NWO_MUNGE_AFTER:
-    final_munge_after_neural = final_munge_after_neural_nwo_transition
 
 if V12_6:
     model_name = "arj-v10-3-batch32-alldata-4001"

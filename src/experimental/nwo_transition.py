@@ -2,13 +2,15 @@
 
 import inspect
 from munging.autoresponder_static import find_all_control_chars_chinese
-from munging.autoresponder_static_v8 import final_munge_before_neural_v10_1
+from munging.autoresponder_static_v8 import final_munge_before_neural_v10_1, TIME_SIDECHANNEL_CHAR
 
 
 def infer_using_nwo_from_text(text: str, verbose=True) -> bool:
     _, _, _, caller_of_caller, _, _ = inspect.stack()[2]
 
     cchars_chinese = find_all_control_chars_chinese(text)
+    if TIME_SIDECHANNEL_CHAR in text:
+        cchars_chinese.append(TIME_SIDECHANNEL_CHAR)
 
     using_nwo = len(cchars_chinese) == 0
 

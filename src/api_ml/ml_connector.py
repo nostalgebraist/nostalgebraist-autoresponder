@@ -19,6 +19,8 @@ from munging.year_munging import sample_and_substitute_year_v10
 
 from api_ml import bridge_cache_singleton
 
+from experimental.nwo_transition import infer_using_nwo_from_text
+
 TRADE_QUALITY_FOR_SPEED = True
 
 logit_diff_sample_series = load_logit_diff_sample()
@@ -999,8 +1001,15 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
     if timestamp is None:
         timestamp = ""
 
-    texts = [join_time_sidechannel(s, timestamp) for s in texts]
-    texts = [final_munge_before_neural(s) for s in texts]
+    print(f"selection_proba_from_gpt2_service: got texts\n{repr(texts)}")
+
+    using_nwo = infer_using_nwo_from_text(texts[0])
+
+    if not using_nwo:
+        texts = [join_time_sidechannel(s, timestamp) for s in texts]
+        texts = [final_munge_before_neural(s) for s in texts]
+
+        print(f"selection_proba_from_gpt2_service: munged texts to\n{repr(texts)}")
 
     selector_inputs = pd.DataFrame(
         {
@@ -1017,6 +1026,8 @@ def selection_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
 
 
 def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
+    print(f"selection_proba_from_gpt2_service: got texts\n{repr(texts)}")
+
     sentiment_inputs = pd.DataFrame({"selector_input": texts})
     sentiment_results = predict_sentiment(sentiment_inputs)
     results = [float(p) for p in sentiment_results]
@@ -1025,17 +1036,24 @@ def sentiment_logit_diffs_from_gpt2_service(texts: List[str]):
 
 
 def autoreview_proba_from_gpt2_service(texts: List[str], timestamp: str = None):
+    print(f"autoreview_proba_from_gpt2_service: got texts\n{repr(texts)}")
+
     if timestamp is None:
         timestamp = ""
 
-    autoreview_inputs = [cut_to_new_since_last_frank_post(s) for s in texts]
+    using_nwo = infer_using_nwo_from_text(texts[0])
 
-    autoreview_inputs = [join_time_sidechannel(s, timestamp) for s in autoreview_inputs]
+    if not using_nwo:
+        texts = [cut_to_new_since_last_frank_post(s) for s in texts]
+
+        texts = [join_time_sidechannel(s, timestamp) for s in texts]
+
+        print(f"autoreview_proba_from_gpt2_service: munged texts to\n{repr(texts)}")
 
     autoreview_inputs = pd.DataFrame(
         {
-            "selector_input": autoreview_inputs,
-            "prompt_finalchar": ["" for _ in range(len(autoreview_inputs))],
+            "selector_input": texts,
+            "prompt_finalchar": ["" for _ in range(len(texts))],
         }
     )
     autoreview_results = predict_autoreview(

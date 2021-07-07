@@ -163,7 +163,7 @@ MOOD_BUFFS_V2 = True
 MOOD_STALE_SECONDS = 60 * 10
 mood_computed_most_recently = None
 
-WRITE_POSTS_WHEN_QUEUE_BELOW = 8  # 5
+WRITE_POSTS_WHEN_QUEUE_BELOW = 10 # 8  # 5
 N_TO_WRITE = 1
 
 INDIRECT_REBLOGS = False
@@ -2744,6 +2744,11 @@ def do_rts(response_cache):
 
 
 def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseCache):
+    # DEBUG
+    loop_persistent_data, response_cache = do_queue_handling(
+        loop_persistent_data, response_cache
+    )
+
     response_cache = do_rts(response_cache)
 
     ### decide whether we'll do the reblog/reply check

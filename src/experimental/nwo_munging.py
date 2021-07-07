@@ -1,7 +1,8 @@
+from typing import List
 from copy import deepcopy
 from datetime import datetime
 
-from api_tumblr.tumblr_parsing import NPFContent, TumblrPost, TumblrThread
+from api_tumblr.tumblr_parsing import NPFTextBlock, NPFContent, TumblrPost, TumblrThread
 from munging.year_munging import sample_year
 from munging.autoresponder_static import DEFAULT_CSC
 from experimental.nwo import post_payload_to_formatted_text, npf_thread_to_formatted_text
@@ -65,6 +66,33 @@ def cut_to_new_since_last_post_by_user(thread: TumblrThread, user_name: str) -> 
     return TumblrThread(posts=posts, timestamp=thread.timestamp)
 
 
+def fake_tumblr_post(blog_name: str, text_blocks: List[str], tags: List[str]):
+    blocks = [NPFTextBlock(text=text) for text in text_blocks]
+    content = NPFContent(blocks=blocks, layout=[], blog_name=blog_name)
+
+    fake_post = TumblrPost(blog_name=blog_name,
+                           content=content,
+                           tags=tags)
+    return fake_post
+
+
+def replace_final_post_with_reply(
+    thread: TumblrThread, reply_blog_name: str, reply_body: str
+):
+    fake_post = TumblrPost(blog_name=reply_blog_name,
+                           content=NPFContent(blocks=[], layout=[], blog_name=reply_blog_name),
+                           tags=[])
+
+    result = ""
+
+    # result += processed_bootstrap_draft.rpartition(A_CHAR)[0]  # strip prompting A_CHAR
+    #
+    # postpend = UNAME_CHAR + reply_blog_name + Q_CHAR + reply_body + "\n\n" + A_CHAR
+    # result += postpend
+
+    return result
+
+
 def make_nwo_prompts(post_payload, blogName, debug=True):
     prompt = post_payload_to_formatted_text(
         sample_year_and_set_payload_timestamp(post_payload), ml_prompt_format=True
@@ -92,9 +120,10 @@ def make_nwo_textpost_prompts(blogName, timestamp, control_seg_config=DEFAULT_CS
 
     # regular
     probs.append(0.7)
-    fake_post = TumblrPost(blog_name=blogName,
-                           content=NPFContent(blocks=[], layout=[], blog_name=blogName),
-                           tags=[])
+    fake_post = fake_tumblr_post(blog_name=blogName, text_blocks=[], tags=[])
+    # fake_post = TumblrPost(blog_name=blogName,
+    #                        content=NPFContent(blocks=[], layout=[], blog_name=blogName),
+    #                        tags=[])
 
     timestamp_posix = int(timestamp.timestamp())
     timestamp_sampled_posix = int(sample_year_and_set(timestamp).timestamp())

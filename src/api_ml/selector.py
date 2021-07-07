@@ -10,9 +10,12 @@ from textwrap import wrap
 from config.bot_config import BotSpecificConstants
 from multimodal.image_analysis import IMAGE_DELIMITER_WHITESPACED
 
+from config.autoresponder_config import USE_NWO_MUNGE_AFTER
 from munging.autoresponder_static import T_CHAR, ORIG_POST_CHAR_CHINESE, EOT
 from munging.autoresponder_static_v8 import timestamp_to_v10_format
 from feels.mood import logit_diff_to_allen_schema
+
+from experimental.nwo_transition import infer_using_nwo_from_text
 
 bot_specific_constants = BotSpecificConstants.load()
 selector_url = bot_specific_constants.bridge_service_url + "/pollselector"
@@ -75,11 +78,31 @@ def show_note_probas(texts, probas, continuation_sentiments=None, other_proba=No
         print("\n~_~_~_~_~_\n")
 
 
-def parse_continuation(continuation: str, verbose=False):
+def parse_continuation_nwo(continuation: str, verbose=True):
     if verbose:
-        print(
-            f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"
-        )
+        msg = "parse_continuation_nwo: "
+        msg += f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"
+        print(msg)
+
+    tag_text, _, post = continuation.partition("\n")
+    post = post.partition(EOT)[0]
+
+    tags = []
+    if len(tag_text) > 0:
+        tags = [s.rstrip(" ") for s in tag_text.split("#")]
+        tags = [t for t in tags if len(t) > 0]
+
+    parsed = {"post": post, "tags": tags}
+    if verbose:
+        print(f"parsed to:\n{parsed}")
+    return parsed
+
+
+def parse_continuation_legacy(continuation: str, verbose=True):
+    if verbose:
+        msg = "parse_continuation_legacy: "
+        msg += f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"
+        print(msg)
 
     # split out tags, if present
     post, _, tag_text = continuation.partition(T_CHAR)
@@ -103,7 +126,15 @@ def parse_continuation(continuation: str, verbose=False):
 
     post = post.lstrip(ORIG_POST_CHAR_CHINESE)
     parsed = {"post": post, "tags": tags}
+    if verbose:
+        print(f"parsed to:\n{parsed}")
     return parsed
+
+
+if USE_NWO_MUNGE_AFTER:
+    parse_continuation = parse_continuation_nwo
+else:
+    parse_continuation = parse_continuation_legacy
 
 
 def winndow_probabilities(proba, lower=0.167, upper=0.833):
@@ -435,9 +466,15 @@ def get_retention_stack_judgments(retention_stack):
         autoreview_proba_from_gpt,
     )
 
-    texts_for_selection = [ORIG_POST_CHAR_CHINESE + t for t in sorted(retention_stack)]
+    using_nwo = all(infer_using_nwo_from_text(t) for t in retention_stack)
 
-    timestamp = timestamp_to_v10_format(datetime.now())
+    if using_nwo:
+        timestamp = None
+    else:
+        texts_for_selection = [ORIG_POST_CHAR_CHINESE + t for t in sorted(retention_stack)]
+
+        timestamp = timestamp_to_v10_format(datetime.now())
+
     proba = selection_proba_from_gpt(texts_for_selection, timestamp=timestamp)
 
     proba = do_all_coldstarts(texts_for_selection, proba)

@@ -1,8 +1,10 @@
 # TODO: (nwo) DELETE THIS FILE after nwo is stable!!
 
 import inspect
+from config.autoresponder_config import USE_NWO_MUNGE_AFTER
 from munging.autoresponder_static import find_all_control_chars_chinese
-from munging.autoresponder_static_v8 import final_munge_before_neural_v10_1, TIME_SIDECHANNEL_CHAR
+from munging.autoresponder_static_v8 import final_munge_before_neural_v10_1, final_munge_after_neural_v10_1, \
+    TIME_SIDECHANNEL_CHAR
 from util.util import render_call_stack
 
 
@@ -33,3 +35,8 @@ def final_munge_before_neural_nwo_transition(doc, *args, **kwargs):
 
     return final_munge_before_neural_v10_1(doc, *args, **kwargs)
 
+
+def final_munge_after_neural_nwo_transition(doc, *args, **kwargs):
+    if USE_NWO_MUNGE_AFTER:
+        return doc
+    return final_munge_after_neural_v10_1(doc, *args, **kwargs)

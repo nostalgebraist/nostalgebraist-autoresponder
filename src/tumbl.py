@@ -1357,10 +1357,6 @@ def is_statically_reblog_worthy_on_dash(
     reblog_worthy = True
     scrape_worthy = True
 
-    if not has_comment:
-        # isn't orig, is reblog, no commentary
-        scrape_worthy = False
-
     # tag avoid list
     tags = post_payload.get("tags", [])
     trail = post_payload.get("trail", [])
@@ -1372,10 +1368,6 @@ def is_statically_reblog_worthy_on_dash(
         if verbose:
             print("\trejecting: tag avoid list")
         reblog_worthy = False
-
-    if n_img > 0:
-        pass
-        # scrape_worthy = False
 
     if post_payload.get("note_count") >= 1500:
         if verbose:
@@ -2049,11 +2041,6 @@ def do_reblog_reply_handling(
                 [item["timestamp"] for item in notifications]
             )
             response_cache.update_last_seen_ts(relevant_last_seen_ts_key, updated_last_seen_ts)
-
-            # print(
-            #     f"updating {relevant_last_seen_ts_key}: {relevant_last_seen_ts} --> {updated_last_seen_ts} (+{updated_last_seen_ts-relevant_last_seen_ts})"
-            # )
-            # setattr(loop_persistent_data, relevant_last_seen_ts_key, updated_last_seen_ts)
 
     if is_dashboard:
         updated_last_seen_ts = max(

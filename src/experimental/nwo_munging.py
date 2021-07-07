@@ -67,6 +67,12 @@ def cut_to_new_since_last_post_by_user(thread: TumblrThread, user_name: str) -> 
     return TumblrThread(posts=posts, timestamp=thread.timestamp)
 
 
+def pop_reblog_without_commentary(thread: TumblrThread):
+    if len(thread.posts[-1].content.blocks) > 0:
+        return thread
+    return TumblrThread(posts=thread.posts[:-1], timestamp=thread.timestamp)
+
+
 def fake_tumblr_post(blog_name: str, text_blocks: List[str], tags: List[str]):
     blocks = [NPFTextBlock(text=text) for text in text_blocks]
     content = NPFContent(blocks=blocks, layout=[], blog_name=blog_name)

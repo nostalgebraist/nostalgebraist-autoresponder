@@ -125,7 +125,7 @@ def get_normalized_ask_text(thread: TumblrThread):
     return ask_text
 
 
-def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=True):
+def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=False):
     prompt = npf_thread_to_formatted_text(
         sample_year_and_set_timestamp(thread), ml_prompt_format=True
     )
@@ -144,7 +144,7 @@ def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=True):
     return prompt, prompt_selector, prompt_autoreviewer
 
 
-def make_nwo_fic_override_prompts(thread: TumblrThread, control_seg_config=DEFAULT_CSC, debug=True):
+def make_nwo_fic_override_prompts(thread: TumblrThread, control_seg_config=DEFAULT_CSC, debug=False):
     ask_text = get_normalized_ask_text(thread)
 
     prompt = construct_fic_override_v2(ask_text, control_seg_config=control_seg_config)
@@ -159,7 +159,7 @@ def make_nwo_fic_override_prompts(thread: TumblrThread, control_seg_config=DEFAU
     return prompt, prompt_selector, prompt_autoreviewer
 
 
-def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_CSC, debug=True):
+def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_CSC, debug=False):
     prompts, prompts_selector, prompts_autoreviewer = [], {}, {}
     probs = []
 

@@ -122,11 +122,14 @@ sample_done_criterion = make_sample_done_criterion(
 
 generator_model, selector_est, sentiment_est, autoreviewer_est = None, None, None, None
 
-generator_path = os.path.join("/", model_name)
+# generator_path = os.path.join("/", model_name)
+generator_path = model_name
 
 if not os.path.exists(generator_path):
-    os.makedirs(generator_path)
-    subprocess.check_output(gs_command_get_model, shell=True)
+    model_tar_path = get_local_path_from_huggingface_cdn(
+        'nostalgebraist/nostalgebraist-autoresponder-6_1b', 'model.tar.gz'
+    )
+    !tar -xf {model_tar_path}
 
 generator_model = load_generator_model(
     path=generator_path,

@@ -34,7 +34,7 @@ def determine_post_type(thread: TumblrThread, blog_name: str = bot_name):
         if thread.ask_content:
             return "ask"
         text = thread.posts[0].to_html()
-        if "</a> replied to your post" in text:
+        if "replied to your post" in text.split("\n")[0]:
             return "reply"
         if "This is a graph of my mood over the last" in text:
             return "mood"

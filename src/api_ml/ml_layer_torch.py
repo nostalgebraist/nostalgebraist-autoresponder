@@ -122,14 +122,14 @@ sample_done_criterion = make_sample_done_criterion(
 
 generator_model, selector_est, sentiment_est, autoreviewer_est = None, None, None, None
 
-# generator_path = os.path.join("/", model_name)
 generator_path = model_name
 
 if not os.path.exists(generator_path):
     model_tar_path = get_local_path_from_huggingface_cdn(
         'nostalgebraist/nostalgebraist-autoresponder-6_1b', 'model.tar.gz'
     )
-    subprocess.run(f"tar -xf {model_tar_path}", shell=True)
+    subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
+
 
 generator_model = load_generator_model(
     path=generator_path,
@@ -139,34 +139,25 @@ generator_model = load_generator_model(
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
 )
 
-if "selector" in MODELS_SERVED:
-    selector_est = load_from_gdrive_with_gs_fallback(
-        load_fn=partial(load_selector, base_model=generator_model.transformers_model),
-        relative_path=ckpt_select.rpartition("/")[0],  # TODO: redefine ckpt_select
-        gs_command=gs_command_get_selector,
-        tokenizer=tokenizer,
+if not os.path.exists(ckpt_select):
+    heads_tar_path = get_local_path_from_huggingface_cdn(
+        'nostalgebraist/nostalgebraist-autoresponder-6_1b', 'heads.tar.gz'
     )
+    subprocess.run(f"tar -xf {heads_tar_path} && rm {heads_tar_path}", shell=True)
+
+if "selector" in MODELS_SERVED:
+    selector_est = load_selector(ckpt_select, base_model=generator_model.transformers_model, tokenizer=tokenizer)
     selector_est.length = length_select
 
     lr_calib_resp = selector_est.lr_calib_
     lr_calib_orig = selector_est.lr_calib_
 
 if "sentiment" in MODELS_SERVED:
-    sentiment_est = load_from_gdrive_with_gs_fallback(
-        load_fn=partial(load_selector, base_model=generator_model.transformers_model),
-        relative_path=ckpt_sentiment.rpartition("/")[0],  # TODO: redefine ckpt_select
-        gs_command=gs_command_get_sentiment,
-        tokenizer=tokenizer,
-    )
+    sentiment_est = load_selector(ckpt_sentiment, base_model=generator_model.transformers_model, tokenizer=tokenizer)
     sentiment_est.length = length_sentiment
 
 if "autoreviewer" in MODELS_SERVED:
-    autoreviewer_est = load_from_gdrive_with_gs_fallback(
-        load_fn=partial(load_selector, base_model=generator_model.transformers_model),
-        relative_path=ckpt_autoreviewer.rpartition("/")[0],  # TODO: redefine ckpt_select
-        gs_command=gs_command_get_autoreviewer,
-        tokenizer=tokenizer,
-    )
+    autoreviewer_est = load_selector(ckpt_autoreviewer, base_model=generator_model.transformers_model, tokenizer=tokenizer)
 
 
 DEPRECATED_KWARGS = {"mirotarg"}

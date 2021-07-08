@@ -9,6 +9,9 @@ from tumblr_to_text.nwo_munging import pop_reblog_without_commentary, set_tags
 
 from util.error_handling import LogExceptionAndSkip
 
+from config.bot_config import BotSpecificConstants
+NO_SCRAPE_USERS = BotSpecificConstants.load().NO_SCRAPE_USERS
+
 
 def handle_no_commentary_and_populate_tags(thread: TumblrThread, client: Optional[TumblrRestClient] = None):
     skip = False
@@ -22,6 +25,11 @@ def handle_no_commentary_and_populate_tags(thread: TumblrThread, client: Optiona
         # reblog w/o comment
         thread = pop_reblog_without_commentary(thread)
         final_post = thread.posts[-1]
+
+        if final_post.blog_name in NO_SCRAPE_USERS or final_post.blog_name.startswith("artist"):
+            print(f"archive: skipping, name={final_post.blog_name}", end=" ")
+            skip = True
+            return thread, skip
         try:
             tags = client.posts(final_post.blog_name, id=final_post.id)['posts'][0]['tags']
             thread = set_tags(thread, tags)

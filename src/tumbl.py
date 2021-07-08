@@ -108,6 +108,7 @@ LIMITED_USERS = bot_specific_constants.LIMITED_USERS
 LIMITED_USERS_PROBS = bot_specific_constants.LIMITED_USERS_PROBS(EFFECTIVE_SLEEP_TIME)
 LIMITED_SUBSTRINGS = bot_specific_constants.LIMITED_SUBSTRINGS
 SCREENED_USERS = bot_specific_constants.SCREENED_USERS
+NO_SCRAPE_USERS = bot_specific_constants.NO_SCRAPE_USERS
 LIMITED_SUBSTRING_FAKE_USERNAME = "!,!,limitedsubs"
 
 private_clients = [
@@ -1326,6 +1327,9 @@ def is_statically_reblog_worthy_on_dash(
                 f"not reblogging {post_identifier} from dash:\n\ti don't follow OP {post_OP}"
             )
         reblog_worthy = False
+
+    if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):
+        scrape_worthy = False
 
     if scrape_worthy:
         path = "data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "data/dash_post_dump_frank.txt"

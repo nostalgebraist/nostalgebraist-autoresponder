@@ -37,6 +37,7 @@ class BotSpecificConstants:
         LIMITED_USERS: Dict[str, float] = dict(),
         LIMITED_SUBSTRINGS: Dict[str, float] = dict(),
         SCREENED_USERS: Set[str] = set(),
+        NO_SCRAPE_USERS: Set[str] = set()
     ):
         # TODO: standardize case in names
         self.blogName = blogName
@@ -115,6 +116,8 @@ class BotSpecificConstants:
         # write draft instead of auto-publish when responding to these users
         self.SCREENED_USERS = SCREENED_USERS
 
+        self.NO_SCRAPE_USERS = NO_SCRAPE_USERS
+
     @staticmethod
     def load(path: str = "config.json") -> "BotSpecificConstants":
         with open(path, "r", encoding="utf-8") as f:
@@ -133,6 +136,7 @@ class BotSpecificConstants:
             "likely_obscured_strings",
             "profane_strings",
             "SCREENED_USERS",
+            "NO_SCRAPE_USERS"
         }
 
         for list_to_set_key in list_to_set_keys:

@@ -375,6 +375,7 @@ class NPFContent(TumblrContentBase):
                  layout: List[NPFLayout],
                  blog_name: str,
                  id: Optional[int] = None,
+                 genesis_post_id: Optional[int] = None,
                  post_url: Optional[str] = None):
         self.raw_blocks = [
             block if isinstance(block, NPFBlockAnnotated) else NPFBlockAnnotated(block)
@@ -383,6 +384,7 @@ class NPFContent(TumblrContentBase):
         self.layout = layout
         self.blog_name = blog_name
         self.id = id
+        self.genesis_post_id = genesis_post_id
         self._post_url = post_url
 
         self.blocks = self._make_blocks()
@@ -485,8 +487,11 @@ class NPFContent(TumblrContentBase):
             id = None
         id = int(id) if id is not None else None
 
+        genesis_post_id = payload.get('genesis_post_id')
+        genesis_post_id = int(genesis_post_id) if genesis_post_id is not None else None
+
         post_url = payload.get('post_url')
-        return NPFContent(blocks=blocks, layout=layout, blog_name=blog_name, id=id, post_url=post_url)
+        return NPFContent(blocks=blocks, layout=layout, blog_name=blog_name, id=id, genesis_post_id=genesis_post_id, post_url=post_url)
 
     def _reset_annotations(self):
         for bl in self.blocks:
@@ -611,10 +616,12 @@ class TumblrPostBase:
         blog_name: str,
         id: int,
         content: TumblrContentBase,
+        genesis_post_id: Optional[int] = None
     ):
         self._blog_name = blog_name
         self._content = content
         self._id = id
+        self._genesis_post_id = genesis_post_id
 
     @property
     def blog_name(self):
@@ -626,6 +633,10 @@ class TumblrPostBase:
 
     @property
     def content(self):
+        return self._content
+
+    @property
+    def genesis_post_id(self):
         return self._content
 
 
@@ -647,6 +658,10 @@ class TumblrPost(TumblrPostBase):
     @property
     def id(self):
         return self._content.id
+
+    @property
+    def genesis_post_id(self):
+        return self._content.genesis_post_id
 
     def to_html(self) -> str:
         return self._content.to_html()

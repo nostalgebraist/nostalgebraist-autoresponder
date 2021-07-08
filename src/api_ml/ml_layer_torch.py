@@ -129,7 +129,7 @@ if not os.path.exists(generator_path):
     model_tar_path = get_local_path_from_huggingface_cdn(
         'nostalgebraist/nostalgebraist-autoresponder-6_1b', 'model.tar.gz'
     )
-    !tar -xf {model_tar_path}
+    subprocess.run(f"tar -xf {model_tar_path}", shell=True)
 
 generator_model = load_generator_model(
     path=generator_path,

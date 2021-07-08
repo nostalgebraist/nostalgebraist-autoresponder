@@ -4,6 +4,7 @@ from functools import partial
 import requests
 import numpy as np
 from transformers import AutoTokenizer
+from transformer_utils.util.tfm_utils import get_local_path_from_huggingface_cdn
 
 from config.autoresponder_config import *
 from tumblr_to_text.classic.autoresponder_static_v8 import *

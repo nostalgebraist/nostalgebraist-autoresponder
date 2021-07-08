@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 from api_tumblr.tumblr_parsing import NPFTextBlock, NPFContent, TumblrPost, TumblrThread
@@ -12,15 +12,19 @@ def sample_year_and_set(timestamp: datetime):
     return timestamp.replace(year=int(sample_year()))
 
 
+def set_timestamp(thread: TumblrThread, timestamp: datetime) -> TumblrThread:
+    timestamp_posix = int(timestamp.timestamp())
+
+    new_thread = TumblrThread(posts=thread.posts, timestamp=timestamp_posix)
+    return new_thread
+
+
 def sample_year_and_set_timestamp(thread: TumblrThread) -> TumblrThread:
     timestamp = datetime.fromtimestamp(thread.timestamp)
 
     timestamp = sample_year_and_set(timestamp)
 
-    timestamp_posix = int(timestamp.timestamp())
-
-    new_thread = TumblrThread(posts=thread.posts, timestamp=timestamp_posix)
-    return new_thread
+    return set_timestamp(thread, timestamp)
 
 
 def cut_to_final_exchange(thread: TumblrThread) -> TumblrThread:
@@ -125,16 +129,20 @@ def get_normalized_ask_text(thread: TumblrThread):
     return ask_text
 
 
-def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=False):
+def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=False, ml_prompt_format=True,
+                     head_timestamp: Optional[datetime] = None):
     prompt = npf_thread_to_formatted_text(
-        sample_year_and_set_timestamp(thread), ml_prompt_format=True
+        sample_year_and_set_timestamp(thread), ml_prompt_format=ml_prompt_format
     )
 
+    if head_timestamp:
+        thread = set_timestamp(thread, head_timestamp)
+
     thread_selector = cut_to_final_exchange(thread)
-    prompt_selector = npf_thread_to_formatted_text(thread_selector, ml_prompt_format=True)
+    prompt_selector = npf_thread_to_formatted_text(thread_selector, ml_prompt_format=ml_prompt_format)
 
     thread_autoreviewer = cut_to_n_most_recent_by_user(thread, blog_name, n_most_recent=2)
-    prompt_autoreviewer = npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=True)
+    prompt_autoreviewer = npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=ml_prompt_format)
 
     if debug:
         print(f"prompt: {repr(prompt)}")

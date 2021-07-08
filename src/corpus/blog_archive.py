@@ -34,6 +34,8 @@ def determine_post_type(thread: TumblrThread, blog_name: str = bot_name):
         if thread.ask_content:
             return "ask"
         text = thread.posts[0].to_html()
+        if "</a> replied to your post" in text:
+            return "reply"
         if "This is a graph of my mood over the last" in text:
             return "mood"
         if "I wrote this review by request of" in text:
@@ -62,6 +64,7 @@ def post_to_line_entry(post_payload: dict, blog_name: str = bot_name, include_un
 
     return {
         "id": post_payload["id"],
+        "genesis_post_id": thread.posts[-1].genesis_post_id,
         "timestamp_posix": post_payload["timestamp"],
         "note_count": post_payload["note_count"],
         "post_type": post_type,

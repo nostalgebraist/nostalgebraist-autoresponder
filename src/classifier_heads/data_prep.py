@@ -8,9 +8,6 @@ from bs4 import BeautifulSoup
 
 from tqdm.autonotebook import tqdm
 
-from munging.autoresponder_static_v8 import *
-from munging.munging_shared import *
-
 from multimodal import image_analysis_singleton
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE

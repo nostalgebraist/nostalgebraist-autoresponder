@@ -28,7 +28,7 @@ import scipy.stats
 import torch
 import torch.nn.functional as F
 
-from munging.autoresponder_static import ORIG_POST_CHAR_CHINESE
+from tumblr_to_text.classic.autoresponder_static import ORIG_POST_CHAR_CHINESE
 from classifier_heads.head_nn import NostARHead, NostARHeadArchitectureParams, GPT2TokenizerType, GPTModelType, prep_inputs
 from classifier_heads.head_nn_utils import NostARHeadOptimizerParams, get_nost_ar_head_optimizers, get_nost_ar_head_scheduler, cross_entropy_with_flooding, make_huber_loss_from_logits
 from util.util import typed_namedtuple_to_dict

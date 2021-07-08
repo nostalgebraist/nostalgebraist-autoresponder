@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from config.autoresponder_config import *
-from munging.autoresponder_static_v8 import *
+from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 from api_ml.bridge_shared import bridge_service_unique_id, bridge_service_url
 from feels.mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections, logit_diff_to_pos_sent

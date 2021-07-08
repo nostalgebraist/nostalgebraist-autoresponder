@@ -6,6 +6,7 @@ import os
 import pickle
 import urllib.parse
 import argparse
+from datetime import datetime
 from string import punctuation, whitespace
 from itertools import product
 from collections import defaultdict
@@ -20,7 +21,7 @@ from tqdm import tqdm
 from config.bot_config import BotSpecificConstants
 from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS
 
-from munging.reply_munging import (
+from tumblr_to_text.classic.reply_munging import (
     mockup_xkit_reply,
     post_body_find_reply_data,
 )
@@ -45,7 +46,6 @@ from feels.mood_dynamic import (
     show_unit_mood_inputs,
 )
 
-from munging.munging_shared import *
 from api_ml.bridge_shared import send_alldone
 from api_ml.selector import apply_retention_cutoff
 from api_ml.ml_connector import (
@@ -56,10 +56,11 @@ from api_ml.ml_connector import (
     autoreview_proba_from_gpt,
 )
 
-from multimodal.image_analysis import IMAGE_DELIMITER
+from tumblr_to_text.classic.autoresponder_static import EOT, DEFAULT_CSC
+from tumblr_to_text.classic.autoresponder_static_v8 import timestamp_to_v10_format
+from tumblr_to_text.classic.munging_shared import *
 
-from munging.autoresponder_static import EOT
-from munging.autoresponder_static_v8 import timestamp_to_v10_format
+from tumblr_to_text.nwo_munging import *
 
 from persistence import traceability_singleton
 from multimodal import image_analysis_singleton
@@ -161,7 +162,7 @@ MOOD_BUFFS_V2 = True
 MOOD_STALE_SECONDS = 60 * 10
 mood_computed_most_recently = None
 
-WRITE_POSTS_WHEN_QUEUE_BELOW = 13 # 8  # 5
+WRITE_POSTS_WHEN_QUEUE_BELOW = 13  # 8  # 5
 N_TO_WRITE = 1
 
 INDIRECT_REBLOGS = False
@@ -937,8 +938,11 @@ def respond_to_reblogs_replies(
         if halloweenize:
             print(f"\t🎃 halloweenizing {reblog_identifier} 🎃")
 
+        ident_for_payload = reblog_identifier
+        if is_reply:
+            ident_for_payload = PostIdentifier(blogName, reblog_identifier.id_)
         post_payload = response_cache.query(
-            CachedResponseType.POSTS, reblog_identifier, care_about_notes=False
+            CachedResponseType.POSTS, ident_for_payload, care_about_notes=False
         )
 
         thread = TumblrThread.from_payload(post_payload)

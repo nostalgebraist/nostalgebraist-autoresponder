@@ -5,7 +5,7 @@ import requests
 from transformers import AutoTokenizer
 
 from config.autoresponder_config import *
-from munging.autoresponder_static_v8 import *
+from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 from ml.generator_model_torch import GeneratorModelTorch, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
 from classifier_heads.head_estimator import NostARHeadEstimator

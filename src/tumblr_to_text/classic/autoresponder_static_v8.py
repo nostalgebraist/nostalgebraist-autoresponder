@@ -1,7 +1,7 @@
 """code for turning forumlike (v7) format into the v8 version"""
 import os
 from datetime import datetime
-from munging.autoresponder_static import *
+from tumblr_to_text.classic.autoresponder_static import *
 
 
 """V8 format: time of post"""

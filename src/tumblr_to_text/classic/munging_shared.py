@@ -6,7 +6,7 @@ from copy import deepcopy
 import pytumblr
 from wcwidth import wcwidth
 
-from munging.autoresponder_static import CHINESE_CHAR_DELIMITERS, ORIG_POST_CHAR_CHINESE
+from tumblr_to_text.classic.autoresponder_static import CHINESE_CHAR_DELIMITERS, ORIG_POST_CHAR_CHINESE
 
 from multimodal.image_analysis import (
     V9_IMAGE_FORMATTER,

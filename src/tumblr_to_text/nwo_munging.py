@@ -2,10 +2,10 @@ from typing import List
 from datetime import datetime
 
 from api_tumblr.tumblr_parsing import NPFTextBlock, NPFContent, TumblrPost, TumblrThread
-from munging.year_munging import sample_year
-from munging.autoresponder_static import DEFAULT_CSC
-from munging.autoresponder_static_v8 import construct_fic_override_v2
-from munging.nwo.nwo import npf_thread_to_formatted_text, format_and_normalize_post_html
+from tumblr_to_text.classic.year_munging import sample_year
+from tumblr_to_text.classic.autoresponder_static import DEFAULT_CSC
+from tumblr_to_text.classic.autoresponder_static_v8 import construct_fic_override_v2
+from tumblr_to_text.nwo import npf_thread_to_formatted_text, format_and_normalize_post_html
 
 
 def sample_year_and_set(timestamp: datetime):

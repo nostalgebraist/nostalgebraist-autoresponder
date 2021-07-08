@@ -11,10 +11,10 @@ from config.bot_config import BotSpecificConstants
 from multimodal.image_analysis import IMAGE_DELIMITER_WHITESPACED
 
 from config.autoresponder_config import LOGGING_FLAGS
-from munging.autoresponder_static import EOT
+from tumblr_to_text.classic.autoresponder_static import EOT
 from feels.mood import logit_diff_to_allen_schema
 
-from munging.nwo.nwo_munging import make_nwo_textpost_prompts
+from tumblr_to_text.nwo_munging import make_nwo_textpost_prompts
 
 bot_specific_constants = BotSpecificConstants.load()
 selector_url = bot_specific_constants.bridge_service_url + "/pollselector"

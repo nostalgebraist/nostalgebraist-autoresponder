@@ -3,7 +3,7 @@
 import subprocess
 
 from config.bot_config import BotSpecificConstants
-from munging.autoresponder_static_v8 import *
+from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 V8 = True
 V8_2 = True

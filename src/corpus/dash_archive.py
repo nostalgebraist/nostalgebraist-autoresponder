@@ -1,11 +1,11 @@
 from typing import Optional
 from pytumblr import TumblrRestClient
 
-from munging.autoresponder_static import EOT
+from tumblr_to_text.classic.autoresponder_static import EOT
 
 from api_tumblr.tumblr_parsing import TumblrThread
-from munging.nwo.nwo import npf_thread_to_formatted_text
-from munging.nwo.nwo_munging import pop_reblog_without_commentary, set_tags
+from tumblr_to_text.nwo import npf_thread_to_formatted_text
+from tumblr_to_text.nwo_munging import pop_reblog_without_commentary, set_tags
 
 from util.error_handling import LogExceptionAndSkip
 

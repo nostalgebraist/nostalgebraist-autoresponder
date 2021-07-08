@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 from config.autoresponder_config import *  # TODO: move elsewhere?

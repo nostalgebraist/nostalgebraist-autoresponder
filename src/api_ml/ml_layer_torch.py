@@ -305,7 +305,7 @@ def poll(
 
 
 def loop_poll(
-    period=60,
+    period=1,
     dummy=False,
     ports=[
         bridge_service_port,
@@ -327,3 +327,7 @@ def loop_poll(
             time.sleep(period)
         else:
             time.sleep(0.2)
+
+
+if __name__ == "__main__":
+    sys.exit(loop_poll())

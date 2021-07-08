@@ -2,6 +2,7 @@ import time
 from functools import partial
 
 import requests
+import numpy as np
 from transformers import AutoTokenizer
 
 from config.autoresponder_config import *

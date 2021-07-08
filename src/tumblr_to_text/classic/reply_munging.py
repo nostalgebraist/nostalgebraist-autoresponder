@@ -6,7 +6,7 @@ def mockup_xkit_reply(
     reply_body: str,
 ):
     post_summary = post_summary.replace("\n", " ")
-    reply_body = f'<a class="tumblelog" href="{reply_blog_url}">@{reply_blog_name}</a> replied to your post  <a href="{post_url}">“{post_summary}”</a><p><blockquote>{reply_body}</blockquote></p>'
+    reply_body = f'<a class="tumblelog" href="{reply_blog_url}">@{reply_blog_name}</a> replied to your post <a href="{post_url}">“{post_summary}”</a><p><blockquote>{reply_body}</blockquote></p>'
 
     return reply_body
 

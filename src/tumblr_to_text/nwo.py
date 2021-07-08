@@ -7,7 +7,7 @@ from api_tumblr.tumblr_parsing import NPFAsk, TumblrPost, TumblrThread
 # TODO: (cleanup) break dependency on old munging code files
 from tumblr_to_text.classic.autoresponder_static import DEFAULT_CSC, normalize_for_generator
 from tumblr_to_text.classic.autoresponder_static_v8 import format_segment_v8_interlocutors, timestamp_to_v10_format
-from tumblr_to_text.classic.munging_shared import find_images_and_sub_text
+from tumblr_to_text.classic.munging_shared import find_images_and_sub_text, sanitize_user_input_outer_shell
 import tumblr_to_text.nwo_html_config
 
 PostOrAsk = Union[TumblrPost, NPFAsk]
@@ -218,6 +218,9 @@ def format_and_normalize_post_html(content):
     content = re.sub(r"<[/]*([a-z0-9]*)[^><]*>",
                      _strip_non_approved_tags,
                      content)
+
+    # removes problem strings like zero-width joiners and internally used separators
+    content = sanitize_user_input_outer_shell(content)
 
     # apply OCR and replaces <img> and <figure> tags with text from the image
     content = find_images_and_sub_text(content)

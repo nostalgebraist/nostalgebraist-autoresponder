@@ -6,7 +6,7 @@ from copy import deepcopy
 import pytumblr
 from wcwidth import wcwidth
 
-from tumblr_to_text.classic.autoresponder_static import CHINESE_CHAR_DELIMITERS, ORIG_POST_CHAR_CHINESE
+from tumblr_to_text.classic.autoresponder_static import ORIG_POST_CHAR_CHINESE, EOT
 
 from multimodal.image_analysis import (
     V9_IMAGE_FORMATTER,
@@ -41,7 +41,7 @@ def sanitize_user_input_outer_shell(text):
     # zero-width joiners etc
     sanitized_text = "".join([c for c in sanitized_text if wcwidth(c) != 0])
 
-    for delimiter in CHINESE_CHAR_DELIMITERS + [IMAGE_DELIMITER]:
+    for delimiter in [EOT, IMAGE_DELIMITER]:
         sanitized_text = sanitized_text.replace(delimiter, "")
 
     return sanitized_text

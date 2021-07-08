@@ -56,3 +56,19 @@ def archive_to_corpus(post_payload, path, separator=EOT, client: Optional[Tumblr
         with open(path, "a", encoding="utf-8") as f:
             line = doc + EOT
             f.write(line)
+
+
+def dedup_join_save():
+    with open("data/dash_post_dump_nost.txt", "r", encoding="utf-8") as f:
+        ds1 = f.read()
+
+    with open("data/dash_post_dump_frank.txt", "r", encoding="utf-8") as f:
+        ds2 = f.read()
+
+    docs = {d for d in ds1.split(EOT) if len(d) > 0}
+    docs.update({d for d in ds2.split(EOT) if len(d) > 0})
+
+    ds_out = EOT.join(docs)
+
+    with open("data/dedup_join_dash_scrape.txt", "w", encoding="utf-8") as f:
+        f.write(ds_out)

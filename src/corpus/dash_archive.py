@@ -13,7 +13,9 @@ from config.bot_config import BotSpecificConstants
 NO_SCRAPE_USERS = BotSpecificConstants.load().NO_SCRAPE_USERS
 
 
-def handle_no_commentary_and_populate_tags(thread: TumblrThread, client: Optional[TumblrRestClient] = None):
+def handle_no_commentary_and_populate_tags(thread: TumblrThread,
+                                           client: Optional[TumblrRestClient] = None,
+                                           allow_posts_with_unrecoverable_tags=True):
     skip = False
 
     if not client:
@@ -34,17 +36,21 @@ def handle_no_commentary_and_populate_tags(thread: TumblrThread, client: Optiona
             tags = client.posts(final_post.blog_name, id=final_post.id)['posts'][0]['tags']
             thread = set_tags(thread, tags)
         except (KeyError, IndexError):
-            print("archive: skipping, OP deleted?", end=" ")
-            skip = True
+            print("archive: OP deleted?", end=" ")
+            if not allow_posts_with_unrecoverable_tags:
+                skip = True
 
     return thread, skip
 
 
-def archive_to_corpus(post_payload, path, separator=EOT, client: Optional[TumblrRestClient] = None):
+def archive_to_corpus(post_payload, path, separator=EOT, client: Optional[TumblrRestClient] = None,
+                      allow_posts_with_unrecoverable_tags=True):
     with LogExceptionAndSkip("archive post to corpus"):
         thread = TumblrThread.from_payload(post_payload)
 
-        thread, skip = handle_no_commentary_and_populate_tags(thread, client)
+        thread, skip = handle_no_commentary_and_populate_tags(
+            thread, client, allow_posts_with_unrecoverable_tags
+        )
         if skip:
             return
 

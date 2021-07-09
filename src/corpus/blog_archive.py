@@ -74,10 +74,13 @@ def post_to_line_entry(post_payload: dict, blog_name: str = bot_name, include_un
     }
 
 
-def fetch_and_process(blog_name: str = bot_name, n: Optional[int] = None, include_unused_types=False):
+def fetch_and_process(blog_name: str = bot_name,
+                      n: Optional[int] = None,
+                      offset : int = 0,
+                      include_unused_types=False):
     pool = ClientPool()
 
-    posts = fetch_posts(pool, blog_name, n)
+    posts = fetch_posts(pool, blog_name, n, offset)
 
     lines = [post_to_line_entry(pp, blog_name, include_unused_types=include_unused_types)
              for pp in tqdm(posts, mininterval=1)]
@@ -93,12 +96,13 @@ def save(lines, path="data/head_training_data.json"):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=None)
+    parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--blog-name", type=str, default=bot_name)
     parser.add_argument("--include-unused-types", action="store_true")
     parser.add_argument("--save-image-cache", action="store_true")
     args = parser.parse_args()
 
-    lines = fetch_and_process(args.blog_name, args.n, args.include_unused_types)
+    lines = fetch_and_process(args.blog_name, args.n, args.offset, args.include_unused_types)
     save(lines)
     if args.save_image_cache:
         multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()

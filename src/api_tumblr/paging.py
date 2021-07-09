@@ -18,8 +18,10 @@ def fetch_next_page(client, offset, limit=50, blog_name: str = bot_name):
 
     next_offset = None
     with LogExceptionAndSkip("get next offset for /posts"):
-        next_offset = response["_links"]["next"]["query_params"]["offset"]
+        print(response)
+        next_offset = int(response["_links"]["next"]["query_params"]["offset"])
     if next_offset is None:
+        print((next_offset, offset, len(posts)))
         next_offset = offset + len(posts)  # fallback
         print(
             f"falling back to: old offset {offset} + page size {len(posts)} = {next_offset}"
@@ -27,10 +29,13 @@ def fetch_next_page(client, offset, limit=50, blog_name: str = bot_name):
     return posts, next_offset, total_posts
 
 
-def fetch_posts(pool: ClientPool, blog_name: str = bot_name, n: Optional[int] = None, report_cadence=5000):
+def fetch_posts(pool: ClientPool,
+                blog_name: str = bot_name,
+                n: Optional[int] = None,
+                offset: int = 0,
+                report_cadence=5000):
     posts = []
     ids = set()
-    offset = 0
     ndup = 0
     since_last_report = 0
 

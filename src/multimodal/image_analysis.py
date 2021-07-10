@@ -412,74 +412,6 @@ def collect_text(results: List[dict], deduplicate=True, return_raw=False) -> str
     return "\n".join(lines)
 
 
-def extract_text_from_url(
-    url: str,
-    deduplicate=True,
-    sleep_time: float = 0.1,
-    http=None,
-    verbose=True,
-    downsize_to=[640, 540],
-    return_raw=False,
-    xtra_raw=False,
-    cache_ref=None
-) -> str:
-    return_raw = return_raw or xtra_raw
-
-    if http is None:
-        http = urllib3.PoolManager()
-
-    url_ = url
-    r_pre = http.request("GET", url_, preload_content=False)
-    nbytes_ = int(r_pre.headers.get("Content-Length", -1))
-    r_pre.release_conn()
-
-    if downsize_to is not None and nbytes_ > 0:
-        try:
-            for downsize in downsize_to:
-                seg, _, xtn = url_.rpartition(".")
-                seg2, _, orig_size = seg.rpartition("_")
-                newurl = seg2 + "_" + str(downsize) + "." + xtn
-
-                r_pre = http.request("GET", newurl, preload_content=False)
-                nbytes_new = int(r_pre.headers["Content-Length"])
-                r_pre.release_conn()
-
-                if r_pre.status != 200:
-                    raise ValueError
-
-                if nbytes_new < nbytes_:
-                    if verbose:
-                        print(f"{url_}\n\t--> {newurl}")
-                    url_ = newurl
-                    nbytes_ = nbytes_new
-        except:
-            if verbose:
-                pass  # print(f"couldn't downsize: {url}")
-
-    frame_bytes = url_to_frame_bytes(url_, http=http)
-    frame_hashes = [hashlib.md5(b).hexdigest() for b in frame_bytes]
-    content_hash = "".join(frame_hashes)  # should be different at different sample rate for gif
-
-    specs = (
-        [detect_text_actually_raw_response_spec] if xtra_raw else only_text_rek_specs
-    )
-    results = batch_execute_callspecs(
-        specs,
-        postprocessor_kwargs=only_text_rek_kwargs,
-        byte_list=frame_bytes,
-        sleep_time=sleep_time,
-        verbose=verbose,
-    )
-
-    # TODO: (cleanup) make this return signature less bad
-    # TODO: (cleanup) make this file less bad in general!
-    if xtra_raw:
-        return results, content_hash
-
-    _, raw = collect_text(results, return_raw=return_raw, deduplicate=deduplicate)
-    return raw, content_hash
-
-
 def PRE_V9_IMAGE_FORMATTER(image_text):
     return "\n" + image_text + "\n"
 
@@ -521,21 +453,115 @@ class ImageAnalysisCache:
 
         return result
 
+    @staticmethod
+    def _download_and_hash(
+            url: str,
+            http=None,
+            verbose=True,
+            downsize_to=[640, 540],
+    ):
+        if http is None:
+            http = urllib3.PoolManager()
+
+        url_ = url
+        r_pre = http.request("GET", url_, preload_content=False)
+        nbytes_ = int(r_pre.headers.get("Content-Length", -1))
+        r_pre.release_conn()
+
+        if downsize_to is not None and nbytes_ > 0:
+            try:
+                for downsize in downsize_to:
+                    seg, _, xtn = url_.rpartition(".")
+                    seg2, _, orig_size = seg.rpartition("_")
+                    newurl = seg2 + "_" + str(downsize) + "." + xtn
+
+                    r_pre = http.request("GET", newurl, preload_content=False)
+                    nbytes_new = int(r_pre.headers["Content-Length"])
+                    r_pre.release_conn()
+
+                    if r_pre.status != 200:
+                        raise ValueError
+
+                    if nbytes_new < nbytes_:
+                        if verbose:
+                            print(f"{url_}\n\t--> {newurl}")
+                        url_ = newurl
+                        nbytes_ = nbytes_new
+            except:
+                if verbose:
+                    pass  # print(f"couldn't downsize: {url}")
+
+        frame_bytes = url_to_frame_bytes(url_, http=http)
+        frame_hashes = [hashlib.md5(b).hexdigest() for b in frame_bytes]
+        content_hash = "".join(frame_hashes)  # should be different at different sample rate for gif
+
+        return frame_bytes, content_hash
+
+    @staticmethod
+    def _extract_text_from_bytes(
+            frame_bytes: List[bytes],
+            deduplicate=True,
+            sleep_time: float = 0.1,
+            verbose=True,
+            return_raw=True,
+            xtra_raw=False,
+    ):
+        return_raw = return_raw or xtra_raw
+        specs = (
+            [detect_text_actually_raw_response_spec] if xtra_raw else only_text_rek_specs
+        )
+        results = batch_execute_callspecs(
+            specs,
+            postprocessor_kwargs=only_text_rek_kwargs,
+            byte_list=frame_bytes,
+            sleep_time=sleep_time,
+            verbose=verbose,
+        )
+
+        # TODO: (cleanup) make this return signature less bad
+        # TODO: (cleanup) make this file less bad in general!
+        if xtra_raw:
+            return results
+
+        _, raw = collect_text(results, return_raw=return_raw, deduplicate=deduplicate)
+        return raw
+
     def extract_and_format_text_from_url(
         self,
         url: str,
         image_formatter=V9_IMAGE_FORMATTER,
         verbose=False,
     ):
+        def vprint(*args, **kwargs):
+            if verbose:
+                print(*args, **kwargs)
+
         # TODO: integrate downsizing
         if url not in self.cache:
-            entry, content_hash = extract_text_from_url(
+            vprint(f"url NOT in cache:\n\t{url}\n")
+            frame_bytes, content_hash = self._download_and_hash(
                 url,
-                return_raw=True,
                 verbose=verbose
             )
+
+            entry = None
+
+            if self.hash_to_url.get(content_hash):
+                url_with_existing_hash = self.hash_to_url[content_hash]
+                vprint(f"hash {content_hash} in hash_to_url, url is\n\t{url_with_existing_hash}\n")
+                if url_with_existing_hash in self.cache:
+                    vprint(f"\turl IN cache:\n\t\t{url}\n")
+                    entry = self.cache[url_with_existing_hash]
+                else:
+                    vprint(f"\turl NOT in cache:\n\t\t{url}\n")
+
+            if not entry:
+                vprint(f"calling rek for {url}")
+                self.hash_to_url[content_hash] = url
+                entry = self._extract_text_from_bytes(frame_bytes)
             self.cache[url] = entry
-            self.hash_to_url[content_hash] = url
+        else:
+            vprint(f"url IN cache:\n\t{url}\n")
 
         cached_text = ""
         with LogExceptionAndSkip(f"retrieving {repr(url)} from cache"):

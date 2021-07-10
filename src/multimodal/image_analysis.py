@@ -579,7 +579,9 @@ class ImageAnalysisCache:
             with open(self.path[: -len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
                 pickle.dump(data, f)
         if verbose:
-            print(f"saved image analysis cache with length {len(self.cache)}")
+            print(
+                f"saved image analysis cache with lengths cache={len(self.cache)}, hash_to_url={len(self.hash_to_url)}"
+            )
 
     @staticmethod
     def load(
@@ -599,7 +601,7 @@ class ImageAnalysisCache:
                 hash_to_url = dict()
 
             if verbose:
-                print(f"loaded image analysis cache with length {len(cache)}")
+                print(f"loaded image analysis cache with lengths cache={len(cache)}, hash_to_url={len(hash_to_url)}")
         else:
             print(f"initialized image analysis cache")
         loaded = ImageAnalysisCache(path, cache, hash_to_url)

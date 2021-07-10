@@ -70,7 +70,11 @@ class ClientPool:
         ixs = list(range(len(clients)))
         ix_max = sorted(ixs, key=lambda ix: rates[ix])[-1]
 
-        return clients[ix_max]
+        choice = clients[ix_max]
+
+        # DEBUG
+        print(f"ClientPool: picked {self.client_name(choice)}")
+        return choice
 
     def pick_group(self):
         if not self.is_group_available(self.private_clients):

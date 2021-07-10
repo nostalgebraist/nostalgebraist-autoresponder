@@ -114,8 +114,8 @@ def traceability_logs_to_df(logs,
 
 
 def load_full_traceability_logs():
-    import traceability_singleton
-    trace_logs_hot = traceability_singleton.TRACE_LOGS.logs
+    import persistence.traceability_singleton
+    trace_logs_hot = persistence.traceability_singleton.TRACE_LOGS.logs
 
     trace_logs_cold = TraceabilityLogs.load(path=TRACEABILITY_COLD_STORAGE_FN).logs
 

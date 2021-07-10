@@ -912,8 +912,9 @@ def respond_to_reblogs_replies(
             else:
                 proba = gpt2_output["proba"]
 
-                dash_proba = response_cache.get_cached_dash_post_judgments(reblog_identifier)
-                if dash_proba is not None:
+                dash_judg = response_cache.get_cached_dash_post_judgments(reblog_identifier)
+                if dash_judg is not None:
+                    dash_proba = dash_judg["prob"]
                     delta_dash_to_written = proba - dash_proba
 
                 numeric_threshold = (

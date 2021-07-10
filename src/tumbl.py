@@ -747,6 +747,13 @@ def switch_private_client_to(
     private_client = client_to_use
 
 
+def switch_dash_client_to(
+    client_to_use: RateLimitClient,
+):
+    global dashboard_client
+    dashboard_client = client_to_use
+
+
 def _compute_checkprob_from_ratelimits(
     requests_needed_to_check: int, response_cache: ResponseCache, verbose=True
 ):
@@ -792,6 +799,19 @@ def _compute_checkprob_from_ratelimits(
     if private_client.request.consumer_key != cl_to_use["client"].request.consumer_key:
         switch_private_client_to(cl_to_use["client"])
         print(f"switched private client to {cl_to_use['name']}")
+
+    dash_checkprobs = [
+        p
+        for cl, p in zip(all_clients, checkprobs)
+        if cl["name"].startswith("dashboard_client")
+    ]
+
+    ix_to_use = np.argmax(dash_checkprobs)
+    cl_to_use = all_clients[ix_to_use]
+
+    if dashboard_client.request.consumer_key != cl_to_use["client"].request.consumer_key:
+        switch_dash_client_to(cl_to_use["client"])
+        print(f"switched dash client to {cl_to_use['name']}")
 
     # TODO: think about this... not sure the math makes sense
     combined_checkprob = sum(checkprobs)

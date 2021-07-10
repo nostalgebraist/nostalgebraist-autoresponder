@@ -79,6 +79,8 @@ def fetch_and_process(blog_name: str = bot_name,
                       n: Optional[int] = None,
                       offset : int = 0,
                       include_unused_types=False):
+    # TODO: uncomment stuff here -- this is temporary until i fully build the image cache for published ask images
+
     # pool = ClientPool()
     #
     # posts = fetch_posts(pool, blog_name, n, offset)

@@ -67,8 +67,6 @@ class ClientPool:
             raise ValueError(f"ratelimit exhausted in group")
 
         ixs = list(range(len(clients)))
-        print(ixs)
-        print(rates)
         ix_max = sorted(ixs, key=lambda ix: rates[ix])[-1]
 
         choice = clients[ix_max]

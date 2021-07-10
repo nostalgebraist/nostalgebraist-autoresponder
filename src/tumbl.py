@@ -65,6 +65,7 @@ from tumblr_to_text.nwo_munging import *
 from persistence import traceability_singleton
 from multimodal import image_analysis_singleton
 
+from api_tumblr.client_pool import ClientPool
 from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
 
 from util.error_handling import LogExceptionAndSkip
@@ -111,19 +112,7 @@ SCREENED_USERS = bot_specific_constants.SCREENED_USERS
 NO_SCRAPE_USERS = bot_specific_constants.NO_SCRAPE_USERS
 LIMITED_SUBSTRING_FAKE_USERNAME = "!,!,limitedsubs"
 
-private_clients = [
-    LegacySimulatingClient.from_rate_limit_client(cl)
-    for cl in bot_specific_constants.private_clients
-]
-
-dashboard_clients = [
-    LegacySimulatingClient.from_rate_limit_client(cl)
-    for cl in bot_specific_constants.dashboard_clients
-]
-
-private_client = private_clients[0]
-dashboard_client = dashboard_clients[0]
-tank_client = dashboard_clients[0]
+client_pool = ClientPool()
 
 REBLOG_BOOTSTRAP_TEXT = "asdfghjkllkj"
 QUEUE_SAFETY = True
@@ -178,15 +167,6 @@ FIC_TRIGGER_TESTING = False
 
 IMAGE_CREATION = True
 IMAGE_CREATION_TESTING = False
-
-NPF_CONSUMPTION = True
-
-if NPF_CONSUMPTION:
-    for client in private_clients + dashboard_clients:
-        client.npf_consumption_on()
-else:
-    for client in private_clients + dashboard_clients:
-        client.npf_consumption_off()
 
 # TODO: move these files once we'rve fully jumped ship to this repo!
 scraped_username_dirs = [
@@ -277,16 +257,16 @@ def max_posts_per_step(slowdown_level):
 
 
 def next_queued_post_time():
-    probe_response = private_client.create_text(
+    probe_response = client_pool.get_private_client().create_text(
         blogName, state="queue", body=REBLOG_BOOTSTRAP_TEXT
     )
     probe_id = probe_response["id"]
     time.sleep(0.1)
 
-    probe_post = private_client.posts(blogName, id=probe_id)["posts"][0]
+    probe_post = client_pool.get_private_client().posts(blogName, id=probe_id)["posts"][0]
     time.sleep(0.1)
 
-    private_client.delete_post(blogName, id=probe_id)
+    client_pool.get_private_client().delete_post(blogName, id=probe_id)
 
     next_queued_ts = int(probe_post["scheduled_publish_time"])
     next_queued_dt = datetime.fromtimestamp(next_queued_ts)
@@ -566,7 +546,7 @@ def make_text_post(
         presub_post = post
         post, images_were_created = find_text_images_and_sub_real_images(
             post,
-            private_client,
+            client_pool.get_private_client(),
             blogname,
             verbose=IMAGE_CREATION_TESTING,
         )
@@ -603,9 +583,9 @@ def make_text_post(
     if len(tags) > 0:
         kwargs["tags"] = tags
 
-    api_response = private_client.create_text(blogname, **kwargs)
+    api_response = client_pool.get_private_client().create_text(blogname, **kwargs)
     if state_reasons["do_not_post"]:
-        private_client.delete_post(blogName, id=api_response['id'])
+        client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
 
     if log_data is not None:
         log_data["requested__state"] = state
@@ -634,10 +614,10 @@ def answer_ask(
             "id",
             "reblog_key",
             "comment",
-        ] + private_client._post_valid_options()
+        ] + client_pool.get_private_client()._post_valid_options()
     else:
         url = "/v2/blog/{}/post/edit".format(blogname)
-        valid_options = ["id"] + private_client._post_valid_options("answer")
+        valid_options = ["id"] + client_pool.get_private_client()._post_valid_options("answer")
         valid_options += ["answer"]
 
     tags = list(tags)
@@ -673,7 +653,7 @@ def answer_ask(
         presub_answer = answer
         answer, images_were_created = find_text_images_and_sub_real_images(
             answer,
-            private_client,
+            client_pool.get_private_client(),
             blogname,
             verbose=IMAGE_CREATION_TESTING,
         )
@@ -720,146 +700,14 @@ def answer_ask(
     else:
         data = {"id": ask_id, "answer": answer, "tags": tags, "state": state}
 
-    api_response = private_client.send_api_request("post", url, data, valid_options)
+    api_response = client_pool.get_private_client().send_api_request("post", url, data, valid_options)
     if state_reasons["do_not_post"]:
-        private_client.delete_post(blogName, id=api_response['id'])
+        client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
     if log_data is not None:
         log_data["requested__state"] = state
         log_data["state_reasons"] = state_reasons
         traceability_singleton.TRACE_LOGS.on_post_creation_callback(api_response, log_data)
     return api_response
-
-
-def switch_tank_client_to(
-    client_to_use: RateLimitClient, response_cache: ResponseCache
-):
-    global tank_client
-
-    response_cache.client = client_to_use
-    tank_client = client_to_use
-    return response_cache
-
-
-def switch_private_client_to(
-    client_to_use: RateLimitClient,
-):
-    global private_client
-    private_client = client_to_use
-
-
-def switch_dash_client_to(
-    client_to_use: RateLimitClient,
-):
-    global dashboard_client
-    dashboard_client = client_to_use
-
-
-def _compute_checkprob_from_ratelimits(
-    requests_needed_to_check: int, response_cache: ResponseCache, verbose=True
-):
-    global private_client
-
-    all_clients = [
-        {"name": f"private_client_{i}", "client": cl}
-        for i, cl in enumerate(private_clients)
-    ]
-    all_clients.extend(
-        [
-            {"name": f"dashboard_client_{i}", "client": cl}
-            for i, cl in enumerate(dashboard_clients)
-        ]
-    )
-
-    checkprobs = [
-        _compute_checkprob_from_ratelimits_single_client(
-            cl["client"], requests_needed_to_check, verbose
-        )
-        for cl in all_clients
-    ]
-
-    ix_to_use = np.argmax(checkprobs)
-    cl_to_use = all_clients[ix_to_use]
-
-    if (
-        response_cache.client.request.consumer_key
-        != cl_to_use["client"].request.consumer_key
-    ):
-        response_cache = switch_tank_client_to(cl_to_use["client"], response_cache)
-        print(f"switched tank client to {cl_to_use['name']}")
-
-    private_checkprobs = [
-        p
-        for cl, p in zip(all_clients, checkprobs)
-        if cl["name"].startswith("private_client")
-    ]
-
-    ix_to_use = np.argmax(private_checkprobs)
-    cl_to_use = all_clients[ix_to_use]
-
-    if private_client.request.consumer_key != cl_to_use["client"].request.consumer_key:
-        switch_private_client_to(cl_to_use["client"])
-        print(f"switched private client to {cl_to_use['name']}")
-
-    dash_checkprobs = [
-        p
-        for cl, p in zip(all_clients, checkprobs)
-        if cl["name"].startswith("dashboard_client")
-    ]
-
-    ix_to_use = np.argmax(dash_checkprobs)
-    cl_to_use = all_clients[ix_to_use]
-
-    if dashboard_client.request.consumer_key != cl_to_use["client"].request.consumer_key:
-        switch_dash_client_to(cl_to_use["client"])
-        print(f"switched dash client to {cl_to_use['name']}")
-
-    # TODO: think about this... not sure the math makes sense
-    combined_checkprob = sum(checkprobs)
-
-    # don't check if the base clients have no requests left
-    if sum(private_checkprobs) == 0:
-        combined_checkprob = 0.0
-
-    return combined_checkprob, response_cache
-
-
-def _compute_checkprob_from_ratelimits_single_client(
-    client_to_check: RateLimitClient,
-    requests_needed_to_check=80,
-    verbose=True,
-):
-    checkprob = None
-    while checkprob is None:
-        try:
-            ratelimit_data = client_to_check.get_ratelimit_data()
-            if verbose:
-                print(ratelimit_data)
-            effective_max_rate = ratelimit_data["effective_max_rate"]
-            day_remaining = ratelimit_data["day"]["remaining"]
-            hour_remaining = ratelimit_data["hour"]["remaining"]
-
-            # if we checked *every* cycle, we could support up this many requests per check
-            requests_per_cycle = EFFECTIVE_SLEEP_TIME * effective_max_rate
-
-            # we'll check only a fraction `checkprob` of the cycles, to support up to `requests_needed_to_check`
-            checkprob = requests_per_cycle / requests_needed_to_check
-
-            # don't check if we're close to the edge
-            day_edge = 3.5 * requests_needed_to_check
-            hour_edge = 1.0 * requests_needed_to_check
-            if (day_remaining < day_edge) or (hour_remaining < hour_edge):
-                print(
-                    f"close to edge: (day_remaining {day_remaining} < day_edge {day_edge}) or (hour_remaining {hour_remaining} < hour_edge {hour_edge})\n"
-                )
-                print(f"ratelimit_data:\n{ratelimit_data}\n")
-                checkprob = 0.0
-        except Exception as e:
-            print(
-                f"encountered {e} during _compute_checkprob_from_ratelimits, waiting..."
-            )
-            time.sleep(sleep_time(multiplier=5))
-
-    return checkprob
 
 
 class LoopPersistentData:
@@ -903,7 +751,7 @@ class LoopPersistentData:
 
 def update_follower_names(response_cache):
     offset = 0
-    response = dashboard_client.blog_following(dash_blogName, offset=offset, limit=20)
+    response = client_pool.get_dashboard_client().blog_following(dash_blogName, offset=offset, limit=20)
     total_blogs = response.get("total_blogs")
 
     if total_blogs != len(response_cache.following_names):
@@ -917,7 +765,7 @@ def update_follower_names(response_cache):
             time.sleep(0.5)
 
             offset = len(names)
-            response = dashboard_client.blog_following(
+            response = client_pool.get_dashboard_client().blog_following(
                 dash_blogName, offset=offset, limit=20
             )
             if "blogs" not in response:
@@ -962,6 +810,9 @@ def respond_to_reblogs_replies(
         ident_for_payload = reblog_identifier
         if is_reply:
             ident_for_payload = PostIdentifier(blogName, reblog_identifier.id_)
+
+        # TODO: (cleanup) remove response_cache.client
+        response_cache.client = client_pool.get_dashboard_client()
         post_payload = response_cache.query(
             CachedResponseType.POSTS, ident_for_payload, care_about_notes=False
         )
@@ -1576,14 +1427,14 @@ def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
         if post2 is None:
             if (
                 response_cache.client.request.consumer_key
-                != dashboard_client.request.consumer_key
+                != client_pool.get_dashboard_client().request.consumer_key
             ):
-                if dashboard_client.get_ratelimit_data()["effective_remaining"] > 0:
+                if client_pool.get_dashboard_client().get_ratelimit_data()["effective_remaining"] > 0:
                     print(
                         f"got non-200 response for {reblog_identifier}, trying with dashboard client"
                     )
                     prev_client = response_cache.client
-                    response_cache.client = dashboard_client
+                    response_cache.client = client_pool.get_dashboard_client()
                     post2 = response_cache.query(
                         CachedResponseType.POSTS,
                         reblog_identifier,
@@ -1781,15 +1632,15 @@ def get_relevant_replies_from_notes(
 
 
 def check_notifications(n_to_check=250, after_ts=0, before_ts=None, dump_to_file=False):
-    base_url = private_client.request.host + f"/v2/blog/{blogName}/notifications"
+    base_url = client_pool.get_private_client().request.host + f"/v2/blog/{blogName}/notifications"
     if before_ts is not None:
         # TODO: verify this is compatible with pagination
         base_url = base_url + "?" + urllib.parse.urlencode({"before": before_ts})
 
     request_kwargs = dict(
         allow_redirects=False,
-        headers=private_client.request.headers,
-        auth=private_client.request.oauth,
+        headers=client_pool.get_private_client().request.headers,
+        auth=client_pool.get_private_client().request.oauth,
     )
 
     getter = lambda url: requests.get(url, **request_kwargs).json()["response"]
@@ -1806,7 +1657,7 @@ def check_notifications(n_to_check=250, after_ts=0, before_ts=None, dump_to_file
             n += delta
             print(f"{len(n)}/{n_to_check}")
             time.sleep(0.1)
-            url = private_client.request.host + page["_links"]["next"]["href"]
+            url = client_pool.get_private_client().request.host + page["_links"]["next"]["href"]
             page = getter(url)
             delta = updater(page)
 
@@ -1829,14 +1680,14 @@ def do_reblog_reply_handling(
     mood_value: float = None,
     is_nost_dash_scraper: bool = False
 ):
-    relevant_client = response_cache.client
+    relevant_client = client_pool.get_client()
 
     if is_dashboard:
         if is_nost_dash_scraper:
-            relevant_client = private_client
+            relevant_client = client_pool.get_private_client()
             relevant_last_seen_ts_key = "last_seen_ts_nost_dash_scraper"
         else:
-            relevant_client = dashboard_client
+            relevant_client = client_pool.get_dashboard_client()
             relevant_last_seen_ts_key = "last_seen_ts"
     else:
           relevant_last_seen_ts_key = "last_seen_ts_notifications"
@@ -1992,7 +1843,7 @@ def do_reblog_reply_handling(
 
                     loop_persistent_data.reblogs_from_me.add(pi)
                     loop_persistent_data.timestamps[pi] = item["timestamp"]
-                    mp = private_client.posts(mention_blogname, id=mention_post_id)[
+                    mp = client_pool.get_private_client().posts(mention_blogname, id=mention_post_id)[
                         "posts"
                     ][0]
                     loop_persistent_data.reblog_keys[pi] = mp["reblog_key"]
@@ -2287,7 +2138,7 @@ def handle_review_command(
 
 
 def do_ask_handling(loop_persistent_data, response_cache):
-    submissions = private_client.submission(blogName)["posts"]
+    submissions = client_pool.get_private_client().submission(blogName)["posts"]
 
     n_asks = len(submissions)
     print(f"processing {n_asks} asks")
@@ -2326,13 +2177,13 @@ def do_ask_handling(loop_persistent_data, response_cache):
     for post_payload in submissions[::-1]:
         if post_payload.get("summary", "") == FOLLOW_COMMAND:
             with LogExceptionAndSkip("follow"):
-                response_cache.follow(post_payload["asking_name"], dashboard_client)
-                private_client.delete_post(blogName, post_payload["id"])
+                response_cache.follow(post_payload["asking_name"], client_pool.get_dashboard_client())
+                client_pool.get_private_client().delete_post(blogName, post_payload["id"])
                 print(f"followed {post_payload['asking_name']}")
         elif post_payload.get("summary", "") == UNFOLLOW_COMMAND:
             with LogExceptionAndSkip("unfollow"):
-                response_cache.unfollow(post_payload["asking_name"], dashboard_client)
-                private_client.delete_post(blogName, post_payload["id"])
+                response_cache.unfollow(post_payload["asking_name"], client_pool.get_dashboard_client())
+                client_pool.get_private_client().delete_post(blogName, post_payload["id"])
                 print(f"unfollowed {post_payload['asking_name']}")
         elif post_payload.get("summary", "") == MOOD_GRAPH_COMMAND:
             path = create_mood_graph(
@@ -2343,7 +2194,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
             state = "published"
             if post_payload["asking_name"] == "nostalgebraist":
                 state = "draft"
-            private_client.create_photo(
+            client_pool.get_private_client().create_photo(
                 blogName,
                 state=state,
                 data=path,
@@ -2353,7 +2204,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     asking_url=post_payload["asking_url"],
                 ),
             )
-            private_client.delete_post(blogName, post_payload["id"])
+            client_pool.get_private_client().delete_post(blogName, post_payload["id"])
         elif post_payload.get("summary", "").startswith(REVIEW_COMMAND):
             with LogExceptionAndSkip("write review"):
                 thread = TumblrThread.from_payload(post_payload)
@@ -2373,7 +2224,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                         loop_persistent_data,
                         response_cache,
                     )
-                    private_client.delete_post(blogName, post_payload["id"])
+                    client_pool.get_private_client().delete_post(blogName, post_payload["id"])
         else:
             for k in [
                 "id",
@@ -2522,7 +2373,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
 
 def do_queue_handling(loop_persistent_data, response_cache):
-    queue = private_client.queue(blogName, limit=20)["posts"]
+    queue = client_pool.get_private_client().queue(blogName, limit=20)["posts"]
 
     n_posts_in_queue = len(queue)
     print(f"{n_posts_in_queue} posts in queue")
@@ -2559,7 +2410,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
                 reject_action="do_not_post"
             )
 
-        n_posts_in_queue = len(private_client.queue(blogName, limit=20)["posts"])
+        n_posts_in_queue = len(client_pool.get_private_client().queue(blogName, limit=20)["posts"])
         print(f"now {n_posts_in_queue} posts in queue")
 
         response_cache = do_rts(response_cache)
@@ -2567,7 +2418,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
 
 def do_rts(response_cache):
-    drafts = private_client.drafts(blogName, reblog_info=True)["posts"]
+    drafts = client_pool.get_private_client().drafts(blogName, reblog_info=True)["posts"]
     to_send_back = [p for p in drafts if RTS_COMMAND in p["tags"]]
     to_autopub = [p for p in drafts if ACCEPT_COMMAND in p["tags"]]
 
@@ -2596,10 +2447,10 @@ def do_rts(response_cache):
             print(
                 f"\tresponse_cache.is_handled({pi}) after: {response_cache.is_handled(pi)}"
             )
-            private_client.delete_post(blogName, id=pid)
+            client_pool.get_private_client().delete_post(blogName, id=pid)
         elif p.get("type") == "answer":
             print(f"\tidentified as answer to ask")
-            private_client.edit_post(blogName, id=pid, state="submission", tags=[])
+            client_pool.get_private_client().edit_post(blogName, id=pid, state="submission", tags=[])
         elif "replied to your post" in p_body:
             print(f"\tidentified as answer to reply")
             reply_post_id, replier_name = post_body_find_reply_data(p_body)
@@ -2658,7 +2509,7 @@ def do_rts(response_cache):
 
                 print(f"\tidentified as answer to {rid}")
                 response_cache.cache["replies_handled"].remove(rid)
-                private_client.delete_post(blogName, id=pid)
+                client_pool.get_private_client().delete_post(blogName, id=pid)
         else:
             print(f"don't know how to RTS {pid}!")
 
@@ -2670,11 +2521,11 @@ def do_rts(response_cache):
             tags = p["tags"]
             if ACCEPT_COMMAND in tags:
                 tags = [t for t in tags if t != ACCEPT_COMMAND]
-                r = private_client.edit_post(blogName, id=pid, tags=tags, state="draft")
+                r = client_pool.get_private_client().edit_post(blogName, id=pid, tags=tags, state="draft")
                 if 'errors' in r:
                     print(f'api error [editing]: response {repr(r)}')
                 else:
-                    r = private_client.edit_post(blogName, id=pid, state="published")
+                    r = client_pool.get_private_client().edit_post(blogName, id=pid, state="published")
                     if 'errors' in r:
                         print(f'api error [publishing]: response {repr(r)}')
                     else:
@@ -2695,9 +2546,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     requests_needed_to_check = np.percentile(
         loop_persistent_data.requests_per_check_history[-30:], 75
     )
-    checkprob, response_cache = _compute_checkprob_from_ratelimits(
-        requests_needed_to_check, response_cache
-    )
+    checkprob = client_pool.compute_checkprob(requests_needed_to_check, EFFECTIVE_SLEEP_TIME)
 
     print(
         f"using checkprob: {checkprob:.1%}"
@@ -2714,7 +2563,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     n_posts_to_check_dash = loop_persistent_data.n_posts_to_check_dash
 
     def _mainloop_asks_block(loop_persistent_data, response_cache, save_after=True):
-        relevant_ratelimit_data = private_client.get_ratelimit_data()
+        relevant_ratelimit_data = client_pool.get_private_client().get_ratelimit_data()
         if relevant_ratelimit_data["effective_remaining"] > 0:
             loop_persistent_data, response_cache, n_asks = do_ask_handling(
                 loop_persistent_data, response_cache
@@ -2747,8 +2596,8 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     if n_posts_to_check > 0:
         # dash check
         for is_nost_dash_scraper, relevant_client in [
-            (True, private_client),
-            (False, dashboard_client),
+            (True, client_pool.get_private_client()),
+            (False, client_pool.get_dashboard_client()),
         ]:
             if relevant_client.get_ratelimit_data()["effective_remaining"] > 0:
                 print(f"checking dash (is_nost_dash_scraper={is_nost_dash_scraper})...")
@@ -2769,7 +2618,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             loop_persistent_data, response_cache, save_after=False
         )
 
-    relevant_ratelimit_data = private_client.get_ratelimit_data()
+    relevant_ratelimit_data = client_pool.get_private_client().get_ratelimit_data()
     if relevant_ratelimit_data["effective_remaining"] > 0:
         response_cache.save()
         image_analysis_cache.save()
@@ -2778,7 +2627,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         response_cache = do_rts(response_cache)
 
         # inform us about drafts
-        drafts = private_client.drafts(blogName)["posts"]
+        drafts = client_pool.get_private_client().drafts(blogName)["posts"]
         print(f"{len(drafts)} waiting for review")
 
         ### do queue check
@@ -2822,7 +2671,7 @@ if __name__ == "__main__":
 
     args = parse_args()
 
-    response_cache = ResponseCache.load(tank_client)
+    response_cache = ResponseCache.load(client_pool.get_client())
     if args.regen_following:
         response_cache = update_follower_names(response_cache)
 

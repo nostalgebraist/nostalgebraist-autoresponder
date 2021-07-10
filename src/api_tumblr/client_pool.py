@@ -106,3 +106,14 @@ class ClientPool:
     @property
     def clients(self):
         return self.private_clients + self.dashboard_clients
+
+    def compute_checkprob(self, requests_per_check: int, sleep_time: float):
+        summed_max_rate = sum(self._group_rates(self.clients))
+
+        # if we checked *every* cycle, we could support up this many requests per check
+        requests_per_cycle = sleep_time * effective_max_rate
+
+        # we'll check only a fraction `checkprob` of the cycles, to support up to `requests_needed_to_check`
+        checkprob = requests_per_cycle / requests_needed_to_check
+
+        return checkprob

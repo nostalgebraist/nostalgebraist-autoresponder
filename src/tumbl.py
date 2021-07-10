@@ -890,6 +890,7 @@ def respond_to_reblogs_replies(
                     show_unit_mood_inputs(response_cache, user_input_identifier)
 
         okay_to_reply = True
+        delta_dash_to_written = None
 
         if proba_threshold is not None:
             if "proba" not in gpt2_output:
@@ -898,6 +899,11 @@ def respond_to_reblogs_replies(
                 )
             else:
                 proba = gpt2_output["proba"]
+
+                dash_proba = response_cache.get_cached_dash_post_judgments(reblog_identifier)
+                if dash_proba is not None:
+                    delta_dash_to_written = proba - dash_proba
+
                 numeric_threshold = (
                     ((np.random.rand() - 0.5) * (0.35 / 0.5)) + 0.5
                     if proba_threshold == "roll"
@@ -915,11 +921,14 @@ def respond_to_reblogs_replies(
                     print(
                         f"reblogging {reblog_identifier}:\n\tour proba {proba:.1%} >= threshold {numeric_threshold:.1%}"
                     )
+                if delta_dash_to_written:
+                    print(f"delta_dash_to_written: {delta_dash_to_written:.1%} ({proba:.1%} vs {dash_proba:.1%})")
 
         log_data = gpt2_output
         log_data["post_type"] = "reply" if is_reply else "reblog"
         log_data["input_ident"] = reblog_identifier
         log_data["question"] = prompt
+        log_data["delta_dash_to_written"] = delta_dash_to_written
 
         post_specifiers_from_gpt2 = [gpt2_output]
 
@@ -1237,7 +1246,6 @@ def batch_judge_dash_posts(post_payloads, response_cache):
 
     if len(texts) > 0:
         print(f"{len(texts)}/{len(post_payloads)} need new judgments")
-        timestamp = timestamp_to_v10_format(datetime.now())
 
         t1 = time.time()
         probs = selection_proba_from_gpt(texts)

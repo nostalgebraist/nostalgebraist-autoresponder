@@ -1,9 +1,9 @@
 from typing import Optional
-from pytumblr import TumblrRestClient
 
 from tumblr_to_text.classic.autoresponder_static import EOT
 
 from api_tumblr.tumblr_parsing import TumblrThread
+from api_tumblr.client_pool import ClientPool
 from tumblr_to_text.nwo import npf_thread_to_formatted_text
 from tumblr_to_text.nwo_munging import pop_reblog_without_commentary, set_tags
 
@@ -14,11 +14,11 @@ NO_SCRAPE_USERS = BotSpecificConstants.load().NO_SCRAPE_USERS
 
 
 def handle_no_commentary_and_populate_tags(thread: TumblrThread,
-                                           client: Optional[TumblrRestClient] = None,
+                                           client_pool: Optional[ClientPool] = None,
                                            allow_posts_with_unrecoverable_tags=True):
     skip = False
 
-    if not client:
+    if not client_pool:
         skip = True
         return thread, skip
 
@@ -33,7 +33,7 @@ def handle_no_commentary_and_populate_tags(thread: TumblrThread,
             skip = True
             return thread, skip
         try:
-            tags = client.posts(final_post.blog_name, id=final_post.id)['posts'][0]['tags']
+            tags = client_pool.get_client().posts(final_post.blog_name, id=final_post.id)['posts'][0]['tags']
             thread = set_tags(thread, tags)
         except (KeyError, IndexError):
             print("archive: OP deleted?", end=" ")
@@ -43,13 +43,13 @@ def handle_no_commentary_and_populate_tags(thread: TumblrThread,
     return thread, skip
 
 
-def archive_to_corpus(post_payload, path, separator=EOT, client: Optional[TumblrRestClient] = None,
+def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[ClientPool] = None,
                       allow_posts_with_unrecoverable_tags=True):
     with LogExceptionAndSkip("archive post to corpus"):
         thread = TumblrThread.from_payload(post_payload)
 
         thread, skip = handle_no_commentary_and_populate_tags(
-            thread, client, allow_posts_with_unrecoverable_tags
+            thread, client_pool, allow_posts_with_unrecoverable_tags
         )
         if skip:
             return

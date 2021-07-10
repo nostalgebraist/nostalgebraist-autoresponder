@@ -67,8 +67,9 @@ def compute_max_rate_until_next_reset(post_payloads, now=None, max_per_24h=250):
 
     next_reset_ts = reset_ts + timedelta(days=1)
     time_until_next_reset = next_reset_ts - now
+    seconds_until_next_reset = time_until_next_reset.total_seconds()
 
-    max_rate = n_remaining / time_until_next_reset
+    max_rate = n_remaining / seconds_until_next_reset
     return max_rate
 
 

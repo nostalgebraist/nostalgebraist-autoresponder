@@ -1,13 +1,16 @@
 from datetime import datetime, timedelta, time as dtime
 
-
-BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thresh": 125, "SLEEP_TIME_scale": 1., "MAX_POSTS_PER_STEP_scale": 1.}
+BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thresh": 125, "SLEEP_TIME_scale": 1.,
+                       "MAX_POSTS_PER_STEP_scale": 1.}
 
 SLOWDOWN_LEVELS = [
     BASE_SLOWDOWN_LEVEL,
-    {"name": "slower", "rate_ratio_thresh": 1.5, "n_remaining_thresh": 75, "SLEEP_TIME_scale": 2.5, "MAX_POSTS_PER_STEP_scale": 3.1/5},
-    {"name": "slower2", "rate_ratio_thresh": 2.5, "n_remaining_thresh": 35, "SLEEP_TIME_scale": 5, "MAX_POSTS_PER_STEP_scale": 2.1/5},
-    {"name": "slowest", "rate_ratio_thresh": 1000, "n_remaining_thresh": 0, "SLEEP_TIME_scale": 10, "MAX_POSTS_PER_STEP_scale": 1.1/5},
+    {"name": "slower", "rate_ratio_thresh": 1.5, "n_remaining_thresh": 75, "SLEEP_TIME_scale": 2.5,
+     "MAX_POSTS_PER_STEP_scale": 3.1 / 5},
+    {"name": "slower2", "rate_ratio_thresh": 2.5, "n_remaining_thresh": 35, "SLEEP_TIME_scale": 5,
+     "MAX_POSTS_PER_STEP_scale": 2.1 / 5},
+    {"name": "slowest", "rate_ratio_thresh": 1000, "n_remaining_thresh": 0, "SLEEP_TIME_scale": 10,
+     "MAX_POSTS_PER_STEP_scale": 1.1 / 5},
 ]
 
 HARDSTOP_AT_N_REMAINING = 5
@@ -33,7 +36,7 @@ def post_limit_reset_ts(now=None):
 
 def count_posts_since_ts(post_payloads, ts):
     is_after = [
-        (datetime.fromtimestamp(entry['timestamp']) - ts).total_seconds()>0
+        (datetime.fromtimestamp(entry['timestamp']) - ts).total_seconds() > 0
         for entry in post_payloads
         if not entry.get('is_pinned')
     ]
@@ -50,6 +53,23 @@ def count_posts_since_reset(post_payloads, now=None):
     reset_ts = post_limit_reset_ts(now=now)
 
     return count_posts_since_ts(post_payloads, ts=reset_ts)
+
+
+def compute_max_rate_until_next_reset(post_payloads, now=None, max_per_24h=250):
+    if now is None:
+        now = datetime.now()
+
+    reset_ts = post_limit_reset_ts(now=now)
+
+    posts_since_last_reset = count_posts_since_ts(post_payloads, ts=reset_ts)
+
+    n_remaining = max_per_24h - posts_since_last_reset
+
+    next_reset_ts = reset_ts + timedelta(days=1)
+    time_until_next_reset = next_reset_ts - now
+
+    max_rate = n_remaining / time_until_next_reset
+    return max_rate
 
 
 def compute_rate_over_last_hours(post_payloads, avg_over_hours, now=None):
@@ -97,8 +117,9 @@ def review_rates(post_payloads, max_per_24h=250, hour_windows=(1, 2, 4, 12,), no
         print(msg)
 
 
-def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hardstop_pad=0, ref_level=None, now=None, verbose=True):
-    max_rate = max_per_24h / (24 * 3600)
+def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hardstop_pad=0, ref_level=None, now=None,
+                          verbose=True):
+    max_rate = compute_max_rate_until_next_reset(post_payloads, now=now, max_per_24h=max_per_24h)
 
     _, rate = compute_rate_over_last_hours(post_payloads, avg_over_hours=avg_over_hours, now=now)
     n_since_reset = count_posts_since_reset(post_payloads, now=now)
@@ -119,7 +140,8 @@ def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hard
     if verbose:
         print()
         review_rates(post_payloads, now=now)
-        print(f"\nselected level {repr(selected['name'])} based on {avg_over_hours}-hour ratio {ratio:.1%}, n_remaining={n_remaining}")
+        print(
+            f"\nselected level {repr(selected['name'])} based on {avg_over_hours}-hour ratio {ratio:.1%}, n_remaining={n_remaining}")
 
         if ref_level and ref_level['name'] != selected['name']:
             print(f"SWITCHED from {ref_level['name']} to {selected['name']}\n")

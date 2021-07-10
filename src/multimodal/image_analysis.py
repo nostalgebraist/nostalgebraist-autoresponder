@@ -3,6 +3,7 @@ from typing import NamedTuple, Optional, Callable, List
 import os
 import time
 import pickle
+import hashlib
 from io import BytesIO
 
 from tqdm.autonotebook import tqdm
@@ -456,6 +457,8 @@ def extract_text_from_url(
                 pass  # print(f"couldn't downsize: {url}")
 
     frame_bytes = url_to_frame_bytes(url_, http=http)
+    frame_hashes = [hashlib.md5(b).hexdigest() for b in frame_bytes]
+    content_hash = "".join(frame_hashes)  # should be different at different sample rate for gif
 
     specs = (
         [detect_text_actually_raw_response_spec] if xtra_raw else only_text_rek_specs
@@ -468,13 +471,14 @@ def extract_text_from_url(
         verbose=verbose,
     )
 
+    # TODO: (cleanup) make this return signature not bad
     if xtra_raw:
-        ctext = (None, results)
+        ctext = (None, results, content_hash)
     else:
         ctext = collect_text(results, return_raw=return_raw, deduplicate=deduplicate)
     if return_url_etc:
-        return ctext, url_, nbytes_
-    return ctext
+        return ctext, url_, nbytes_, content_hash
+    return ctext, content_hash
 
 
 def PRE_V9_IMAGE_FORMATTER(image_text):
@@ -491,15 +495,6 @@ def format_extracted_text(image_text, image_formatter=V9_IMAGE_FORMATTER, verbos
     if len(image_text) > 0:
         return image_formatter(image_text)
     return ""
-
-
-def extract_and_format_text_from_url(
-    url: str,
-    image_formatter=V9_IMAGE_FORMATTER,
-    verbose=False,
-):
-    image_text = extract_text_from_url(url, return_raw=False, xtra_raw=False)
-    return format_extracted_text(image_text, verbose=verbose)
 
 
 class ImageAnalysisCache:
@@ -531,7 +526,7 @@ class ImageAnalysisCache:
     ):
         # TODO: integrate downsizing
         if url not in self.cache:
-            _, entry = extract_text_from_url(
+            _, entry, content_hash = extract_text_from_url(
                 url,
                 return_raw=True,
                 verbose=verbose

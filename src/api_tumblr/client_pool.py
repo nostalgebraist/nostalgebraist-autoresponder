@@ -111,9 +111,9 @@ class ClientPool:
         summed_max_rate = sum(self._group_rates(self.clients))
 
         # if we checked *every* cycle, we could support up this many requests per check
-        requests_per_cycle = sleep_time * effective_max_rate
+        requests_per_cycle = sleep_time * summed_max_rate
 
         # we'll check only a fraction `checkprob` of the cycles, to support up to `requests_needed_to_check`
-        checkprob = requests_per_cycle / requests_needed_to_check
+        checkprob = requests_per_cycle / requests_per_check
 
         return checkprob

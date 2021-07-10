@@ -8,7 +8,7 @@ bot_name = BotSpecificConstants.load().blogName
 
 # TODO: DRY (centralize client managers)
 class ClientPool:
-    def __init__(self, min_remaining_hour=100, min_remaining_day=300):
+    def __init__(self, min_remaining_hour=10, min_remaining_day=10):
         self.min_remaining_hour = min_remaining_hour
         self.min_remaining_day = min_remaining_day
 

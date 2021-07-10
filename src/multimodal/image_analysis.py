@@ -419,9 +419,9 @@ def extract_text_from_url(
     http=None,
     verbose=True,
     downsize_to=[640, 540],
-    return_url_etc=False,
     return_raw=False,
     xtra_raw=False,
+    cache_ref=None
 ) -> str:
     return_raw = return_raw or xtra_raw
 
@@ -471,14 +471,13 @@ def extract_text_from_url(
         verbose=verbose,
     )
 
-    # TODO: (cleanup) make this return signature not bad
+    # TODO: (cleanup) make this return signature less bad
+    # TODO: (cleanup) make this file less bad in general!
     if xtra_raw:
-        ctext = (None, results, content_hash)
-    else:
-        ctext = collect_text(results, return_raw=return_raw, deduplicate=deduplicate)
-    if return_url_etc:
-        return ctext, url_, nbytes_, content_hash
-    return ctext, content_hash
+        return results, content_hash
+
+    _, raw = collect_text(results, return_raw=return_raw, deduplicate=deduplicate)
+    return raw, content_hash
 
 
 def PRE_V9_IMAGE_FORMATTER(image_text):
@@ -498,12 +497,16 @@ def format_extracted_text(image_text, image_formatter=V9_IMAGE_FORMATTER, verbos
 
 
 class ImageAnalysisCache:
-    def __init__(self, path="data/image_analysis_cache.pkl.gz", cache=None):
+    def __init__(self, path="data/image_analysis_cache.pkl.gz", cache=None, hash_to_url=None):
         self.path = path
         self.cache = cache
+        self.hash_to_url = hash_to_url
 
         if self.cache is None:
-            self.cache = {}
+            self.cache = dict()
+
+        if self.hash_to_url is None:
+            self.hash_to_url = dict()
 
     @staticmethod
     def _get_text_from_cache_entry(entry, deduplicate=True):
@@ -526,29 +529,29 @@ class ImageAnalysisCache:
     ):
         # TODO: integrate downsizing
         if url not in self.cache:
-            _, entry, content_hash = extract_text_from_url(
+            entry, content_hash = extract_text_from_url(
                 url,
                 return_raw=True,
                 verbose=verbose
             )
             self.cache[url] = entry
+            self.hash_to_url[content_hash] = url
 
         cached_text = ""
         with LogExceptionAndSkip(f"retrieving {repr(url)} from cache"):
             cached_text = self._get_text_from_cache_entry(self.cache[url])
 
-        # print(f"formatting: {repr(cached_text)}")
         formatted_text = format_extracted_text(cached_text, image_formatter=image_formatter, verbose=verbose)
-        # print(f"formatted: {repr(formatted_text)}")
         return formatted_text
 
     def save(self, verbose=True, do_backup=True):
+        data = {"cache": self.cache, "hash_to_url": self.hash_to_url}
         with open(self.path, "wb") as f:
-            pickle.dump(self.cache, f)
+            pickle.dump(data, f)
         if do_backup:
             # TODO: better path handling
             with open(self.path[: -len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
-                pickle.dump(self.cache, f)
+                pickle.dump(data, f)
         if verbose:
             print(f"saved image analysis cache with length {len(self.cache)}")
 
@@ -559,12 +562,21 @@ class ImageAnalysisCache:
         cache = None
         if os.path.exists(path):
             with open(path, "rb") as f:
-                cache = pickle.load(f)
+                data = pickle.load(f)
+
+            try:
+                cache = data["cache"]
+                hash_to_url = data["hash_to_url"]
+            except KeyError:
+                # first time load
+                cache = data
+                hash_to_url = dict()
+
             if verbose:
                 print(f"loaded image analysis cache with length {len(cache)}")
         else:
             print(f"initialized image analysis cache")
-        loaded = ImageAnalysisCache(path, cache)
+        loaded = ImageAnalysisCache(path, cache, hash_to_url)
         return loaded
 
 

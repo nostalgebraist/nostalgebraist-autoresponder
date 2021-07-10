@@ -1227,8 +1227,6 @@ def batch_judge_dash_posts(post_payloads, response_cache):
             thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
             text = npf_thread_to_formatted_text(thread, ml_prompt_format=True)
 
-            # pre-nwo
-            # text = write_text_for_side_judgment(pp)
             response_cache.mark_post_body(pi, text)
             if not text:
                 print(f"skipping judgments for {pi}: bad parse?")

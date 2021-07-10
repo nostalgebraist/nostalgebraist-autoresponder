@@ -2544,7 +2544,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     ### decide whether we'll do the reblog/reply check
 
     requests_needed_to_check = np.percentile(
-        loop_persistent_data.requests_per_check_history[-30:], 75
+        loop_persistent_data.requests_per_check_history[-30:], 50
     )
     checkprob = client_pool.compute_checkprob(requests_needed_to_check, EFFECTIVE_SLEEP_TIME)
 

@@ -12,7 +12,7 @@ def mockup_xkit_reply(
 
 
 def post_body_find_reply_data(post_body: str):
-    seg1, _, seg2 = post_body.partition(' replied to your post  <a href="')
+    seg1, _, seg2 = post_body.partition(' replied to your post <a href="')
 
     url = seg2.partition(">")[0]
     urlseg = url.partition("/post/")[2]

@@ -47,17 +47,16 @@ class ClientPool:
         return self.is_group_available([client])
 
     def _group_rates(self, clients):
-        clients = [client for client in clients if self.is_client_available(client)]
-
-        if len(clients) == 0:
-            return
-
         rates = []
         for client in clients:
-            try:
-                rates.append(client.get_ratelimit_data()['effective_max_rate'])
-            except KeyError:
-                rates.append(0)
+            if not self.is_client_available(client):
+                rate = 0
+            else:
+                try:
+                    rate = client.get_ratelimit_data()['effective_max_rate']
+                except KeyError:
+                    rate = 0
+            rates.append(rate)
 
         return rates
 
@@ -68,6 +67,8 @@ class ClientPool:
             raise ValueError(f"ratelimit exhausted in group")
 
         ixs = list(range(len(clients)))
+        print(ixs)
+        print(rates)
         ix_max = sorted(ixs, key=lambda ix: rates[ix])[-1]
 
         choice = clients[ix_max]

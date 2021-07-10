@@ -104,6 +104,8 @@ bad_strings_shortwords = bot_specific_constants.bad_strings_shortwords
 okay_superstrings = bot_specific_constants.okay_superstrings
 likely_obscured_strings = bot_specific_constants.likely_obscured_strings
 profane_strings = bot_specific_constants.profane_strings
+hardstop_strings_review = bot_specific_constants.hardstop_strings_review
+hardstop_strings_reject = bot_specific_constants.hardstop_strings_reject
 LIMITED_USERS = bot_specific_constants.LIMITED_USERS
 LIMITED_USERS_PROBS = bot_specific_constants.LIMITED_USERS_PROBS(EFFECTIVE_SLEEP_TIME)
 LIMITED_SUBSTRINGS = bot_specific_constants.LIMITED_SUBSTRINGS
@@ -426,7 +428,13 @@ def autopublish_screener(
 
                 sprint(f"\t{sf}: |{repr(sf_formatted)}|")
 
-                traced_reasons.append({"type": "substring", "substring": sf})
+                reason_type = "substring"
+                if sf in hardstop_strings_reject:
+                    reason_type = "substring_hard_reject"
+                elif sf in hardstop_strings_review:
+                    reason_type = "substring_hard_review"
+
+                traced_reasons.append({"type": reason_type, "substring": sf})
 
     if len(question) > 10000:
         sprint("screened because very long")
@@ -476,6 +484,10 @@ def augment_screener_output_with_autoreviewer(
     if not screener_result:
         should_publish = False
         for d in traced_reasons:
+            if d.get("type") == "substring_hard_reject":
+                print(f"force rejecting due to screener reason: {repr(d)}")
+                must_be_draft = True
+                do_not_post = True
             if d.get("type") != "substring":
                 print(f"forcing draft due to screener reason: {repr(d)}")
                 must_be_draft = True
@@ -1237,7 +1249,7 @@ def batch_judge_dash_posts(post_payloads, response_cache):
             _, prompt_selector, _ = make_nwo_prompts(thread, blogName)
 
             response_cache.mark_post_body(pi, prompt_selector)
-            if not text:
+            if not prompt_selector:
                 print(f"skipping judgments for {pi}: bad parse?")
                 continue
 

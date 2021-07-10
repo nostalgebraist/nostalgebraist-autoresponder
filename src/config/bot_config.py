@@ -34,6 +34,8 @@ class BotSpecificConstants:
         okay_superstrings: Set[str] = set(),
         likely_obscured_strings: Set[str] = set(),
         profane_strings: Set[str] = set(),
+        hardstop_strings_review: Set[str] = set(),
+        hardstop_strings_reject: Set[str] = set(),
         LIMITED_USERS: Dict[str, float] = dict(),
         LIMITED_SUBSTRINGS: Dict[str, float] = dict(),
         SCREENED_USERS: Set[str] = set(),
@@ -105,6 +107,14 @@ class BotSpecificConstants:
         # like bad_strings, but only used in contexts where we're trying to keep the language rated PG
         self.profane_strings = profane_strings
 
+        # force write draft instead of auto-publish on these strings, even if ML model accepts post
+        self.hardstop_strings_review = hardstop_strings_review
+        self.hardstop_strings_review.update(USER_AVOID_LIST)
+        self.hardstop_strings_review.update(likely_obscured_strings)
+
+        # force ignore post on these strings, even if ML model accepts post
+        self.hardstop_strings_reject = hardstop_strings_reject
+
         # `LIMITED_USERS` allows limiting the rate at which we interact with certain users, e.g. bots who post extremely often or people who send huge numbers of asks
         #
         # `LIMITED_USERS` should be a dict with usernames as keys.  the values are floats.  a value of X means approximately "respond to this user at most once per X hours."
@@ -135,8 +145,10 @@ class BotSpecificConstants:
             "okay_superstrings",
             "likely_obscured_strings",
             "profane_strings",
+            "hardstop_strings_review",
+            "hardstop_strings_reject",
             "SCREENED_USERS",
-            "NO_SCRAPE_USERS"
+            "NO_SCRAPE_USERS",
         }
 
         for list_to_set_key in list_to_set_keys:

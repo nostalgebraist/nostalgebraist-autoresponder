@@ -9,7 +9,14 @@ from tumblr_to_text.nwo import npf_thread_to_formatted_text, format_and_normaliz
 
 
 def sample_year_and_set(timestamp: datetime):
-    return timestamp.replace(year=int(sample_year()))
+    ts = None
+    while not ts:
+        try:
+            ts = timestamp.replace(year=int(sample_year()))
+        except ValueError:
+            # tried to do february 31 or similar
+            pass
+    return ts
 
 
 def set_timestamp(thread: TumblrThread, timestamp: datetime) -> TumblrThread:

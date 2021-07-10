@@ -538,7 +538,7 @@ class ImageAnalysisCache:
 
         # TODO: integrate downsizing
         if url not in self.cache:
-            vprint(f"url NOT in cache:\n\t{url}\n")
+            print(f"url NOT in cache:\n\t{url}\n")
             frame_bytes, content_hash = self._download_and_hash(
                 url,
                 verbose=verbose
@@ -548,15 +548,15 @@ class ImageAnalysisCache:
 
             if self.hash_to_url.get(content_hash):
                 url_with_existing_hash = self.hash_to_url[content_hash]
-                vprint(f"hash {content_hash} in hash_to_url, url is\n\t{url_with_existing_hash}\n")
+                print(f"hash {content_hash} in hash_to_url, url is\n\t{url_with_existing_hash}\n")
                 if url_with_existing_hash in self.cache:
-                    vprint(f"\turl IN cache:\n\t\t{url}\n")
+                    print(f"\turl IN cache:\n\t\t{url}\n")
                     entry = self.cache[url_with_existing_hash]
                 else:
-                    vprint(f"\turl NOT in cache:\n\t\t{url}\n")
+                    print(f"\turl NOT in cache:\n\t\t{url}\n")
 
             if not entry:
-                vprint(f"calling rek for {url}")
+                print(f"calling rek for {url}")
                 self.hash_to_url[content_hash] = url
                 entry = self._extract_text_from_bytes(frame_bytes)
             self.cache[url] = entry

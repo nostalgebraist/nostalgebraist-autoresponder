@@ -1205,7 +1205,7 @@ def is_statically_reblog_worthy_on_dash(
     if scrape_worthy:
         path = "data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "data/dash_post_dump_frank.txt"
         print(f"archiving {post_identifier} | ", end="")
-        archive_to_corpus(post_payload, path=path, client=response_cache.client)
+        archive_to_corpus(post_payload, path=path, client_pool=client_pool)
 
     if is_nost_dash_scraper:
         reblog_worthy = False

@@ -18,10 +18,6 @@ def handle_no_commentary_and_populate_tags(thread: TumblrThread,
                                            allow_posts_with_unrecoverable_tags=True):
     skip = False
 
-    if not client_pool:
-        skip = True
-        return thread, skip
-
     final_post = thread.posts[-1]
     if len(thread.posts) > 1 and len(final_post.content.blocks) == 0:
         # reblog w/o comment
@@ -32,6 +28,10 @@ def handle_no_commentary_and_populate_tags(thread: TumblrThread,
             print(f"archive: skipping, name={final_post.blog_name}", end=" ")
             skip = True
             return thread, skip
+
+        if not client_pool and allow_posts_with_unrecoverable_tags:
+            return thread, skip
+
         try:
             tags = client_pool.get_client().posts(final_post.blog_name, id=final_post.id)['posts'][0]['tags']
             thread = set_tags(thread, tags)

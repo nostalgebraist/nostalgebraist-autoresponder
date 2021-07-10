@@ -72,8 +72,6 @@ class ClientPool:
 
         choice = clients[ix_max]
 
-        # DEBUG
-        print(f"ClientPool: picked {self.client_name(choice)}")
         return choice
 
     def pick_group(self):

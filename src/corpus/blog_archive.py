@@ -1,5 +1,6 @@
 import json
 import argparse
+import pickle
 from typing import Optional
 
 from tqdm.autonotebook import tqdm
@@ -78,12 +79,18 @@ def fetch_and_process(blog_name: str = bot_name,
                       n: Optional[int] = None,
                       offset : int = 0,
                       include_unused_types=False):
-    pool = ClientPool()
+    # pool = ClientPool()
+    #
+    # posts = fetch_posts(pool, blog_name, n, offset)
 
-    posts = fetch_posts(pool, blog_name, n, offset)
+    # TODO: (cleanup) do this a nicer way
+    # with open("data/head_training_data_raw_posts.pkl.gz", "wb") as f:
+    #     pickle.dump(posts, f)
+    with open("data/head_training_data_raw_posts.pkl.gz", "rb") as f:
+        posts = pickle.load(f)[::-1][:5000]
 
     lines = [post_to_line_entry(pp, blog_name, include_unused_types=include_unused_types)
-             for pp in tqdm(posts, mininterval=1)]
+             for pp in tqdm(posts, mininterval=0.3, smoothing=0)]
 
     return lines
 
@@ -95,8 +102,8 @@ def save(lines, path="data/head_training_data.json"):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n", type=int, default=None)
-    parser.add_argument("--offset", type=int, default=0)
+    parser.add_argument("-n", type=int, default=None)
+    parser.add_argument("-offset", type=int, default=0)
     parser.add_argument("--blog-name", type=str, default=bot_name)
     parser.add_argument("--include-unused-types", action="store_true")
     parser.add_argument("--save-image-cache", action="store_true")

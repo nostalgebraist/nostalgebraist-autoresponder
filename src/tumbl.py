@@ -1248,13 +1248,14 @@ def batch_judge_dash_posts(post_payloads, response_cache):
             thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
             _, prompt_selector, _ = make_nwo_prompts(thread, blogName)
 
-            response_cache.mark_post_body(pi, prompt_selector)
             if not prompt_selector:
                 print(f"skipping judgments for {pi}: bad parse?")
                 continue
 
-        post_identifiers.append(pi)
-        texts.append(text)
+            response_cache.mark_post_body(pi, prompt_selector)
+
+            post_identifiers.append(pi)
+            texts.append(prompt_selector)
 
     if len(texts) > 0:
         print(f"{len(texts)}/{len(post_payloads)} need new judgments")

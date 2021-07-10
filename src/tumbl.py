@@ -1234,9 +1234,9 @@ def batch_judge_dash_posts(post_payloads, response_cache):
             # nwo
             thread = TumblrThread.from_payload(pp)
             thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
-            text = npf_thread_to_formatted_text(thread, ml_prompt_format=True)
+            _, prompt_selector, _ = make_nwo_prompts(thread, blogName)
 
-            response_cache.mark_post_body(pi, text)
+            response_cache.mark_post_body(pi, prompt_selector)
             if not text:
                 print(f"skipping judgments for {pi}: bad parse?")
                 continue

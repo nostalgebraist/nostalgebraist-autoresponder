@@ -214,7 +214,7 @@ def do_coldstart(continuations, selection_proba, substring, delta):
     selection_proba_ = []
     for c, p in zip(continuations, selection_proba):
         if substring in c:
-            print(f"coldstarting [substring {repr(substring)}] {repr(c)}: {p:.2f} -> {delta + p:.2f}")
+            print(f"coldstarting [substring {repr(substring)}] {repr(c)}: {p:.6f} -> {delta + p:.6f}")
             selection_proba_.append(delta + p)
         else:
             selection_proba_.append(p)

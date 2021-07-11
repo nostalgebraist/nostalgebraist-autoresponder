@@ -98,6 +98,7 @@ def traceability_logs_to_df(logs,
     if boring_fields is None:
         boring_fields = ["base_id", "AB_fork"]
         boring_fields += [c for c in df.columns if c.startswith("all_alt_")]
+    boring_fields = set(boring_fields).intersection(df.columns)
     df = df.drop(boring_fields, axis=1)
     if make_input_blogname:
         df["input_blogname"] = df.input_ident.apply(
@@ -132,6 +133,11 @@ def load_full_traceability_logs():
 
 
 def load_traceability_logs_to_df(**kwargs):
-    full_trace_logs = load_full_traceability_logs()
+    full = kwargs.pop("full", True)
+    if full:
+        logs = load_full_traceability_logs()
+    else:
+        import persistence.traceability_singleton
+        logs = persistence.traceability_singleton.TRACE_LOGS.logs
 
-    return traceability_logs_to_df(full_trace_logs, **kwargs)
+    return traceability_logs_to_df(logs, **kwargs)

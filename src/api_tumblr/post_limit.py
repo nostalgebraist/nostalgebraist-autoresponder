@@ -85,8 +85,9 @@ def compute_rate_over_last_hours(post_payloads, avg_over_hours, now=None):
     return n, rate
 
 
-def review_rates(post_payloads, max_per_24h=250, hour_windows=(1, 2, 4, 12,), now=None):
-    max_rate = max_per_24h / (24 * 3600)
+def review_rates(post_payloads, max_per_24h=250, hour_windows=(1, 2, 4, 12,), now=None, max_rate=None):
+    if not max_rate:
+        max_rate = compute_max_rate_until_next_reset(post_payloads, now=now, max_per_24h=max_per_24h)
 
     if now is None:
         now = datetime.now()
@@ -140,7 +141,7 @@ def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hard
 
     if verbose:
         print()
-        review_rates(post_payloads, now=now)
+        review_rates(post_payloads, now=now, max_rate=max_rate)
         print(
             f"\nselected level {repr(selected['name'])} based on {avg_over_hours}-hour ratio {ratio:.1%}, n_remaining={n_remaining}")
 

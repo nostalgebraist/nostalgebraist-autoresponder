@@ -22,7 +22,7 @@ generator_url = bot_specific_constants.bridge_service_url + "/pollgenerator"
 
 RESULT_STACK = {}
 
-RETENTION_CUTOFF = 0.6
+RETENTION_CUTOFF = 0.75
 ENFORCE_RETENTION_CUTOFF = True
 
 FIC_COLDSTART = True

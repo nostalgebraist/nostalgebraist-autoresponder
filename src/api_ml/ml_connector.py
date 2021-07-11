@@ -704,15 +704,6 @@ def old_bridge_call__textpost(
         avoid_if_says_frank=avoid_if_says_frank,
     )
 
-    # dreams coldstart curiosity
-    # TODO: remove later
-    qc = 0
-    for c in continuations:
-        if "#dreams" in c:
-            qc += 1
-            print(c, end='\n----------\n')
-    print(f'{qc} / {len(continuations)} have dreams')
-
     response_data = {}
     response_data["continuations"] = continuations
     response_data["continuation_side_data"] = continuation_side_data
@@ -735,6 +726,13 @@ def old_bridge_call__textpost(
         selector_inputs,
     )
     response_data["selection_proba"] = [float(p) for p in selection_results]
+
+    # TODO: (cleanup) remove later
+    for c, sd, sp in zip(continuations, continuation_side_data, response_data["selection_proba"]):
+        if "Original fic" in sd.get("prompt_for_neural", "") or "Book review" in sd.get("prompt_for_neural", ""):
+            print(f"\n--------Selection proba {p:.1%} for: \n--------")
+            print(c[:4000])
+            print("--------")
 
     sentiment_inputs = pd.DataFrame({"selector_input": response_data["continuations"]})
     sentiment_results = predict_sentiment(sentiment_inputs)

@@ -79,17 +79,11 @@ def fetch_and_process(blog_name: str = bot_name,
                       n: Optional[int] = None,
                       offset : int = 0,
                       include_unused_types=False):
-    # TODO: uncomment stuff here -- this is temporary until i fully build the image cache for published ask images
+    # TODO: load existing file and use it for posts earlier than those scraped in this round
 
-    # pool = ClientPool()
-    #
-    # posts = fetch_posts(pool, blog_name, n, offset)
+    pool = ClientPool()
 
-    # TODO: (cleanup) do this a nicer way
-    # with open("data/head_training_data_raw_posts.pkl.gz", "wb") as f:
-    #     pickle.dump(posts, f)
-    with open("data/head_training_data_raw_posts.pkl.gz", "rb") as f:
-        posts = pickle.load(f)[32000:36000]
+    posts = fetch_posts(pool, blog_name, n, offset)
 
     lines = [post_to_line_entry(pp, blog_name, include_unused_types=include_unused_types)
              for pp in tqdm(posts, mininterval=0.3, smoothing=0)]

@@ -3,7 +3,7 @@ from datetime import datetime
 
 from api_tumblr.tumblr_parsing import NPFTextBlock, NPFContent, TumblrPost, TumblrThread
 from tumblr_to_text.classic.year_munging import sample_year
-from tumblr_to_text.classic.autoresponder_static import DEFAULT_CSC
+from tumblr_to_text.classic.autoresponder_static import DEFAULT_CSC, EOT
 from tumblr_to_text.classic.autoresponder_static_v8 import construct_fic_override_v2
 from tumblr_to_text.nwo import npf_thread_to_formatted_text, format_and_normalize_post_html
 
@@ -119,7 +119,7 @@ def get_normalized_ask_text(thread: TumblrThread):
 
 def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=False, ml_prompt_format=True,
                      head_timestamp: Optional[datetime] = None):
-    prompt = npf_thread_to_formatted_text(
+    prompt = EOT + npf_thread_to_formatted_text(
         sample_year_and_set_timestamp(thread), ml_prompt_format=ml_prompt_format
     )
 
@@ -127,10 +127,10 @@ def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=False, ml_promp
         thread = set_timestamp(thread, head_timestamp)
 
     thread_selector = cut_to_n_most_recent_by_user(thread, blog_name, n_most_recent=2, keep_first=False)
-    prompt_selector = npf_thread_to_formatted_text(thread_selector, ml_prompt_format=ml_prompt_format)
+    prompt_selector = EOT + npf_thread_to_formatted_text(thread_selector, ml_prompt_format=ml_prompt_format)
 
     thread_autoreviewer = cut_to_n_most_recent_by_user(thread, blog_name, n_most_recent=2)
-    prompt_autoreviewer = npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=ml_prompt_format)
+    prompt_autoreviewer = EOT + npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=ml_prompt_format)
 
     if debug:
         print(f"prompt: {repr(prompt)}")
@@ -143,9 +143,9 @@ def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=False, ml_promp
 def make_nwo_fic_override_prompts(thread: TumblrThread, control_seg_config=DEFAULT_CSC, debug=False):
     ask_text = get_normalized_ask_text(thread)
 
-    prompt = construct_fic_override_v2(ask_text, control_seg_config=control_seg_config)
-    prompt_selector = control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
-    prompt_autoreviewer = control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
+    prompt = EOT + construct_fic_override_v2(ask_text, control_seg_config=control_seg_config)
+    prompt_selector = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
+    prompt_autoreviewer = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
 
     if debug:
         print(f"prompt: {repr(prompt)}")
@@ -169,29 +169,27 @@ def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_C
     fake_thread_real_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_posix)
     fake_thread_sampled_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_sampled_posix)
 
-    prompt_regular = npf_thread_to_formatted_text(fake_thread_sampled_ts,
-                                                  ml_prompt_format=True)  # generator
+    prompt_regular = EOT + npf_thread_to_formatted_text(fake_thread_sampled_ts,
+                                                        ml_prompt_format=True)
     prompts.append(prompt_regular)
-    prompts_selector[prompt_regular] = npf_thread_to_formatted_text(fake_thread_real_ts,
-                                                                    ml_prompt_format=True)  # selector sees real ts
-    prompts_autoreviewer[prompt_regular] = npf_thread_to_formatted_text(fake_thread_real_ts,
-                                                                        ml_prompt_format=True)  # autoreviewer sees real ts
+    prompts_selector[prompt_regular] = EOT + npf_thread_to_formatted_text(fake_thread_real_ts,
+                                                                          ml_prompt_format=True)
+    prompts_autoreviewer[prompt_regular] = EOT + npf_thread_to_formatted_text(fake_thread_real_ts,
+                                                                              ml_prompt_format=True)
 
     # fic
     probs.append(0.15)
-    prompt_fic = control_seg_config["ORIG_FICTION_CHAR_FORUMLIKE"]
+    prompt_fic = EOT + control_seg_config["ORIG_FICTION_CHAR_FORUMLIKE"]
     prompts.append(prompt_fic)
-    prompts_selector[prompt_fic] = control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]  # selector sees regular post char
-    prompts_autoreviewer[prompt_fic] = control_seg_config[
-        "ORIG_POST_CHAR_FORUMLIKE"]  # autoreviewer sees regular post char
+    prompts_selector[prompt_fic] = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
+    prompts_autoreviewer[prompt_fic] = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
 
     # review
     probs.append(0.15)
-    prompt_review = control_seg_config["REVIEW_CHAR_FORUMLIKE"]
+    prompt_review = EOT + control_seg_config["REVIEW_CHAR_FORUMLIKE"]
     prompts.append(prompt_review)
-    prompts_selector[prompt_review] = control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]  # selector sees regular post char
-    prompts_autoreviewer[prompt_review] = control_seg_config[
-        "ORIG_POST_CHAR_FORUMLIKE"]  # autoreviewer sees regular post char
+    prompts_selector[prompt_review] = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
+    prompts_autoreviewer[prompt_review] = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
 
     if debug:
         print(f"prompts: {repr(prompts)}")

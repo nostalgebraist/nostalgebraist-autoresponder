@@ -89,7 +89,7 @@ def fetch_and_process(blog_name: str = bot_name,
     # with open("data/head_training_data_raw_posts.pkl.gz", "wb") as f:
     #     pickle.dump(posts, f)
     with open("data/head_training_data_raw_posts.pkl.gz", "rb") as f:
-        posts = pickle.load(f)[24000:26000]
+        posts = pickle.load(f)[32000:36000]
 
     lines = [post_to_line_entry(pp, blog_name, include_unused_types=include_unused_types)
              for pp in tqdm(posts, mininterval=0.3, smoothing=0)]

@@ -4,8 +4,6 @@ from tumblr_to_text.classic.autoresponder_static import EOT
 
 from api_tumblr.tumblr_parsing import TumblrThread
 from api_tumblr.client_pool import ClientPool
-from tumblr_to_text.nwo import npf_thread_to_formatted_text
-from tumblr_to_text.nwo_munging import pop_reblog_without_commentary, set_tags
 
 from util.error_handling import LogExceptionAndSkip
 
@@ -16,6 +14,9 @@ NO_SCRAPE_USERS = BotSpecificConstants.load().NO_SCRAPE_USERS
 def handle_no_commentary_and_populate_tags(thread: TumblrThread,
                                            client_pool: Optional[ClientPool] = None,
                                            allow_posts_with_unrecoverable_tags=True):
+    # import inside b/c it loads image cache
+    from tumblr_to_text.nwo_munging import pop_reblog_without_commentary, set_tags
+
     skip = False
 
     final_post = thread.posts[-1]
@@ -45,6 +46,9 @@ def handle_no_commentary_and_populate_tags(thread: TumblrThread,
 
 def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[ClientPool] = None,
                       allow_posts_with_unrecoverable_tags=True):
+    # import inside b/c it loads image cache
+    from tumblr_to_text.nwo import npf_thread_to_formatted_text
+
     with LogExceptionAndSkip("archive post to corpus"):
         thread = TumblrThread.from_payload(post_payload)
 
@@ -78,3 +82,6 @@ def dedup_join_save():
 
     with open("data/dedup_join_dash_scrape.txt", "w", encoding="utf-8") as f:
         f.write(ds_out)
+
+if __name__ == "__main__":
+    dedup_join_save()

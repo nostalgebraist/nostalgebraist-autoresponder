@@ -18,6 +18,8 @@ from api_ml.selector import serve_selection
 
 from api_ml import bridge_cache_singleton
 
+from util.error_handling import LogExceptionAndSkip
+
 TRADE_QUALITY_FOR_SPEED = False
 
 logit_diff_sample_series = load_logit_diff_sample()
@@ -728,11 +730,12 @@ def old_bridge_call__textpost(
     response_data["selection_proba"] = [float(p) for p in selection_results]
 
     # TODO: (cleanup) remove later
-    for c, sd, sp in zip(continuations, continuation_side_data, response_data["selection_proba"]):
-        if "Original fic" in sd.get("prompt_for_neural", "") or "Book review" in sd.get("prompt_for_neural", ""):
-            print(f"\n--------Selection proba {p:.1%} for: \n--------")
-            print(c[:4000])
-            print("--------")
+    with LogExceptionAndSkip("log fic/review probs"):
+        for c, sd, sp in zip(continuations, continuation_side_data, response_data["selection_proba"]):
+            if "Original fic" in sd.get("prompt_for_neural", "") or "Book review" in sd.get("prompt_for_neural", ""):
+                print(f"\n--------Selection proba {p:.1%} for: \n--------")
+                print(c[:4000])
+                print("--------")
 
     sentiment_inputs = pd.DataFrame({"selector_input": response_data["continuations"]})
     sentiment_results = predict_sentiment(sentiment_inputs)

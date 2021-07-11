@@ -1,7 +1,9 @@
 import json
 import argparse
-import pickle
+import random
 from typing import Optional
+from datetime import datetime
+import pickle
 
 from tqdm.autonotebook import tqdm
 
@@ -20,9 +22,19 @@ bot_name = BotSpecificConstants.load().blogName
 UNUSED_TYPES = {"mood", "review", "manual"}
 
 
+def roll_head_timestamp(base_head_timestamp: datetime, actual_timestamp: datetime, n_future_months: int = 2):
+    month = base_head_timestamp.month + random.randint(0, n_future_months)
+    return actual_timestamp.replace(year=base_head_timestamp.year, month=month, day=base_head_timestamp.day)
+
+
 # TODO: better handling of fic override
-def construct_head_training_texts(thread: TumblrThread, blog_name: str = bot_name):
-    _, text_selector, text_autoreviewer = make_nwo_prompts(thread, blog_name=blog_name, ml_prompt_format=False)
+def construct_head_training_texts(thread: TumblrThread, base_head_timestamp: datetime, blog_name: str = bot_name):
+    head_timestamp = roll_head_timestamp(base_head_timestamp=base_head_timestamp,
+                                         actual_timestamp=datetime.fromtimestamp(thread.timestamp))
+    _, text_selector, text_autoreviewer = make_nwo_prompts(thread,
+                                                           head_timestamp=head_timestamp,
+                                                           blog_name=blog_name,
+                                                           ml_prompt_format=False)
     return text_selector, text_autoreviewer
 
 
@@ -52,7 +64,8 @@ def determine_post_type(thread: TumblrThread, blog_name: str = bot_name):
     return "reblog_dash"
 
 
-def post_to_line_entry(post_payload: dict, blog_name: str = bot_name, include_unused_types=False):
+def post_to_line_entry(post_payload: dict, base_head_timestamp: datetime,
+                       blog_name: str = bot_name, include_unused_types=False):
     thread = TumblrThread.from_payload(post_payload)
 
     post_type = determine_post_type(thread, blog_name)
@@ -61,7 +74,7 @@ def post_to_line_entry(post_payload: dict, blog_name: str = bot_name, include_un
         text_full, text_selector, text_autoreviewer = "", "", ""
     else:
         text_full = npf_thread_to_formatted_text(thread)
-        text_selector, text_autoreviewer = construct_head_training_texts(thread, blog_name)
+        text_selector, text_autoreviewer = construct_head_training_texts(thread, base_head_timestamp, blog_name)
 
     return {
         "id": post_payload["id"],
@@ -84,8 +97,15 @@ def fetch_and_process(blog_name: str = bot_name,
     pool = ClientPool()
 
     posts = fetch_posts(pool, blog_name, n, offset)
+    # with open("data/head_training_data_raw_posts.pkl.gz", "rb") as f:
+    #     posts = pickle.load(f)
 
-    lines = [post_to_line_entry(pp, blog_name, include_unused_types=include_unused_types)
+    base_head_timestamp = datetime.now()
+
+    lines = [post_to_line_entry(pp,
+                                base_head_timestamp,
+                                blog_name=blog_name,
+                                include_unused_types=include_unused_types)
              for pp in tqdm(posts, mininterval=0.3, smoothing=0)]
 
     return lines

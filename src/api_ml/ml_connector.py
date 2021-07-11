@@ -731,7 +731,7 @@ def old_bridge_call__textpost(
 
     # TODO: (cleanup) remove later
     with LogExceptionAndSkip("log fic/review probs"):
-        for c, sd, sp in zip(continuations, continuation_side_data, response_data["selection_proba"]):
+        for c, sd, p in zip(continuations, continuation_side_data, response_data["selection_proba"]):
             if "Original fic" in sd.get("prompt_for_neural", "") or "Book review" in sd.get("prompt_for_neural", ""):
                 print(f"\n--------Selection proba {p:.1%} for: \n--------")
                 print(c[:4000])

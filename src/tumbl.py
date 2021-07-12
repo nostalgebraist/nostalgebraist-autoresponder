@@ -1257,25 +1257,26 @@ def batch_judge_dash_posts(post_payloads, response_cache):
 
         prompts_selector.append(prompt_selector)
 
-    probs = selection_proba_from_gpt(prompts_selector)
-    sentiments = sentiment_logit_diffs_from_gpt(prompts_selector)
-    autoreview_probs = autoreview_proba_from_gpt(prompts_selector)
-    prob_delts = [get_prob_delta_for_payload(pp) for pp in payloads_to_judge]
+    if len(payloads_to_judge) > 0:
+        probs = selection_proba_from_gpt(prompts_selector)
+        sentiments = sentiment_logit_diffs_from_gpt(prompts_selector)
+        autoreview_probs = autoreview_proba_from_gpt(prompts_selector)
+        prob_delts = [get_prob_delta_for_payload(pp) for pp in payloads_to_judge]
 
-    delta = time.time() - t1
-    print(f"got {len(payloads_to_judge)} judgments in {delta:.2f}s")
+        delta = time.time() - t1
+        print(f"got {len(payloads_to_judge)} judgments in {delta:.2f}s")
 
-    for pi, text, prob, sentiment, autoreview_prob, prob_delt in zip(
-        post_identifiers, texts, probs, sentiments, autoreview_probs, prob_delts
-    ):
-        entry = {
-            "text": text,
-            "prob": prob,
-            "sentiment": sentiment,
-            "autoreview_prob": autoreview_prob,
-            "prob_delt": prob_delts
-        }
-        response_cache.mark_dash_post_judgments(pi, entry)
+        for pi, text, prob, sentiment, autoreview_prob, prob_delt in zip(
+            post_identifiers, texts, probs, sentiments, autoreview_probs, prob_delts
+        ):
+            entry = {
+                "text": text,
+                "prob": prob,
+                "sentiment": sentiment,
+                "autoreview_prob": autoreview_prob,
+                "prob_delt": prob_delts
+            }
+            response_cache.mark_dash_post_judgments(pi, entry)
     return response_cache
 
 

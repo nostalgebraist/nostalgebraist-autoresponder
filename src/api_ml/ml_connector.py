@@ -48,7 +48,7 @@ class MLModelInterface:
     def __init__(self):
         raise NotImplementedError
 
-    def do(self, method, *args, repeat_until_done_signal=False, **kwargs):
+    def do(self, method, *args, repeat_until_done_signal=False, uses_bridge_cache=False, **kwargs):
         data = {
             "model": self.name,
             "method": method,
@@ -56,7 +56,7 @@ class MLModelInterface:
             "kwargs": kwargs,
             "repeat_until_done_signal": repeat_until_done_signal,
         }
-        if self.uses_bridge_cache:
+        if uses_bridge_cache or self.uses_bridge_cache:
             response = bridge_cache_singleton.BRIDGE_CACHE.query(data)
             bridge_cache_singleton.BRIDGE_CACHE.save()
             return response
@@ -94,6 +94,7 @@ class GeneratorModelInterface(MLModelInterface):
         return self.do(
             "get_prob_delta_over_ref",
             repeat_until_done_signal=repeat_until_done_signal,
+            uses_bridge_cache=True,
             *args,
             **kwargs,
         )
@@ -809,4 +810,4 @@ def autoreview_proba_from_gpt(texts: List[str]):
 
 def prob_delta_from_gpt(text: str, text_ref: str, token_str: str, forbidden_strings: List[str]):
     return generator_model.get_prob_delta_over_ref(text=text, text_ref=text_ref, token_str=token_str,
-                                                   forbidden_strings=forbidden_strings)
+                                                   forbidden_strings=forbidden_strings)[0]["result"]

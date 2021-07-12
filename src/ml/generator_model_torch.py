@@ -209,7 +209,9 @@ class GeneratorModelTorch:
         prob_ref = self.get_next_probs(text_ref, forbidden_tokens=[], to_numpy=True)[token]
         prob = self.get_next_probs(text, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]
 
-        return prob - prob_ref
+        delta = prob - prob_ref
+        delta = float(delta)
+        return delta
 
     @staticmethod
     def load(

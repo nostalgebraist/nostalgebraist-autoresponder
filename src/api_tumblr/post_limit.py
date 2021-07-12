@@ -13,7 +13,7 @@ SLOWDOWN_LEVELS = [
      "MAX_POSTS_PER_STEP_scale": 1.1 / 5},
 ]
 
-HARDSTOP_AT_N_REMAINING = 5
+HARDSTOP_AT_N_REMAINING = 1
 
 
 def post_limit_reset_ts(now=None):

@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 import torch
 
@@ -169,6 +171,45 @@ class GeneratorModelTorch:
                 "miro_traces": miro_traces,
             },
         }
+
+    def tok2str(t):
+        if isinstance(t, int):
+            return tokenizer.decode([t])
+        return [tokenizer.decode([tok]) for tok in t]
+
+    def get_next_logits(self, text: str, to_numpy=True):
+        input_ids = self.tokenizer([text])["input_ids"]
+        input_ids_th = torch.as_tensor(input_ids).to(self.device)
+
+        with torch.no_grad():
+            logits = self.transformers_model(input_ids_th)['logits'][0, -1, :]
+
+        if to_numpy:
+            logits = logits.cpu().numpy()
+
+        return logits
+
+    def get_next_probs(self, text: str, forbidden_tokens: List[int] = None, to_numpy=True):
+        logits = self.get_next_logits(text, to_numpy=False)
+
+        if forbidden_tokens:
+            logits[forbidden_tokens] = 0
+
+        probs = torch.softmax(logits, dim=-1)
+
+        if to_numpy:
+            probs = probs.cpu().numpy()
+
+        return probs
+
+    def get_prob_delta_over_ref(self, text: str, text_ref: str, token_str: str, forbidden_tokens_str: List[str]):
+        token = self.tokenizer.encode(token_str)[0]
+        forbidden_tokens = [self.tokenizer.encode(s)[0] for s in forbidden_tokens_str]
+
+        prob_ref = self.get_next_probs(text_ref, forbidden_tokens=[], to_numpy=True)[token]
+        prob = self.get_next_probs(text, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]
+
+        return prob - prob_ref
 
     @staticmethod
     def load(

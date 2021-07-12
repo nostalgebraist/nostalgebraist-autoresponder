@@ -72,6 +72,8 @@ from util.error_handling import LogExceptionAndSkip
 
 from corpus.dash_archive import archive_to_corpus
 
+from experimental.prob_delta import get_prob_delta_for_payload
+
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
 # TODO: move to BotSpecificConstants
@@ -1235,49 +1237,45 @@ def is_statically_reblog_worthy_on_dash(
 
 
 def batch_judge_dash_posts(post_payloads, response_cache):
-    post_identifiers, texts = [], []
-    for pp in tqdm(post_payloads):
-        pi = PostIdentifier(pp["blog_name"], str(pp["id"]))
+    payloads_to_judge = [pp
+                         for pp in post_payloads
+                         if not response_cache.get_cached_dash_post_judgments(pi)]
 
-        if response_cache.get_cached_dash_post_judgments(pi):
-            continue
+    print(f"{len(payloads_to_judge)}/{len(post_payloads)} need new judgments")
 
-        text = response_cache.get_cached_post_body(pi)
-        if text is None:
-            # nwo
-            thread = TumblrThread.from_payload(pp)
-            thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
-            _, prompt_selector, _ = make_nwo_prompts(thread, blogName)
+    t1 = time.time()
 
-            if not prompt_selector:
-                print(f"skipping judgments for {pi}: bad parse?")
-                continue
+    post_identifiers = [PostIdentifier(pp["blog_name"], str(pp["id"]))
+                        for pp in payloads_to_judge]
 
-            response_cache.mark_post_body(pi, prompt_selector)
+    prompts_selector = []
+    for pp in payloads_to_judge:
+        thread = TumblrThread.from_payload(pp)
 
-            post_identifiers.append(pi)
-            texts.append(prompt_selector)
+        thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
+        _, prompt_selector, _ = make_nwo_prompts(thread, blogName)
 
-    if len(texts) > 0:
-        print(f"{len(texts)}/{len(post_payloads)} need new judgments")
+        prompts_selector.append(prompt_selector)
 
-        t1 = time.time()
-        probs = selection_proba_from_gpt(texts)
-        sentiments = sentiment_logit_diffs_from_gpt(texts)
-        autoreview_probs = autoreview_proba_from_gpt(texts)
-        delta = time.time() - t1
-        print(f"got {len(texts)} judgments in {delta:.2f}s")
+    probs = selection_proba_from_gpt(prompts_selector)
+    sentiments = sentiment_logit_diffs_from_gpt(prompts_selector)
+    autoreview_probs = autoreview_proba_from_gpt(prompts_selector)
+    prob_delts = [get_prob_delta_for_payload(pp) for pp in payloads_to_judge]
 
-        for pi, text, prob, sentiment, autoreview_prob in zip(
-            post_identifiers, texts, probs, sentiments, autoreview_probs
-        ):
-            entry = {
-                "text": text,
-                "prob": prob,
-                "sentiment": sentiment,
-                "autoreview_prob": autoreview_prob,
-            }
-            response_cache.mark_dash_post_judgments(pi, entry)
+    delta = time.time() - t1
+    print(f"got {len(payloads_to_judge)} judgments in {delta:.2f}s")
+
+    for pi, text, prob, sentiment, autoreview_prob, prob_delt in zip(
+        post_identifiers, texts, probs, sentiments, autoreview_probs, prob_delts
+    ):
+        entry = {
+            "text": text,
+            "prob": prob,
+            "sentiment": sentiment,
+            "autoreview_prob": autoreview_prob,
+            "prob_delt": prob_delts
+        }
+        response_cache.mark_dash_post_judgments(pi, entry)
     return response_cache
 
 
@@ -1298,12 +1296,23 @@ def is_dynamically_reblog_worthy_on_dash(
         print(f"couldn't find judgments for {post_identifier}: bad parse?")
         return False
 
-    text, prob, sentiment, autoreview_prob = (
-        judg["text"],
-        judg["prob"],
-        judg["sentiment"],
-        judg["autoreview_prob"],
-    )
+    #TODO: (cleanup) cleanup
+    if len(judg) == 5:
+        text, prob, sentiment, autoreview_prob, prob_delt = (
+            judg["text"],
+            judg["prob"],
+            judg["sentiment"],
+            judg["autoreview_prob"],
+            judg["prob_delts"]
+        )
+    else:
+        text, prob, sentiment, autoreview_prob = (
+            judg["text"],
+            judg["prob"],
+            judg["sentiment"],
+            judg["autoreview_prob"],
+        )
+        prob_delt = None
 
     if len(text) < 10:
         if verbose:
@@ -1401,6 +1410,8 @@ def is_dynamically_reblog_worthy_on_dash(
         if neg_sentiment is not None:
             explanation += f"\n\tneg_sentiment: {neg_sentiment:.0%} vs. {DASH_REBLOG_MAX_NEG_SENTIMENT:.0%}"
         explanation += f"\n\tautoreview_prob: {autoreview_prob:.1%} vs. {AUTOREVIEWER_CUTOFFS['reject_above']:.1%}"
+        if prob_delt:
+            explanation += f"\n\tprob_delt: {prob_delt:.4f}"
         print(explanation)
     return reblog_worthy
 

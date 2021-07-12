@@ -121,8 +121,10 @@ sample_done_criterion = make_sample_done_criterion(
     control_seg_config=CONTROL_SEG_CONFIG
 )
 
+# MODELS
 generator_model, selector_est, sentiment_est, autoreviewer_est = None, None, None, None
 
+# GENERATOR: download if necessary
 generator_path = model_name
 
 if not os.path.exists(generator_path):
@@ -131,7 +133,29 @@ if not os.path.exists(generator_path):
     )
     subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
 
+# HEADS: download if necessary
+head_paths = [ckpt_select, ckpt_sentiment, ckpt_autoreviewer]
+needs_head_download = not all(os.path.exists(path) for path in head_paths)
+heads_tar_path = ""
 
+if needs_head_download:
+    heads_tar_path = get_local_path_from_huggingface_cdn(
+        'nostalgebraist/nostalgebraist-autoresponder-6_1b', 'heads.tar.gz'
+    )
+
+if "selector" in MODELS_SERVED and not os.path.exists(ckpt_select):
+    subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_select}", shell=True)
+
+if "sentiment" in MODELS_SERVED and not os.path.exists(ckpt_sentiment):
+    subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_sentiment}", shell=True)
+
+if "autoreviewer" in MODELS_SERVED and not os.path.exists(ckpt_autoreviewer):
+    subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_autoreviewer}", shell=True)
+
+if needs_head_download:
+    subprocess.run(f"rm {heads_tar_path}", shell=True)
+
+# MODELS: load
 generator_model = load_generator_model(
     path=generator_path,
     tokenizer=tokenizer,
@@ -140,18 +164,9 @@ generator_model = load_generator_model(
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
 )
 
-if not os.path.exists(ckpt_select):
-    heads_tar_path = get_local_path_from_huggingface_cdn(
-        'nostalgebraist/nostalgebraist-autoresponder-6_1b', 'heads.tar.gz'
-    )
-    subprocess.run(f"tar -xf {heads_tar_path} && rm {heads_tar_path}", shell=True)
-
 if "selector" in MODELS_SERVED:
     selector_est = load_selector(ckpt_select, base_model=generator_model.transformers_model, tokenizer=tokenizer)
     selector_est.length = length_select
-
-    lr_calib_resp = selector_est.lr_calib_
-    lr_calib_orig = selector_est.lr_calib_
 
 if "sentiment" in MODELS_SERVED:
     sentiment_est = load_selector(ckpt_sentiment, base_model=generator_model.transformers_model, tokenizer=tokenizer)
@@ -159,7 +174,6 @@ if "sentiment" in MODELS_SERVED:
 
 if "autoreviewer" in MODELS_SERVED:
     autoreviewer_est = load_selector(ckpt_autoreviewer, base_model=generator_model.transformers_model, tokenizer=tokenizer)
-
 
 DEPRECATED_KWARGS = {"mirotarg"}
 

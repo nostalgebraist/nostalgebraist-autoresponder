@@ -23,16 +23,21 @@ def expand_asks(thread: TumblrThread) -> Tuple[bool, List[PostOrAsk]]:
     return has_ask, posts_with_ask
 
 
-def post_payload_to_formatted_text(post_payload: dict, ml_prompt_format: bool = False,
+def post_payload_to_formatted_text(post_payload: dict,
+                                   ml_prompt_format: bool = False,
+                                   prob_delta_format: bool = False,
                                    control_seg_config: dict = DEFAULT_CSC):
     return npf_thread_to_formatted_text(
         TumblrThread.from_payload(post_payload),
         ml_prompt_format=ml_prompt_format,
+        prob_delta_format=prob_delta_format,
         control_seg_config=control_seg_config
     )
 
 
-def npf_thread_to_formatted_text(thread: TumblrThread, ml_prompt_format: bool = False,
+def npf_thread_to_formatted_text(thread: TumblrThread,
+                                 ml_prompt_format: bool = False,
+                                 prob_delta_format: bool = False,
                                  control_seg_config: dict = DEFAULT_CSC):
     is_ask = [False for _ in thread.posts]
 
@@ -53,6 +58,7 @@ def npf_thread_to_formatted_text(thread: TumblrThread, ml_prompt_format: bool = 
             is_single_original_post=is_single_original_post,
             is_final_post_in_thread=thread_index == len(posts_with_ask) - 1,
             ml_prompt_format=ml_prompt_format,
+            prob_delta_format=prob_delta_format,
             control_seg_config=control_seg_config,
         )
         for thread_index, (post, is_ask) in enumerate(zip(posts_with_ask, is_ask))
@@ -69,6 +75,9 @@ def npf_thread_to_formatted_text(thread: TumblrThread, ml_prompt_format: bool = 
         else ""
     )
 
+    if prob_delta_format:
+        conversational_prefix = ""
+
     formatted_text = conversational_prefix + formatted_text
     formatted_text = normalize_for_generator(formatted_text)
     formatted_text = formatted_text.rstrip(" ")
@@ -84,6 +93,7 @@ def _npf_post_to_formatted_text(post: TumblrPost,
                                 is_single_original_post: bool,
                                 is_final_post_in_thread: bool,
                                 ml_prompt_format: bool,
+                                prob_delta_format: bool,
                                 control_seg_config: dict = DEFAULT_CSC,
                                 ):
     user_name = post.blog_name
@@ -103,6 +113,7 @@ def _npf_post_to_formatted_text(post: TumblrPost,
         is_single_original_post=is_single_original_post,
         is_final_post_in_thread=is_final_post_in_thread,
         ml_prompt_format=ml_prompt_format,
+        prob_delta_format=prob_delta_format,
         control_seg_config=control_seg_config
     )
 
@@ -118,6 +129,7 @@ def _post_structural_elements_to_text(
         is_single_original_post: bool,
         is_final_post_in_thread: bool,
         ml_prompt_format: bool,
+        prob_delta_format: bool,
         control_seg_config: dict = DEFAULT_CSC,
 ):
     if ml_prompt_format and is_final_post_in_thread:
@@ -144,6 +156,9 @@ def _post_structural_elements_to_text(
         # TODO: [cleanup] include in csc
         name_formatted = f"#{thread_index + 1} {user_name} {verb}:\n\n"
 
+        if prob_delta_format and is_final_post_in_thread:
+            name_formatted = f"#{thread_index + 1}"
+
     if is_final_post_in_thread:
         v10_timestamp = timestamp_to_v10_format(datetime.fromtimestamp(timestamp))
         timestamp_formatted = control_seg_config['posted_at'].format(time_text=v10_timestamp)
@@ -163,6 +178,9 @@ def _post_structural_elements_to_text(
         tag_suffix = "" if ml_prompt_format else "\n"
         final_post_content_formatted = final_post_content_formatted + tag_suffix
     else:
+        final_post_content_formatted = ""
+
+    if prob_delta_format:
         final_post_content_formatted = ""
 
     formatted_text = name_formatted + final_post_content_formatted + content

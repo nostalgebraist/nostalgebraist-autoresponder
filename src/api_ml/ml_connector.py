@@ -90,6 +90,14 @@ class GeneratorModelInterface(MLModelInterface):
             **kwargs,
         )
 
+    def get_prob_delta_over_ref(self, *args, repeat_until_done_signal=False, **kwargs):
+        return self.do(
+            "get_prob_delta_over_ref",
+            repeat_until_done_signal=repeat_until_done_signal,
+            *args,
+            **kwargs,
+        )
+
 
 class SideJudgmentModelInterface(MLModelInterface):
     def __init__(self, name):

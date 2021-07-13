@@ -2067,14 +2067,14 @@ def do_reblog_reply_handling(
                                                        reply_set=replies_to_handle,
                                                        response_cache=response_cache)
     cost_ordered_idents = sorted(costs.keys(), key=lambda ident: costs[ident])
-    pprint({ident: costs[ident] for ident in cost_ordered_idents})
+    pprint([(ident, costs[ident]) for ident in cost_ordered_idents])
 
     cost_ordered_idents_screened = []
     for ident in cost_ordered_idents:
-        if cost[ident] < STOP_ABOVE_COST:
+        if costs[ident] < STOP_ABOVE_COST:
             cost_ordered_idents_screened.append(ident)
         else:
-            print(f"ignoring {ident} forever with cost {cost[ident]:.1f}!")
+            print(f"ignoring {ident} forever with cost {costs[ident]:.1f}!")
     cost_ordered_idents = cost_ordered_idents_screened
 
     max_posts_per_step_with_slowdown = max_posts_per_step(loop_persistent_data.slowdown_level)

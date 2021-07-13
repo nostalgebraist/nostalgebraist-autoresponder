@@ -156,7 +156,7 @@ MOOD_BUFFS_V2 = True
 MOOD_STALE_SECONDS = 60 * 10
 mood_computed_most_recently = None
 
-WRITE_POSTS_WHEN_QUEUE_BELOW = 8  # 5
+WRITE_POSTS_WHEN_QUEUE_BELOW = 13  # 8
 N_TO_WRITE = 1
 
 INDIRECT_REBLOGS = False
@@ -1925,7 +1925,7 @@ def do_reblog_reply_handling(
 
         # batch up dash posts for side judgment computation
         statically_worthy_posts = []
-        slow_scraping_ok = len(posts) < 100
+        slow_scraping_ok = len(posts) < 200
         iter_ = tqdm(posts)
         for post_ix, post in enumerate(iter_):
             p_body = get_body(post)

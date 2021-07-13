@@ -140,6 +140,7 @@ MAX_POSTS_PER_STEP = 5
 STOP_ABOVE_COST = 10
 
 DASH_REBLOG_PROB_DELT_CUTOFF = 0.
+
 DASH_REBLOG_SELECTION_CUTOFF = 0.
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
@@ -806,7 +807,8 @@ def prioritize_reblogs_replies(
     word_cost=-1 / 10,
     thread_length_cost=1,
     short_under_n_words=5,
-    short_cost=4
+    short_cost=4,
+    empty_cost=10
 ):
     costs = {}
 
@@ -840,6 +842,7 @@ def prioritize_reblogs_replies(
         cost = (thread_length * thread_length_cost)
         + (word_cost * word_count)
         + (short_cost * (word_count < short_under_n_words))
+        + (empty_cost * (word_count == 0))
 
         costs[ident] = cost
     return costs, response_cache

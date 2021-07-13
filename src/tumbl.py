@@ -139,7 +139,8 @@ REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this re
 
 MAX_POSTS_PER_STEP = 5
 
-DASH_REBLOG_SELECTION_CUTOFF = 0.6
+DASH_REBLOG_PROB_DELT_CUTOFF = 0.
+DASH_REBLOG_SELECTION_CUTOFF = 0.35
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
@@ -1276,7 +1277,7 @@ def batch_judge_dash_posts(post_payloads, response_cache):
                 "prob": prob,
                 "sentiment": sentiment,
                 "autoreview_prob": autoreview_prob,
-                "prob_delt": prob_delts
+                "prob_delt": prob_delt
             }
             response_cache.mark_dash_post_judgments(pi, entry)
     return response_cache
@@ -1299,23 +1300,22 @@ def is_dynamically_reblog_worthy_on_dash(
         print(f"couldn't find judgments for {post_identifier}: bad parse?")
         return False
 
-    #TODO: (cleanup) cleanup
-    if len(judg) == 5:
-        text, prob, sentiment, autoreview_prob, prob_delt = (
-            judg["text"],
-            judg["prob"],
-            judg["sentiment"],
-            judg["autoreview_prob"],
-            judg["prob_delts"]
-        )
-    else:
-        text, prob, sentiment, autoreview_prob = (
-            judg["text"],
-            judg["prob"],
-            judg["sentiment"],
-            judg["autoreview_prob"],
-        )
-        prob_delt = None
+    text, prob, sentiment, autoreview_prob, prob_delt = (
+        judg["text"],
+        judg["prob"],
+        judg["sentiment"],
+        judg["autoreview_prob"],
+        judg.get("prob_delt")
+    )
+
+    if prob_delt and prob_delt < DASH_REBLOG_PROB_DELT_CUTOFF:
+        # DEBUG
+        # if verbose:
+        if True:
+            msg = f"\trejecting {post_identifier}: prob_delt {prob_delt:.4f} "
+            msg += f"< cutoff {DASH_REBLOG_PROB_DELT_CUTOFF:.4f}"
+            print(msg)
+        return False
 
     if len(text) < 10:
         if verbose:
@@ -1840,11 +1840,9 @@ def do_reblog_reply_handling(
 
     if not is_dashboard:
         loop_persistent_data.slowdown_level, hardstopping = select_slowdown_level(posts_no_filters, ref_level=loop_persistent_data.slowdown_level, hardstop_pad=WRITE_POSTS_WHEN_QUEUE_BELOW)
-
         while hardstopping:
             time.sleep(sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale']))
             loop_persistent_data.slowdown_level, hardstopping = select_slowdown_level(posts_no_filters, ref_level=loop_persistent_data.slowdown_level, hardstop_pad=WRITE_POSTS_WHEN_QUEUE_BELOW)
-
     if not is_dashboard:
         print("checking mentions...")
         notifications = check_notifications(
@@ -2607,25 +2605,24 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                     image_analysis_cache.save()
         return loop_persistent_data, response_cache
 
-    ## DEBUG
-    # ### do asks check
-    # loop_persistent_data, response_cache = _mainloop_asks_block(
-    #     loop_persistent_data, response_cache
-    # )
-    #
-    # ### do reblog/reply check
-    # if n_posts_to_check > 0:
-    #     # reblogs, replies
-    #     loop_persistent_data, response_cache = do_reblog_reply_handling(
-    #         loop_persistent_data, response_cache, n_posts_to_check
-    #     )
-    #     response_cache.save()
-    #     image_analysis_cache.save()
-    #
-    #     ### do another asks check
-    #     loop_persistent_data, response_cache = _mainloop_asks_block(
-    #         loop_persistent_data, response_cache
-    #     )
+    ### do asks check
+    loop_persistent_data, response_cache = _mainloop_asks_block(
+        loop_persistent_data, response_cache
+    )
+
+    ### do reblog/reply check
+    if n_posts_to_check > 0:
+        # reblogs, replies
+        loop_persistent_data, response_cache = do_reblog_reply_handling(
+            loop_persistent_data, response_cache, n_posts_to_check
+        )
+        response_cache.save()
+        image_analysis_cache.save()
+
+        ### do another asks check
+        loop_persistent_data, response_cache = _mainloop_asks_block(
+            loop_persistent_data, response_cache
+        )
 
     if n_posts_to_check > 0:
         # dash check

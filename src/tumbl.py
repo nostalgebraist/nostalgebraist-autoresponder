@@ -2087,7 +2087,7 @@ def do_reblog_reply_handling(
                                                        reply_set=replies_to_handle,
                                                        response_cache=response_cache)
     cost_ordered_idents = sorted(costs.keys(), key=lambda ident: costs[ident])
-    pprint([(ident, costs[ident]) for ident in cost_ordered_idents])
+    pprint([{"cost": costs[ident], "ident": ident} for ident in cost_ordered_idents])
 
     cost_ordered_idents_screened = []
     for ident in cost_ordered_idents:

@@ -25,7 +25,7 @@ TRADE_QUALITY_FOR_SPEED = True
 logit_diff_sample_series = load_logit_diff_sample()
 EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
 
-TEXTPOST_N_CANDIDATES_TARGET = 15 if (not TRADE_QUALITY_FOR_SPEED) else 12
+TEXTPOST_N_CANDIDATES_TARGET = 8 if (not TRADE_QUALITY_FOR_SPEED) else 5
 
 # TODO: set DEFAULT_CSC using autoresponder_config constants
 CONTROL_SEG_CONFIG = DEFAULT_CSC

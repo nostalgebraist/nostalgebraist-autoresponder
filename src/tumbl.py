@@ -804,6 +804,8 @@ def prioritize_reblogs_replies(
     response_cache,
     word_cost=-1 / 10,
     thread_length_cost=1,
+    short_under_n_words=5,
+    short_cost=4
 ):
     costs = {}
 
@@ -829,7 +831,15 @@ def prioritize_reblogs_replies(
             user_text = format_and_normalize_post_html(thread.posts[-1].to_html())
 
         word_count = len(user_text.split())
-        cost = thread_length * thread_length_cost + word_cost * word_count
+
+        # DEBUG
+        if word_count < 20:
+            print(f"word_count {word_count} with words {repr(user_text.split())}")
+
+        cost = (thread_length * thread_length_cost)
+        + (word_cost * word_count)
+        + (short_cost * (word_count < short_under_n_words))
+
         costs[ident] = cost
     return costs, response_cache
 
@@ -2045,13 +2055,13 @@ def do_reblog_reply_handling(
 
     print(f"{len(reblogs_to_handle)} reblogs to handle")
     if len(reblogs_to_handle) > 0:
-        print(f"handling reblogs:")
+        print(f"unhandled reblogs:")
         for item in reblogs_to_handle:
             print(f"\t{item}")
 
     print(f"{len(replies_to_handle)} replies to handle")
     if len(replies_to_handle) > 0:
-        print(f"handling replies:")
+        print(f"unhandled replies:")
         for item in replies_to_handle:
             print(f"\t{item}")
 
@@ -2093,6 +2103,11 @@ def do_reblog_reply_handling(
 
     reblogs_to_handle = kept_reblogs
     replies_to_handle = kept_replies
+
+    if len(reblogs_to_handle + replies_to_handle) > 0:
+        print(f"responding to:")
+        for item in reblogs_to_handle + replies_to_handle:
+            print(f"\t{item}")
 
     if is_dashboard and len(kept) > 0 and len(excluded) > 0:
         last_handled_in_step_ts = max([reblog_reply_timestamps[r] for r in kept])

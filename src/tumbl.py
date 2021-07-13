@@ -817,7 +817,7 @@ def prioritize_reblogs_replies(
         # TODO: (cleanup) remove response_cache.client
         response_cache.client = client_pool.get_dashboard_client()
         post_payload = response_cache.query(
-            CachedResponseType.POSTS, ident, care_about_notes=False
+            CachedResponseType.POSTS, ident_for_payload, care_about_notes=False
         )
         thread = TumblrThread.from_payload(post_payload)
 

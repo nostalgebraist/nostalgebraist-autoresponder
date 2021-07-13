@@ -834,7 +834,7 @@ def prioritize_reblogs_replies(
 
         # DEBUG
         if word_count < 20:
-            print(f"word_count {word_count} with words {repr(user_text.split())}")
+            print(f"{ident}: word_count {word_count} with words {repr(user_text.split())}")
 
         cost = (thread_length * thread_length_cost)
         + (word_cost * word_count)

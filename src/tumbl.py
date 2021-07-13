@@ -72,7 +72,7 @@ from util.error_handling import LogExceptionAndSkip
 
 from corpus.dash_archive import archive_to_corpus
 
-from experimental.prob_delta import get_prob_delta_for_payload
+from experimental.prob_delta import get_prob_delta_for_payloads
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
@@ -1262,10 +1262,10 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         prompts_selector.append(prompt_selector)
 
     if len(payloads_to_judge) > 0:
+        prob_delts = get_prob_delta_for_payloads(payloads_to_judge, blogName)
         probs = selection_proba_from_gpt(prompts_selector)
         sentiments = sentiment_logit_diffs_from_gpt(prompts_selector)
         autoreview_probs = autoreview_proba_from_gpt(prompts_selector)
-        prob_delts = get_prob_delta_for_payloads(payloads_to_judge, blogName)
 
         delta = time.time() - t1
         print(f"got {len(payloads_to_judge)} judgments in {delta:.2f}s")

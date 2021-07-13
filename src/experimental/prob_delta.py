@@ -20,20 +20,16 @@ def construct_prob_delta_prompts(thread: TumblrThread):
     return prompt, prompt_ref, forbidden_strings
 
 
-def get_prob_delta_for_payload(post_payload: dict, blog_name: str):
-    thread = TumblrThread.from_payload(post_payload)
-
-    prompt, prompt_ref, forbidden_strings = construct_prob_delta_prompts(thread)
-
+def get_prob_delta_for_payloads(post_payloads: list, blog_name: str):
     token_str = " " + blog_name
+    kwargs = {"text": [], "text_ref": [], "token_str": token_str, "forbidden_strings": []}
 
-    if token_str in forbidden_strings:
-        msg = f"get_prob_delta_for_payload: skipping, token_str={repr(token_str)} in"
-        msg += f" forbidden_strings={repr(forbidden_strings)}"
-        print(msg)
-        return 0.
+    for pp in post_payloads:
+        thread = TumblrThread.from_payload(pp)
 
-    return prob_delta_from_gpt(text=prompt,
-                               text_ref=prompt_ref,
-                               token_str=token_str,
-                               forbidden_strings=forbidden_strings)
+        text, text_ref, forbidden_strings = construct_prob_delta_prompts(thread)
+        kwargs["text"].append(text)
+        kwargs["text_ref"].append(text_ref)
+        kwargs["forbidden_strings"].append(forbidden_strings)
+
+    return prob_delta_from_gpt(**kwargs)

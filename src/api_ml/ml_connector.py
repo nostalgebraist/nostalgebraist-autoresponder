@@ -808,6 +808,7 @@ def autoreview_proba_from_gpt(texts: List[str]):
     return results
 
 
-def prob_delta_from_gpt(text: str, text_ref: str, token_str: str, forbidden_strings: List[str]):
+def prob_delta_from_gpt(text: List[str], text_ref: List[str], token_str: str,
+                        forbidden_strings: List[List[str]]):
     return generator_model.get_prob_delta_over_ref(text=text, text_ref=text_ref, token_str=token_str,
-                                                   forbidden_strings=forbidden_strings)[0]["result"]
+                                                   forbidden_strings=forbidden_strings)["result"]

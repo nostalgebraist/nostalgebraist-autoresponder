@@ -1225,6 +1225,8 @@ def is_statically_reblog_worthy_on_dash(
     if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):
         scrape_worthy = False
 
+    # DEBUG
+    scrape_worthy = False
     if scrape_worthy:
         path = "data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "data/dash_post_dump_frank.txt"
         print(f"archiving {post_identifier} | ", end="")
@@ -1239,7 +1241,9 @@ def is_statically_reblog_worthy_on_dash(
 def batch_judge_dash_posts(post_payloads, response_cache):
     payloads_to_judge = [pp
                          for pp in post_payloads
-                         if not response_cache.get_cached_dash_post_judgments(pi)]
+                         if not response_cache.get_cached_dash_post_judgments(
+                             PostIdentifier(pp["blog_name"], str(pp["id"]))
+                         )]
 
     print(f"{len(payloads_to_judge)}/{len(post_payloads)} need new judgments")
 
@@ -1261,7 +1265,7 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         probs = selection_proba_from_gpt(prompts_selector)
         sentiments = sentiment_logit_diffs_from_gpt(prompts_selector)
         autoreview_probs = autoreview_proba_from_gpt(prompts_selector)
-        prob_delts = [get_prob_delta_for_payload(pp) for pp in payloads_to_judge]
+        prob_delts = get_prob_delta_for_payloads(payloads_to_judge, blogName)
 
         delta = time.time() - t1
         print(f"got {len(payloads_to_judge)} judgments in {delta:.2f}s")

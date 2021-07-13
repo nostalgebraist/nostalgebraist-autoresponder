@@ -90,9 +90,9 @@ class GeneratorModelInterface(MLModelInterface):
             **kwargs,
         )
 
-    def get_prob_delta_over_ref(self, *args, repeat_until_done_signal=False, **kwargs):
+    def get_prob_delta_over_ref_multi(self, *args, repeat_until_done_signal=False, **kwargs):
         return self.do(
-            "get_prob_delta_over_ref",
+            "get_prob_delta_over_ref_multi",
             repeat_until_done_signal=repeat_until_done_signal,
             uses_bridge_cache=True,
             *args,
@@ -810,5 +810,5 @@ def autoreview_proba_from_gpt(texts: List[str]):
 
 def prob_delta_from_gpt(text: List[str], text_ref: List[str], token_str: str,
                         forbidden_strings: List[List[str]]):
-    return generator_model.get_prob_delta_over_ref(text=text, text_ref=text_ref, token_str=token_str,
-                                                   forbidden_strings=forbidden_strings)["result"]
+    return generator_model.get_prob_delta_over_ref_multi(text=text, text_ref=text_ref, token_str=token_str,
+                                                         forbidden_strings=forbidden_strings)["result"]

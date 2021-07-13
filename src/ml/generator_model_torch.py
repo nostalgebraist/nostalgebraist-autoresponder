@@ -179,6 +179,7 @@ class GeneratorModelTorch:
 
     def get_next_logits(self, text: str, to_numpy=True):
         input_ids = self.tokenizer([text])["input_ids"]
+        input_ids = [input_ids[0][-2048:]]
         input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
         with torch.no_grad():

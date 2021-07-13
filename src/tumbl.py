@@ -139,12 +139,13 @@ REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this re
 MAX_POSTS_PER_STEP = 5
 STOP_ABOVE_COST = 10
 
-DASH_REBLOG_PROB_DELT_CUTOFF = 0.25
+DASH_REBLOG_PROB_DELT_CUTOFF = 0.
 DASH_REBLOG_SELECTION_CUTOFF = 0.
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
-DASH_REBLOG_CONTINUATION_CUTOFF = 0.25  # "roll"  # 0.5
+DASH_REBLOG_CONTINUATION_SELECTION_CUTOFF = None  # "roll"  # 0.5
+DASH_REBLOG_CONTINUATION_DELTA_TO_WRITTEN_CUTOFF = 0.
 
 DASH_REBLOG_REQUIRE_COMMENT = False
 DASH_REBLOG_NO_BOT = True
@@ -850,6 +851,7 @@ def respond_to_reblogs_replies(
     loop_persistent_data,
     response_cache,
     proba_threshold=None,
+    delta_threshold=None,
     is_user_input=True,
 ):
     n_ri = len(identifiers)
@@ -953,38 +955,46 @@ def respond_to_reblogs_replies(
         okay_to_reply = True
         delta_dash_to_written = None
 
-        if proba_threshold is not None:
-            if "proba" not in gpt2_output:
-                print(
-                    f"!!skipping proba threshold for {reblog_identifier} because key 'proba' not in gpt2_output:\n\t{gpt2_output}\n"
-                )
+        relevant_threshold = None
+        threshold_type = None
+
+        if delta_threshold is not None:
+            threshold_type = 'delta_dash_to_written'
+        elif proba_threshold is not None:
+            threshold_type = 'proba'
+
+        if threshold_type is not None:
+            proba = gpt2_output["proba"]
+
+            dash_judg = response_cache.get_cached_dash_post_judgments(reblog_identifier)
+            if dash_judg is not None:
+                dash_proba = dash_judg["prob"]
+                delta_dash_to_written = proba - dash_proba
+
+            if threshold_type == 'delta_dash_to_written':
+                score = delta_dash_to_written
+                numeric_threshold = delta_threshold
             else:
-                proba = gpt2_output["proba"]
-
-                dash_judg = response_cache.get_cached_dash_post_judgments(reblog_identifier)
-                if dash_judg is not None:
-                    dash_proba = dash_judg["prob"]
-                    delta_dash_to_written = proba - dash_proba
-
+                score = proba
                 numeric_threshold = (
                     ((np.random.rand() - 0.5) * (0.35 / 0.5)) + 0.5
                     if proba_threshold == "roll"
                     else proba_threshold
                 )
-                if (
-                    proba < numeric_threshold
-                    and int(reblog_identifier.id_) not in DEF_REBLOG_IDS
-                ):
-                    print(
-                        f"not reblogging {reblog_identifier}:\n\tour proba {proba:.1%} < threshold {numeric_threshold:.1%}"
-                    )
-                    okay_to_reply = False
-                else:
-                    print(
-                        f"reblogging {reblog_identifier}:\n\tour proba {proba:.1%} >= threshold {numeric_threshold:.1%}"
-                    )
-                if delta_dash_to_written:
-                    print(f"delta_dash_to_written: {delta_dash_to_written:.1%} ({proba:.1%} vs {dash_proba:.1%})")
+            if (
+                score < numeric_threshold
+                and int(reblog_identifier.id_) not in DEF_REBLOG_IDS
+            ):
+                print(
+                    f"not reblogging {reblog_identifier}:\n\tour score {score:.1%} < threshold {numeric_threshold:.1%}"
+                )
+                okay_to_reply = False
+            else:
+                print(
+                    f"reblogging {reblog_identifier}:\n\tour score {score:.1%} >= threshold {numeric_threshold:.1%}"
+                )
+            if delta_dash_to_written:
+                print(f"delta_dash_to_written: {delta_dash_to_written:.1%} ({proba:.1%} vs {dash_proba:.1%})")
 
         log_data = gpt2_output
         log_data["post_type"] = "reply" if is_reply else "reblog"
@@ -2127,7 +2137,8 @@ def do_reblog_reply_handling(
         reply_set=replies_to_handle,
         loop_persistent_data=loop_persistent_data,
         response_cache=response_cache,
-        proba_threshold=DASH_REBLOG_CONTINUATION_CUTOFF if is_dashboard else None,
+        proba_threshold=DASH_REBLOG_CONTINUATION_SELECTION_CUTOFF if is_dashboard else None,
+        delta_threshold=DASH_REBLOG_CONTINUATION_DELTA_TO_WRITTEN_CUTOFF if is_dashboard else None,
         is_user_input=(not is_dashboard),
     )
 

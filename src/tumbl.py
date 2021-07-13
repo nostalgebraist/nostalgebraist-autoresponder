@@ -137,6 +137,7 @@ REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
 MAX_POSTS_PER_STEP = 5
+STOP_ABOVE_COST = 10
 
 DASH_REBLOG_PROB_DELT_CUTOFF = 0.
 DASH_REBLOG_SELECTION_CUTOFF = 0.35
@@ -2063,10 +2064,18 @@ def do_reblog_reply_handling(
     )
 
     costs, response_cache = prioritize_reblogs_replies(identifiers=reblog_reply_timestamps.keys(),
-                                       reply_set=replies_to_handle,
-                                       response_cache=response_cache)
-    pprint(costs)
+                                                       reply_set=replies_to_handle,
+                                                       response_cache=response_cache)
     cost_ordered_idents = sorted(costs.keys(), key=lambda ident: costs[ident])
+    pprint({ident: costs[ident] for ident in cost_ordered_idents})
+
+    cost_ordered_idents_screened = []
+    for ident in cost_ordered_idents:
+        if cost[ident] < STOP_ABOVE_COST:
+            cost_ordered_idents_screened.append(ident)
+        else:
+            print(f"ignoring {ident} forever with cost {cost[ident]:.1f}!")
+    cost_ordered_idents = cost_ordered_idents_screened
 
     max_posts_per_step_with_slowdown = max_posts_per_step(loop_persistent_data.slowdown_level)
     kept = cost_ordered_idents[:max_posts_per_step_with_slowdown]

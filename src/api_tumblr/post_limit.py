@@ -146,7 +146,7 @@ def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hard
     hardstopping = n_remaining <= (HARDSTOP_AT_N_REMAINING + hardstop_pad)
 
     if hardstopping:
-        selecting = HARDSTOP_SLOWDOWN_LEVEL
+        selected = HARDSTOP_SLOWDOWN_LEVEL
 
     if verbose:
         print()

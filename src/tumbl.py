@@ -1225,8 +1225,6 @@ def is_statically_reblog_worthy_on_dash(
     if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):
         scrape_worthy = False
 
-    # DEBUG
-    scrape_worthy = False
     if scrape_worthy:
         path = "data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "data/dash_post_dump_frank.txt"
         print(f"archiving {post_identifier} | ", end="")
@@ -1253,7 +1251,7 @@ def batch_judge_dash_posts(post_payloads, response_cache):
                         for pp in payloads_to_judge]
 
     prompts_selector = []
-    for pp in payloads_to_judge:
+    for pp in tqdm(payloads_to_judge):
         thread = TumblrThread.from_payload(pp)
 
         thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
@@ -1271,7 +1269,7 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         print(f"got {len(payloads_to_judge)} judgments in {delta:.2f}s")
 
         for pi, text, prob, sentiment, autoreview_prob, prob_delt in zip(
-            post_identifiers, texts, probs, sentiments, autoreview_probs, prob_delts
+            post_identifiers, prompts_selector, probs, sentiments, autoreview_probs, prob_delts
         ):
             entry = {
                 "text": text,

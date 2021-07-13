@@ -13,6 +13,12 @@ SLOWDOWN_LEVELS = [
      "MAX_POSTS_PER_STEP_scale": 1.1 / 5},
 ]
 
+HARDSTOP_SLOWDOWN_LEVEL = {
+    "name": "hardstop", "rate_ratio_thresh": 1000, "n_remaining_thresh": 0, "SLEEP_TIME_scale": 1,
+    "MAX_POSTS_PER_STEP_scale": 0
+}
+
+
 HARDSTOP_AT_N_REMAINING = 1
 
 
@@ -139,6 +145,9 @@ def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hard
 
     hardstopping = n_remaining <= (HARDSTOP_AT_N_REMAINING + hardstop_pad)
 
+    if hardstopping:
+        selecting = HARDSTOP_SLOWDOWN_LEVEL
+
     if verbose:
         print()
         review_rates(post_payloads, now=now, max_rate=max_rate)
@@ -148,7 +157,4 @@ def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hard
         if ref_level and ref_level['name'] != selected['name']:
             print(f"SWITCHED from {ref_level['name']} to {selected['name']}\n")
 
-        if hardstopping:
-            print("hardstopping!")
-
-    return selected, hardstopping
+    return selected

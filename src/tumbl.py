@@ -57,7 +57,6 @@ from api_ml.ml_connector import (
 )
 
 from tumblr_to_text.classic.autoresponder_static import EOT, DEFAULT_CSC
-from tumblr_to_text.classic.autoresponder_static_v8 import timestamp_to_v10_format
 from tumblr_to_text.classic.munging_shared import *
 
 from tumblr_to_text.nwo_munging import *
@@ -796,6 +795,42 @@ def update_follower_names(response_cache):
                 break
         response_cache.set_following_names(names)
     return response_cache
+
+
+def prioritize_reblogs_replies(
+    identifiers,
+    reply_set,
+    response_cache,
+    word_cost=-1 / 10,
+    thread_length_cost=1,
+):
+    costs = {}
+
+    for ident in identifiers:
+        is_reply = ident in reply_set
+
+        ident_for_payload = ident
+        if is_reply:
+            ident_for_payload = PostIdentifier(blogName, ident.id_)
+
+        # TODO: (cleanup) remove response_cache.client
+        response_cache.client = client_pool.get_dashboard_client()
+        post_payload = response_cache.query(
+            CachedResponseType.POSTS, ident, care_about_notes=False
+        )
+        thread = TumblrThread.from_payload(post_payload)
+
+        thread_length = len(thread.posts)
+
+        if is_reply:
+            user_text = loop_persistent_data.reply_metadata[ident]["reply_note"]["reply_text"]
+        else:
+            user_text = format_and_normalize_post_html(thread.posts[-1].to_html())
+
+        word_count = len(user_text.split())
+        cost = thread_length * thread_length_cost + word_cost * word_count
+        costs[ident] = cost
+    return costs, response_cache
 
 
 def respond_to_reblogs_replies(
@@ -1839,10 +1874,7 @@ def do_reblog_reply_handling(
     print(f"{len(posts)} after dedup")
 
     if not is_dashboard:
-        loop_persistent_data.slowdown_level, hardstopping = select_slowdown_level(posts_no_filters, ref_level=loop_persistent_data.slowdown_level, hardstop_pad=WRITE_POSTS_WHEN_QUEUE_BELOW)
-        while hardstopping:
-            time.sleep(sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale']))
-            loop_persistent_data.slowdown_level, hardstopping = select_slowdown_level(posts_no_filters, ref_level=loop_persistent_data.slowdown_level, hardstop_pad=WRITE_POSTS_WHEN_QUEUE_BELOW)
+        loop_persistent_data.slowdown_level = select_slowdown_level(posts_no_filters, ref_level=loop_persistent_data.slowdown_level, hardstop_pad=WRITE_POSTS_WHEN_QUEUE_BELOW)
     if not is_dashboard:
         print("checking mentions...")
         notifications = check_notifications(
@@ -2030,13 +2062,19 @@ def do_reblog_reply_handling(
         reblog_reply_timestamps.keys(), key=lambda r: reblog_reply_timestamps[r]
     )
 
+    costs, response_cache = prioritize_reblogs_replies(identifiers=reblog_reply_timestamps.keys(),
+                                       reply_set=replies_to_handle,
+                                       response_cache=response_cache)
+    pprint(costs)
+    cost_ordered_idents = sorted(costs.keys(), key=lambda ident: costs[ident])
+
     max_posts_per_step_with_slowdown = max_posts_per_step(loop_persistent_data.slowdown_level)
-    kept = time_ordered_idents[:max_posts_per_step_with_slowdown]
-    excluded = time_ordered_idents[max_posts_per_step_with_slowdown:]
+    kept = cost_ordered_idents[:max_posts_per_step_with_slowdown]
+    excluded = cost_ordered_idents[max_posts_per_step_with_slowdown:]
 
     if len(excluded) > 0:
         print(
-            f"saving {len(excluded)} of {len(time_ordered_idents)} for later with MAX_POSTS_PER_STEP={max_posts_per_step_with_slowdown}"
+            f"saving {len(excluded)} of {len(cost_ordered_idents)} for later with MAX_POSTS_PER_STEP={max_posts_per_step_with_slowdown}"
         )
         for r in excluded:
             print(f"\t saving {r} for later...")

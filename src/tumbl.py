@@ -837,10 +837,6 @@ def prioritize_reblogs_replies(
 
         word_count = len(user_text.split())
 
-        # DEBUG
-        if word_count < 50:
-            print(f"{ident}: word_count {word_count} with words {repr(user_text.split())}")
-
         cost = 0
         for item in [
             (thread_length_cost, thread_length, "thread_length"),
@@ -2058,32 +2054,13 @@ def do_reblog_reply_handling(
             )
         ]
 
-    blog_names_to_reblog_idents = defaultdict(list)
-    for r in reblogs_to_handle:
-        blog_names_to_reblog_idents[r.blog_name].append(r)
-
-    if not (is_dashboard):
-        for bn, rs in blog_names_to_reblog_idents.items():
-            for r in rs[1:]:
-                print(f"\t * user equity rule*: saving {r} for later...")
-                reblogs_to_handle.remove(r)
-
-    blog_names_to_reply_idents = defaultdict(list)
-    for r in replies_to_handle:
-        blog_names_to_reply_idents[r.blog_name].append(r)
-
-    for bn, rs in blog_names_to_reply_idents.items():
-        for r in rs[1:]:
-            print(f"\t * user equity rule*: saving {r} for later...")
-            replies_to_handle.remove(r)
-
-    print(f"{len(reblogs_to_handle)} reblogs to handle")
+    print(f"{len(reblogs_to_handle)} unhandled reblogs")
     if len(reblogs_to_handle) > 0:
         print(f"unhandled reblogs:")
         for item in reblogs_to_handle:
             print(f"\t{item}")
 
-    print(f"{len(replies_to_handle)} replies to handle")
+    print(f"{len(replies_to_handle)} unhandled replies")
     if len(replies_to_handle) > 0:
         print(f"unhandled replies:")
         for item in replies_to_handle:
@@ -2110,6 +2087,15 @@ def do_reblog_reply_handling(
         else:
             print(f"ignoring {ident} forever with cost {costs[ident]:.1f}!")
     cost_ordered_idents = cost_ordered_idents_screened
+
+    blog_names_to_idents = defaultdict(list)
+    for ident in cost_ordered_idents:
+        blog_names_to_idents[ident.blog_name].append(ident)
+
+    for bn, idents in blog_names_to_idents.items():
+        for ident in idents[1:]:
+            print(f"\t * user equity rule*: saving {ident} for later...")
+            cost_ordered_idents.remove(ident)
 
     max_posts_per_step_with_slowdown = max_posts_per_step(loop_persistent_data.slowdown_level)
     kept = cost_ordered_idents[:max_posts_per_step_with_slowdown]

@@ -6,6 +6,7 @@ import os
 import pickle
 import urllib.parse
 import argparse
+import random
 from datetime import datetime
 from string import punctuation, whitespace
 from itertools import product
@@ -1245,6 +1246,9 @@ def is_statically_reblog_worthy_on_dash(
         scrape_worthy = False
 
     if n_img > 2:
+        scrape_worthy = False
+
+    if n_img > 0 and random.random() > 0.333:
         scrape_worthy = False
 
     if (not slow_scraping_ok) and (n_img > 0):

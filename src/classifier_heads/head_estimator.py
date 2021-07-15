@@ -170,7 +170,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             base_model=self.base_model,
             tokenizer=self.tokenizer,
             params=self.params,
-            partial_forward_type=self.partial_forward_type
+            partial_forward_type=self.partial_forward_type,
+            initialize_weights=training,
         )
         self.model_ = self.model_.to(self.device)
 
@@ -678,7 +679,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         constructor_args = metadata["constructor_args"]
         constructor_args["base_model"] = base_model
         constructor_args["tokenizer"] = tokenizer
-        constructor_args["initialize_weights"] = False
 
         if inference_batch_size is not None:
             constructor_args["opt_params"]["batch_size"] = inference_batch_size

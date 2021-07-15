@@ -1,4 +1,5 @@
 from typing import Optional
+from datetime import datetime
 
 from tqdm.autonotebook import tqdm
 
@@ -32,16 +33,27 @@ def fetch_posts(pool: ClientPool,
                 blog_name: str = bot_name,
                 n: Optional[int] = None,
                 offset: int = 0,
-                report_cadence=5000):
+                report_cadence=5000,
+                needs_private_client=False,
+                needs_dash_client=False,
+                stop_at_id=0):
     posts = []
     ids = set()
-    ndup = 0
     since_last_report = 0
 
     tqdm_bar = None
 
+    if needs_private_client and needs_dash_client:
+        raise ValueError("fetch_posts: only one of needs_private_client and needs_dash_client can be true")
+
+    client_getter = pool.get_client
+    if needs_private_client:
+        client_getter = pool.get_private_client
+    if needs_dash_client:
+        client_getter = pool.get_dashboard_client
+
     while True:
-        client = pool.get_client()
+        client = client_getter()
         page, next_offset, total_posts = fetch_next_page(client, offset=offset, blog_name=blog_name)
 
         if not tqdm_bar:
@@ -60,7 +72,14 @@ def fetch_posts(pool: ClientPool,
 
         nraw = len(page)
         page = [pp for pp in page if pp['id'] not in ids]
-        ndup += len(page) - nraw
+        ndedup = len(page)
+
+        page = [pp for pp in page
+                if pp['id'] > stop_at_id
+                or pp.get('is_pinned')  # pins make id non-monotonic
+                ]
+        nafter = len(page)
+        nbefore = ndedup - nafter
 
         page_ids = {pp['id'] for pp in page}
 
@@ -68,13 +87,21 @@ def fetch_posts(pool: ClientPool,
         posts.extend(page)
         offset = next_offset
 
+        if len(page) == 0:
+            min_ts = None
+        else:
+            min_ts = datetime.fromtimestamp(min(pp['timestamp'] for pp in page)).isoformat()
         tqdm_bar.update(len(page))
-        tqdm_bar.set_postfix(cl=pool.client_name(client))
+        tqdm_bar.set_postfix(cl=pool.client_name(client), min_ts=min_ts)
 
         max_n = total_posts
         if n:
             max_n = min(n, max_n)
 
         if len(posts) >= max_n:
-            print(f"stopping, reached maximum {max_n} with {len(posts)} posts")
+            print(f"stopping with {len(posts)} posts: reached maximum {max_n}")
+            return posts
+
+        if nbefore > 0:
+            print(f"stopping with {len(posts)} posts: {nbefore}/{ndedup} in current page are before id {stop_at_id}")
             return posts

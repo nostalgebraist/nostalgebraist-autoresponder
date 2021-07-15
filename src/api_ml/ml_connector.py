@@ -591,6 +591,11 @@ def old_bridge_call__answer(
 
     response_data = {}
     response_data["continuations"] = continuations
+
+    for c, sdata in zip(continuations, continuation_side_data):
+        sdata["prompt_selector"] = prompt_selector
+        sdata["prompt_autoreviewer"] = prompt_autoreviewer
+
     response_data["continuation_side_data"] = continuation_side_data
 
     # selector
@@ -717,11 +722,17 @@ def old_bridge_call__textpost(
 
     response_data = {}
     response_data["continuations"] = continuations
+
+    for c, sdata in zip(continuations, continuation_side_data):
+        prompt_selector_for_c = prompts_selector[sdata["prompt_for_neural"]]
+        sdata["prompt_selector"] = prompt_selector_for_c
+
+        prompt_autoreviewer_for_c = prompts_autoreviewer[sdata["prompt_for_neural"]]
+        sdata["prompt_autoreviewer"] = prompt_autoreviewer_for_c
+
     response_data["continuation_side_data"] = continuation_side_data
 
-    selector_inputs = [c for c in continuations]
-
-    selector_inputs = [prompts_selector[sdata["prompt_for_neural"]] + c
+    selector_inputs = [sdata["prompt_selector"] + c
                        for c, sdata in zip(continuations, continuation_side_data)]
 
     selector_inputs = pd.DataFrame(
@@ -754,7 +765,7 @@ def old_bridge_call__textpost(
 
     # TODO: (nwo) maybe combine prompts_autoreviewer with prompts_selector?
     autoreview_inputs["selector_input"] = [
-        prompts_autoreviewer[sdata["prompt_for_neural"]] + c
+        sdata["prompt_autoreviewer"] + c
         for c, sdata in zip(continuations, continuation_side_data)
     ]
 

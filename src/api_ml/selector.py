@@ -358,6 +358,9 @@ def serve_selection(
     chosen_prompt_for_neural = chosen_continuation_side_data.get("prompt_for_neural")
     chosen_model_info = chosen_continuation_side_data.get("model_info")
 
+    chosen_prompt_selector = chosen_continuation_side_data.get("prompt_selector")
+    chosen_prompt_autoreviewer = chosen_continuation_side_data.get("prompt_autoreviewer")
+
     autorev_for_display = (
         None if chosen_autoreview_proba is None else f"{chosen_autoreview_proba:.1%}"
     )
@@ -385,6 +388,9 @@ def serve_selection(
     parsed["miro_traces"] = chosen_miro_traces
     parsed["prompt_for_neural"] = chosen_prompt_for_neural
     parsed["model_info"] = chosen_model_info
+    parsed["prompt_selector"] = chosen_prompt_selector
+    parsed["prompt_autoreviewer"] = chosen_prompt_autoreviewer
+
     parsed["all_pos_sentiment"] = [
         float(pos_sent(s)) for s in all_continuation_sentiments
     ]

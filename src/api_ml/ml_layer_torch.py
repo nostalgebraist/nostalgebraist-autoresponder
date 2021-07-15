@@ -1,6 +1,5 @@
 import sys
 import time
-from functools import partial
 
 import requests
 import numpy as np

@@ -138,7 +138,7 @@ REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
 MAX_POSTS_PER_STEP = 5
-STOP_ABOVE_COST = 10
+STOP_ABOVE_COST = 13
 
 DASH_REBLOG_PROB_DELT_CUTOFF = 0.
 
@@ -808,7 +808,7 @@ def prioritize_reblogs_replies(
     word_cost=-1 / 5.,
     thread_length_cost=1,
     short_under_n_words=4,
-    short_cost=4,
+    short_cost=6,
     empty_cost=10,
     verbose=True
 ):

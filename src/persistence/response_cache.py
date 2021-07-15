@@ -107,6 +107,7 @@ class ResponseCache:
         lat = self.cache["last_accessed_time"]
         existing_p = self.cache[CachedResponseType.POSTS]
         existing_n = self.cache[CachedResponseType.NOTES]
+        existing_dpj = self.cache["dash_post_judgments"]
 
         last_allowed_time = datetime.now() - timedelta(hours=max_hours)
 
@@ -115,13 +116,16 @@ class ResponseCache:
         new_p = {pi: existing_p[pi] for pi in existing_p if pi in allowed_p}
         new_n = {pi: existing_n[pi] for pi in existing_n if pi in allowed_p}
         new_lat = {pi: lat[pi] for pi in lat if pi in allowed_p}
+        new_dpj = {pi: existing_dpj[pi] for pi in existing_dpj if pi in allowed_p}
 
         before_len_p = len(existing_p)
         before_len_n = len(existing_n)
         before_len_lat = len(lat)
+        before_len_dpj = len(existing_dpj)
         delta_len_p = before_len_p - len(new_p)
         delta_len_n = before_len_n - len(new_n)
         delta_len_lat = before_len_lat - len(new_lat)
+        delta_len_dpj = before_len_dpj - len(new_dpj)
 
         if dryrun:
             print(f"remove_oldest: would drop {delta_len_p} of {before_len_p} POSTS")
@@ -131,6 +135,7 @@ class ResponseCache:
             print(f"remove_oldest: dropping {delta_len_p} of {before_len_p} POSTS")
             print(f"remove_oldest: dropping {delta_len_n} of {before_len_n} NOTES")
             print(f"remove_oldest: dropping {delta_len_lat} of {before_len_lat} last_accessed_time")
+            print(f"remove_oldest: would drop {delta_len_dpj} of {before_len_dpj} dash_post_judgments")
             self.cache[CachedResponseType.POSTS] = new_p
             self.cache[CachedResponseType.NOTES] = new_n
             self.cache["last_accessed_time"] = new_lat
@@ -502,10 +507,7 @@ class ResponseCache:
     def get_cached_dash_post_judgments(
         self, identifier: PostIdentifier
     ):
-        identifier_normalized = PostIdentifier(
-            blog_name=identifier.blog_name, id_=str(identifier.id_)
-        )
-        return self.cache["dash_post_judgments"].get(identifier_normalized)
+        return self.normalized_lookup('dash_post_judgments', identifier)
 
     def mark_blocked_by_user(self, blog_name: str):
         self.cache["blocked_by_users"].add(blog_name)

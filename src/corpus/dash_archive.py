@@ -1,4 +1,5 @@
 from typing import Optional
+import random
 
 from tumblr_to_text.classic.autoresponder_static import EOT
 
@@ -68,7 +69,21 @@ def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[C
             f.write(line)
 
 
-def dedup_join_save():
+def _train_val_split(docs, val_frac=0.03):
+    charlen = sum(map(len, docs))
+    val_charlen = val_frac * charlen
+
+    train_docs = list(iter(docs))  # deep copy
+    val_docs = []
+
+    while sum(map(len, val_docs)) < val_charlen:
+        ix = random.randint(0, len(train_docs))
+        val_docs.append(train_docs.pop(ix))
+
+    return train_docs, val_docs
+
+
+def dedup_join_save(val_frac=0.03):
     with open("data/dash_post_dump_nost.txt", "r", encoding="utf-8") as f:
         ds1 = f.read()
 
@@ -82,6 +97,17 @@ def dedup_join_save():
 
     with open("data/dedup_join_dash_scrape.txt", "w", encoding="utf-8") as f:
         f.write(ds_out)
+
+    train_docs, val_docs = _train_val_split(list(docs), val_frac=val_frac)
+
+    ds_out_train = EOT.join(train_docs)
+    ds_out_val = EOT.join(val_docs)
+
+    with open("data/dedup_join_dash_scrape__train.txt", "w", encoding="utf-8") as f:
+        f.write(ds_out_train)
+
+    with open("data/dedup_join_dash_scrape__val.txt", "w", encoding="utf-8") as f:
+        f.write(ds_out_val)
 
 
 if __name__ == "__main__":

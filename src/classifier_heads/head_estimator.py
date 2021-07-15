@@ -678,7 +678,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         constructor_args = metadata["constructor_args"]
         constructor_args["base_model"] = base_model
         constructor_args["tokenizer"] = tokenizer
-        initialize_weights["initialize_weights"] = False
+        constructor_args["initialize_weights"] = False
 
         if inference_batch_size is not None:
             constructor_args["opt_params"]["batch_size"] = inference_batch_size

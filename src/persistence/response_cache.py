@@ -49,17 +49,6 @@ class ResponseCache:
         if "replies_handled" not in self.cache:
             self.cache["replies_handled"] = set()
 
-        # TODO: deprecate (now in SentimentCache?)
-        if "text_selector_probs" not in self.cache:
-            self.cache["text_selector_probs"] = {}
-
-        # TODO: deprecate (now in SentimentCache)
-        if "text_sentiments" not in self.cache:
-            self.cache["text_sentiments"] = {}
-
-        if "post_bodies" not in self.cache:
-            self.cache["post_bodies"] = {}
-
         if "user_input_sentiments" not in self.cache:
             self.cache["user_input_sentiments"] = {}
 
@@ -118,7 +107,6 @@ class ResponseCache:
         lat = self.cache["last_accessed_time"]
         existing_p = self.cache[CachedResponseType.POSTS]
         existing_n = self.cache[CachedResponseType.NOTES]
-        existing_pb = self.cache["post_bodies"]
 
         last_allowed_time = datetime.now() - timedelta(hours=max_hours)
 
@@ -126,31 +114,25 @@ class ResponseCache:
 
         new_p = {pi: existing_p[pi] for pi in existing_p if pi in allowed_p}
         new_n = {pi: existing_n[pi] for pi in existing_n if pi in allowed_p}
-        new_pb = {pi: existing_pb[pi] for pi in existing_pb if pi in allowed_p}
         new_lat = {pi: lat[pi] for pi in lat if pi in allowed_p}
 
         before_len_p = len(existing_p)
         before_len_n = len(existing_n)
-        before_len_pb = len(existing_pb)
         before_len_lat = len(lat)
         delta_len_p = before_len_p - len(new_p)
         delta_len_n = before_len_n - len(new_n)
-        delta_len_pb = before_len_pb - len(new_pb)
         delta_len_lat = before_len_lat - len(new_lat)
 
         if dryrun:
             print(f"remove_oldest: would drop {delta_len_p} of {before_len_p} POSTS")
             print(f"remove_oldest: would drop {delta_len_n} of {before_len_n} NOTES")
-            print(f"remove_oldest: would drop {delta_len_pb} of {before_len_pb} post_bodies")
             print(f"remove_oldest: would drop {delta_len_lat} of {before_len_lat} last_accessed_time")
         else:
             print(f"remove_oldest: dropping {delta_len_p} of {before_len_p} POSTS")
             print(f"remove_oldest: dropping {delta_len_n} of {before_len_n} NOTES")
-            print(f"remove_oldest: dropping {delta_len_pb} of {before_len_pb} post_bodies")
             print(f"remove_oldest: dropping {delta_len_lat} of {before_len_lat} last_accessed_time")
             self.cache[CachedResponseType.POSTS] = new_p
             self.cache[CachedResponseType.NOTES] = new_n
-            self.cache["post_bodies"] = new_pb
             self.cache["last_accessed_time"] = new_lat
 
     def record_response_to_cache(
@@ -488,24 +470,6 @@ class ResponseCache:
             timestamp=identifier.timestamp,
         )
         return identifier_normalized in self.cache["replies_handled"]
-
-    def mark_text_selector_prob(self, identifier: PostIdentifier, prob: float):
-        self.cache["text_selector_probs"][identifier] = prob
-
-    def mark_text_sentiment(self, identifier: PostIdentifier, sentiment: dict):
-        self.cache["text_sentiments"][identifier] = sentiment
-
-    def mark_post_body(self, identifier: PostIdentifier, body: str):
-        identifier_normalized = PostIdentifier(
-            blog_name=identifier.blog_name, id_=str(identifier.id_)
-        )
-        self.cache["post_bodies"][identifier_normalized] = body
-
-    def get_cached_post_body(self, identifier: PostIdentifier):
-        identifier_normalized = PostIdentifier(
-            blog_name=identifier.blog_name, id_=str(identifier.id_)
-        )
-        return self.cache["post_bodies"].get(identifier_normalized)
 
     def mark_user_input_sentiment(
         self, identifier: UserInputIdentifier, sentiment: dict

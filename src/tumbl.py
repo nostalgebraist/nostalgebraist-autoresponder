@@ -805,13 +805,16 @@ def prioritize_reblogs_replies(
     identifiers,
     reply_set,
     response_cache,
-    word_cost=-1 / 10.,
+    word_cost=-1 / 5.,
     thread_length_cost=1,
-    short_under_n_words=5,
+    short_under_n_words=4,
     short_cost=4,
     empty_cost=10,
-    verbose=False
+    verbose=True
 ):
+    def vprint(*args, **kwargs):
+        if verbose:
+            print(*args, **kwargs)
     costs = {}
 
     for ident in identifiers:
@@ -837,6 +840,9 @@ def prioritize_reblogs_replies(
 
         word_count = len(user_text.split())
 
+        vprint(ident)
+        vprint(user_text.split())
+
         cost = 0
         for item in [
             (thread_length_cost, thread_length, "thread_length"),
@@ -845,8 +851,8 @@ def prioritize_reblogs_replies(
             (empty_cost, (word_count == 0), "word_count == 0")
         ]:
             cost += item[0] * item[1]
-            if verbose:
-                print(f"cost now {cost:.1f} | added {item[0] * item[1]:.1f} with {item[2]}={item[1]}")
+            vprint(f"\tcost now {cost:.1f} | added {item[0] * item[1]:.1f} with {item[2]}={item[1]}")
+        vprint()
 
         costs[ident] = cost
     return costs, response_cache

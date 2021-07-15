@@ -269,6 +269,7 @@ class NostARHead(nn.Module):
         tokenizer: GPT2TokenizerType,
         params: NostARHeadArchitectureParams,
         partial_forward_type="tfu",  # debug
+        initialize_weights=True
     ):
         validate_arch_params(params)
 
@@ -280,7 +281,8 @@ class NostARHead(nn.Module):
         self.partial_forward_type = partial_forward_type
 
         self._setup()
-        self.init_weights()
+        if initialize_weights:
+            self.init_weights()
 
     @property
     def base_model(self) -> GPTModelType:

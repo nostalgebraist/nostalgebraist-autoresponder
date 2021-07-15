@@ -678,11 +678,14 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         constructor_args = metadata["constructor_args"]
         constructor_args["base_model"] = base_model
         constructor_args["tokenizer"] = tokenizer
+        initialize_weights["initialize_weights"] = False
+
         if inference_batch_size is not None:
             constructor_args["opt_params"]["batch_size"] = inference_batch_size
 
         if "proj_ratio" not in constructor_args["params"]:
             constructor_args["params"]["proj_ratio"] = 1  # TODO: remove after next model save
+
         constructor_args["params"] = NostARHeadArchitectureParams(**constructor_args["params"])
         constructor_args["opt_params"] = NostARHeadOptimizerParams(**constructor_args["opt_params"])
 

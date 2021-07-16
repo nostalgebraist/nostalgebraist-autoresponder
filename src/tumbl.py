@@ -1216,6 +1216,11 @@ def is_statically_reblog_worthy_on_dash(
             print(f"\trejecting {post_identifier}: is video")
         return False
 
+    if "text" not in {bl['type'] for bl in post_payload['content']}:
+        if verbose:
+            print(f"\trejecting {post_identifier}: no text blocks")
+        return False
+
     p_body = get_body(post_payload)
     n_img = len(p_body.split("<img")) - 1
     if n_img > 10:

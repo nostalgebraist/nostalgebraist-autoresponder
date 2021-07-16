@@ -25,6 +25,10 @@ def is_scrape_worthy_when_archiving_blog(
         msg = "is video"
         return False, msg, post_identifier
 
+    if "text" not in {bl['type'] for bl in post_payload['content']}:
+        msg = "no text blocks"
+        return False, msg, post_identifier
+
     p_body = get_body(post_payload)
     n_img = len(p_body.split("<img")) - 1
     if n_img > 2:

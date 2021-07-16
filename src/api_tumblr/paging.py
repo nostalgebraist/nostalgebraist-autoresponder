@@ -1,5 +1,6 @@
 from typing import Optional
 from datetime import datetime
+from collections import Counter
 
 from tqdm.autonotebook import tqdm
 
@@ -13,11 +14,9 @@ bot_name = BotSpecificConstants.load().blogName
 
 # TODO: DRY (centralize paging helpers)
 def fetch_next_page(client, offset, limit=50, blog_name: str = bot_name, before=None):
-    kwargs = dict(limit=limit)
+    kwargs = dict(limit=limit, offset=offset)
     if before:
         kwargs["before"] = before
-    else:
-        kwargs["offset"] = offset
     response = client.posts(blog_name, **kwargs)
     posts = response["posts"]
     total_posts = response["total_posts"]
@@ -42,10 +41,15 @@ def fetch_posts(pool: ClientPool,
                 needs_private_client=False,
                 needs_dash_client=False,
                 stop_at_id=0,
-                before=None):
+                before=None,
+                screener=None):
     posts = []
     ids = set()
     since_last_report = 0
+    n_ok = 0
+    n_full = 0
+
+    rejection_reasons = Counter()
 
     tqdm_bar = None
 
@@ -61,7 +65,6 @@ def fetch_posts(pool: ClientPool,
     while True:
         client = client_getter()
         page, next_offset, total_posts = fetch_next_page(client, offset=offset, blog_name=blog_name, before=before)
-        before = None
 
         if not tqdm_bar:
             tqdm_bar = tqdm(total=total_posts)
@@ -90,6 +93,20 @@ def fetch_posts(pool: ClientPool,
 
         page_ids = {pp['id'] for pp in page}
 
+        n_full += len(page)
+        if screener:
+            _page = []
+            reasons = []
+            for pp in page:
+                ok, reason, _ = screener(pp)
+                if ok:
+                    _page.append(pp)
+                else:
+                    reasons.append(reason)
+            rejection_reasons.update(reasons)
+            page = _page
+        n_ok += len(page)
+
         ids.update(page_ids)
         posts.extend(page)
         offset = next_offset
@@ -98,17 +115,19 @@ def fetch_posts(pool: ClientPool,
             min_ts = None
         else:
             min_ts = datetime.fromtimestamp(min(pp['timestamp'] for pp in page)).isoformat()
-        tqdm_bar.update(len(page))
-        tqdm_bar.set_postfix(cl=pool.client_name(client), min_ts=min_ts)
+        tqdm_bar.update(n_full)
+        tqdm_bar.set_postfix(cl=pool.client_name(client), min_ts=min_ts, n_ok=n_ok, n_full=n_full)
 
         max_n = total_posts
         if n:
             max_n = min(n, max_n)
 
-        if len(posts) >= max_n:
-            print(f"stopping with {len(posts)} posts: reached maximum {max_n}")
+        if n_full >= max_n:
+            print(f"stopping with {n_full} posts, {n_ok} OK: reached maximum {max_n}")
+            print(f"rejection_reasons: {rejection_reasons.most_common()}")
             return posts
 
         if nbefore > 0:
-            print(f"stopping with {len(posts)} posts: {nbefore}/{ndedup} in current page are before id {stop_at_id}")
+            print(f"stopping with {n_full} posts, {n_ok} OK: {nbefore}/{ndedup} in current page are before id {stop_at_id}")
+            print(f"rejection_reasons: {rejection_reasons.most_common()}")
             return posts

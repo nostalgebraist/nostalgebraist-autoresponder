@@ -12,8 +12,13 @@ bot_name = BotSpecificConstants.load().blogName
 
 
 # TODO: DRY (centralize paging helpers)
-def fetch_next_page(client, offset, limit=50, blog_name: str = bot_name):
-    response = client.posts(blog_name, limit=limit, offset=offset)
+def fetch_next_page(client, offset, limit=50, blog_name: str = bot_name, before=None):
+    kwargs = dict(limit=limit)
+    if before:
+        kwargs["before"] = before
+    else:
+        kwargs["offset"] = offset
+    response = client.posts(blog_name, **kwargs)
     posts = response["posts"]
     total_posts = response["total_posts"]
 
@@ -36,7 +41,8 @@ def fetch_posts(pool: ClientPool,
                 report_cadence=5000,
                 needs_private_client=False,
                 needs_dash_client=False,
-                stop_at_id=0):
+                stop_at_id=0,
+                before=None):
     posts = []
     ids = set()
     since_last_report = 0
@@ -54,7 +60,8 @@ def fetch_posts(pool: ClientPool,
 
     while True:
         client = client_getter()
-        page, next_offset, total_posts = fetch_next_page(client, offset=offset, blog_name=blog_name)
+        page, next_offset, total_posts = fetch_next_page(client, offset=offset, blog_name=blog_name, before=before)
+        before = None
 
         if not tqdm_bar:
             tqdm_bar = tqdm(total=total_posts)

@@ -131,14 +131,16 @@ class ResponseCache:
             print(f"remove_oldest: would drop {delta_len_p} of {before_len_p} POSTS")
             print(f"remove_oldest: would drop {delta_len_n} of {before_len_n} NOTES")
             print(f"remove_oldest: would drop {delta_len_lat} of {before_len_lat} last_accessed_time")
+            print(f"remove_oldest: would drop {delta_len_dpj} of {before_len_dpj} dash_post_judgments")
         else:
             print(f"remove_oldest: dropping {delta_len_p} of {before_len_p} POSTS")
             print(f"remove_oldest: dropping {delta_len_n} of {before_len_n} NOTES")
             print(f"remove_oldest: dropping {delta_len_lat} of {before_len_lat} last_accessed_time")
-            print(f"remove_oldest: would drop {delta_len_dpj} of {before_len_dpj} dash_post_judgments")
+            print(f"remove_oldest: dropping {delta_len_dpj} of {before_len_dpj} dash_post_judgments")
             self.cache[CachedResponseType.POSTS] = new_p
             self.cache[CachedResponseType.NOTES] = new_n
             self.cache["last_accessed_time"] = new_lat
+            self.cache["dash_post_judgments"] = new_dpj
 
     def record_response_to_cache(
         self, response: dict, care_about_notes=True, care_about_likes=False

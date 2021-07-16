@@ -7,7 +7,8 @@ from api_tumblr.tumblr_parsing import NPFAsk, TumblrPost, TumblrThread
 # TODO: (cleanup) break dependency on old munging code files
 from tumblr_to_text.classic.autoresponder_static import DEFAULT_CSC, normalize_for_generator
 from tumblr_to_text.classic.autoresponder_static_v8 import format_segment_v8_interlocutors, timestamp_to_v10_format
-from tumblr_to_text.classic.munging_shared import find_images_and_sub_text, sanitize_user_input_outer_shell
+from tumblr_to_text.classic.munging_shared import sanitize_user_input_outer_shell
+from tumblr_to_text.image_munging import find_images_and_sub_text
 import tumblr_to_text.nwo_html_config
 
 PostOrAsk = Union[TumblrPost, NPFAsk]

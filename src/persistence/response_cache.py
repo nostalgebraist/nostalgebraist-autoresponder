@@ -84,12 +84,22 @@ class ResponseCache:
 
     def save(self, verbose=True, do_backup=True):
         self.remove_oldest()
+
+        t1 = time.time()
+
         with open(self.path, "wb") as f:
             pickle.dump(self.cache, f)
+
+        _tsave = time.time()
+        print(f"response_cache save 1: {_tsave-t1:.3f}s sec")
+
         if do_backup:
             # TODO: better path handling
             backup_path = self.path[: -len(".pkl.gz")] + "_backup.pkl.gz"
             subprocess.check_output(f"cp {self.path} {backup_path}", shell=True)
+
+            _tsave2 = time.time()
+            print(f"response_cache save 2: {_tsave2-_tsave:.3f}s sec")
         if verbose:
             lengths = {k: len(self.cache[k]) for k in CachedResponseType}
             print(f"saved response cache with lengths {lengths}")

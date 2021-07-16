@@ -292,12 +292,7 @@ def compute_dynamic_mood_inputs(
             {
                 "timestamp": ident.timestamp,
                 "blog_name": ident.blog_name,
-                "pos_sent": sent["prob"]
-                if sent["label"] == "1"
-                else 1.0 - sent["prob"],
-                "pos_logit": sent["logits"][0],
-                "neg_logit": sent["logits"][1],
-                "logit_diff": sent["logits"][0] - sent["logits"][1],
+                "logit_diff": sent["logit_diff"],
                 "generated_logit_diff": sent.get("generated_logit_diff")
                 if sent.get("generated_logit_diff")
                 else (

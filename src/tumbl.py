@@ -955,11 +955,11 @@ def respond_to_reblogs_replies(
                     generated_pos_sent = gpt2_output.get("all_pos_sentiment")
 
                     if generated_pos_sent:
-                        sent["generated_logit_diff"] = [
+                        generated_logit_diff = [
                             pos_sent_to_logit_diff(entry)
                             for entry in generated_pos_sent
                         ]
-                        sent["p75_generated_logit_diff"] = np.percentile(sent["generated_logit_diff"], 75)
+                        sent["p75_generated_logit_diff"] = np.percentile(generated_logit_diff, 75)
                     response_cache.mark_user_input_sentiment(
                         user_input_identifier, sent
                     )
@@ -1595,8 +1595,7 @@ def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
                 logit_diff = sentiment_logit_diffs_from_gpt(
                     [text_for_sentiment]
                 )[0]
-                sent = logit_diff_to_allen_schema(logit_diff)
-                sent["text_for_sentiment"] = text_for_sentiment
+                sent = {"logit_diff": logit_diff, "text_for_sentiment": text_for_sentiment}
                 response_cache.mark_user_input_sentiment(user_input_identifier, sent)
                 print(
                     f"for {reblog_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
@@ -1714,8 +1713,7 @@ def get_relevant_replies_from_notes(
                 logit_diff = sentiment_logit_diffs_from_gpt(
                     [text_for_sentiment]
                 )[0]
-                sent = logit_diff_to_allen_schema(logit_diff)
-                sent["text_for_sentiment"] = text_for_sentiment
+                sent = {"logit_diff": logit_diff, "text_for_sentiment": text_for_sentiment}
                 response_cache.mark_user_input_sentiment(user_input_identifier, sent)
                 print(
                     f"for {reply_identifier}, recorded {sent} for\n\t{text_for_sentiment}"
@@ -2414,8 +2412,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     logit_diff = sentiment_logit_diffs_from_gpt(
                         [text_for_sentiment]
                     )[0]
-                    sent = logit_diff_to_allen_schema(logit_diff)
-                    sent["text_for_sentiment"] = text_for_sentiment
+                    sent = {"logit_diff": logit_diff, "text_for_sentiment": text_for_sentiment}
                     response_cache.mark_user_input_sentiment(
                         user_input_identifier, sent
                     )
@@ -2455,11 +2452,11 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     generated_pos_sent = gpt2_output.get("all_pos_sentiment")
 
                     if generated_pos_sent:
-                        sent["generated_logit_diff"] = [
+                        generated_logit_diff = [
                             pos_sent_to_logit_diff(entry)
                             for entry in generated_pos_sent
                         ]
-                        sent["p75_generated_logit_diff"] = np.percentile(sent["generated_logit_diff"], 75)
+                        sent["p75_generated_logit_diff"] = np.percentile(generated_logit_diff, 75)
                     response_cache.mark_user_input_sentiment(
                         user_input_identifier, sent
                     )

@@ -7,6 +7,7 @@ import pickle
 import urllib.parse
 import argparse
 import random
+import json
 from datetime import datetime
 from string import punctuation, whitespace
 from itertools import product
@@ -36,7 +37,7 @@ from persistence.response_cache import (
     UserInputType,
 )
 
-from feels.mood import DEFAULT_MOOD, random_mood_at_pst_datetime, logit_diff_to_allen_schema
+from feels.mood import DEFAULT_MOOD, random_mood_at_pst_datetime
 from feels.mood_dynamic import (
     compute_dynamic_moodspec_at_time,
     create_mood_graph,
@@ -58,15 +59,20 @@ from api_ml.ml_connector import (
 )
 
 from tumblr_to_text.classic.autoresponder_static import EOT, DEFAULT_CSC
-from tumblr_to_text.classic.munging_shared import *
+from tumblr_to_text.classic.munging_shared import get_body, find_text_images_and_sub_real_images, \
+    format_post_for_api, IMAGE_DELIMITER, VERBOSE_LOGS
 
-from tumblr_to_text.nwo_munging import *
+from tumblr_to_text.nwo import npf_thread_to_formatted_text
+from tumblr_to_text.nwo_munging import format_and_normalize_post_html, \
+    make_nwo_prompts, make_nwo_textpost_prompts, make_nwo_fic_override_prompts, \
+    add_empty_reblog, get_normalized_ask_text, insert_reply_before_final_post, cut_to_n_most_recent_by_user
 
 from persistence import traceability_singleton
 from multimodal import image_analysis_singleton
 
 from api_tumblr.client_pool import ClientPool
 from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
+from api_tumblr.tumblr_parsing import TumblrThread
 
 from util.error_handling import LogExceptionAndSkip
 
@@ -896,13 +902,11 @@ def respond_to_reblogs_replies(
         thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
 
         if is_reply:
-            thread = insert_reply_before_final_post(thread,
-                                                    reply_blog_name=reblog_identifier.blog_name,
-                                                    reply_body=
-                                                    loop_persistent_data.reply_metadata[reblog_identifier][
-                                                        "reply_note"
-                                                    ]["reply_text"],
-                                                    )
+            thread = insert_reply_before_final_post(
+                thread,
+                reply_blog_name=reblog_identifier.blog_name,
+                reply_body=loop_persistent_data.reply_metadata[reblog_identifier]["reply_note"]["reply_text"]
+            )
         prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(thread, blogName)
 
         no_timestamp = True

@@ -468,6 +468,7 @@ class ImageAnalysisCache:
         nbytes_ = int(r_pre.headers.get("Content-Length", -1))
         r_pre.release_conn()
 
+
         if downsize_to is not None and nbytes_ > 0:
             try:
                 for downsize in downsize_to:
@@ -539,12 +540,16 @@ class ImageAnalysisCache:
         # TODO: integrate downsizing
         if url not in self.cache:
             vprint(f"url NOT in cache:\n\t{url}\n")
-            frame_bytes, content_hash = self._download_and_hash(
-                url,
-                verbose=verbose
-            )
-
             entry = None
+
+            try:
+                frame_bytes, content_hash = self._download_and_hash(
+                    url,
+                    verbose=verbose
+                )
+            except urllib3.exceptions.RequestError:
+                entry = ""
+                content_hash = None
 
             if self.hash_to_url.get(content_hash):
                 url_with_existing_hash = self.hash_to_url[content_hash]
@@ -555,7 +560,7 @@ class ImageAnalysisCache:
                 else:
                     vprint(f"\turl NOT in cache:\n\t\t{url}\n")
 
-            if not entry:
+            if entry is None:
                 vprint(f"calling rek for {url}")
                 self.hash_to_url[content_hash] = url
                 entry = self._extract_text_from_bytes(frame_bytes)

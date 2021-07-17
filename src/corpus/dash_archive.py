@@ -1,5 +1,7 @@
 from typing import Optional
 import random
+import argparse
+import os
 
 from tumblr_to_text.classic.autoresponder_static import EOT
 
@@ -83,7 +85,7 @@ def _train_val_split(docs, val_frac=0.03):
     return train_docs, val_docs
 
 
-def dedup_join_save(val_frac=0.03):
+def dedup_join_save(include_corpus_extensions=False, val_frac=0.03):
     with open("data/dash_post_dump_nost.txt", "r", encoding="utf-8") as f:
         ds1 = f.read()
 
@@ -93,9 +95,20 @@ def dedup_join_save(val_frac=0.03):
     docs = {d for d in ds1.split(EOT) if len(d) > 0}
     docs.update({d for d in ds2.split(EOT) if len(d) > 0})
 
+    if include_corpus_extensions:
+        for fn in os.listdir("data/corpus_nwo_extensions/"):
+            if not fn.endswith(".txt"):
+                continue
+            fp = "data/corpus_nwo_extensions/" + fn
+            with open(fp, "r", encoding="utf-8") as f:
+                ds_xtn = f.read()
+            docs.update({d for d in ds_xtn.split(EOT) if len(d) > 0})
+
     ds_out = EOT.join(docs)
 
-    with open("data/dedup_join_dash_scrape.txt", "w", encoding="utf-8") as f:
+    base_name = "dedup_join_dash_scrape_plus_xtn" if include_corpus_extensions else "dedup_join_dash_scrape"
+
+    with open(f"data/{base_name}.txt", "w", encoding="utf-8") as f:
         f.write(ds_out)
 
     train_docs, val_docs = _train_val_split(list(docs), val_frac=val_frac)
@@ -103,12 +116,16 @@ def dedup_join_save(val_frac=0.03):
     ds_out_train = EOT.join(train_docs)
     ds_out_val = EOT.join(val_docs)
 
-    with open("data/dedup_join_dash_scrape__train.txt", "w", encoding="utf-8") as f:
+    with open(f"data/{base_name}__train.txt", "w", encoding="utf-8") as f:
         f.write(ds_out_train)
 
-    with open("data/dedup_join_dash_scrape__val.txt", "w", encoding="utf-8") as f:
+    with open(f"data/{base_name}__val.txt", "w", encoding="utf-8") as f:
         f.write(ds_out_val)
 
 
 if __name__ == "__main__":
-    dedup_join_save()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--include-corpus-extensions", action="store_true")
+    args = parser.parse_args()
+
+    dedup_join_save(include_corpus_extensions=args.include_corpus_extensions)

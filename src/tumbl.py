@@ -1216,9 +1216,13 @@ def is_statically_reblog_worthy_on_dash(
             print(f"\trejecting {post_identifier}: is video")
         return False
 
-    if "text" not in {bl['type'] for bl in post_payload['content']}:
+    blocks = post_payload['content'] + [bl
+                                        for entry in post_payload.get("trail", [])
+                                        for bl in entry.get('content', [])]
+    block_types = {bl['type'] for bl in blocks}
+    if "text" not in block_types:
         if verbose:
-            print(f"\trejecting {post_identifier}: no text blocks")
+            print(f"\trejecting {post_identifier}: no text blocks\n{block_types}")
         return False
 
     p_body = get_body(post_payload)
@@ -1293,13 +1297,7 @@ def is_statically_reblog_worthy_on_dash(
             post_OP = post_payload["trail"][0]["blog"]["name"]
         except (KeyError, IndexError, TypeError):
             pass
-    if post_OP is None:
-        if verbose:
-            print(
-                f"not reblogging {post_identifier} from dash:\n\tcouldn't find post OP in payload\n{post_payload}"
-            )
-        reblog_worthy = False
-    elif post_OP not in response_cache.following_names and post_OP != blogName:
+    if post_OP and (post_OP not in response_cache.following_names) and (post_OP != blogName):
         if verbose:
             print(
                 f"not reblogging {post_identifier} from dash:\n\ti don't follow OP {post_OP}"

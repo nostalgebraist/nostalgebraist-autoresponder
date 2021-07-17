@@ -25,11 +25,20 @@ def is_scrape_worthy_when_archiving_blog(
         msg = "is video"
         return False, msg, post_identifier
 
-    if "text" not in {bl['type'] for bl in post_payload['content']}:
-        msg = "no text blocks"
+    blocks = post_payload['content'] + [bl
+                                        for entry in post_payload.get("trail", [])
+                                        for bl in entry.get('content', [])]
+    block_types = {bl['type'] for bl in blocks}
+    if "text" not in block_types:
+        msg = f"\trejecting {post_identifier}: no text blocks\n{block_types}"
         return False, msg, post_identifier
 
-    p_body = get_body(post_payload)
+    try:
+        p_body = get_body(post_payload)
+    except Exception as e:
+        msg = "parse error"
+        return False, msg, post_identifier
+
     n_img = len(p_body.split("<img")) - 1
     if n_img > 2:
         msg = f"too many images ({n_img})"

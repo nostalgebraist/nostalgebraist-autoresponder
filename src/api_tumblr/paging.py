@@ -93,7 +93,9 @@ def fetch_posts(pool: ClientPool,
 
         page_ids = {pp['id'] for pp in page}
 
-        n_full += len(page)
+        delta_full = len(page)
+        n_full += delta_full
+
         if screener:
             _page = []
             reasons = []
@@ -115,7 +117,7 @@ def fetch_posts(pool: ClientPool,
             min_ts = None
         else:
             min_ts = datetime.fromtimestamp(min(pp['timestamp'] for pp in page)).isoformat()
-        tqdm_bar.update(n_full)
+        tqdm_bar.update(delta_full)
         tqdm_bar.set_postfix(cl=pool.client_name(client), min_ts=min_ts, n_ok=n_ok, n_full=n_full)
 
         max_n = total_posts

@@ -8,6 +8,8 @@ from tumblr_to_text.classic.autoresponder_static import EOT
 from api_tumblr.tumblr_parsing import TumblrThread
 from api_tumblr.client_pool import ClientPool
 
+from corpus.frank_and_me import apply_nost_identity_ouroboros
+
 from util.error_handling import LogExceptionAndSkip
 
 from config.bot_config import BotSpecificConstants
@@ -48,7 +50,8 @@ def handle_no_commentary_and_populate_tags(thread: TumblrThread,
 
 
 def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[ClientPool] = None,
-                      allow_posts_with_unrecoverable_tags=True):
+                      allow_posts_with_unrecoverable_tags=True,
+                      ouro=True):
     # import inside b/c it loads image cache
     from tumblr_to_text.nwo import npf_thread_to_formatted_text
 
@@ -60,6 +63,9 @@ def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[C
         )
         if skip:
             return
+
+        if ouro:
+            thread = apply_nost_identity_ouroboros(thread)
 
         doc = npf_thread_to_formatted_text(thread)
 

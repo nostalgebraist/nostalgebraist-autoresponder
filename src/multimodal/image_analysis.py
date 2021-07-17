@@ -220,8 +220,8 @@ def text_lines_found(entry, threshold=95, corner_ignore_thresh=0.05):
             return True  # default permissive
         right = left + width
         bottom = top + height
-        corner_diagnostic_x = min(left, 1 - right)
-        corner_diagnostic_y = min(top, 1 - bottom)
+        corner_diagnostic_x = max(left, 1 - right)
+        corner_diagnostic_y = max(top, 1 - bottom)
         return (corner_diagnostic_x > corner_ignore_thresh) or (
             corner_diagnostic_y > corner_ignore_thresh
         )

@@ -106,7 +106,7 @@ def process(blog_name):
 
     archive_path = os.path.join("data/corpus_nwo_extensions/", f"{blog_name}.txt")
 
-    for pp in tqdm(posts):
+    for pp in tqdm(posts, mininterval=0.3, smoothing=0):
         archive_to_corpus(pp, archive_path)
 
     print()

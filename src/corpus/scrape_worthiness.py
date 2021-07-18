@@ -30,7 +30,7 @@ def is_scrape_worthy_when_archiving_blog(
                                         for bl in entry.get('content', [])]
     block_types = {bl['type'] for bl in blocks}
     if "text" not in block_types:
-        msg = f"\trejecting {post_identifier}: no text blocks\n{block_types}"
+        msg = f"no text blocks (block_types {block_types})"
         return False, msg, post_identifier
 
     try:

@@ -1,9 +1,10 @@
 import json
 import argparse
 import os
+import pickle
 from typing import Optional
 from datetime import datetime
-import pickle
+from functools import partial
 
 from tqdm.autonotebook import tqdm
 
@@ -56,7 +57,8 @@ def fetch(
 
     screener = None
     if require_scrape_worthiness:
-        screener = is_scrape_worthy_when_archiving_blog
+        screener = partial(is_scrape_worthy_when_archiving_blog,
+                           slow_scraping_ok=slow_scraping_ok)
 
     new_posts = fetch_posts(
         pool,

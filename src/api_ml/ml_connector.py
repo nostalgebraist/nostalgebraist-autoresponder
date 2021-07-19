@@ -20,7 +20,7 @@ from api_ml import bridge_cache_singleton
 
 from util.error_handling import LogExceptionAndSkip
 
-TRADE_QUALITY_FOR_SPEED = True
+TRADE_QUALITY_FOR_SPEED = False
 
 logit_diff_sample_series = load_logit_diff_sample()
 EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4

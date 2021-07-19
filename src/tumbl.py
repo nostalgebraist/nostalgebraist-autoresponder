@@ -276,10 +276,10 @@ def next_queued_post_time():
         blogName, state="queue", body=REBLOG_BOOTSTRAP_TEXT
     )
     probe_id = probe_response["id"]
-    time.sleep(0.1)
+    time.sleep(0.5)
 
     probe_post = client_pool.get_private_client().posts(blogName, id=probe_id)["posts"][0]
-    time.sleep(0.1)
+    time.sleep(0.5)
 
     client_pool.get_private_client().delete_post(blogName, id=probe_id)
 

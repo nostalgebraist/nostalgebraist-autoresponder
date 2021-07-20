@@ -283,7 +283,11 @@ def next_queued_post_time():
 
     client_pool.get_private_client().delete_post(blogName, id=probe_id)
 
-    next_queued_ts = int(probe_post["scheduled_publish_time"])
+    try:
+        next_queued_ts = int(probe_post["scheduled_publish_time"])
+    except KeyError as e:
+        pprint(probe_post)
+        raise e
     next_queued_dt = datetime.fromtimestamp(next_queued_ts)
 
     print(f"inferred next_queued_dt {next_queued_dt}")

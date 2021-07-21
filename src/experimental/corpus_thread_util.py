@@ -108,32 +108,54 @@ def find_trails_crossing_groups(trails, doc_index_to_group_index):
     return crossing_trails, group_indices_of_trails
 
 
+# TODO: verify this works with choose_longest=True, decontaminate_only=False
+# TODO: verify this works with choose_longest=True, decontaminate_only=True
 def dedup_groups_trailwise(docs, trails, doc_index_to_group_index, random_seed=10,
                            decontaminate_only=False,
+                           decontaminate_uniform_over_docs=False,  # tends to make val smaller, train bigger
                            choose_longest=False,
+                           prefer_longest=False,
+                           prefer_longest_temp=1,
                            duplication_frac=0  # TODO: implement
                            ):
+    from scipy.special import softmax
+
     random.seed(random_seed)
 
-    def _choose_one(docs, trail):
+    def _choose_one(trail):
+        trail_l = sorted(trail)
+        lens = [len(docs[doc_ix]) for doc_ix in trail_l]
+        longest_ix = sorted(range(len(trail_l)), key=lambda i: lens[i])[-1]  # argmax
+
         if choose_longest:
-            lens = [len(docs[doc_ix]) for doc_ix in trail]
-            chosen_ix = sorted(range(lens), key=lambda i: lens[i])[-1]  # argmax
+            chosen_ix = longest_ix
+        elif prefer_longest:
+            lens = [len(docs[doc_ix]) for doc_ix in trail_l]
+            w = softmax([(e / max(lens)) / prefer_longest_temp
+                         for e in lens])
+            chosen_ix = random.choices(range(len(trail_l)), weights=w)[0]
         else:
-            chosen_ix = random.randrange(len(trail))
-        return trail[chosen_ix]
+            chosen_ix = random.randrange(len(trail_l))
+        was_longest = longest_ix == chosen_ix
+        return trail_l[chosen_ix], was_longest
 
     allowed_doc_indices = set()
+
+    was_longest_all = []
 
     if decontaminate_only:
         crossing_trails, group_indices_of_trails = find_trails_crossing_groups(trails, doc_index_to_group_index)
 
         for k, v in tqdm(list(trails.items())):
             if k in crossing_trails:
-                # group_indices = sorted(set(group_indices_of_trails[k]))
-                # selected_group_ix = random.choice(group_indices)
-                selected_doc_ix = _choose_one(v)
-                selected_group_ix = doc_index_to_group_index[selected_doc_ix]
+                if decontaminate_uniform_over_docs:
+                    group_indices = sorted(set(group_indices_of_trails[k]))
+                    selected_group_ix = random.choice(group_indices)
+                else:
+                    selected_doc_ix, was_longest = _choose_one(v)
+                    if len(v) > 1:
+                        was_longest_all.append(was_longest)
+                    selected_group_ix = doc_index_to_group_index[selected_doc_ix]
                 allowed_doc_indices.update({doc_ix for doc_ix in v
                                             if doc_index_to_group_index[doc_ix] == selected_group_ix
                                             })
@@ -142,7 +164,9 @@ def dedup_groups_trailwise(docs, trails, doc_index_to_group_index, random_seed=1
     else:
         for v in tqdm(list(trails.values())):
             # selected_doc_ix = random.choice(sorted(v))
-            selected_doc_ix = _choose_one(v)
+            selected_doc_ix, was_longest = _choose_one(v)
+            if len(v) > 1:
+                was_longest_all.append(was_longest)
             allowed_doc_indices.add(selected_doc_ix)
 
     ngroup = len(set(doc_index_to_group_index.values()))
@@ -158,7 +182,9 @@ def dedup_groups_trailwise(docs, trails, doc_index_to_group_index, random_seed=1
                 print((doc_index, group_index, len(deduped_groups), ngroup))
                 raise IndexError
 
-    return deduped_groups
+    if len(was_longest_all) == 0:
+        was_longest_all = [0]
+    return deduped_groups, sum(was_longest_all)/len(was_longest_all)
 
 
 def nontrivial_trails(trails):

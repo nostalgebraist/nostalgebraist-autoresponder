@@ -109,8 +109,19 @@ def find_trails_crossing_groups(trails, doc_index_to_group_index):
 
 
 def dedup_groups_trailwise(docs, trails, doc_index_to_group_index, random_seed=10,
-                           decontaminate_only=False):
+                           decontaminate_only=False,
+                           choose_longest=False,
+                           duplication_frac=0  # TODO: implement
+                           ):
     random.seed(random_seed)
+
+    def _choose_one(docs, trail):
+        if choose_longest:
+            lens = [len(docs[doc_ix]) for doc_ix in trail]
+            chosen_ix = sorted(range(lens), key=lambda i: lens[i])[-1]  # argmax
+        else:
+            chosen_ix = random.randrange(len(trail))
+        return trail[chosen_ix]
 
     allowed_doc_indices = set()
 
@@ -119,8 +130,10 @@ def dedup_groups_trailwise(docs, trails, doc_index_to_group_index, random_seed=1
 
         for k, v in tqdm(list(trails.items())):
             if k in crossing_trails:
-                group_indices = sorted(set(group_indices_of_trails[k]))
-                selected_group_ix = random.choice(group_indices)
+                # group_indices = sorted(set(group_indices_of_trails[k]))
+                # selected_group_ix = random.choice(group_indices)
+                selected_doc_ix = _choose_one(v)
+                selected_group_ix = doc_index_to_group_index[selected_doc_ix]
                 allowed_doc_indices.update({doc_ix for doc_ix in v
                                             if doc_index_to_group_index[doc_ix] == selected_group_ix
                                             })
@@ -128,7 +141,8 @@ def dedup_groups_trailwise(docs, trails, doc_index_to_group_index, random_seed=1
                 allowed_doc_indices.update(v)
     else:
         for v in tqdm(list(trails.values())):
-            selected_doc_ix = random.choice(sorted(v))
+            # selected_doc_ix = random.choice(sorted(v))
+            selected_doc_ix = _choose_one(v)
             allowed_doc_indices.add(selected_doc_ix)
 
     ngroup = len(set(doc_index_to_group_index.values()))

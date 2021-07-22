@@ -114,21 +114,39 @@ def dedup_groups_trailwise(docs, trails, doc_index_to_group_index, random_seed=1
                            choose_longest=False,
                            prefer_longest=False,
                            prefer_longest_temp=1,
-                           duplication_frac=0  # TODO: implement
+                           include_longest_nost_if_applicable=False
                            ):
     from scipy.special import softmax
 
     random.seed(random_seed)
 
+    nost_s = "nostalgebraist-autoresponder"
+
     def _choose_one(trail):
         trail_l = sorted(trail)
+
         lens = [len(docs[doc_ix]) for doc_ix in trail_l]
-        longest_ix = sorted(range(len(trail_l)), key=lambda i: lens[i])[-1]  # argmax
+        length_sorted_ixs = sorted(range(len(trail_l)), key=lambda i: lens[i])
+        longest_ix = length_sorted_ixs[-1]  # argmax
+
+        if include_longest_nost_if_applicable and any(nost_s in docs[doc_ix] for doc_ix in trail_l):
+            start_length_sorted_ixs_at = [
+                i for i, ix in enumerate(length_sorted_ixs)
+                if nost_s in docs[trail_l[ix]]
+            ][0]
+
+            kept = length_sorted_ixs[start_length_sorted_ixs_at:]
+
+            trail_l = [trail_l[ix] for ix in kept]
+
+            # TODO: DRY
+            lens = [len(docs[doc_ix]) for doc_ix in trail_l]
+            length_sorted_ixs = sorted(range(len(trail_l)), key=lambda i: lens[i])
+            longest_ix = length_sorted_ixs[-1]  # argmax
 
         if choose_longest:
             chosen_ix = longest_ix
         elif prefer_longest:
-            lens = [len(docs[doc_ix]) for doc_ix in trail_l]
             w = softmax([(e / max(lens)) / prefer_longest_temp
                          for e in lens])
             chosen_ix = random.choices(range(len(trail_l)), weights=w)[0]

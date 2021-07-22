@@ -108,8 +108,6 @@ def find_trails_crossing_groups(trails, doc_index_to_group_index):
     return crossing_trails, group_indices_of_trails
 
 
-# TODO: verify this works with choose_longest=True, decontaminate_only=False
-# TODO: verify this works with choose_longest=True, decontaminate_only=True
 def dedup_groups_trailwise(docs, trails, doc_index_to_group_index, random_seed=10,
                            decontaminate_only=False,
                            decontaminate_uniform_over_docs=False,  # tends to make val smaller, train bigger
@@ -163,7 +161,6 @@ def dedup_groups_trailwise(docs, trails, doc_index_to_group_index, random_seed=1
                 allowed_doc_indices.update(v)
     else:
         for v in tqdm(list(trails.values())):
-            # selected_doc_ix = random.choice(sorted(v))
             selected_doc_ix, was_longest = _choose_one(v)
             if len(v) > 1:
                 was_longest_all.append(was_longest)
@@ -184,7 +181,7 @@ def dedup_groups_trailwise(docs, trails, doc_index_to_group_index, random_seed=1
 
     if len(was_longest_all) == 0:
         was_longest_all = [0]
-    return deduped_groups, sum(was_longest_all)/len(was_longest_all)
+    return deduped_groups, sum(was_longest_all) / len(was_longest_all)
 
 
 def nontrivial_trails(trails):

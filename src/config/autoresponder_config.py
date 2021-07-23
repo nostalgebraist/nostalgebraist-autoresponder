@@ -24,7 +24,7 @@ V12_3 = True  # higher lr
 V12_4 = True  # fixed lr schedule for gpt-j + skip nost tuning
 V12_5 = True  # many incremental improvements to gpt-j lr / dataset / etc + fixed "Posts by"
 V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 + batch size 32
-V12_7 = False  # XXXX
+V12_7 = True  # XXXX
 
 USE_AUTOREVIEWER = True
 

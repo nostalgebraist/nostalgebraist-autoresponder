@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta, time as dtime
 
-BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thresh": 125, "SLEEP_TIME_scale": 1.,
+BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thresh": 60, "SLEEP_TIME_scale": 1.,
                        "MAX_POSTS_PER_STEP_scale": 1.}
 
 SLOWDOWN_LEVELS = [
     BASE_SLOWDOWN_LEVEL,
-    {"name": "slower", "rate_ratio_thresh": 1.5, "n_remaining_thresh": 50, "SLEEP_TIME_scale": 2.5,
+    {"name": "slower", "rate_ratio_thresh": 1.5, "n_remaining_thresh": 40, "SLEEP_TIME_scale": 2.5,
      "MAX_POSTS_PER_STEP_scale": 3.1 / 5},
     {"name": "slower2", "rate_ratio_thresh": 2.5, "n_remaining_thresh": 25, "SLEEP_TIME_scale": 5,
      "MAX_POSTS_PER_STEP_scale": 2.1 / 5},

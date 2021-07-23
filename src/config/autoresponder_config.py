@@ -36,8 +36,8 @@ LOGGING_FLAGS = {
 
 if V12_7:
     AUTOREVIEWER_CUTOFFS = {
-        "accept_below": 0,  # v12_7/v1: predict true accept rate: ~XX%, false accept rate ~6.7%
-        "reject_above": 0,  # v12_7/v1: predict true reject rate: ~XX%, false reject rate ~6%
+        "accept_below": 0.113,  # v12_7/v1: predict true accept rate: ~34%, false accept rate ~6.7%
+        "reject_above": 0.561,  # v12_7/v1: predict true reject rate: ~45, false reject rate ~6%
     }
 elif V12_6:
     AUTOREVIEWER_CUTOFFS = {
@@ -111,7 +111,12 @@ BATCHONE = True
 
 RANDOM_SAMPLING_PARAMS_ON_STARTUP = False
 
+HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
+
 if V12_7:
+    # testing
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
+
     model_name = "arj-x2-tw-scaled-alldata-3801"
     model_path = os.path.join("/", model_name)
 elif V12_6:

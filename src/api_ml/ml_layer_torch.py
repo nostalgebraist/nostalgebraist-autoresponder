@@ -128,7 +128,7 @@ generator_path = model_name
 
 if not os.path.exists(generator_path):
     model_tar_path = get_local_path_from_huggingface_cdn(
-        'nostalgebraist/nostalgebraist-autoresponder-6_1b', 'model.tar.gz'
+        HF_REPO_NAME, 'model.tar.gz'
     )
     subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
 
@@ -139,7 +139,7 @@ heads_tar_path = ""
 
 if needs_head_download:
     heads_tar_path = get_local_path_from_huggingface_cdn(
-        'nostalgebraist/nostalgebraist-autoresponder-6_1b', 'heads.tar.gz'
+        HF_REPO_NAME, 'heads.tar.gz'
     )
 
 if "selector" in MODELS_SERVED and not os.path.exists(ckpt_select):

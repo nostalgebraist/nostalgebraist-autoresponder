@@ -521,7 +521,7 @@ def answer_from_gpt(
 
     # strategy = "proportional_winnowed"
     strategy = "eps_greedy"
-    eps = 0.15
+    eps = 0.3
 
     result, _ = serve_selection(
         data=result_generator,
@@ -555,7 +555,7 @@ def old_bridge_call__answer(
         write_review_override=False,
         avoid_initial_blockquote=False
 ):
-    best_of = 13 if (not TRADE_QUALITY_FOR_SPEED) else 10
+    best_of = 11 if (not TRADE_QUALITY_FOR_SPEED) else 8
 
     if write_fic_override or write_review_override:
         best_of = 6 if not (TRADE_QUALITY_FOR_SPEED) else 4

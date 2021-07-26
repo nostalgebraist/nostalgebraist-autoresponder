@@ -7,6 +7,7 @@ from tqdm.auto import tqdm
 
 from persistence import traceability
 from corpus.blog_archive import roll_head_timestamp
+from api_tumblr.client_pool import ClientPool
 
 
 def sub_prompt_timestamp(base_head_timestamp, actual_timestamp, prompt_autoreviewer):
@@ -39,9 +40,9 @@ def main():
 
     print(f"loaded trace logs: {len(trace_logs)} rows")
 
-    trace_logs = [row for row in trace_logs if row.get("requested__state") == "draft"]
+    trace_logs = [row for row in trace_logs if row.get("requested__state") in {"draft", "queue"}]
 
-    print(f"subsetted trace logs to draft:  {len(trace_logs)} rows")
+    print(f"subsetted trace logs to draft/queue:  {len(trace_logs)} rows")
 
     required_keys = ["api__id", "prompt_autoreviewer", "choice_ix", "all_continuations", "timestamp_manual"]
     keycounts = Counter()
@@ -64,6 +65,13 @@ def main():
     ]
 
     print(f"subsetted trace logs to nwo / usable:  {len(trace_logs)} rows")
+
+    pool = ClientPool()
+    current_queue = [pp['id'] for pp in pool.get_private_client().queue('nostalgebraist-autoresponder')['posts']]
+
+    trace_logs = [row for row in trace_logs if row.get("api__id") not in current_queue]
+
+    print(f"removed currently queued posts:  {len(trace_logs)} rows")
 
     trace_indices_to_texts = {}
     for i, row in enumerate(trace_logs):
@@ -101,6 +109,7 @@ def main():
 
     n_accept = 0
     n_reject = 0
+    n_skip = 0
     n_multimatch = 0
 
     iter_ = tqdm(trace_map.items(), total=len(trace_map), mininterval=1, smoothing=0)
@@ -123,30 +132,39 @@ def main():
 
             # assumes trace is ordered by time -- i believe this is true
             pubd_ix = group_trace_indices[-1]
-            trace_indices_to_targets[pubd_ix] = "accept"
-            trace_indices_to_published_ids[pubd_ix] = matching_pub_row["id"]
+
+            if trace_logs[pubd_ix]['requested__state'] != 'queue':
+                trace_indices_to_targets[pubd_ix] = "accept"
+                trace_indices_to_published_ids[pubd_ix] = matching_pub_row["id"]
+                n_accept += 1
+            else:
+                # queued posts i don't delete aren't signal
+                trace_indices_to_targets[pubd_ix] = "skip"
+                n_skip += 1
 
             for trace_index in group_trace_indices[:-1]:
                 trace_indices_to_targets[trace_index] = "reject"
                 trace_indices_to_published_ids[trace_index] = None
 
-            n_accept += 1
             n_reject += len(group_trace_indices) - 1
 
         iter_.set_postfix(
-            n_accept=n_accept, n_reject=n_reject, zz_n_multimatch=n_multimatch
+            n_accept=n_accept, n_reject=n_reject, n_skip=n_skip, zz_n_multimatch=n_multimatch
         )
 
     # verify
     n_accept_verify = sum(v == "accept" for v in trace_indices_to_targets.values())
     n_reject_verify = sum(v == "reject" for v in trace_indices_to_targets.values())
+    n_skip_verify = sum(v == "skip" for v in trace_indices_to_targets.values())
 
     print(f"\nn_accept: {n_accept_verify} vs {n_accept}")
     print(f"n_reject: {n_reject_verify} vs {n_reject}")
+    print(f"n_skip: {n_skip_verify} vs {n_skip}")
 
     autoreview_train_data = []
     for ix in sorted(trace_indices_to_targets.keys()):
-        trace_indices_to_texts[ix]
+        if trace_indices_to_targets[ix] == 'skip':
+            continue
         autoreview_train_data.append(
             {
                 "text": trace_indices_to_texts[ix],

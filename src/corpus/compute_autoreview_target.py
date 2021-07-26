@@ -1,6 +1,6 @@
 import json
 import argparse
-from collections import defaultdict
+from collections import defaultdict, Counter
 from datetime import datetime
 
 from tqdm.auto import tqdm
@@ -9,13 +9,12 @@ from persistence import traceability
 from corpus.blog_archive import roll_head_timestamp
 
 
-def sub_prompt_timestamp(base_head_timestamp, prompt_autoreviewer):
+def sub_prompt_timestamp(base_head_timestamp, actual_timestamp, prompt_autoreviewer):
     before, sep, seg = prompt_autoreviewer.rpartition("\n\n Written")
     timeseg, sep2, after = seg.partition(" | ")
 
-    ts = datetime.strptime(timeseg, "%-I %p %B %Y")
     head_ts = roll_head_timestamp(
-        base_head_timestamp=base_head_timestamp, actual_timestamp=ts
+        base_head_timestamp=base_head_timestamp, actual_timestamp=actual_timestamp
     )
 
     return before + sep + head_ts.strftime("%-I %p %B %Y") + sep2 + after
@@ -44,12 +43,23 @@ def main():
 
     print(f"subsetted trace logs to draft:  {len(trace_logs)} rows")
 
+    required_keys = ["api__id", "prompt_autoreviewer", "choice_ix", "all_continuations", "timestamp_manual"]
+    keycounts = Counter()
+    key_nonnull_counts = Counter()
+
+    for row in trace_logs:
+        for k in required_keys:
+            keycounts[k] += (k in row)
+            key_nonnull_counts[k] += (row.get(k) is not None)
+
+    print(f"keycounts: {keycounts}\nkey_nonnull_counts: {key_nonnull_counts}")
+
     trace_logs = [
         row
         for row in trace_logs
         if all(
             row.get(k) is not None
-            for k in ["prompt_autoreviewer", "choice_ix", "all_continuations"]
+            for k in required_keys
         )
     ]
 
@@ -57,7 +67,9 @@ def main():
 
     trace_indices_to_texts = {}
     for i, row in enumerate(trace_logs):
-        subbed = sub_prompt_timestamp(base_head_timestamp, row["prompt_autoreviewer"])
+        actual_timestamp = datetime.fromtimestamp(row["timestamp_manual"])
+
+        subbed = sub_prompt_timestamp(base_head_timestamp, actual_timestamp, row["prompt_autoreviewer"])
         trace_indices_to_texts[i] = subbed + row["all_continuations"][row["choice_ix"]]
 
     trace_map = defaultdict(list)
@@ -85,7 +97,6 @@ def main():
     print("matching...")
 
     trace_indices_to_targets = {}
-    trace_indices_to_texts = {}
     trace_indices_to_published_ids = {}
 
     n_accept = 0
@@ -108,7 +119,7 @@ def main():
                 # ???
                 n_multimatch += 1
 
-            matching_pub_row = pub_gids_matching_trace_id[0]
+            matching_pub_row = pub_logs[pub_gids_matching_trace_id[0]]
 
             # assumes trace is ordered by time -- i believe this is true
             pubd_ix = group_trace_indices[-1]
@@ -135,6 +146,7 @@ def main():
 
     autoreview_train_data = []
     for ix in sorted(trace_indices_to_targets.keys()):
+        trace_indices_to_texts[ix]
         autoreview_train_data.append(
             {
                 "text": trace_indices_to_texts[ix],
@@ -145,7 +157,7 @@ def main():
         )
 
     if not args.dryrun:
-        with open("autoreview_train_data.json", "w", encoding="utf-8") as f:
+        with open("data/autoreview_train_data.json", "w", encoding="utf-8") as f:
             json.dump(autoreview_train_data, f)
 
 

@@ -14,7 +14,9 @@ def sub_prompt_timestamp(base_head_timestamp, prompt_autoreviewer):
     timeseg, sep2, after = seg.partition(" | ")
 
     ts = datetime.strptime(timeseg, "%-I %p %B %Y")
-    head_ts = roll_head_timestamp(base_head_timestamp=base_head_timestamp, actual_timestamp=ts)
+    head_ts = roll_head_timestamp(
+        base_head_timestamp=base_head_timestamp, actual_timestamp=ts
+    )
 
     return before + sep + head_ts.strftime("%-I %p %B %Y") + sep2 + after
 
@@ -31,19 +33,25 @@ def main():
     print("loading trace logs")
     if args.hot_only:
         import persistence.traceability_singleton
+
         trace_logs = persistence.traceability_singleton.TRACE_LOGS.logs["data"]
     else:
         trace_logs = traceability.load_full_traceability_logs()["data"]
 
     print(f"loaded trace logs: {len(trace_logs)} rows")
 
-    trace_logs = [row for row in trace_logs
-                  if row.get("requested__state") == "draft"]
+    trace_logs = [row for row in trace_logs if row.get("requested__state") == "draft"]
 
     print(f"subsetted trace logs to draft:  {len(trace_logs)} rows")
 
-    trace_logs = [row for row in trace_logs
-                  if "prompt_autoreviewer" in row and "choice_ix" in row and "all_continuations" in row]
+    trace_logs = [
+        row
+        for row in trace_logs
+        if all(
+            row.get(k) is not None
+            for k in ["prompt_autoreviewer", "choice_ix", "all_continuations"]
+        )
+    ]
 
     print(f"subsetted trace logs to nwo / usable:  {len(trace_logs)} rows")
 
@@ -74,7 +82,7 @@ def main():
         pub_map[row["genesis_or_published_id"]].append(i)
 
     # match
-    print('matching...')
+    print("matching...")
 
     trace_indices_to_targets = {}
     trace_indices_to_texts = {}
@@ -92,7 +100,7 @@ def main():
         if len(pub_gids_matching_trace_id) == 0:
             # never published
             for trace_index in group_trace_indices:
-                trace_indices_to_targets[trace_index] = 'reject'
+                trace_indices_to_targets[trace_index] = "reject"
                 trace_indices_to_published_ids[trace_index] = None
             n_reject += len(group_trace_indices)
         else:
@@ -104,24 +112,26 @@ def main():
 
             # assumes trace is ordered by time -- i believe this is true
             pubd_ix = group_trace_indices[-1]
-            trace_indices_to_targets[pubd_ix] = 'accept'
+            trace_indices_to_targets[pubd_ix] = "accept"
             trace_indices_to_published_ids[pubd_ix] = matching_pub_row["id"]
 
             for trace_index in group_trace_indices[:-1]:
-                trace_indices_to_targets[trace_index] = 'reject'
+                trace_indices_to_targets[trace_index] = "reject"
                 trace_indices_to_published_ids[trace_index] = None
 
             n_accept += 1
             n_reject += len(group_trace_indices) - 1
 
-        iter_.set_postfix(n_accept=n_accept, n_reject=n_reject, zz_n_multimatch=n_multimatch)
+        iter_.set_postfix(
+            n_accept=n_accept, n_reject=n_reject, zz_n_multimatch=n_multimatch
+        )
 
     # verify
-    n_accept_verify = sum(v == 'accept' for v in trace_indices_to_targets.values())
-    n_reject_verify = sum(v == 'reject' for v in trace_indices_to_targets.values())
+    n_accept_verify = sum(v == "accept" for v in trace_indices_to_targets.values())
+    n_reject_verify = sum(v == "reject" for v in trace_indices_to_targets.values())
 
-    print(f'\nn_accept: {n_accept_verify} vs {n_accept}')
-    print(f'n_reject: {n_reject_verify} vs {n_reject}')
+    print(f"\nn_accept: {n_accept_verify} vs {n_accept}")
+    print(f"n_reject: {n_reject_verify} vs {n_reject}")
 
     autoreview_train_data = []
     for ix in sorted(trace_indices_to_targets.keys()):
@@ -130,7 +140,7 @@ def main():
                 "text": trace_indices_to_texts[ix],
                 "target": trace_indices_to_targets[ix],
                 "trace_api__id": trace_logs[ix]["api__id"],
-                "pub_api__id": trace_indices_to_published_ids[ix]
+                "pub_api__id": trace_indices_to_published_ids[ix],
             }
         )
 

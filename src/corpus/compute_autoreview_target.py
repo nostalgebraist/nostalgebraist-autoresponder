@@ -10,7 +10,7 @@ from corpus.blog_archive import roll_head_timestamp
 
 
 def sub_prompt_timestamp(base_head_timestamp, actual_timestamp, prompt_autoreviewer):
-    before, sep, seg = prompt_autoreviewer.rpartition("\n\n Written")
+    before, sep, seg = prompt_autoreviewer.rpartition("\n\n Written ")
     timeseg, sep2, after = seg.partition(" | ")
 
     head_ts = roll_head_timestamp(
@@ -158,7 +158,7 @@ def main():
 
     if not args.dryrun:
         with open("data/autoreview_train_data.json", "w", encoding="utf-8") as f:
-            json.dump(autoreview_train_data, f)
+            json.dump(autoreview_train_data, f, indent=1)
 
 
 if __name__ == "__main__":

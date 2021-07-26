@@ -9,8 +9,8 @@ from persistence import traceability
 from corpus.blog_archive import roll_head_timestamp
 
 
-def sub_prompt_timestamp(base_head_timestamp, prompt_autoreview):
-    before, sep, seg = prompt_autoreview.rpartition("\n\n Written")
+def sub_prompt_timestamp(base_head_timestamp, prompt_autoreviewer):
+    before, sep, seg = prompt_autoreviewer.rpartition("\n\n Written")
     timeseg, sep2, after = seg.partition(" | ")
 
     ts = datetime.strptime(timeseg, "%-I %p %B %Y")
@@ -22,13 +22,18 @@ def sub_prompt_timestamp(base_head_timestamp, prompt_autoreview):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dryrun", action="store_true")
+    parser.add_argument("--hot-only", action="store_true")
     args = parser.parse_args()
 
     base_head_timestamp = datetime.now()
 
     # trace
     print("loading trace logs")
-    trace_logs = traceability.load_full_traceability_logs()["logs"]
+    if args.hot_only:
+        import persistence.traceability_singleton
+        trace_logs = persistence.traceability_singleton.TRACE_LOGS.logs["data"]
+    else:
+        trace_logs = traceability.load_full_traceability_logs()["data"]
 
     print(f"loaded trace logs: {len(trace_logs)} rows")
 
@@ -38,13 +43,13 @@ def main():
     print(f"subsetted trace logs to draft:  {len(trace_logs)} rows")
 
     trace_logs = [row for row in trace_logs
-                  if "prompt_autoreview" in row and "choice_ix" in row and "all_continuations" in row]
+                  if "prompt_autoreviewer" in row and "choice_ix" in row and "all_continuations" in row]
 
     print(f"subsetted trace logs to nwo / usable:  {len(trace_logs)} rows")
 
     trace_indices_to_texts = {}
     for i, row in enumerate(trace_logs):
-        subbed = sub_prompt_timestamp(base_head_timestamp, row["prompt_autoreview"])
+        subbed = sub_prompt_timestamp(base_head_timestamp, row["prompt_autoreviewer"])
         trace_indices_to_texts[i] = subbed + row["all_continuations"][row["choice_ix"]]
 
     trace_map = defaultdict(list)

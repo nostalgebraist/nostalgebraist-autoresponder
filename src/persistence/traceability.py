@@ -21,6 +21,14 @@ def _add_field(logs, fieldname):
     return new_logs
 
 
+def _add_field_fast(logs, fieldname):
+    # TODO: replace _add_field with this?
+    for entry in logs["data"]:
+        if fieldname not in entry:
+            entry[fieldname] = None
+    return logs
+
+
 class TraceabilityLogs:
     def __init__(self, logs: dict, path: str):
         self.logs = logs
@@ -125,7 +133,7 @@ def load_full_traceability_logs():
     for field in trace_logs_hot["fields"]:
         if field not in full_trace_logs["fields"]:
             print(f"adding hot field to cold: {repr(field)}")
-            _add_field(full_trace_logs, field)
+            _add_field_fast(full_trace_logs, field)
 
     full_trace_logs["data"] = full_trace_logs["data"] + trace_logs_hot["data"]
 

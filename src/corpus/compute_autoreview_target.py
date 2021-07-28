@@ -44,7 +44,7 @@ def main():
 
     print(f"subsetted trace logs to draft/queue:  {len(trace_logs)} rows")
 
-    required_keys = ["api__id", "prompt_autoreviewer", "choice_ix", "all_continuations", "timestamp_manual"]
+    required_keys = ["api__id", "prompt_autoreviewer", "choice_ix", "all_continuations", "timestamp_manual", "post_type"]
     keycounts = Counter()
     key_nonnull_counts = Counter()
 
@@ -171,6 +171,7 @@ def main():
                 "target": trace_indices_to_targets[ix],
                 "trace_api__id": trace_logs[ix]["api__id"],
                 "pub_api__id": trace_indices_to_published_ids[ix],
+                "post_type": trace_logs[ix]["post_type"]
             }
         )
 

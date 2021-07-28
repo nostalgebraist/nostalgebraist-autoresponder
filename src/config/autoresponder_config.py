@@ -25,6 +25,7 @@ V12_4 = True  # fixed lr schedule for gpt-j + skip nost tuning
 V12_5 = True  # many incremental improvements to gpt-j lr / dataset / etc + fixed "Posts by"
 V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 + batch size 32
 V12_7 = True  # XXXX
+V12_8 = True  # XXXX
 
 USE_AUTOREVIEWER = True
 
@@ -34,10 +35,15 @@ LOGGING_FLAGS = {
 }
 
 
-if V12_7:
+if V12_8:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.128,  # v12_8/v1: predict true accept rate: ~29%, false accept rate ~6.7%
+        "reject_above": 0.579,  # v12_8/v1: predict true reject rate: ~43%, false reject rate ~6%
+    }
+elif V12_7:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.113,  # v12_7/v1: predict true accept rate: ~34%, false accept rate ~6.7%
-        "reject_above": 0.561,  # v12_7/v1: predict true reject rate: ~45, false reject rate ~6%
+        "reject_above": 0.561,  # v12_7/v1: predict true reject rate: ~45%, false reject rate ~6%
     }
 elif V12_6:
     AUTOREVIEWER_CUTOFFS = {
@@ -112,40 +118,31 @@ BATCHONE = True
 RANDOM_SAMPLING_PARAMS_ON_STARTUP = False
 
 HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
+model_path = None
 
-if V12_7:
-    # testing
+if V12_8:
+    model_name = "arj-x2-tw-repack-alldata-3801"
+elif V12_7:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
-
     model_name = "arj-x2-tw-scaled-alldata-3801"
-    model_path = os.path.join("/", model_name)
 elif V12_6:
     model_name = "arj-v10-3-batch32-alldata-4001"
-    model_path = os.path.join("/", model_name)
 elif V12_5:
     model_name = "arj-merged-minu-shuf-alldata-2001"
-    model_path = os.path.join("/", model_name)
 elif V12_4:
     model_name = "arj-v0-ostate"
-    model_path = os.path.join("/", model_name)
 elif V12_3:
     model_name = "nost-tuning-arj-cl"
-    model_path = os.path.join("/", model_name)
 elif V12_2:
     model_name = "arj-v0-nost-tuning-f16"
-    model_path = os.path.join("/", model_name)
 elif V12:
     model_name = "arj-v0-2801-f16"
-    model_path = os.path.join("/", model_name)
 elif V11_2:
     model_name = "neo_ar_2_7B_v0_nost_tuning_quotes_dedup_f"
-    model_path = os.path.join("/", model_name)
 elif V11:
     model_name = "neo_ar_2_7B_v0_nost_tuning_f"
-    model_path = os.path.join("/", model_name)
 elif V10_1_torch:
     model_name = "torch__autoresponder_v10_1"
-    model_path = os.path.join("/", model_name)
 elif V10_1:
     model_name = "autoresponder_v10_1"
     model_path = os.path.join("models", model_name, "model-141.hdf5")
@@ -153,7 +150,14 @@ else:
     model_name = "autoresponder_v10"
     model_path = os.path.join("models", model_name, "model-135.hdf5")
 
-if V12_7:
+if not model_path:
+    model_path = os.path.join("/", model_name)
+
+if V12_8:
+    ckpt_select = "selector/v12_8/v1/"
+    ckpt_sentiment = "sentiment/v12_8/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_8/v1/"
+elif V12_7:
     ckpt_select = "selector/v12_7/v2/"
     ckpt_sentiment = "sentiment/v12_7/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_7/v1/"

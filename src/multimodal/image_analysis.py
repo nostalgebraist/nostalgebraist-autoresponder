@@ -593,6 +593,7 @@ class ImageAnalysisCache:
         path: str = "data/image_analysis_cache.pkl.gz", verbose=True
     ) -> "ImageAnalysisCache":
         cache = None
+        hash_to_url = dict()
         if os.path.exists(path):
             with open(path, "rb") as f:
                 data = pickle.load(f)

@@ -5,8 +5,8 @@ from datetime import datetime
 import numpy as np
 from scipy.special import softmax
 
-from autoresponder_static import DEFAULT_CSC, find_control_chars_forumlike
-from autoresponder_static_v8 import (
+from text_to_tumblr.classic.autoresponder_static import DEFAULT_CSC, find_control_chars_forumlike
+from text_to_tumblr.classic.autoresponder_static_v8 import (
     timestamp_to_v10_format,
     cut_to_final_exchange_forumlike,
 )

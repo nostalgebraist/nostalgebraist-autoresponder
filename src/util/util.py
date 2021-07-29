@@ -38,3 +38,7 @@ def render_call_stack():
         if valid:
             calling_names.append(name)
     return " --> ".join(calling_names)
+
+
+def chardec(enc, tokens):
+    return [enc.decode([t]) for t in tokens]

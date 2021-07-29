@@ -130,7 +130,7 @@ def split_forumlike_doc(doc: str, newline_postfix="\n"):
 
         decision_tag_segment, sep3, final_content = after2.partition(newline_postfix)
 
-        decision_segment, sep_dec_tag, tag_segment = decision_tag_segment.partition(
+        decision_segment, sep_dec_tag, tag_segment = decision_tag_segment.rpartition(
             " | "
         )
         sentiment_segment, sep_sent_sel, select_segment = decision_segment.partition(

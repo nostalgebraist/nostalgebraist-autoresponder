@@ -10,9 +10,9 @@ except FileNotFoundError:
 try:
     with open("data/nost_post_year_fracs.json", "r") as f:
         nost_post_years_to_fracs = json.load(f)
-    except FileNotFoundError:
-        nyear = len(nost_post_years_to_counts)
-        nost_post_years_to_fracs = {y: nost_post_years_to_counts[y] / nyear for y in nost_post_years_to_counts}
+except FileNotFoundError:
+    nyear = len(nost_post_years_to_counts)
+    nost_post_years_to_fracs = {y: nost_post_years_to_counts[y] / nyear for y in nost_post_years_to_counts}
 
 years = sorted(nost_post_years_to_counts.keys())
 year_counts = [nost_post_years_to_counts[year] for year in years]

@@ -13,18 +13,11 @@ import urllib3
 from PIL import Image
 from moviepy.editor import VideoFileClip
 
+from multimodal.image_analysis_static import IMAGE_DIR, ACCEPTABLE_IMAGE_EXTENSIONS, \
+    IMAGE_DELIMITER_WHITESPACED, AR_DETECT_TEXT_CONFIDENCE_THRESHOLD
 from util.error_handling import LogExceptionAndSkip
 
-IMAGE_DIR = "data/analysis_images/"
-
 rek = boto3.client("rekognition")
-
-ACCEPTABLE_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif"}
-
-AR_DETECT_TEXT_CONFIDENCE_THRESHOLD = 95
-
-IMAGE_DELIMITER = "======="
-IMAGE_DELIMITER_WHITESPACED = "\n=======\n"
 
 
 def xtn_from_headers(
@@ -467,7 +460,6 @@ class ImageAnalysisCache:
         r_pre = http.request("GET", url_, preload_content=False)
         nbytes_ = int(r_pre.headers.get("Content-Length", -1))
         r_pre.release_conn()
-
 
         if downsize_to is not None and nbytes_ > 0:
             try:

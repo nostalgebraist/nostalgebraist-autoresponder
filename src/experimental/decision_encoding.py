@@ -1,14 +1,9 @@
 import hashlib
-from datetime import datetime
 
 import numpy as np
 from scipy.special import softmax
 
-from tumblr_to_text.classic.autoresponder_static import DEFAULT_CSC
 from experimental.corpus_text_hacks import split_forumlike_doc
-
-now = datetime.now()
-orig_poster_regex = DEFAULT_CSC["ORIG_POST_CHAR_NAMED"].format(user_name="([^ ]*)")
 
 
 SELECTOR_CCHAR = "Viral"

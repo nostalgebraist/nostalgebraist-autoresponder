@@ -87,20 +87,20 @@ def run_autoreviewer_on_docs(docs, save_path="autoreviewer.json", ts=now, **kwar
 
 
 def run_selector_on_docs_local(
-    docs, save_path="selector.json", device="cuda:0", selector_est=None, ts=now, **kwargs
+    docs, save_path="selector.json", device="cuda:0", head_model=None, ts=now, **kwargs
 ):
-    if not selector_est:
+    if not head_model:
         import api_ml.ml_layer_torch
         import api_ml.ml_connector
         api_ml.ml_layer_torch.selector_est.model_.to(device)
         api_ml.ml_layer_torch.sentiment_est.model_.cpu()
         api_ml.ml_layer_torch.autoreviewer_est.model_.cpu()
-        selector_est = api_ml.ml_layer_torch.selector_est
+        head_model = api_ml.ml_layer_torch.selector_est
     else:
         import api_ml.ml_connector
 
     def monkeypatched_selector_do(method, *args, repeat_until_done_signal=False, **kwargs_):
-        out = getattr(selector_est, method)(*args, **kwargs_)
+        out = getattr(head_model, method)(*args, **kwargs_)
         return [{"result": out}]
 
     api_ml.ml_connector.selector_est.do = monkeypatched_selector_do
@@ -109,21 +109,21 @@ def run_selector_on_docs_local(
 
 
 def run_sentiment_on_docs_local(
-    docs, save_path="sentiment.json", device="cuda:0", sentiment_est=None, ts=now, **kwargs
+    docs, save_path="sentiment.json", device="cuda:0", head_model=None, ts=now, **kwargs
 ):
-    if not sentiment_est:
+    if not head_model:
         import api_ml.ml_connector
         import api_ml.ml_layer_torch
 
         api_ml.ml_layer_torch.sentiment_est.model_.to(device)
         api_ml.ml_layer_torch.selector_est.model_.cpu()
         api_ml.ml_layer_torch.autoreviewer_est.model_.cpu()
-        sentiment_est = api_ml.ml_layer_torch.sentiment_est
+        head_model = api_ml.ml_layer_torch.sentiment_est
     else:
         import api_ml.ml_connector
 
     def monkeypatched_sentiment_do(method, *args, repeat_until_done_signal=False, **kwargs_):
-        out = getattr(sentiment_est, method)(*args, **kwargs_)
+        out = getattr(head_model, method)(*args, **kwargs_)
         return [{"result": out}]
 
     api_ml.ml_connector.sentiment_est.do = monkeypatched_sentiment_do
@@ -132,23 +132,33 @@ def run_sentiment_on_docs_local(
 
 
 def run_autoreviewer_on_docs_local(
-    docs, save_path="autoreviewer.json", device="cuda:0", autoreviewer_est=None, ts=now, **kwargs
+    docs, save_path="autoreviewer.json", device="cuda:0", head_model=None, ts=now, **kwargs
 ):
-     if not autoreviewer_est:
+     if not head_model:
          import api_ml.ml_connector
          import api_ml.ml_layer_torch
 
          api_ml.ml_layer_torch.autoreviewer_est.model_.to(device)
          api_ml.ml_layer_torch.selector_est.model_.cpu()
          api_ml.ml_layer_torch.sentiment_est.model_.cpu()
-         autoreviewer_est = api_ml.ml_layer_torch.autoreviewer_est
+         head_model = api_ml.ml_layer_torch.autoreviewer_est
      else:
          import api_ml.ml_connector
 
-     def monkeypatched_sentiment_do(method, *args, repeat_until_done_signal=False, **kwargs_):
-         out = getattr(autoreviewer_est, method)(*args, **kwargs_)
+     def monkeypatched_autoreview_do(method, *args, repeat_until_done_signal=False, **kwargs_):
+         out = getattr(head_model, method)(*args, **kwargs_)
          return [{"result": out}]
 
-     api_ml.ml_connector.sentiment_est.do = monkeypatched_sentiment_do
+     api_ml.ml_connector.autoreviewer_est.do = monkeypatched_autoreview_do
 
      return run_autoreviewer_on_docs(docs, save_path=save_path, ts=ts, **kwargs)
+
+
+def _run_head_single_doc_local(doc, run_fn, head_model=None):
+    raw = run_fn([doc], head_model=head_model, suppress_tqdm=True, batch_size=1)
+    return list(raw.values())[0]
+
+
+run_selector_local = partial(_run_head_single_doc_local, run_fn=run_selector_on_docs_local)
+run_sentiment_local = partial(_run_head_single_doc_local, run_fn=run_sentiment_on_docs_local)
+run_autoreviewer_local = partial(_run_head_single_doc_local, run_fn=run_autoreviewer_on_docs_local)

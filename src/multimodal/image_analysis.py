@@ -14,7 +14,7 @@ from PIL import Image
 from moviepy.editor import VideoFileClip
 
 from multimodal.image_analysis_static import IMAGE_DIR, ACCEPTABLE_IMAGE_EXTENSIONS, \
-    IMAGE_DELIMITER_WHITESPACED, AR_DETECT_TEXT_CONFIDENCE_THRESHOLD
+    IMAGE_DELIMITER_WHITESPACED, AR_DETECT_TEXT_CONFIDENCE_THRESHOLD, PRE_V9_IMAGE_FORMATTER, V9_IMAGE_FORMATTER
 from util.error_handling import LogExceptionAndSkip
 
 rek = boto3.client("rekognition")
@@ -403,14 +403,6 @@ def collect_text(results: List[dict], deduplicate=True, return_raw=False) -> str
             raw.append(d)
         return collected_text, raw
     return "\n".join(lines)
-
-
-def PRE_V9_IMAGE_FORMATTER(image_text):
-    return "\n" + image_text + "\n"
-
-
-def V9_IMAGE_FORMATTER(image_text):
-    return "\n" + IMAGE_DELIMITER_WHITESPACED + image_text + IMAGE_DELIMITER_WHITESPACED
 
 
 def format_extracted_text(image_text, image_formatter=V9_IMAGE_FORMATTER, verbose=False):

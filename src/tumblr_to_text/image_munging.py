@@ -1,6 +1,6 @@
 import re
 
-from multimodal.image_analysis import (
+from multimodal.image_analysis_static import (
     V9_IMAGE_FORMATTER,
     IMAGE_DIR,
     IMAGE_DELIMITER,

@@ -69,12 +69,16 @@ def cut_to_n_most_recent_by_user_forumlike(to_cut, n, user_name="nostalgebraist-
     cchars_reversed = find_control_chars_forumlike(to_cut)[::-1]
 
     n_by_user = 0
-    for i, cchar in enumerate(cchars_reversed):
+    for i, (cchar, ix) in enumerate(cchars_reversed):
         segs = cchar.split(" ")
         cchar_uname = segs[1] if cchar.startswith("#") else segs[0]
 
         if cchar_uname == user_name:
             n_by_user += 1
+
+        if verbose:
+            print(f"cchar {repr(cchar)} --> cchar_uname {repr(cchar_uname)}, vs {repr(user_name)}")
+            print(f"n_by_user: {n_by_user}")
 
         if n_by_user >= n:
             break
@@ -220,10 +224,19 @@ def prep_for_selector(doc: str, ts: datetime = now):
     doc = patch_time_in_forumlike_doc(doc, ts=ts)
     doc = cut_to_final_exchange_forumlike(
         doc
-    )  # imitates selector_cut_to_final_exchange
+    )
     return doc
 
 
 def prep_for_sentiment(doc: str):
     segs = split_forumlike_doc(doc)
     return segs[-1]
+
+
+def prep_for_autoreviewer(doc: str, ts: datetime = now):
+    doc = simulate_frank_as_final_poster(doc)
+    doc = patch_time_in_forumlike_doc(doc, ts=ts)
+    doc = cut_to_n_most_recent_by_user_forumlike(
+        doc, n=2
+    )
+    return doc

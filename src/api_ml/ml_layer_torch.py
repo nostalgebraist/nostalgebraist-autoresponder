@@ -15,6 +15,13 @@ from ml.load_gptj import load_gpt_j_split_ckpt
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
+from config.bot_config import BotSpecificConstants
+
+bot_specific_constants = BotSpecificConstants.load()
+bridge_service_port = bot_specific_constants.bridge_service_port
+BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
+
+
 # TODO: move this over later
 drivedir = "/content/drive/MyDrive/gpt_neo/"
 os.chdir("/")

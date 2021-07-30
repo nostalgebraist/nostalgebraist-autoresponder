@@ -27,6 +27,14 @@ V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 
 V12_7 = True  # XXXX
 V12_8 = True  # XXXX
 
+
+BUCKET_NAME = ""
+if not V12_7:
+    # before switch to HF CDN
+    bot_specific_constants = BotSpecificConstants.load()
+    BUCKET_NAME = bot_specific_constants.BUCKET_NAME
+
+
 USE_AUTOREVIEWER = True
 
 LOGGING_FLAGS = {
@@ -96,11 +104,6 @@ else:
         "accept_below": 0.145,  # v10_1/v11: predict true accept rate: ~40%, false accept rate ~6.7%
         "reject_above": 0.541,  # v10_1/v11: predict true reject rate: ~49%, false reject rate ~6%
     }
-
-bot_specific_constants = BotSpecificConstants.load()
-BUCKET_NAME = bot_specific_constants.BUCKET_NAME
-BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
-bridge_service_port = bot_specific_constants.bridge_service_port
 
 startdir = os.getcwd()
 os.chdir("/")

@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 from textwrap import wrap
 
-from multimodal.image_analysis import IMAGE_DELIMITER_WHITESPACED
+from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED
 
 from config.autoresponder_config import LOGGING_FLAGS
 from tumblr_to_text.classic.autoresponder_static import EOT

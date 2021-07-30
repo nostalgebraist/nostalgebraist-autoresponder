@@ -8,7 +8,7 @@ from wcwidth import wcwidth
 
 from tumblr_to_text.classic.autoresponder_static import ORIG_POST_CHAR_CHINESE, EOT
 
-from multimodal.image_analysis import IMAGE_DELIMITER
+from multimodal.image_analysis_static import IMAGE_DELIMITER
 
 from api_tumblr.tumblr_parsing import TumblrThread
 

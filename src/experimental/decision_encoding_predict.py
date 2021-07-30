@@ -50,7 +50,7 @@ def run_model_on_docs(
     return results
 
 
-def run_selector_on_docs(docs, save_path="selector.json", batch_size=8, recompute_existing=False, ts=now):
+def run_selector_on_docs(docs, save_path="selector.json", ts=now, **kwargs):
     import api_ml.ml_connector
 
     return run_model_on_docs(
@@ -58,12 +58,11 @@ def run_selector_on_docs(docs, save_path="selector.json", batch_size=8, recomput
         prep_fn=partial(prep_for_selector, ts=ts),
         predict_fn=api_ml.ml_connector.selection_proba_from_gpt,
         save_path=save_path,
-        batch_size=batch_size,
-        recompute_existing=recompute_existing
+        **kwargs
     )
 
 
-def run_sentiment_on_docs(docs, save_path="sentiment.json", batch_size=8, recompute_existing=False, ts=now):
+def run_sentiment_on_docs(docs, save_path="sentiment.json", ts=now, **kwargs):
     import api_ml.ml_connector
 
     return run_model_on_docs(
@@ -71,12 +70,11 @@ def run_sentiment_on_docs(docs, save_path="sentiment.json", batch_size=8, recomp
         prep_fn=partial(prep_for_sentiment, ts=ts),
         predict_fn=api_ml.ml_connector.sentiment_logit_diffs_from_gpt,
         save_path=save_path,
-        batch_size=batch_size,
-        recompute_existing=recompute_existing
+        **kwargs,
     )
 
 
-def run_autoreviewer_on_docs(docs, save_path="autoreviewer.json", batch_size=8, recompute_existing=False, ts=now):
+def run_autoreviewer_on_docs(docs, save_path="autoreviewer.json", ts=now, **kwargs):
     import api_ml.ml_connector
 
     return run_model_on_docs(
@@ -84,13 +82,12 @@ def run_autoreviewer_on_docs(docs, save_path="autoreviewer.json", batch_size=8, 
         prep_fn=partial(prep_for_autoreviewer, ts=ts),
         predict_fn=api_ml.ml_connector.autoreview_proba_from_gpt,
         save_path=save_path,
-        batch_size=batch_size,
-        recompute_existing=recompute_existing
+        **kwargs
     )
 
 
 def run_selector_on_docs_local(
-    docs, save_path="selector.json", batch_size=8, recompute_existing=False, device="cuda:0", selector_est=None, ts=now
+    docs, save_path="selector.json", device="cuda:0", selector_est=None, ts=now, **kwargs
 ):
     if not selector_est:
         import api_ml.ml_layer_torch
@@ -102,18 +99,17 @@ def run_selector_on_docs_local(
     else:
         import api_ml.ml_connector
 
-    def monkeypatched_selector_do(method, *args, repeat_until_done_signal=False, **kwargs):
-        out = getattr(selector_est, method)(*args, **kwargs)
+    def monkeypatched_selector_do(method, *args, repeat_until_done_signal=False, **kwargs_):
+        out = getattr(selector_est, method)(*args, **kwargs_)
         return [{"result": out}]
 
     api_ml.ml_connector.selector_est.do = monkeypatched_selector_do
 
-    return run_selector_on_docs(docs, save_path=save_path, batch_size=batch_size, recompute_existing=recompute_existing,
-                                ts=ts)
+    return run_selector_on_docs(docs, save_path=save_path, ts=ts, **kwargs)
 
 
 def run_sentiment_on_docs_local(
-    docs, save_path="sentiment.json", batch_size=8, recompute_existing=False, device="cuda:0", sentiment_est=None, ts=now
+    docs, save_path="sentiment.json", device="cuda:0", sentiment_est=None, ts=now, **kwargs
 ):
     if not sentiment_est:
         import api_ml.ml_connector
@@ -126,20 +122,18 @@ def run_sentiment_on_docs_local(
     else:
         import api_ml.ml_connector
 
-    def monkeypatched_sentiment_do(method, *args, repeat_until_done_signal=False, **kwargs):
-        out = getattr(sentiment_est, method)(*args, **kwargs)
+    def monkeypatched_sentiment_do(method, *args, repeat_until_done_signal=False, **kwargs_):
+        out = getattr(sentiment_est, method)(*args, **kwargs_)
         return [{"result": out}]
 
     api_ml.ml_connector.sentiment_est.do = monkeypatched_sentiment_do
 
-    return run_sentiment_on_docs(docs, save_path=save_path, batch_size=batch_size, recompute_existing=recompute_existing,
-                                 ts=ts)
+    return run_sentiment_on_docs(docs, save_path=save_path, ts=ts, **kwargs)
 
 
 def run_autoreviewer_on_docs_local(
-    docs, save_path="autoreviewer.json", batch_size=8, recompute_existing=False, device="cuda:0",
-    autoreviewer_est=None, ts=now
- ):
+    docs, save_path="autoreviewer.json", device="cuda:0", autoreviewer_est=None, ts=now, **kwargs
+):
      if not autoreviewer_est:
          import api_ml.ml_connector
          import api_ml.ml_layer_torch
@@ -151,12 +145,10 @@ def run_autoreviewer_on_docs_local(
      else:
          import api_ml.ml_connector
 
-     def monkeypatched_sentiment_do(method, *args, repeat_until_done_signal=False, **kwargs):
-         out = getattr(autoreviewer_est, method)(*args, **kwargs)
+     def monkeypatched_sentiment_do(method, *args, repeat_until_done_signal=False, **kwargs_):
+         out = getattr(autoreviewer_est, method)(*args, **kwargs_)
          return [{"result": out}]
 
      api_ml.ml_connector.sentiment_est.do = monkeypatched_sentiment_do
 
-     return run_autoreviewer_on_docs(docs, save_path=save_path, batch_size=batch_size,
-                                     recompute_existing=recompute_existing,
-                                     ts=ts)
+     return run_autoreviewer_on_docs(docs, save_path=save_path, ts=ts, **kwargs)

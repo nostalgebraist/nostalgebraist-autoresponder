@@ -34,8 +34,15 @@ def logit_diff_to_allen_schema(logit_diff: float):
 
 
 def load_logit_diff_sample():
-    with open("data/logit_diff_sample.pkl.gz", "rb") as f:
-        logit_diff_sample = pickle.load(f)
+    try:
+        with open("data/logit_diff_sample.pkl.gz", "rb") as f:
+            logit_diff_sample = pickle.load(f)
+    except FileNotFoundError:
+        logit_diff_sample = [
+            -4.055, -0.483, -5.576, -2.096, -5.473, -2.132, -1.503, -5.712, 2.182,
+            -1.419, -2.548, -2.114, 0.071, -3.568, -1.11, 0.379, -1.584, -0.045,
+            -9.21, -2.885, -9.21, 9.807
+        ]
     return pd.Series(logit_diff_sample)
 
 

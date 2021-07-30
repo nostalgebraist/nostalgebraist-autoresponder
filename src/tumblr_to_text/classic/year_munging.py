@@ -1,11 +1,18 @@
 import json
 import numpy as np
 
-with open("data/nost_post_year_counts.json", "r") as f:
-    nost_post_years_to_counts = json.load(f)
+try:
+    with open("data/nost_post_year_counts.json", "r") as f:
+        nost_post_years_to_counts = json.load(f)
+except FileNotFoundError:
+    nost_post_years_to_counts = {y: 1 for y in range(2012, 2022)}
 
-with open("data/nost_post_year_fracs.json", "r") as f:
-    nost_post_years_to_fracs = json.load(f)
+try:
+    with open("data/nost_post_year_fracs.json", "r") as f:
+        nost_post_years_to_fracs = json.load(f)
+    except FileNotFoundError:
+        nyear = len(nost_post_years_to_counts)
+        nost_post_years_to_fracs = {y: nost_post_years_to_counts[y] / nyear for y in nost_post_years_to_counts}
 
 years = sorted(nost_post_years_to_counts.keys())
 year_counts = [nost_post_years_to_counts[year] for year in years]

@@ -2,7 +2,8 @@ from config.bot_config import BotSpecificConstants
 
 
 def get_me_clients(npf=True, include_private=True, include_dashboard=True):
-    bot_specific_constants = BotSpecificConstants.load()
+    import config.bot_config_singleton
+    bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 
     clients = []
     if include_private:

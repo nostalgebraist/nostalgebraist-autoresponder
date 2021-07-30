@@ -12,8 +12,9 @@ from corpus.frank_and_me import apply_nost_identity_ouroboros
 
 from util.error_handling import LogExceptionAndSkip
 
-from config.bot_config import BotSpecificConstants
-NO_SCRAPE_USERS = BotSpecificConstants.load().NO_SCRAPE_USERS
+import config.bot_config_singleton
+bot_specific_constants = config.bot_config_singleton.bot_specific_constants
+NO_SCRAPE_USERS = bot_specific_constants.NO_SCRAPE_USERS
 
 
 def handle_no_commentary_and_populate_tags(thread: TumblrThread,

@@ -15,9 +15,9 @@ from ml.load_gptj import load_gpt_j_split_ckpt
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
-from config.bot_config import BotSpecificConstants
+import config.bot_config_singleton
+bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 
-bot_specific_constants = BotSpecificConstants.load()
 bridge_service_port = bot_specific_constants.bridge_service_port
 BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 

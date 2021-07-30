@@ -2,9 +2,8 @@ import time
 import hashlib
 import requests
 
-from config.bot_config import BotSpecificConstants
-
-bot_specific_constants = BotSpecificConstants.load()
+import config.bot_config_singleton
+bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 
 bridge_service_url = bot_specific_constants.bridge_service_url
 

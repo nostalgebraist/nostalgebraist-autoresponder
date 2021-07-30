@@ -16,8 +16,9 @@ from api_tumblr.paging import fetch_posts
 
 import multimodal.image_analysis_singleton
 
-from config.bot_config import BotSpecificConstants
-bot_name = BotSpecificConstants.load().blogName
+import config.bot_config_singleton
+bot_specific_constants = config.bot_config_singleton.bot_specific_constants
+bot_name = bot_specific_constants.blogName
 
 UNUSED_TYPES = {"mood", "review", "manual"}
 

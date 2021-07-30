@@ -15,9 +15,9 @@ import time
 import os
 import pickle
 
-from config.bot_config import BotSpecificConstants
+import config.bot_config_singleton
+bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 
-bot_specific_constants = BotSpecificConstants.load()
 NO_REBLOG_IDS = bot_specific_constants.NO_REBLOG_IDS
 blogName = bot_specific_constants.blogName
 

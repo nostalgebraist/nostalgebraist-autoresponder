@@ -4,9 +4,9 @@ tumblr API compontents.
 """
 from flask import Flask, request, jsonify
 
-from config.bot_config import BotSpecificConstants
+import config.bot_config_singleton
+bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 
-bot_specific_constants = BotSpecificConstants.load()
 bridge_service_port = bot_specific_constants.bridge_service_port
 bridge_service_url = bot_specific_constants.bridge_service_url
 

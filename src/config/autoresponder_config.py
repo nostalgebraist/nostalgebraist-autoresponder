@@ -2,7 +2,6 @@
 # TODO: refactor this terrible, terrible file
 import subprocess
 
-from config.bot_config import BotSpecificConstants
 from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 V8 = True
@@ -31,7 +30,8 @@ V12_8 = True  # XXXX
 BUCKET_NAME = ""
 if not V12_7:
     # before switch to HF CDN
-    bot_specific_constants = BotSpecificConstants.load()
+    import config.bot_config_singleton
+    bot_specific_constants = config.bot_config_singleton.bot_specific_constants
     BUCKET_NAME = bot_specific_constants.BUCKET_NAME
 
 

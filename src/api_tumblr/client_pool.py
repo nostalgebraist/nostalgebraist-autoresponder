@@ -2,8 +2,9 @@ from pprint import pprint
 
 from util.clients import get_me_clients
 
-from config.bot_config import BotSpecificConstants
-bot_name = BotSpecificConstants.load().blogName
+import config.bot_config_singleton
+bot_specific_constants = config.bot_config_singleton.bot_specific_constants
+bot_name = bot_specific_constants.blogName
 
 
 # TODO: DRY (centralize client managers)

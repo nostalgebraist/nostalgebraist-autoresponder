@@ -95,7 +95,8 @@ EFFECTIVE_SLEEP_TIME = (
 )
 
 # load a bunch of stuff from json into global namespace -- for a long time this stuff was hardcoded in this file, prefer in json for public release
-bot_specific_constants = BotSpecificConstants.load()
+import config.bot_config_singleton
+bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 
 REBLOG_START_TS = bot_specific_constants.REBLOG_START_TS
 DASH_START_TS = bot_specific_constants.DASH_START_TS

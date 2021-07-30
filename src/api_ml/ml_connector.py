@@ -17,6 +17,7 @@ from feels.mood import get_mood_by_name, load_logit_diff_sample, estimate_expect
 from api_ml.selector import serve_selection
 
 from api_ml import bridge_cache_singleton
+from api_ml.bridge_shared import get_bridge_service_url
 
 from util.error_handling import LogExceptionAndSkip
 
@@ -49,7 +50,7 @@ class MLModelInterface:
         raise NotImplementedError
 
     def do(self, method, *args, repeat_until_done_signal=False, uses_bridge_cache=False, **kwargs):
-        from api_ml.bridge_shared import bridge_service_url
+        bridge_service_url = get_bridge_service_url()
         data = {
             "model": self.name,
             "method": method,
@@ -199,7 +200,7 @@ def basic_n_continuations(
     mirotarg=None,
     verbose=False,
 ):
-    from api_ml.bridge_shared import bridge_service_url
+    bridge_service_url = get_bridge_service_url()
 
     continuation_side_data = []
 

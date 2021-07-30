@@ -15,12 +15,6 @@ from feels.mood import logit_diff_to_allen_schema
 
 from tumblr_to_text.nwo_munging import make_nwo_textpost_prompts
 
-import config.bot_config_singleton
-bot_specific_constants = config.bot_config_singleton.bot_specific_constants
-
-selector_url = bot_specific_constants.bridge_service_url + "/pollselector"
-generator_url = bot_specific_constants.bridge_service_url + "/pollgenerator"
-
 RESULT_STACK = {}
 
 RETENTION_CUTOFF = 0.75

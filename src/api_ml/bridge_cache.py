@@ -5,7 +5,7 @@ from typing import Tuple, NamedTuple
 
 import requests
 
-from api_ml.bridge_shared import bridge_service_unique_id, bridge_service_url
+from api_ml.bridge_shared import bridge_service_unique_id, get_bridge_service_url
 from config.autoresponder_config import (
     model_name,
     ckpt_select,
@@ -29,7 +29,7 @@ BridgeCacheKey = NamedTuple(
 
 
 def make_bridge_cache_key(data: dict) -> BridgeCacheKey:
-    bridge_id = bridge_service_unique_id(bridge_service_url, data)
+    bridge_id = bridge_service_unique_id(get_bridge_service_url(), data)
     return BridgeCacheKey(bridge_id=bridge_id, model_versions=LATEST_MODEL_VERSIONS)
 
 
@@ -82,16 +82,16 @@ class BridgeCache:
         data_to_send.update(data)
         data_to_send["id"] = bridge_id
 
-        requests.post(bridge_service_url + "/requestml", json=data_to_send)
+        requests.post(get_bridge_service_url() + "/requestml", json=data_to_send)
 
         response_data = []
         while len(response_data) == 0:
             time.sleep(1)
             response_data = requests.post(
-                bridge_service_url + "/getresult", data={"id": bridge_id}
+                get_bridge_service_url() + "/getresult", data={"id": bridge_id}
             ).json()
 
-        requests.post(bridge_service_url + "/done", json={"id": bridge_id})
+        requests.post(get_bridge_service_url() + "/done", json={"id": bridge_id})
         return response_data
 
     def remove_oldest(self, max_hours=2, dryrun=False):

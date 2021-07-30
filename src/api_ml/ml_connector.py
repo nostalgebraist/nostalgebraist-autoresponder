@@ -12,7 +12,7 @@ import pandas as pd
 from config.autoresponder_config import *
 from tumblr_to_text.classic.autoresponder_static_v8 import *
 
-from api_ml.bridge_shared import bridge_service_unique_id, bridge_service_url
+from api_ml.bridge_shared import bridge_service_unique_id
 from feels.mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections, logit_diff_to_pos_sent
 from api_ml.selector import serve_selection
 
@@ -49,6 +49,7 @@ class MLModelInterface:
         raise NotImplementedError
 
     def do(self, method, *args, repeat_until_done_signal=False, uses_bridge_cache=False, **kwargs):
+        from api_ml.bridge_shared import bridge_service_url
         data = {
             "model": self.name,
             "method": method,
@@ -198,6 +199,8 @@ def basic_n_continuations(
     mirotarg=None,
     verbose=False,
 ):
+    from api_ml.bridge_shared import bridge_service_url
+
     continuation_side_data = []
 
     if random_prompts is not None and random_prompts_probs is not None:

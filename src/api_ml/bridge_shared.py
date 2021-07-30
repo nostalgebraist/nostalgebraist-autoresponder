@@ -2,11 +2,6 @@ import time
 import hashlib
 import requests
 
-import config.bot_config_singleton
-bot_specific_constants = config.bot_config_singleton.bot_specific_constants
-
-bridge_service_url = bot_specific_constants.bridge_service_url
-
 
 def bridge_service_unique_id(url, data):
     unique_string = url + str({k: data[k] for k in sorted(data.keys())})
@@ -15,6 +10,10 @@ def bridge_service_unique_id(url, data):
 
 
 def wait_for_result(new_id, wait_first_time=40, wait_recheck_time=5):
+    import config.bot_config_singleton
+    bot_specific_constants = config.bot_config_singleton.bot_specific_constants
+    bridge_service_url = bot_specific_constants.bridge_service_url
+
     print("waiting for result", end="... ")
     started_waiting_ts = time.time()
     data = {"id": new_id}
@@ -36,4 +35,8 @@ def wait_for_result(new_id, wait_first_time=40, wait_recheck_time=5):
 
 
 def send_alldone():
+    import config.bot_config_singleton
+    bot_specific_constants = config.bot_config_singleton.bot_specific_constants
+    bridge_service_url = bot_specific_constants.bridge_service_url
+
     requests.post(bridge_service_url + "/alldone")

@@ -445,19 +445,6 @@ else:
     first_step_chop_lowest = chop_lowest
     first_step_chop_highest = chop_highest
 
-print((MIRO, length, temperature, top_p, middle_p, chop_lowest, chop_highest))
-print(
-    (
-        first_step_mirostat,
-        first_step_length,
-        first_step_temperature,
-        first_step_top_p,
-        first_step_middle_p,
-        first_step_chop_lowest,
-        first_step_chop_highest,
-    )
-)
-
 max_ctx_fits_on_gpu = 2048 if V11 else 1024
 
 if SELECT_VIA_GENERATOR_LONGLENGTH:

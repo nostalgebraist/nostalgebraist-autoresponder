@@ -21,14 +21,14 @@ now = datetime.now()  # ensures same value in long-running jobs
 orig_poster_regex = DEFAULT_CSC["ORIG_POST_CHAR_NAMED"].format(user_name="([^ ]*)")
 
 
-def cut_to_final_exchange_forumlike(to_cut, newline_postfix="\n", verbose=False):
+def _cut_forumlike(to_cut, n_cchars_retained, newline_postfix="\n", verbose=False):
     cchars = find_control_chars_forumlike(to_cut)
-    if len(cchars) < 2:
+    if len(cchars) < n_cchars_retained:
         if verbose:
             print(f"not cutting: only found cchars {cchars}")
         return to_cut
 
-    cut_ix = cchars[-2][1]
+    cut_ix = cchars[-n_cchars_retained][1]
     if verbose:
         print(f"cutting at {cut_ix}")
     after_cut = to_cut[cut_ix:]
@@ -59,6 +59,28 @@ def cut_to_final_exchange_forumlike(to_cut, newline_postfix="\n", verbose=False)
     )
 
     return prefix + after_re_enumerate
+
+
+def cut_to_final_exchange_forumlike(to_cut, verbose=False):
+    return _cut_forumlike(to_cut, n_cchars_retained=2, newline_postfix="\n", verbose=verbose)
+
+
+def cut_to_n_most_recent_by_user_forumlike(to_cut, n, user_name="nostalgebraist-autoresponder", verbose=False):
+    cchars_reversed = find_control_chars_forumlike(to_cut)[::-1]
+
+    n_by_user = 0
+    for i, cchar in enumerate(cchars_reversed):
+        segs = cchar.split(" ")
+        cchar_uname = segs[1] if cchar.startswith("#") else segs[0]
+
+        if cchar_uname == user_name:
+            n_by_user += 1
+
+        if n_by_user >= n:
+            break
+
+    n_cchars_retained = i + 1  # because it starts at zero
+    return _cut_forumlike(to_cut, n_cchars_retained=n_cchars_retained, newline_postfix="\n", verbose=verbose)
 
 
 def get_orig_poster_name_if_present(doc: str):

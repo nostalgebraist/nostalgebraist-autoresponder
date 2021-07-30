@@ -13,8 +13,6 @@ from config.autoresponder_config import LOGGING_FLAGS
 from tumblr_to_text.classic.autoresponder_static import EOT
 from feels.mood import logit_diff_to_allen_schema
 
-from tumblr_to_text.nwo_munging import make_nwo_textpost_prompts
-
 RESULT_STACK = {}
 
 RETENTION_CUTOFF = 0.75
@@ -426,6 +424,7 @@ def get_retention_stack_judgments(retention_stack,
         sentiment_logit_diffs_from_gpt,
         autoreview_proba_from_gpt,
     )
+    from tumblr_to_text.nwo_munging import make_nwo_textpost_prompts
 
     if timestamp is None:
         timestamp = datetime.now()

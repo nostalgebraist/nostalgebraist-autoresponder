@@ -3,7 +3,7 @@ import random
 import argparse
 import os
 
-from tumblr_to_text.classic.autoresponder_static import EOT
+from tumblr_to_text.classic.autoresponder_static import EOT, find_control_chars_forumlike
 
 from api_tumblr.tumblr_parsing import TumblrThread
 from api_tumblr.client_pool import ClientPool
@@ -92,15 +92,37 @@ def _train_val_split(docs, val_frac=0.03):
     return train_docs, val_docs
 
 
-def dedup_join_save(include_corpus_extensions=False, val_frac=0.03):
+def _exclude_nbar(docs, name):
+    nbefore = len(docs)
+    docs = {d for d in docs
+            if not any(" nostalgebraist-autoresponder" in cc[0] for cc in find_control_chars_forumlike(d))
+            }
+    n = len(docs)
+
+    if n != nbefore:
+        diff = nbefore - n
+        print(f"exclude_nbar: {diff} / {nbefore} ({diff/nbefore:.0%}) removed from {name}")
+    return docs
+
+
+def dedup_join_save(include_corpus_extensions=False, exclude_nbar=False, val_frac=0.03):
     with open("data/dash_post_dump_nost.txt", "r", encoding="utf-8") as f:
         ds1 = f.read()
+
+    docs = {d for d in ds1.split(EOT) if len(d) > 0}
+
+    if exclude_nbar:
+        docs = _exclude_nbar(docs, "dash_post_dump_nost")
 
     with open("data/dash_post_dump_frank.txt", "r", encoding="utf-8") as f:
         ds2 = f.read()
 
-    docs = {d for d in ds1.split(EOT) if len(d) > 0}
-    docs.update({d for d in ds2.split(EOT) if len(d) > 0})
+    docs2 = {d for d in ds2.split(EOT) if len(d) > 0}
+
+    if exclude_nbar:
+        docs2 = _exclude_nbar(docs2, "dash_post_dump_frank")
+
+    docs.update(docs2)
 
     if include_corpus_extensions:
         for fn in os.listdir("data/corpus_nwo_extensions/"):
@@ -109,7 +131,13 @@ def dedup_join_save(include_corpus_extensions=False, val_frac=0.03):
             fp = "data/corpus_nwo_extensions/" + fn
             with open(fp, "r", encoding="utf-8") as f:
                 ds_xtn = f.read()
-            docs.update({d for d in ds_xtn.split(EOT) if len(d) > 0})
+
+            docs_fp = {d for d in ds_xtn.split(EOT) if len(d) > 0}
+
+            if exclude_nbar and "nostalgebraist" not in fn:
+                docs_fp = _exclude_nbar(docs_fp, fn)
+
+            docs.update(docs_fp)
 
     ds_out = EOT.join(docs)
 
@@ -133,6 +161,8 @@ def dedup_join_save(include_corpus_extensions=False, val_frac=0.03):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--include-corpus-extensions", action="store_true")
+    parser.add_argument("--exclude-nbar", action="store_true")
     args = parser.parse_args()
 
-    dedup_join_save(include_corpus_extensions=args.include_corpus_extensions)
+    dedup_join_save(include_corpus_extensions=args.include_corpus_extensions,
+                    exclude_nbar=args.exclude_nbar)

@@ -132,7 +132,7 @@ model_path = None
 if V12_9:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
     model_name = "arj-x3-alldata-4385"
-if V12_8:
+elif V12_8:
     model_name = "arj-x2-tw-repack-alldata-3801"
 elif V12_7:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"

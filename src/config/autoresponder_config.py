@@ -25,7 +25,7 @@ V12_5 = True  # many incremental improvements to gpt-j lr / dataset / etc + fixe
 V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 + batch size 32
 V12_7 = True  # XXXX
 V12_8 = True  # XXXX
-V12_9 = False  # XXXX
+V12_9 = True  # XXXX
 
 
 BUCKET_NAME = ""

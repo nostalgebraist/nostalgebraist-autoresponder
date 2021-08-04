@@ -25,7 +25,7 @@ V12_5 = True  # many incremental improvements to gpt-j lr / dataset / etc + fixe
 V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 + batch size 32
 V12_7 = True  # XXXX
 V12_8 = True  # XXXX
-V12_9 = True  # XXXX
+V12_9 = False  # XXXX
 
 
 BUCKET_NAME = ""
@@ -44,7 +44,7 @@ LOGGING_FLAGS = {
 }
 
 
-if v12_9:
+if V12_9:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.146,  # v12_9/v1: predict true accept rate: ~38%, false accept rate ~6.7%
         "reject_above": 0.587,  # v12_9/v1: predict true reject rate: ~46%, false reject rate ~6%

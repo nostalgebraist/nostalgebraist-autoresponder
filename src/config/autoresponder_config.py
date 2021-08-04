@@ -25,6 +25,7 @@ V12_5 = True  # many incremental improvements to gpt-j lr / dataset / etc + fixe
 V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 + batch size 32
 V12_7 = True  # XXXX
 V12_8 = True  # XXXX
+V12_9 = True  # XXXX
 
 
 BUCKET_NAME = ""
@@ -43,7 +44,12 @@ LOGGING_FLAGS = {
 }
 
 
-if V12_8:
+if v12_9:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.000,  # v12_9/v1: predict true accept rate: ~XX%, false accept rate ~6.7%
+        "reject_above": 0.000,  # v12_9/v1: predict true reject rate: ~XX%, false reject rate ~6%
+    }
+elif V12_8:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.128,  # v12_8/v1: predict true accept rate: ~29%, false accept rate ~6.7%
         "reject_above": 0.579,  # v12_8/v1: predict true reject rate: ~43%, false reject rate ~6%
@@ -123,6 +129,9 @@ RANDOM_SAMPLING_PARAMS_ON_STARTUP = False
 HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
 model_path = None
 
+if V12_9:
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
+    model_name = "arj-x3-alldata-4385"
 if V12_8:
     model_name = "arj-x2-tw-repack-alldata-3801"
 elif V12_7:
@@ -156,7 +165,11 @@ else:
 if not model_path:
     model_path = os.path.join("/", model_name)
 
-if V12_8:
+if V12_9:
+    ckpt_select = "selector/v12_9/v1/"
+    ckpt_sentiment = "sentiment/v12_9/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_9/v1/"
+elif V12_8:
     ckpt_select = "selector/v12_8/v1/"
     ckpt_sentiment = "sentiment/v12_8/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_8/v1/"

@@ -1,6 +1,7 @@
 import hashlib
 import random
-from collections import defaultdict
+import re
+from collections import defaultdict, Counter
 from functools import partial
 
 from tqdm.auto import tqdm as tqdm_base
@@ -8,28 +9,54 @@ tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
 
 from tumblr_to_text.classic.autoresponder_static import find_control_chars_forumlike, EOT
 
+quote_hell_regex = re.compile(r"<blockquote><a href=\"http://[^\.]+\.tumblr\.com/post/[^\"]+\">[^<]+</a>:")
+
 
 def remove_ignored_substrings(s):
-    return s.replace("\n", "").replace(" ", "").replace("</h2>", "")
+    s = re.sub(r"<h2>.*</h2>", "", s)
+    s = s.replace("\n", "").replace(" ", "")
+    s = re.sub(r"\<.*?\>", "", s)
+    return s
 
 
-def post_after_cc_is_empty(doc, ccs, i):
+def post_after_cc_is_empty(doc, ccs, i, verbose=False):
+    def vprint(*args, **kwargs):
+        if verbose:
+            print(*args, **kwargs)
     try:
         start_ix = ccs[i][1]
         start_ix += len(ccs[i][0])
         end_ix = ccs[i + 1][1]
         interior = doc[start_ix:end_ix]
+        vprint(f"\n\tinterior before replace:\n\t{repr(interior)}")
         interior = remove_ignored_substrings(interior)
+        vprint(f"\n\tchecking interior:\n\t{repr(interior)}")
         return len(interior) == 0
     except IndexError:
         return False  # end of list
 
 
-def extract_prefix(doc, verbose=False):
-    def vprint(*args, **kwargs):
-        if verbose:
-            print(*args, **kwargs)
+def diagnose_malformed(doc, verbose=False):
+    reasons = set()
 
+    if "<h2>" in doc:
+        # check first-post-is-only-title pattern
+        ccs = _get_ccs_with_fixes(doc)
+        if len(ccs) > 0:
+            start_ix = ccs[0][1]
+            end_ix = ccs[1][1] if len(ccs) > 1 else len(doc)
+            if "<h2>" in doc[start_ix:end_ix]:
+                if post_after_cc_is_empty(doc, ccs, 0):
+                    reasons.add("first-post-is-only-title pattern")
+
+    # check quote-hell pattern
+    for _ in quote_hell_regex.finditer(doc):
+        reasons.add("quote-hell pattern")
+
+    return reasons
+
+
+def _get_ccs_with_fixes(doc):
     extra_names = doc.split(" ")[1:2]
     if extra_names[0] == 'nostalgebraist-autoresponder':
         extra_names = []
@@ -40,27 +67,48 @@ def extract_prefix(doc, verbose=False):
     if ccs[0][0].startswith("#1 nostalgebraist-autoresponder posted"):
         if ccs[1][0].startswith(" nostalgebraist-autoresponder posted"):
             ccs.pop(1)
+    return ccs
 
+
+def extract_prefix(doc, include_username=False, verbose=False):
+    def vprint(*args, **kwargs):
+        if verbose:
+            print(*args, **kwargs)
+
+    vprint(f"include_username={include_username}")
+
+    ccs = _get_ccs_with_fixes(doc)
+
+    vprint("base ccs:")
     vprint(ccs)
 
     pre_content = ""
     if len(ccs) > 1 and "asked:" in ccs[0][0]:
-        pre_content = doc[ccs[0][1]:ccs[1][1]]
+        left = ccs[0][1] if include_username else ccs[0][1] + len(ccs[0][0].rstrip("\n"))
+        pre_content = doc[left:ccs[1][1]]
         ccs.pop(0)
 
-    while post_after_cc_is_empty(doc, ccs, 0):
-        pre_content += doc[ccs[0][1]:ccs[1][1]]
+    while post_after_cc_is_empty(doc, ccs, 0, verbose=verbose):
+        left = ccs[0][1] if include_username else ccs[0][1] + len(ccs[0][0].rstrip("\n"))
+        pre_content += doc[left:ccs[1][1]]
         ccs.pop(0)
 
+    vprint("\nccs after pop ask/empty:")
     vprint(ccs)
 
     if len(ccs) > 1:
-        prefix = doc[ccs[0][1]:ccs[1][1]]
+        left = ccs[0][1] if include_username else ccs[0][1] + len(ccs[0][0].rstrip("\n"))
+        prefix = doc[left:ccs[1][1]]
     else:
-        prefix = doc[ccs[0][1]:]
+        left = ccs[0][1] if include_username else ccs[0][1] + len(ccs[0][0].rstrip("\n"))
+        prefix = doc[left:]
         lines = prefix.splitlines()
+        vprint("\nlines:")
+        vprint(lines)
         lines.pop(2)
         prefix = "\n".join(lines)
+
+    vprint("\nbase prefix:")
     vprint(repr(prefix))
 
     if prefix.startswith("#"):
@@ -68,21 +116,22 @@ def extract_prefix(doc, verbose=False):
 
     prefix = pre_content + prefix
     prefix = remove_ignored_substrings(prefix)
+
     return prefix
 
 
-def map_docs(docs):
+def map_docs(docs, include_usernames=True):
     trails = defaultdict(set)
 
     for i, doc in tqdm(enumerate(docs), total=len(docs)):
-        prefix = extract_prefix(doc)
+        prefix = extract_prefix(doc, include_username=include_usernames)
         prefix_hash = hashlib.md5(prefix.encode("utf-8")).hexdigest()
         trails[prefix_hash].add(i)
 
     return trails
 
 
-def map_docs_multiple_groups(*doc_groups):
+def map_docs_multiple_groups(*doc_groups, include_usernames=True):
     docs = []
     doc_index_to_group_index = {}
 
@@ -95,7 +144,7 @@ def map_docs_multiple_groups(*doc_groups):
 
         doc_index_offset += len(g)
 
-    trails = map_docs(docs)
+    trails = map_docs(docs, include_usernames=include_usernames)
     return docs, trails, doc_index_to_group_index
 
 
@@ -114,7 +163,7 @@ def dedup_groups_trailwise(docs, trails, doc_index_to_group_index, random_seed=1
                            choose_longest=False,
                            prefer_longest=False,
                            prefer_longest_temp=1,
-                           include_longest_nost_if_applicable=False
+                           include_longest_nost_if_applicable=False,
                            ):
     from scipy.special import softmax
 
@@ -215,7 +264,7 @@ def show_trail(docs, trails, key):
         print('\n------\n')
 
 
-def load_trails_from_docs(paths):
+def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True):
     if isinstance(paths, str):
         paths = [paths]
 
@@ -224,11 +273,22 @@ def load_trails_from_docs(paths):
         with open(p, "r", encoding="utf-8") as f:
             ds = f.read()
         g = [d for d in ds.split(EOT) if len(d) > 0]
+        n_raw = len(g)
+        print(f"read group from file {p}: {n_raw} raw docs")
+
+        if exclude_malformed:
+            reasons = [diagnose_malformed(d) for d in g]
+            symptom_counts = Counter([r for rs in reasons for r in rs])
+            g = [d for d, r in zip(g, reasons) if r == set()]
+            n_excluded = n_raw - len(g)
+            print(f"read group from file {p}: removed {n_excluded} malformed docs")
+            print(f"reasons: {repr(symptom_counts)}")
+
+        print(f"read group from file {p}: {len(g)} docs")
         doc_groups.append(g)
-        print(f"read group from file: {len(g)} docs")
     print()
 
-    docs, trails, doc_index_to_group_index = map_docs_multiple_groups(*doc_groups)
+    docs, trails, doc_index_to_group_index = map_docs_multiple_groups(*doc_groups, include_usernames=include_usernames)
 
     nt = nontrivial_trails(trails)
 

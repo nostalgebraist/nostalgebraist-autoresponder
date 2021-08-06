@@ -26,6 +26,7 @@ V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 
 V12_7 = True  # XXXX
 V12_8 = True  # XXXX
 V12_9 = True  # XXXX
+V12_10 = True # XXXX
 
 
 BUCKET_NAME = ""
@@ -43,8 +44,12 @@ LOGGING_FLAGS = {
     "parse_continuation": False
 }
 
-
-if V12_9:
+if V12_10:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.141,  # v12_10/v1: predict true accept rate: ~35%, false accept rate ~6.7%
+        "reject_above": 0.622,  # v12_10/v1: predict true reject rate: ~47%, false reject rate ~6%
+    }
+elif V12_9:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.146,  # v12_9/v1: predict true accept rate: ~38%, false accept rate ~6.7%
         "reject_above": 0.587,  # v12_9/v1: predict true reject rate: ~46%, false reject rate ~6%
@@ -129,7 +134,9 @@ RANDOM_SAMPLING_PARAMS_ON_STARTUP = False
 HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
 model_path = None
 
-if V12_9:
+if v12_10:
+    model_name = "arj-x3-twplus-alldata-2051"
+elif V12_9:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
     model_name = "arj-x3-alldata-4385"
 elif V12_8:
@@ -165,7 +172,11 @@ else:
 if not model_path:
     model_path = os.path.join("/", model_name)
 
-if V12_9:
+if V12_10:
+    ckpt_select = "selector/v12_10/v1/"
+    ckpt_sentiment = "sentiment/v12_10/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_10/v1/"
+elif V12_9:
     ckpt_select = "selector/v12_9/v1/"
     ckpt_sentiment = "sentiment/v12_9/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_9/v1/"

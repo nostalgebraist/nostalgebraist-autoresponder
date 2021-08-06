@@ -26,7 +26,7 @@ V12_6 = True  # fix for issue in https://github.com/EleutherAI/gpt-neo/pull/230 
 V12_7 = True  # XXXX
 V12_8 = True  # XXXX
 V12_9 = True  # XXXX
-V12_10 = True # XXXX
+V12_10 = True  # XXXX
 
 
 BUCKET_NAME = ""
@@ -46,8 +46,8 @@ LOGGING_FLAGS = {
 
 if V12_10:
     AUTOREVIEWER_CUTOFFS = {
-        "accept_below": 0.141,  # V12_10/v1: predict true accept rate: ~35%, false accept rate ~6.7%
-        "reject_above": 0.622,  # V12_10/v1: predict true reject rate: ~47%, false reject rate ~6%
+        "accept_below": 0.141,  # v12_10/v1: predict true accept rate: ~35%, false accept rate ~6.7%
+        "reject_above": 0.622,  # v12_10/v1: predict true reject rate: ~47%, false reject rate ~6%
     }
 elif V12_9:
     AUTOREVIEWER_CUTOFFS = {
@@ -173,9 +173,9 @@ if not model_path:
     model_path = os.path.join("/", model_name)
 
 if V12_10:
-    ckpt_select = "selector/V12_10/v1/"
-    ckpt_sentiment = "sentiment/V12_10/v1/"
-    ckpt_autoreviewer = "draft_autoreviewer/V12_10/v1/"
+    ckpt_select = "selector/v12_10/v1/"
+    ckpt_sentiment = "sentiment/v12_10/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_10/v1/"
 elif V12_9:
     ckpt_select = "selector/v12_9/v1/"
     ckpt_sentiment = "sentiment/v12_9/v1/"

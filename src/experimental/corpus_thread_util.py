@@ -10,11 +10,15 @@ tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
 from tumblr_to_text.classic.autoresponder_static import find_control_chars_forumlike, EOT
 
 quote_hell_regex = re.compile(r"<blockquote><a href=\"http://[^\.]+\.tumblr\.com/post/[^\"]+\">[^<]+</a>:")
+strip_link_attrs_regex = re.compile(r'<a[^<]*>(.*?)</a>')
+strip_link_attrs_repl = r'<a>\g<1></a>'
 
 
-def remove_ignored_substrings(s, ignore_titles=False):
+def remove_ignored_substrings(s, ignore_titles=False, ignore_link_attrs=True):
     if ignore_titles:
         s = re.sub(r"<h2>.*</h2>", "", s)
+    if ignore_link_attrs:
+        s = strip_link_attrs_regex.sub(strip_link_attrs_repl, s)
     s = s.replace("\n", "").replace(" ", "")
     s = re.sub(r"\<.*?\>", "", s)
     return s
@@ -106,7 +110,10 @@ def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=Fal
         lines = prefix.splitlines()
         vprint("\nlines:")
         vprint(lines)
-        lines.pop(2)
+        lines = [l for l in lines if not (l.startswith(" Written") and " | " in l and "tags:" in l)]
+        # lines.pop(2)
+        vprint("\nlines after remove Written:")
+        vprint(lines)
         prefix = "\n".join(lines)
 
     vprint("\nbase prefix:")

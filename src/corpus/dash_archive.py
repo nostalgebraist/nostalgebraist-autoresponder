@@ -87,7 +87,12 @@ def _train_val_split(docs, val_frac=0.03):
 
     while sum(map(len, val_docs)) < val_charlen:
         ix = random.randint(0, len(train_docs))
-        val_docs.append(train_docs.pop(ix))
+        try:
+            val_docs.append(train_docs.pop(ix))
+        except IndexError as e:
+            print(f"tried to pop {ix} from train_docs with length {len(train_docs)}")
+            print(f"currently: val_docs {sum(map(len, val_docs))} chars, {len(val_docs)} docs")
+            raise e
 
     return train_docs, val_docs
 

@@ -12,14 +12,15 @@ from tumblr_to_text.classic.autoresponder_static import find_control_chars_forum
 quote_hell_regex = re.compile(r"<blockquote><a href=\"http://[^\.]+\.tumblr\.com/post/[^\"]+\">[^<]+</a>:")
 
 
-def remove_ignored_substrings(s):
-    s = re.sub(r"<h2>.*</h2>", "", s)
+def remove_ignored_substrings(s, ignore_titles=False):
+    if ignore_titles:
+        s = re.sub(r"<h2>.*</h2>", "", s)
     s = s.replace("\n", "").replace(" ", "")
     s = re.sub(r"\<.*?\>", "", s)
     return s
 
 
-def post_after_cc_is_empty(doc, ccs, i, verbose=False):
+def post_after_cc_is_empty(doc, ccs, i, ignore_titles=False, verbose=False):
     def vprint(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)
@@ -29,17 +30,17 @@ def post_after_cc_is_empty(doc, ccs, i, verbose=False):
         end_ix = ccs[i + 1][1]
         interior = doc[start_ix:end_ix]
         vprint(f"\n\tinterior before replace:\n\t{repr(interior)}")
-        interior = remove_ignored_substrings(interior)
+        interior = remove_ignored_substrings(interior, ignore_titles=ignore_titles)
         vprint(f"\n\tchecking interior:\n\t{repr(interior)}")
         return len(interior) == 0
     except IndexError:
         return False  # end of list
 
 
-def diagnose_malformed(doc, verbose=False):
+def diagnose_malformed(doc, verbose=False, use_naive_h2_pattern=False):
     reasons = set()
 
-    if "<h2>" in doc:
+    if use_naive_h2_pattern and "<h2>" in doc:
         # check first-post-is-only-title pattern
         ccs = _get_ccs_with_fixes(doc)
         if len(ccs) > 0:
@@ -70,7 +71,7 @@ def _get_ccs_with_fixes(doc):
     return ccs
 
 
-def extract_prefix(doc, include_username=False, verbose=False):
+def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=False):
     def vprint(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)
@@ -88,7 +89,7 @@ def extract_prefix(doc, include_username=False, verbose=False):
         pre_content = doc[left:ccs[1][1]]
         ccs.pop(0)
 
-    while post_after_cc_is_empty(doc, ccs, 0, verbose=verbose):
+    while post_after_cc_is_empty(doc, ccs, 0, ignore_titles=ignore_titles, verbose=verbose):
         left = ccs[0][1] if include_username else ccs[0][1] + len(ccs[0][0].rstrip("\n"))
         pre_content += doc[left:ccs[1][1]]
         ccs.pop(0)
@@ -115,23 +116,23 @@ def extract_prefix(doc, include_username=False, verbose=False):
         prefix = prefix.partition(" ")[2]
 
     prefix = pre_content + prefix
-    prefix = remove_ignored_substrings(prefix)
+    prefix = remove_ignored_substrings(prefix, ignore_titles=ignore_titles)
 
     return prefix
 
 
-def map_docs(docs, include_usernames=True):
+def map_docs(docs, include_usernames=False, ignore_titles=False):
     trails = defaultdict(set)
 
     for i, doc in tqdm(enumerate(docs), total=len(docs)):
-        prefix = extract_prefix(doc, include_username=include_usernames)
+        prefix = extract_prefix(doc, ignore_titles=ignore_titles)
         prefix_hash = hashlib.md5(prefix.encode("utf-8")).hexdigest()
         trails[prefix_hash].add(i)
 
     return trails
 
 
-def map_docs_multiple_groups(*doc_groups, include_usernames=True):
+def map_docs_multiple_groups(*doc_groups, include_usernames=False):
     docs = []
     doc_index_to_group_index = {}
 
@@ -274,17 +275,32 @@ def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True
             ds = f.read()
         g = [d for d in ds.split(EOT) if len(d) > 0]
         n_raw = len(g)
-        print(f"read group from file {p}: {n_raw} raw docs")
+        print(f"read group from file {p}:\n\t{n_raw} raw docs\n")
 
         if exclude_malformed:
             reasons = [diagnose_malformed(d) for d in g]
+            presentation_counts = Counter([tuple(sorted(r)) for r in reasons])
             symptom_counts = Counter([r for rs in reasons for r in rs])
+
+            example_cases = defaultdict(list)
+            for presentation in presentation_counts.keys():
+                if presentation == tuple():
+                    continue
+                for d, r in zip(g, reasons):
+                    if presentation == tuple(sorted(r)):
+                        example_cases[presentation].append(d)
+                        if len(example_cases[presentation]) > 5:
+                            break
+
             g = [d for d, r in zip(g, reasons) if r == set()]
             n_excluded = n_raw - len(g)
-            print(f"read group from file {p}: removed {n_excluded} malformed docs")
-            print(f"reasons: {repr(symptom_counts)}")
+            print(f"\tremoved {n_excluded} malformed docs ({n_excluded/n_raw:.2%})\n")
+            print(f"\t\treasons:\n\t\t\t{repr(symptom_counts)}\n")
+            for k in example_cases.keys():
+                for case in example_cases[k]:
+                    print(f"\t\texample for {k}:\n\t\t\t{repr(case)}\n")
 
-        print(f"read group from file {p}: {len(g)} docs")
+        print(f"\t{len(g)} docs after exclusions\n\n")
         doc_groups.append(g)
     print()
 

@@ -27,7 +27,7 @@ V12_7 = True  # XXXX
 V12_8 = True  # XXXX
 V12_9 = True  # XXXX
 V12_10 = True  # XXXX
-V12_11 = False  # XXXX
+V12_11 = True  # XXXX
 
 
 BUCKET_NAME = ""
@@ -47,9 +47,8 @@ LOGGING_FLAGS = {
 
 if V12_11:
     AUTOREVIEWER_CUTOFFS = {
-        # TODO: fill
-        "accept_below": 0.000,  # v12_11/v1: predict true accept rate: ~XX%, false accept rate ~6.7%
-        "reject_above": 0.000,  # v12_11/v1: predict true reject rate: ~XX%, false reject rate ~6%
+        "accept_below": 0.101,  # v12_11/v1: predict true accept rate: ~24%, false accept rate ~6.7%
+        "reject_above": 0.600,  # v12_11/v1: predict true reject rate: ~41%, false reject rate ~6%
     }
 elif V12_10:
     AUTOREVIEWER_CUTOFFS = {

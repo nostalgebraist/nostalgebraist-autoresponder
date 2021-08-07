@@ -12,6 +12,7 @@ from tumblr_to_text.classic.autoresponder_static import find_control_chars_forum
 quote_hell_regex = re.compile(r"<blockquote><a href=\"http://[^\.]+\.tumblr\.com/post/[^\"]+\">[^<]+</a>:")
 strip_link_attrs_regex = re.compile(r'<a[^<]*>(.*?)</a>')
 strip_link_attrs_repl = r'<a>\g<1></a>'
+get_h2_regex = re.compile(r'(<h2>.*?</h2>)')
 
 
 def remove_ignored_substrings(s, ignore_titles=False, ignore_link_attrs=True):
@@ -22,6 +23,24 @@ def remove_ignored_substrings(s, ignore_titles=False, ignore_link_attrs=True):
     s = s.replace("\n", "").replace(" ", "")
     s = re.sub(r"\<.*?\>", "", s)
     return s
+
+
+def get_title(doc):
+    ccs = _get_ccs_with_fixes(doc)
+    if len(ccs) == 0:
+        return
+    start_ix = ccs[0][1] + len(ccs[0][0])
+    end_ix = ccs[1][1] if len(ccs) > 1 else len(doc)
+
+    subs = doc[start_ix:end_ix]
+
+    titles = get_h2_regex.findall(subs)
+    title = titles[0] if titles else ""
+
+    other_content = ""
+    if title:
+        other_content = remove_ignored_substrings(subs, ignore_titles=True)
+    return title, other_content
 
 
 def post_after_cc_is_empty(doc, ccs, i, ignore_titles=False, verbose=False):
@@ -126,6 +145,37 @@ def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=Fal
     prefix = remove_ignored_substrings(prefix, ignore_titles=ignore_titles)
 
     return prefix
+
+
+def find_title_groups(docs, nontrivial_only=True):
+    titlestuff = {}
+
+    ixs = list(range(len(docs)))
+
+    for i in tqdm(ixs):
+        title, other_content = get_title(docs[i])
+
+        if title:
+            if title not in titlestuff:
+                titlestuff[title] = {"ixs": [], "others": []}
+            titlestuff[title]["ixs"].append(i)
+            titlestuff[title]["others"].append(other_content)
+
+    if nontrivial_only:
+        titlestuff = {k: d for k, d in titlestuff.items() if len(d['ixs']) > 1}
+    return titlestuff
+
+
+def identify_h2_contaminated_docs(docs):
+    excluded_doc_indices = set()
+
+    titlestuff = find_title_groups(docs, nontrivial_only=True)
+
+    for info in titlestuff.values():
+        bad_ixs = {i for i, o in zip(info['ixs'], info['others']) if len(o) == 0}
+        excluded_doc_indices.update(bad_ixs)
+
+    return excluded_doc_indices
 
 
 def map_docs(docs, include_usernames=False, ignore_titles=False):
@@ -272,7 +322,7 @@ def show_trail(docs, trails, key):
         print('\n------\n')
 
 
-def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True):
+def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True, exclude_h2_issue=True):
     if isinstance(paths, str):
         paths = [paths]
 
@@ -296,7 +346,7 @@ def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True
                 for d, r in zip(g, reasons):
                     if presentation == tuple(sorted(r)):
                         example_cases[presentation].append(d)
-                        if len(example_cases[presentation]) > 5:
+                        if len(example_cases[presentation]) > 2:
                             break
 
             g = [d for d, r in zip(g, reasons) if r == set()]
@@ -310,6 +360,45 @@ def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True
         print(f"\t{len(g)} docs after exclusions\n\n")
         doc_groups.append(g)
     print()
+
+    if exclude_h2_issue:
+        all_docs = [d for g in doc_groups for d in g]
+        n_raw = len(all_docs)
+
+        excluded_doc_indices = identify_h2_contaminated_docs(all_docs)
+
+        allowed_doc_indices_by_group = {}
+        excluded_doc_indices_by_group = {}
+
+        doc_index_offset = 0
+        for group_index, g in enumerate(doc_groups):
+            group_doc_indices = set(range(doc_index_offset, doc_index_offset + len(g)))
+
+            excluded_doc_indices_by_group[group_index] = {
+                ix - doc_index_offset for ix in group_doc_indices.intersection(excluded_doc_indices)
+            }
+            allowed_doc_indices_by_group[group_index] = {
+                ix - doc_index_offset for ix in group_doc_indices.difference(excluded_doc_indices)
+            }
+
+            doc_index_offset += len(g)
+
+        n_excluded = len(excluded_doc_indices)
+        print(f"\tremoved {n_excluded} h2 bugged docs ({n_excluded/n_raw:.2%})\n")
+
+        n_excluded_verify = sum(len(v) for v in excluded_doc_indices_by_group.values())
+        print(f"\t[verifying code works:] removed {n_excluded} h2 bugged docs ({n_excluded/n_raw:.2%})\n")
+
+        for group_index, excluded_indices in excluded_doc_indices_by_group.items():
+            print(f"group {group_index}: {len(excluded_indices)} excluded")
+            examples = [doc_groups[group_index][i] for i in excluded_indices][:2]
+            for case in examples:
+                print(f"\t\texample for h2 bug (group {group_index}):\n\t\t\t{repr(case)}\n")
+
+        for group_index, allowed_doc_indices in allowed_doc_indices_by_group.items():
+            doc_groups[group_index] = [doc_groups[group_index][i] for i in sorted(allowed_doc_indices)]
+
+        print(f"\t[verifying code works:] n docs after h2 fix: {sum(len(g) for g in doc_groups)}\n")
 
     docs, trails, doc_index_to_group_index = map_docs_multiple_groups(*doc_groups, include_usernames=include_usernames)
 

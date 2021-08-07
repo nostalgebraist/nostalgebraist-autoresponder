@@ -27,6 +27,7 @@ V12_7 = True  # XXXX
 V12_8 = True  # XXXX
 V12_9 = True  # XXXX
 V12_10 = True  # XXXX
+V12_11 = False  # XXXX
 
 
 BUCKET_NAME = ""
@@ -44,7 +45,13 @@ LOGGING_FLAGS = {
     "parse_continuation": False
 }
 
-if V12_10:
+if V12_11:
+    AUTOREVIEWER_CUTOFFS = {
+        # TODO: fill
+        "accept_below": 0.000,  # v12_11/v1: predict true accept rate: ~XX%, false accept rate ~6.7%
+        "reject_above": 0.000,  # v12_11/v1: predict true reject rate: ~XX%, false reject rate ~6%
+    }
+elif V12_10:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.141,  # v12_10/v1: predict true accept rate: ~35%, false accept rate ~6.7%
         "reject_above": 0.622,  # v12_10/v1: predict true reject rate: ~47%, false reject rate ~6%
@@ -132,9 +139,14 @@ BATCHONE = True
 RANDOM_SAMPLING_PARAMS_ON_STARTUP = False
 
 HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
+HF_FILES_GZIPPED = True
 model_path = None
 
-if V12_10:
+if V12_11:
+    HF_MODEL_GZIPPED = False
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
+    model_name = "arj-x3-twplus2-alldata-988"
+elif V12_10:
     model_name = "arj-x3-twplus-alldata-2051"
 elif V12_9:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
@@ -172,7 +184,11 @@ else:
 if not model_path:
     model_path = os.path.join("/", model_name)
 
-if V12_10:
+if V12_11:
+    ckpt_select = "selector/v12_11/v1/"
+    ckpt_sentiment = "sentiment/v12_11/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_11/v1/"
+elif V12_10:
     ckpt_select = "selector/v12_10/v1/"
     ckpt_sentiment = "sentiment/v12_10/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_10/v1/"

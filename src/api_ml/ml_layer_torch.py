@@ -134,8 +134,9 @@ generator_model, selector_est, sentiment_est, autoreviewer_est = None, None, Non
 generator_path = model_name
 
 if not os.path.exists(generator_path):
+    model_tar_name = 'model.tar.gz' if HF_FILES_GZIPPED else 'model.tar'
     model_tar_path = get_local_path_from_huggingface_cdn(
-        HF_REPO_NAME, 'model.tar.gz'
+        HF_REPO_NAME, model_tar_name
     )
     subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
 
@@ -145,8 +146,9 @@ needs_head_download = not all(os.path.exists(path) for path in head_paths)
 heads_tar_path = ""
 
 if needs_head_download:
+    heads_tar_name = 'heads.tar.gz' if HF_FILES_GZIPPED else 'heads.tar'
     heads_tar_path = get_local_path_from_huggingface_cdn(
-        HF_REPO_NAME, 'heads.tar.gz'
+        HF_REPO_NAME, heads_tar_name
     )
 
 if "selector" in MODELS_SERVED and not os.path.exists(ckpt_select):

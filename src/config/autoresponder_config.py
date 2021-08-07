@@ -142,7 +142,7 @@ HF_FILES_GZIPPED = True
 model_path = None
 
 if V12_11:
-    HF_MODEL_GZIPPED = False
+    HF_FILES_GZIPPED = False
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
     model_name = "arj-x3-twplus2-alldata-988"
 elif V12_10:

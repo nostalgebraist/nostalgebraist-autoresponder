@@ -180,6 +180,24 @@ def split_forumlike_doc(doc: str, newline_postfix="\n"):
     )
 
 
+def extract_time_from_forumlike_doc(doc: str):
+    (
+        before,
+        sep,
+        time_segment,
+        sep2,
+        sentiment_segment,
+        sep_sent_sel,
+        select_segment,
+        sep_dec_tag,
+        tag_segment,
+        sep3,
+        final_content,
+    ) = split_forumlike_doc(doc)
+
+    return datetime.strptime(time_segment, "%I %p %B %Y")
+
+
 def patch_time_in_forumlike_doc(doc: str, ts: datetime = now):
     skip_chars = [
         DEFAULT_CSC["ORIG_FICTION_CHAR_FORUMLIKE"],

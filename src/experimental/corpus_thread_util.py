@@ -3,16 +3,38 @@ import random
 import re
 from collections import defaultdict, Counter
 from functools import partial
+from string import ascii_lowercase, digits, punctuation
 
 from tqdm.auto import tqdm as tqdm_base
 tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
 
 from tumblr_to_text.classic.autoresponder_static import find_control_chars_forumlike, EOT
+from experimental.corpus_text_hacks import extract_time_from_forumlike_doc
 
 quote_hell_regex = re.compile(r"<blockquote><a href=\"http://[^\.]+\.tumblr\.com/post/[^\"]+\">[^<]+</a>:")
 strip_link_attrs_regex = re.compile(r'<a[^<]*>(.*?)</a>')
 strip_link_attrs_repl = r'<a>\g<1></a>'
 get_h2_regex = re.compile(r'(<h2>.*?</h2>)')
+
+
+def unique_id_for_doc(doc: str, prep_fn=None):
+    if prep_fn is None:
+        prep_fn = lambda x: x
+    return hashlib.md5(prep_fn(doc).encode("utf-8")).hexdigest()
+
+
+def prep_fn_ignore_frank_nost(doc):
+    def replaceall(s, r):
+        for rr in [r, r.lower(), r.upper(), r.capitalize()]:
+            s = s.replace(rr, "")
+        return s
+    doc = replaceall(doc, "frank")
+    doc = doc.replace("nostalgebraist-autoresponder", "")
+    doc = doc.replace("nostalgebraist", "")
+    return doc
+
+
+unique_id_ignore_frank_nost = partial(unique_id_for_doc, prep_fn=prep_fn_ignore_frank_nost)
 
 
 def remove_ignored_substrings(s, ignore_titles=False, ignore_link_attrs=True):
@@ -322,7 +344,14 @@ def show_trail(docs, trails, key):
         print('\n------\n')
 
 
-def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True, exclude_h2_issue=True):
+def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True, exclude_h2_issue=True,
+                          uid_to_metadata=None, uid_fn=unique_id_ignore_frank_nost,
+                          returned_excluded_uids=False):
+
+    using_uid_map = uid_to_metadata is not None
+    doc_to_uid = {}
+    excluded_uids = set()
+
     if isinstance(paths, str):
         paths = [paths]
 
@@ -333,6 +362,18 @@ def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True
         g = [d for d in ds.split(EOT) if len(d) > 0]
         n_raw = len(g)
         print(f"read group from file {p}:\n\t{n_raw} raw docs\n")
+
+        if using_uid_map:
+            g_doc_to_uid = {}
+            n_match_uids = 0
+            for d in g:
+                uid = uid_fn(d)
+                lookedup = uid_to_metadata.get(uid)
+                g_doc_to_uid[uid] = lookedup
+                if lookedup is not None:
+                    n_match_uids += 1
+            doc_to_uid.update(g_doc_to_uid)
+            print(f"read group from file {p}:\n\t{n_match_uids} of {n_raw} ({n_match_uids/n_raw:.1%}) have metadata\n")
 
         if exclude_malformed:
             reasons = [diagnose_malformed(d) for d in g]
@@ -349,9 +390,19 @@ def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True
                         if len(example_cases[presentation]) > 2:
                             break
 
+            bad = [d for d, r in zip(g, reasons) if r != set()]
             g = [d for d, r in zip(g, reasons) if r == set()]
             n_excluded = n_raw - len(g)
             print(f"\tremoved {n_excluded} malformed docs ({n_excluded/n_raw:.2%})\n")
+            if using_uid_map:
+                bad = [uid_fn(d) for d in bad]
+                bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
+
+                nbad_meta = len(bad_with_meta)
+                print(f"\t{nbad_meta} of {n_excluded} ({nbad_meta/n_excluded:.2%}) have metadata\n")
+
+                excluded_uids.update(bad_with_meta)
+
             print(f"\t\treasons:\n\t\t\t{repr(symptom_counts)}\n")
             for k in example_cases.keys():
                 for case in example_cases[k]:
@@ -390,7 +441,15 @@ def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True
         print(f"\t[verifying code works:] removed {n_excluded} h2 bugged docs ({n_excluded/n_raw:.2%})\n")
 
         for group_index, excluded_indices in excluded_doc_indices_by_group.items():
-            print(f"group {group_index}: {len(excluded_indices)} excluded")
+            n_excluded_group = len(excluded_indices)
+            print(f"group {group_index}: {n_excluded_group} excluded")
+            if using_uid_map:
+                bad = [uid_fn(doc_groups[group_index][i]) for i in excluded_indices]
+                bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
+                nbad_meta = len(bad_with_meta)
+                print(f"\tgroup {group_index}: {nbad_meta} of {n_excluded_group} ({nbad_meta/n_excluded_group:.2%}) have metadata\n")
+                excluded_uids.update(bad_with_meta)
+
             examples = [doc_groups[group_index][i] for i in excluded_indices][:2]
             for case in examples:
                 print(f"\t\texample for h2 bug (group {group_index}):\n\t\t\t{repr(case)}\n")
@@ -406,6 +465,8 @@ def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True
 
     trail_stats(docs, trails, nt)
 
+    if returned_excluded_uids:
+        return docs, trails, nt, doc_index_to_group_index, excluded_uids
     return docs, trails, nt, doc_index_to_group_index
 
 
@@ -423,3 +484,32 @@ def trail_stats(docs, trails, nt):
 
     print(f"{ndoc_in_nt/ndoc:.2%} of docs are in trails with length > 1\n\t({ndoc_in_nt} / {ndoc})\n")
     print(f"{lendoc_in_nt/lendoc:.2%} of characters are in trails with length > 1\n\t({lendoc_in_nt} / {lendoc})\n")
+
+
+def fallback_keyfn(doc):
+    try:
+        ts = extract_time_from_forumlike_doc(doc).timestamp()
+    except ValueError:
+        return ('zzzzzzz', -1)
+    ccs = _get_ccs_with_fixes(doc)
+    blogname = ccs[-1][0].split(" ")[1]
+    return (blogname, ts)
+
+
+def sort_by_username_post_id(docs, uid_to_metadata):
+    uname_order = {}
+
+    def keyfn(doc):
+        uid = unique_id_ignore_frank_nost(doc)
+        meta = uid_to_metadata.get(uid)
+        if meta:
+            key = (meta['blogname'], meta['post_id'])
+        key = fallback_keyfn(doc)
+
+        # prevent unames from being alphabetical
+        if key[0] not in uname_order:
+            uname_order[key[0]] = random.randint(0, 10000)
+        key = (uname_order[key[0]], key[1])
+        return key
+
+    return sorted(docs, key=keyfn), keyfn, uname_order

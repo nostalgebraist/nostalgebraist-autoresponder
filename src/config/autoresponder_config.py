@@ -47,8 +47,8 @@ LOGGING_FLAGS = {
 
 if V12_11:
     AUTOREVIEWER_CUTOFFS = {
-        "accept_below": 0.101,  # v12_11/v1: predict true accept rate: ~24%, false accept rate ~6.7%
-        "reject_above": 0.600,  # v12_11/v1: predict true reject rate: ~41%, false reject rate ~6%
+        "accept_below": 0.146,  # v12_11/v2: predict true accept rate: ~40%, false accept rate ~6.7%
+        "reject_above": 0.599,  # v12_11/v2: predict true reject rate: ~46%, false reject rate ~6%
     }
 elif V12_10:
     AUTOREVIEWER_CUTOFFS = {
@@ -186,7 +186,7 @@ if not model_path:
 if V12_11:
     ckpt_select = "selector/v12_11/v2/"
     ckpt_sentiment = "sentiment/v12_11/v1/"
-    ckpt_autoreviewer = "draft_autoreviewer/v12_11/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_11/v2/"
 elif V12_10:
     ckpt_select = "selector/v12_10/v1/"
     ckpt_sentiment = "sentiment/v12_10/v1/"

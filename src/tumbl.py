@@ -1830,8 +1830,10 @@ def do_reblog_reply_handling(
         posts = response["posts"]
 
         next_offset = None
-        with LogExceptionAndSkip("get next offset for /posts"):
-            next_offset = response["_links"]["next"]["query_params"]["offset"]
+        # TODO: use `page_number` or w/e it is tumblr wants me to do now (8/19/21)
+
+        # with LogExceptionAndSkip("get next offset for /posts"):
+        #     next_offset = response["_links"]["next"]["query_params"]["offset"]
         if next_offset is None:
             next_offset = kwargs["offset"] + len(posts)  # fallback
             print(

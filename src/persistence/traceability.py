@@ -58,12 +58,6 @@ class TraceabilityLogs:
         _tsave = time.time()
         print(f"trace save 1: {_tsave-t1:.3f}s sec")
 
-        backup_path = self.path[: -len(".pkl.gz")] + "_backup.pkl.gz"
-        subprocess.check_output(f"cp {self.path} {backup_path}", shell=True)
-
-        _tsave2 = time.time()
-        print(f"trace save 2: {_tsave2-_tsave:.3f}s sec")
-
     def on_post_creation_callback(self, api_response: dict, bridge_response: dict):
         t1 = time.time()
 

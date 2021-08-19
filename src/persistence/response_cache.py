@@ -81,7 +81,7 @@ class ResponseCache:
         loaded.remove_oldest()
         return loaded
 
-    def save(self, verbose=True, do_backup=True):
+    def save(self, verbose=True, do_backup=False):
         self.remove_oldest()
 
         t1 = time.time()

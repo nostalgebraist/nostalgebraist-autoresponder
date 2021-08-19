@@ -561,7 +561,7 @@ class ImageAnalysisCache:
         formatted_text = format_extracted_text(cached_text, image_formatter=image_formatter, verbose=verbose)
         return formatted_text
 
-    def save(self, verbose=True, do_backup=True):
+    def save(self, verbose=True, do_backup=False):
         data = {"cache": self.cache, "hash_to_url": self.hash_to_url}
         with open(self.path, "wb") as f:
             pickle.dump(data, f)

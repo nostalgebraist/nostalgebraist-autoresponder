@@ -20,8 +20,11 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+from smart_open import open
+
 from config.bot_config import BotSpecificConstants
 from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS
+
 
 from tumblr_to_text.classic.reply_munging import (
     mockup_xkit_reply,
@@ -1313,7 +1316,7 @@ def is_statically_reblog_worthy_on_dash(
         scrape_worthy = False
 
     if scrape_worthy:
-        path = "data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "data/dash_post_dump_frank.txt"
+        path = "gs://nost-trc/nbar_data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "gs://nost-trc/nbar_data/dash_post_dump_frank.txt"
         print(f"archiving {post_identifier} | ", end="")
         archive_to_corpus(post_payload, path=path, client_pool=client_pool)
 

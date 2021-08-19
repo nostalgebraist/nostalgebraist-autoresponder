@@ -17,6 +17,8 @@ from multimodal.image_analysis_static import IMAGE_DIR, ACCEPTABLE_IMAGE_EXTENSI
     IMAGE_DELIMITER_WHITESPACED, AR_DETECT_TEXT_CONFIDENCE_THRESHOLD, PRE_V9_IMAGE_FORMATTER, V9_IMAGE_FORMATTER
 from util.error_handling import LogExceptionAndSkip
 
+from smart_open import open
+
 rek = boto3.client("rekognition")
 
 
@@ -414,7 +416,7 @@ def format_extracted_text(image_text, image_formatter=V9_IMAGE_FORMATTER, verbos
 
 
 class ImageAnalysisCache:
-    def __init__(self, path="data/image_analysis_cache.pkl.gz", cache=None, hash_to_url=None):
+    def __init__(self, path="gs://nost-trc/nbar_data/image_analysis_cache.pkl.gz", cache=None, hash_to_url=None):
         self.path = path
         self.cache = cache
         self.hash_to_url = hash_to_url
@@ -574,7 +576,7 @@ class ImageAnalysisCache:
 
     @staticmethod
     def load(
-        path: str = "data/image_analysis_cache.pkl.gz", verbose=True
+        path: str = "gs://nost-trc/nbar_data/image_analysis_cache.pkl.gz", verbose=True
     ) -> "ImageAnalysisCache":
         cache = None
         hash_to_url = dict()

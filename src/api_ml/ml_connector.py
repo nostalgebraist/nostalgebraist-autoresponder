@@ -21,6 +21,8 @@ from api_ml.bridge_shared import get_bridge_service_url
 
 from util.error_handling import LogExceptionAndSkip
 
+from smart_open import open
+
 TRADE_QUALITY_FOR_SPEED = True
 
 logit_diff_sample_series = load_logit_diff_sample()
@@ -468,10 +470,7 @@ def predict_autoreview(data):
 
 
 def save_retention(retention_stack):
-    with open("data/retention_stack.pkl.gz", "wb") as f:
-        pickle.dump(retention_stack, f)
-
-    with open("data/retention_stack_backup.pkl.gz", "wb") as f:
+    with open("gs://nost-trc/nbar_data/retention_stack.pkl.gz", "wb") as f:
         pickle.dump(retention_stack, f)
 
 

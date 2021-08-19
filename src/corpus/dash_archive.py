@@ -12,6 +12,8 @@ from corpus.frank_and_me import apply_nost_identity_ouroboros
 
 from util.error_handling import LogExceptionAndSkip
 
+from smart_open import open
+
 import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 NO_SCRAPE_USERS = bot_specific_constants.NO_SCRAPE_USERS

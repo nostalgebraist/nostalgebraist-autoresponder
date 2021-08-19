@@ -7,8 +7,10 @@ from datetime import datetime
 
 import pandas as pd
 
-TRACEABILITY_FN = "data/traceability_logs.pkl.gz"
-TRACEABILITY_COLD_STORAGE_FN = "data/traceability_logs_cold_storage.pkl.gz"
+from smart_open import open
+
+TRACEABILITY_FN = "gs://nost-trc/nbar_data/traceability_logs.pkl.gz"
+TRACEABILITY_COLD_STORAGE_FN = "gs://nost-trc/nbar_data/traceability_logs_cold_storage.pkl.gz"
 
 
 def _add_field(logs, fieldname):

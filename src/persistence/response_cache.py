@@ -70,7 +70,7 @@ class ResponseCache:
             self.cache["following_names"] = set()
 
     @staticmethod
-    def load(client=None, path="gs://nost-trc/data/response_cache.pkl.gz", verbose=True):
+    def load(client=None, path="gs://nost-trc/nbar_data/response_cache.pkl.gz", verbose=True):
         cache = None
         with open(path, "rb") as f:
             cache = pickle.load(f)

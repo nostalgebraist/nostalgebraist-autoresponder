@@ -580,22 +580,19 @@ class ImageAnalysisCache:
     ) -> "ImageAnalysisCache":
         cache = None
         hash_to_url = dict()
-        if os.path.exists(path):
-            with open(path, "rb") as f:
-                data = pickle.load(f)
+        with open(path, "rb") as f:
+            data = pickle.load(f)
 
-            try:
-                cache = data["cache"]
-                hash_to_url = data["hash_to_url"]
-            except KeyError:
-                # first time load
-                cache = data
-                hash_to_url = dict()
+        try:
+            cache = data["cache"]
+            hash_to_url = data["hash_to_url"]
+        except KeyError:
+            # first time load
+            cache = data
+            hash_to_url = dict()
 
-            if verbose:
-                print(f"loaded image analysis cache with lengths cache={len(cache)}, hash_to_url={len(hash_to_url)}")
-        else:
-            print(f"initialized image analysis cache")
+        if verbose:
+            print(f"loaded image analysis cache with lengths cache={len(cache)}, hash_to_url={len(hash_to_url)}")
         loaded = ImageAnalysisCache(path, cache, hash_to_url)
         return loaded
 

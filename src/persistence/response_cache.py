@@ -72,14 +72,11 @@ class ResponseCache:
     @staticmethod
     def load(client=None, path="gs://nost-trc/data/response_cache.pkl.gz", verbose=True):
         cache = None
-        if os.path.exists(path):
-            with open(path, "rb") as f:
-                cache = pickle.load(f)
-            if verbose:
-                lengths = {k: len(cache[k]) for k in cache.keys()}
-                print(f"loaded response cache with lengths {lengths}")
-        else:
-            print(f"initialized response cache")
+        with open(path, "rb") as f:
+            cache = pickle.load(f)
+        if verbose:
+            lengths = {k: len(cache[k]) for k in cache.keys()}
+            print(f"loaded response cache with lengths {lengths}")
         loaded = ResponseCache(client, path, cache)
         loaded.remove_oldest()
         return loaded

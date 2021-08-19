@@ -43,13 +43,9 @@ class TraceabilityLogs:
 
     @staticmethod
     def load(path=TRACEABILITY_FN) -> 'TraceabilityLogs':
-        if not os.path.exists(path):
-            print('initializing fresh traceability logs')
-            logs = {"fields": [], "data": []}
-        else:
-            print('loading traceability logs')
-            with open(path, "rb") as f:
-                logs = pickle.load(f)
+        print('loading traceability logs')
+        with open(path, "rb") as f:
+            logs = pickle.load(f)
         return TraceabilityLogs(logs=logs, path=path)
 
     def save(self):

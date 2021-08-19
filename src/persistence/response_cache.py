@@ -15,6 +15,8 @@ import time
 import os
 import pickle
 
+from smart_open import open
+
 import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 
@@ -68,7 +70,7 @@ class ResponseCache:
             self.cache["following_names"] = set()
 
     @staticmethod
-    def load(client=None, path="data/response_cache.pkl.gz", verbose=True):
+    def load(client=None, path="gs://nost-trc/data/response_cache.pkl.gz", verbose=True):
         cache = None
         if os.path.exists(path):
             with open(path, "rb") as f:

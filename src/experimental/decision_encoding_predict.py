@@ -144,6 +144,7 @@ def run_autoreviewer_on_docs_local(
          api_ml.ml_layer_torch.sentiment_est.model_.cpu()
          head_model = api_ml.ml_layer_torch.autoreviewer_est
      else:
+         head_model.model_.to(device)
          import api_ml.ml_connector
 
      def monkeypatched_autoreview_do(method, *args, repeat_until_done_signal=False, **kwargs_):
@@ -152,7 +153,9 @@ def run_autoreviewer_on_docs_local(
 
      api_ml.ml_connector.autoreviewer_est.do = monkeypatched_autoreview_do
 
-     return run_autoreviewer_on_docs(docs, save_path=save_path, ts=ts, **kwargs)
+     out = run_autoreviewer_on_docs(docs, save_path=save_path, ts=ts, **kwargs)
+     head_model.model_.cpu()
+     return out
 
 
 def _run_head_single_doc_local(doc, run_fn, head_model=None, **kwargs):

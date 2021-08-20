@@ -5,7 +5,7 @@ TZ_PST = pytz.timezone('US/Pacific')
 
 
 def now_pst() -> datetime:
-    return now_pst()
+    return datetime.now(tz=TZ_PST).replace(tzinfo=None)
 
 
 def fromtimestamp_pst(timestamp: int) -> datetime:

@@ -9,4 +9,4 @@ def now_pst() -> datetime:
 
 
 def fromtimestamp_pst(timestamp: int) -> datetime:
-    return fromtimestamp_pst(timestamp, tz=TZ_PST).replace(tzinfo=None)
+    return datetime.fromtimestamp(timestamp, tz=TZ_PST).replace(tzinfo=None)

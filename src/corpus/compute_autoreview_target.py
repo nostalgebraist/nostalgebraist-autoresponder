@@ -1,7 +1,6 @@
 import json
 import argparse
 from collections import defaultdict, Counter
-from datetime import datetime
 
 from tqdm.auto import tqdm
 

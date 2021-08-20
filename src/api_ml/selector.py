@@ -2,7 +2,6 @@
 Helper functions for selecting one "best" output from GPT-2 from a list of such outputs.
 """
 from functools import partial
-from datetime import datetime
 
 import numpy as np
 from textwrap import wrap
@@ -12,7 +11,7 @@ from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED
 from config.autoresponder_config import LOGGING_FLAGS
 from tumblr_to_text.classic.autoresponder_static import EOT
 from feels.mood import logit_diff_to_allen_schema
-from util.times import now_pst, fromtimestamp_pst
+from util.times import now_pst
 
 RESULT_STACK = {}
 

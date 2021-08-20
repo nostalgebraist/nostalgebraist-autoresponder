@@ -16,7 +16,8 @@ def run_model_on_docs(
     save_dir="data/decision_encoding",
     batch_size=8,
     recompute_existing=False,
-    suppress_tqdm=False
+    suppress_tqdm=False,
+    **kwargs
 ):
     os.makedirs(save_dir, exist_ok=True)
 
@@ -40,7 +41,7 @@ def run_model_on_docs(
     batch_iter = batches if suppress_tqdm else tqdm(batches, mininterval=1, smoothing=0)
     for batch in batch_iter:
         batch_prepped = [prep_fn(d) for d in batch]
-        probs = predict_fn(batch_prepped)
+        probs = predict_fn(batch_prepped, **kwargs)
         for d, p in zip(batch, probs):
             results[uids[d]] = p
 
@@ -155,7 +156,7 @@ def run_autoreviewer_on_docs_local(
 
 
 def _run_head_single_doc_local(doc, run_fn, head_model=None):
-    raw = run_fn([doc], head_model=head_model, suppress_tqdm=True, batch_size=1)
+    raw = run_fn([doc], head_model=head_model, suppress_tqdm=True, batch_size=1, verbose=False)
     return list(raw.values())[0]
 
 

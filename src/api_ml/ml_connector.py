@@ -357,7 +357,7 @@ def show_note_probas(texts, probas, sentiment_logit_diffs=None, console_width=11
             print("\n~_~_~_~_~_\n")
 
 
-def predict_select(data):
+def predict_select(data, verbose=True):
     t1 = time.time()
 
     if len(data) == 0:
@@ -389,12 +389,13 @@ def predict_select(data):
     probs = result[:, 1]
 
     delta_t = time.time() - t1
-    print(f'predict_select: served in {delta_t:.1f}s')
+    if verbose:
+        print(f'predict_select: served in {delta_t:.1f}s')
 
     return probs
 
 
-def predict_sentiment(data):
+def predict_sentiment(data, verbose=True):
     t1 = time.time()
 
     data["prompt_finalchar"] = ["" for _ in data.selector_input.values]
@@ -431,12 +432,13 @@ def predict_sentiment(data):
     logit_diffs = logits[:, 1:] - logits[:, :1]
 
     delta_t = time.time() - t1
-    print(f'predict_sentiment: served in {delta_t:.1f}s')
+    if verbose:
+        print(f'predict_sentiment: served in {delta_t:.1f}s')
 
     return logit_diffs
 
 
-def predict_autoreview(data):
+def predict_autoreview(data, verbose=True):
     t1 = time.time()
 
     selector_input = []
@@ -462,7 +464,8 @@ def predict_autoreview(data):
     probs = result[:, 1]
 
     delta_t = time.time() - t1
-    print(f'predict_autoreview: served in {delta_t:.1f}s')
+    if verbose:
+        print(f'predict_autoreview: served in {delta_t:.1f}s')
 
     return probs
 

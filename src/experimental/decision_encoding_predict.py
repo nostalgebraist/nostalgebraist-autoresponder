@@ -63,12 +63,12 @@ def run_selector_on_docs(docs, save_path="selector.json", ts=now, **kwargs):
     )
 
 
-def run_sentiment_on_docs(docs, save_path="sentiment.json", ts=now, **kwargs):
+def run_sentiment_on_docs(docs, save_path="sentiment.json", **kwargs):
     import api_ml.ml_connector
 
     return run_model_on_docs(
         docs,
-        prep_fn=partial(prep_for_sentiment, ts=ts),
+        prep_fn=partial(prep_for_sentiment),
         predict_fn=api_ml.ml_connector.sentiment_logit_diffs_from_gpt,
         save_path=save_path,
         **kwargs,
@@ -110,7 +110,7 @@ def run_selector_on_docs_local(
 
 
 def run_sentiment_on_docs_local(
-    docs, save_path="sentiment.json", device="cuda:0", head_model=None, ts=now, **kwargs
+    docs, save_path="sentiment.json", device="cuda:0", head_model=None, **kwargs
 ):
     if not head_model:
         import api_ml.ml_connector
@@ -129,7 +129,7 @@ def run_sentiment_on_docs_local(
 
     api_ml.ml_connector.sentiment_est.do = monkeypatched_sentiment_do
 
-    return run_sentiment_on_docs(docs, save_path=save_path, ts=ts, **kwargs)
+    return run_sentiment_on_docs(docs, save_path=save_path, **kwargs)
 
 
 def run_autoreviewer_on_docs_local(

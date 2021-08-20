@@ -1,7 +1,7 @@
 """code for turning forumlike (v7) format into the v8 version"""
 import os
-from datetime import datetime
 from tumblr_to_text.classic.autoresponder_static import *
+from util.times import fromtimestamp_pst
 
 
 """V8 format: time of post"""

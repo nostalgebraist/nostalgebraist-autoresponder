@@ -20,6 +20,8 @@ import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 bot_name = bot_specific_constants.blogName
 
+from util.tz import TZ_PST
+
 UNUSED_TYPES = {"mood", "review", "manual"}
 
 
@@ -123,7 +125,7 @@ def fetch_and_process(blog_name: str = bot_name,
     if fetch_only:
         return lines
 
-    base_head_timestamp = datetime.now()
+    base_head_timestamp = datetime.now(tz=TZ_PST)
 
     lines_new = [post_to_line_entry(pp,
                                     base_head_timestamp,

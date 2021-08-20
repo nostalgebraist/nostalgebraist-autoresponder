@@ -9,6 +9,8 @@ import pandas as pd
 
 from smart_open import open
 
+from util.tz import TZ_PST
+
 TRACEABILITY_FN = "gs://nost-trc/nbar_data/traceability_logs.pkl.gz"
 TRACEABILITY_COLD_STORAGE_FN = "gs://nost-trc/nbar_data/traceability_logs_cold_storage.pkl.gz"
 
@@ -64,7 +66,7 @@ class TraceabilityLogs:
         entry = {"api__" + k: v for k, v in api_response.items()}
         entry.update(bridge_response)
 
-        entry['timestamp_manual'] = datetime.now().timestamp()
+        entry['timestamp_manual'] = datetime.now(tz=TZ_PST).timestamp()
 
         for k in sorted(entry.keys()):
             if k not in self.logs["fields"]:

@@ -17,6 +17,8 @@ import pickle
 
 from smart_open import open
 
+from util.tz import TZ_PST
+
 import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 
@@ -118,7 +120,7 @@ class ResponseCache:
         existing_n = self.cache[CachedResponseType.NOTES]
         existing_dpj = self.cache["dash_post_judgments"]
 
-        last_allowed_time = datetime.now() - timedelta(hours=max_hours)
+        last_allowed_time = datetime.now(tz=TZ_PST) - timedelta(hours=max_hours)
 
         allowed_p = {pi for pi, t in lat.items() if t >= last_allowed_time}
 
@@ -367,10 +369,10 @@ class ResponseCache:
         identifier_int = PostIdentifier(identifier.blog_name, int(identifier.id_))
         identifier_str = PostIdentifier(identifier.blog_name, str(identifier.id_))
         if identifier_int in self.cache[rtype]:
-            self.cache["last_accessed_time"][identifier_int] = datetime.now()
+            self.cache["last_accessed_time"][identifier_int] = datetime.now(tz=TZ_PST)
             return identifier_int
         if identifier_str in self.cache[rtype]:
-            self.cache["last_accessed_time"][identifier_str] = datetime.now()
+            self.cache["last_accessed_time"][identifier_str] = datetime.now(tz=TZ_PST)
             return identifier_str
         return None
 

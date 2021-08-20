@@ -5,11 +5,12 @@ from tumblr_to_text.nwo import npf_thread_to_formatted_text, expand_asks
 from tumblr_to_text.nwo_munging import add_empty_reblog
 
 from api_ml.ml_connector import prob_delta_from_gpt
+from util.tz import TZ_PST
 
 
 def construct_prob_delta_prompts(thread: TumblrThread, needs_empty_reblog=True):
     if needs_empty_reblog:
-        thread = add_empty_reblog(thread, 'DUMMYUSER', datetime.now())
+        thread = add_empty_reblog(thread, 'DUMMYUSER', datetime.now(tz=TZ_PST))
 
     prompt = npf_thread_to_formatted_text(thread, prob_delta_format=True)
 

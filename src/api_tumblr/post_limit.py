@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, time as dtime
+from util.tz import TZ_PST
 
 BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thresh": 60, "SLEEP_TIME_scale": 1.,
                        "MAX_POSTS_PER_STEP_scale": 1.}
@@ -29,7 +30,7 @@ def post_limit_reset_ts(now=None):
     # TODO: revisit this if i'm on vacation or something
 
     if now is None:
-        now = datetime.now()
+        now = datetime.now(tz=TZ_PST)
 
     one_day_ago = now - timedelta(days=1)
 
@@ -63,7 +64,7 @@ def count_posts_since_reset(post_payloads, now=None):
 
 def compute_max_rate_until_next_reset(post_payloads, now=None, max_per_24h=250):
     if now is None:
-        now = datetime.now()
+        now = datetime.now(tz=TZ_PST)
 
     reset_ts = post_limit_reset_ts(now=now)
 
@@ -81,7 +82,7 @@ def compute_max_rate_until_next_reset(post_payloads, now=None, max_per_24h=250):
 
 def compute_rate_over_last_hours(post_payloads, avg_over_hours, now=None):
     if now is None:
-        now = datetime.now()
+        now = datetime.now(tz=TZ_PST)
 
     delt = timedelta(hours=avg_over_hours)
     ts = now - delt
@@ -96,7 +97,7 @@ def review_rates(post_payloads, max_per_24h=250, hour_windows=(1, 2, 4, 12,), no
         max_rate = compute_max_rate_until_next_reset(post_payloads, now=now, max_per_24h=max_per_24h)
 
     if now is None:
-        now = datetime.now()
+        now = datetime.now(tz=TZ_PST)
 
     reset_ts = post_limit_reset_ts(now=now)
 

@@ -3,6 +3,7 @@
 import subprocess
 
 from tumblr_to_text.classic.autoresponder_static_v8 import *
+from util.tz import TZ_PST
 
 V8 = True
 V8_2 = True

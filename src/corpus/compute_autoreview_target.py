@@ -8,6 +8,7 @@ from tqdm.auto import tqdm
 from persistence import traceability
 from corpus.blog_archive import roll_head_timestamp
 from api_tumblr.client_pool import ClientPool
+from util.tz import TZ_PST
 
 
 def sub_prompt_timestamp(base_head_timestamp, actual_timestamp, prompt_autoreviewer):
@@ -27,7 +28,7 @@ def main():
     parser.add_argument("--hot-only", action="store_true")
     args = parser.parse_args()
 
-    base_head_timestamp = datetime.now()
+    base_head_timestamp = datetime.now(tz=TZ_PST)
 
     # trace
     print("loading trace logs")

@@ -788,7 +788,7 @@ def old_bridge_call__textpost(
 
 
 # TODO (cleanup): call these fns inside the answer/textpost fns
-def selection_proba_from_gpt(texts: List[str]):
+def selection_proba_from_gpt(texts: List[str], verbose=True):
     selector_inputs = pd.DataFrame(
         {
             "selector_input": texts,
@@ -796,22 +796,22 @@ def selection_proba_from_gpt(texts: List[str]):
         }
     )
     selection_results = predict_select(
-        selector_inputs,
+        selector_inputs, verbose=verbose
     )
     results = [float(p) for p in selection_results]
 
     return results
 
 
-def sentiment_logit_diffs_from_gpt(texts: List[str]):
+def sentiment_logit_diffs_from_gpt(texts: List[str], verbose=True):
     sentiment_inputs = pd.DataFrame({"selector_input": texts})
-    sentiment_results = predict_sentiment(sentiment_inputs)
+    sentiment_results = predict_sentiment(sentiment_inputs, verbose=verbose)
     results = [float(p) for p in sentiment_results]
 
     return results
 
 
-def autoreview_proba_from_gpt(texts: List[str]):
+def autoreview_proba_from_gpt(texts: List[str], verbose=True):
     autoreview_inputs = pd.DataFrame(
         {
             "selector_input": texts,
@@ -819,7 +819,7 @@ def autoreview_proba_from_gpt(texts: List[str]):
         }
     )
     autoreview_results = predict_autoreview(
-        autoreview_inputs,
+        autoreview_inputs, verbose=verbose
     )
     results = [float(p) for p in autoreview_results]
 

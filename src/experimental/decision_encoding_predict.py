@@ -155,8 +155,8 @@ def run_autoreviewer_on_docs_local(
      return run_autoreviewer_on_docs(docs, save_path=save_path, ts=ts, **kwargs)
 
 
-def _run_head_single_doc_local(doc, run_fn, head_model=None):
-    raw = run_fn([doc], head_model=head_model, suppress_tqdm=True, batch_size=1, verbose=False)
+def _run_head_single_doc_local(doc, run_fn, head_model=None, **kwargs):
+    raw = run_fn([doc], head_model=head_model, suppress_tqdm=True, batch_size=1, verbose=False, **kwargs)
     return list(raw.values())[0]
 
 

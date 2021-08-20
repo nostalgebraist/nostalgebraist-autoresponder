@@ -98,6 +98,7 @@ def run_selector_on_docs_local(
         api_ml.ml_layer_torch.autoreviewer_est.model_.cpu()
         head_model = api_ml.ml_layer_torch.selector_est
     else:
+        head_model.model_.to(device)
         import api_ml.ml_connector
 
     def monkeypatched_selector_do(method, *args, repeat_until_done_signal=False, **kwargs_):
@@ -106,7 +107,9 @@ def run_selector_on_docs_local(
 
     api_ml.ml_connector.selector_est.do = monkeypatched_selector_do
 
-    return run_selector_on_docs(docs, save_path=save_path, ts=ts, **kwargs)
+    out = run_selector_on_docs(docs, save_path=save_path, ts=ts, **kwargs)
+    head_model.model_.cpu()
+    return out
 
 
 def run_sentiment_on_docs_local(
@@ -121,6 +124,7 @@ def run_sentiment_on_docs_local(
         api_ml.ml_layer_torch.autoreviewer_est.model_.cpu()
         head_model = api_ml.ml_layer_torch.sentiment_est
     else:
+        head_model.model_.to(device)
         import api_ml.ml_connector
 
     def monkeypatched_sentiment_do(method, *args, repeat_until_done_signal=False, **kwargs_):
@@ -129,7 +133,9 @@ def run_sentiment_on_docs_local(
 
     api_ml.ml_connector.sentiment_est.do = monkeypatched_sentiment_do
 
-    return run_sentiment_on_docs(docs, save_path=save_path, **kwargs)
+    out = run_sentiment_on_docs(docs, save_path=save_path, **kwargs)
+    head_model.model_.cpu()
+    return out
 
 
 def run_autoreviewer_on_docs_local(

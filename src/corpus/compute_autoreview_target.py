@@ -76,7 +76,7 @@ def main():
 
     trace_indices_to_texts = {}
     for i, row in enumerate(trace_logs):
-        actual_timestamp = datetime.fromtimestamp(row["timestamp_manual"])
+        actual_timestamp = datetime.fromtimestamp(row["timestamp_manual"], tz=TZ_PST)
 
         subbed = sub_prompt_timestamp(base_head_timestamp, actual_timestamp, row["prompt_autoreviewer"])
         trace_indices_to_texts[i] = subbed + row["all_continuations"][row["choice_ix"]]

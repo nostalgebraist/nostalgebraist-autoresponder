@@ -319,7 +319,7 @@ def compute_dynamic_mood_inputs(
         _filter, "generated_logit_diff"
     ].apply(lambda l: np.percentile(l, 75))
 
-    df["time"] = df.timestamp.apply(lambda ts: datetime.fromtimestamp(ts))
+    df["time"] = df.timestamp.apply(lambda ts: datetime.fromtimestamp(ts, tz=TZ_PST))
     _filter = df.generated_ts.notnull()
     df.loc[_filter, "time"] = df.loc[_filter, "generated_ts"]
     df = df.sort_values(by="time")

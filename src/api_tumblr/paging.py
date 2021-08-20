@@ -7,6 +7,7 @@ from tqdm.autonotebook import tqdm
 from api_tumblr.client_pool import ClientPool
 
 from util.error_handling import LogExceptionAndSkip
+from util.tz import TZ_PST
 
 import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
@@ -117,7 +118,7 @@ def fetch_posts(pool: ClientPool,
         if len(page) == 0:
             min_ts = None
         else:
-            min_ts = datetime.fromtimestamp(min(pp['timestamp'] for pp in page)).isoformat()
+            min_ts = datetime.fromtimestamp(min(pp['timestamp'] for pp in page), tz=TZ_PST).isoformat()
         tqdm_bar.update(delta_full)
         tqdm_bar.set_postfix(cl=pool.client_name(client), min_ts=min_ts, n_ok=n_ok, n_full=n_full)
 

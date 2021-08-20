@@ -33,7 +33,7 @@ def roll_head_timestamp(base_head_timestamp: datetime, actual_timestamp: datetim
 # TODO: better handling of fic override
 def construct_head_training_texts(thread: TumblrThread, base_head_timestamp: datetime, blog_name: str = bot_name):
     head_timestamp = roll_head_timestamp(base_head_timestamp=base_head_timestamp,
-                                         actual_timestamp=datetime.fromtimestamp(thread.timestamp))
+                                         actual_timestamp=datetime.fromtimestamp(thread.timestamp, tz=TZ_PST))
     _, text_selector, text_autoreviewer = make_nwo_prompts(thread,
                                                            head_timestamp=head_timestamp,
                                                            blog_name=blog_name,

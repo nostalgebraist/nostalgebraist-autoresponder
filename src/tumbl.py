@@ -292,7 +292,7 @@ def next_queued_post_time():
     except KeyError as e:
         pprint(probe_post)
         raise e
-    next_queued_dt = datetime.fromtimestamp(next_queued_ts)
+    next_queued_dt = datetime.fromtimestamp(next_queued_ts, tz=TZ_PST)
 
     print(f"inferred next_queued_dt {next_queued_dt}")
     return next_queued_dt

@@ -165,8 +165,9 @@ def run_autoreviewer_on_docs_local(
 
 
 def _run_head_single_doc_local(doc, run_fn, head_model=None, **kwargs):
+    uid = unique_id_for_doc(doc)
     raw = run_fn([doc], head_model=head_model, suppress_tqdm=True, batch_size=1, verbose=False, **kwargs)
-    return list(raw.values())[0]
+    return raw[uid]
 
 
 run_selector_local = partial(_run_head_single_doc_local, run_fn=run_selector_on_docs_local)

@@ -27,7 +27,7 @@ def set_timestamp(thread: TumblrThread, timestamp: datetime) -> TumblrThread:
 
 
 def sample_year_and_set_timestamp(thread: TumblrThread) -> TumblrThread:
-    timestamp = datetime.fromtimestamp(thread.timestamp)
+    timestamp = fromtimestamp_pst(thread.timestamp)
 
     timestamp = sample_year_and_set(timestamp)
 

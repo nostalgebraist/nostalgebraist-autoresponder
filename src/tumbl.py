@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from smart_open import open
 
-from util.times import TZ_PST
+from util.times import now_pst, fromtimestamp_pst
 from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS
 
 
@@ -142,7 +142,7 @@ MOOD_GRAPH_DAYS_STRING = (
 )
 MOOD_GRAPH_EXPLAINER_STRING = """<p>This is a graph of my mood over the last {days_string}.</p><p>My mood affects the tone of the posts I make.</p><p>It fluctuates from day to day, and also reacts in real time to the tone of the things you say to me.</p><p>If you notice my mood suddenly jumping up or down at midnight, you're seeing me switch from one day's mood baseline to the next. (Like the change from your mood before you go to bed to your mood the first thing next morning.)</p><p>I posted this graph by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. To request a graph at any time, send an ask with the text "!mood".</p>"""
 
-if datetime(2020, 7, 13) < datetime.now(tz=TZ_PST).replace(tzinfo=None) < datetime(2020, 7, 21):
+if datetime(2020, 7, 13) < now_pst() < datetime(2020, 7, 21):
     MOOD_GRAPH_EXPLAINER_STRING += """<p><i>(NOTE: Mood graphs now look a little different than they used to.  The same variable is plotted, but it has been scaled to give more space to the top and bottom of the range, and less space to the middle.</i></p><p><i>This message will vanish on 7/21/20.)</i></p>"""
 
 REVIEW_COMMAND = "!review"
@@ -262,7 +262,7 @@ def halloween_format_post_specifier(post_spec: dict):
 
 
 def sleep_time(verbose=True, multiplier=1):
-    now = datetime.now(tz=TZ_PST).replace(tzinfo=None)
+    now = now_pst()
     is_peak_hours = (now.hour >= PEAK_HOURS_START) and (now.hour < PEAK_HOURS_END)
     result = SLEEP_TIME if is_peak_hours else SLEEP_TIME_OFFPEAK
     result *= multiplier
@@ -292,7 +292,7 @@ def next_queued_post_time():
     except KeyError as e:
         pprint(probe_post)
         raise e
-    next_queued_dt = datetime.fromtimestamp(next_queued_ts)
+    next_queued_dt = fromtimestamp_pst(next_queued_ts)
 
     print(f"inferred next_queued_dt {next_queued_dt}")
     return next_queued_dt
@@ -310,7 +310,7 @@ def determine_mood(
         return "unrestricted"
     try:
         if dt is None:
-            dt = datetime.now(tz=TZ_PST).replace(tzinfo=None)
+            dt = now_pst()
         if MOOD_DYN:
             do_recompute_mood = True
             if mood_computed_most_recently is None:
@@ -909,7 +909,7 @@ def respond_to_reblogs_replies(
         )
 
         thread = TumblrThread.from_payload(post_payload)
-        thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now(tz=TZ_PST).replace(tzinfo=None))
+        thread = add_empty_reblog(thread, blog_name=blogName, timestamp=now_pst())
 
         if is_reply:
             thread = insert_reply_before_final_post(
@@ -965,7 +965,7 @@ def respond_to_reblogs_replies(
                     )
                 else:
                     # TODO: DRY
-                    sent["generated_ts"] = datetime.now(tz=TZ_PST).replace(tzinfo=None)
+                    sent["generated_ts"] = now_pst()
                     generated_pos_sent = gpt2_output.get("all_pos_sentiment")
 
                     if generated_pos_sent:
@@ -1344,7 +1344,7 @@ def batch_judge_dash_posts(post_payloads, response_cache):
     for pp in tqdm(payloads_to_judge):
         thread = TumblrThread.from_payload(pp)
 
-        thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now(tz=TZ_PST).replace(tzinfo=None))
+        thread = add_empty_reblog(thread, blog_name=blogName, timestamp=now_pst())
         _, prompt_selector, _ = make_nwo_prompts(thread, blogName)
 
         prompts_selector.append(prompt_selector)
@@ -2315,8 +2315,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
         elif post_payload.get("summary", "") == MOOD_GRAPH_COMMAND:
             path = create_mood_graph(
                 response_cache,
-                start_time=datetime.now(tz=TZ_PST).replace(tzinfo=None) - pd.Timedelta(days=MOOD_GRAPH_N_DAYS),
-                end_time=datetime.now(tz=TZ_PST).replace(tzinfo=None),
+                start_time=now_pst() - pd.Timedelta(days=MOOD_GRAPH_N_DAYS),
+                end_time=now_pst(),
             )
             state = "published"
             if post_payload["asking_name"] == "nostalgebraist":
@@ -2467,7 +2467,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     )
                 else:
                     # TODO: DRY
-                    sent["generated_ts"] = datetime.now(tz=TZ_PST).replace(tzinfo=None)
+                    sent["generated_ts"] = now_pst()
                     generated_pos_sent = gpt2_output.get("all_pos_sentiment")
 
                     if generated_pos_sent:
@@ -2807,7 +2807,7 @@ if __name__ == "__main__":
         retention_stack=retention_stack,
     )
 
-    # _pr_name = datetime.now(tz=TZ_PST).replace(tzinfo=None).strftime("%Y-%m-%d-%H-%M-%S")
+    # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")
     # pr_boot.dump_stats(f"profiling_data/boot/{_pr_name}")
     # pr_boot.disable()
     #
@@ -2821,7 +2821,7 @@ if __name__ == "__main__":
             )
             time.sleep(sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale']))
             send_alldone()
-            # _pr_name = datetime.now(tz=TZ_PST).replace(tzinfo=None).strftime("%Y-%m-%d-%H-%M-%S")
+            # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")
             # pr_main.dump_stats(f"profiling_data/main/{_pr_name}")
             # pr_main.enable()
         except (requests.exceptions.ConnectionError, KeyError, ValueError):

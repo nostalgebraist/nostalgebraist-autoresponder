@@ -48,7 +48,7 @@ def fetch(
             posts = pickle.load(f)
 
         min_ts_posix = min(pp["timestamp"] for pp in posts)
-        min_ts = datetime.fromtimestamp(min_ts_posix).isoformat()
+        min_ts = fromtimestamp_pst(min_ts_posix).isoformat()
         print(f"loaded {len(posts)} raw posts, min ts {min_ts}")
 
         before = min_ts_posix
@@ -74,7 +74,7 @@ def fetch(
     posts.extend(new_posts)
 
     min_ts_posix = min(pp["timestamp"] for pp in posts)
-    min_ts = datetime.fromtimestamp(min_ts_posix).isoformat()
+    min_ts = fromtimestamp_pst(min_ts_posix).isoformat()
 
     print(f"saving {len(posts)} raw posts, min ts {min_ts}")
 
@@ -91,7 +91,7 @@ def process(blog_name):
         with open(processed_after_path, "r") as f:
             processed_after = json.load(f)
         processed_after = processed_after["processed_after"]
-        processed_after_ts = datetime.fromtimestamp(processed_after)
+        processed_after_ts = fromtimestamp_pst(processed_after)
 
     raw_posts_path = os.path.join("data/corpus_nwo_extensions/", f"{blog_name}_raw_posts.pkl.gz")
 
@@ -99,7 +99,7 @@ def process(blog_name):
         posts = pickle.load(f)
 
     min_ts_posix = min(pp["timestamp"] for pp in posts)
-    min_ts = datetime.fromtimestamp(min_ts_posix).isoformat()
+    min_ts = fromtimestamp_pst(min_ts_posix).isoformat()
     print(f"loaded {len(posts)} raw posts, min ts {min_ts}")
 
     if processed_after:

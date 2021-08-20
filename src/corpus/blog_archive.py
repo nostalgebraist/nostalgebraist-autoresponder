@@ -20,7 +20,7 @@ import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 bot_name = bot_specific_constants.blogName
 
-from util.times import TZ_PST
+from util.times import now_pst, fromtimestamp_pst
 
 UNUSED_TYPES = {"mood", "review", "manual"}
 
@@ -33,7 +33,7 @@ def roll_head_timestamp(base_head_timestamp: datetime, actual_timestamp: datetim
 # TODO: better handling of fic override
 def construct_head_training_texts(thread: TumblrThread, base_head_timestamp: datetime, blog_name: str = bot_name):
     head_timestamp = roll_head_timestamp(base_head_timestamp=base_head_timestamp,
-                                         actual_timestamp=datetime.fromtimestamp(thread.timestamp))
+                                         actual_timestamp=fromtimestamp_pst(thread.timestamp))
     _, text_selector, text_autoreviewer = make_nwo_prompts(thread,
                                                            head_timestamp=head_timestamp,
                                                            blog_name=blog_name,
@@ -101,7 +101,7 @@ def fetch_and_process(blog_name: str = bot_name,
         posts = pickle.load(f)
 
     max_ts_posix = max(pp["timestamp"] for pp in posts)
-    max_ts = datetime.fromtimestamp(max_ts_posix).isoformat()
+    max_ts = fromtimestamp_pst(max_ts_posix).isoformat()
     print(f"loaded {len(posts)} raw posts, max ts {max_ts}")
 
     lines = load()
@@ -125,7 +125,7 @@ def fetch_and_process(blog_name: str = bot_name,
     if fetch_only:
         return lines
 
-    base_head_timestamp = datetime.now(tz=TZ_PST).replace(tzinfo=None)
+    base_head_timestamp = now_pst()
 
     lines_new = [post_to_line_entry(pp,
                                     base_head_timestamp,

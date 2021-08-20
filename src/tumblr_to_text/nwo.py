@@ -161,7 +161,7 @@ def _post_structural_elements_to_text(
             name_formatted = f"#{thread_index + 1}"
 
     if is_final_post_in_thread:
-        v10_timestamp = timestamp_to_v10_format(datetime.fromtimestamp(timestamp))
+        v10_timestamp = timestamp_to_v10_format(fromtimestamp_pst(timestamp))
         timestamp_formatted = control_seg_config['posted_at'].format(time_text=v10_timestamp)
 
         tag_list_formatted = ", ".join(["#" + t.rstrip(" ") for t in tags])

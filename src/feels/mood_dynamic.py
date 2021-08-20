@@ -28,7 +28,7 @@ from feels.mood import (
 )
 
 from util.past import MILESTONE_TIMES
-from util.times import TZ_PST
+from util.times import now_pst, fromtimestamp_pst
 
 MOOD_IMAGE_DIR = "data/mood_images/"
 
@@ -319,7 +319,7 @@ def compute_dynamic_mood_inputs(
         _filter, "generated_logit_diff"
     ].apply(lambda l: np.percentile(l, 75))
 
-    df["time"] = df.timestamp.apply(lambda ts: datetime.fromtimestamp(ts))
+    df["time"] = df.timestamp.apply(lambda ts: fromtimestamp_pst(ts))
     _filter = df.generated_ts.notnull()
     df.loc[_filter, "time"] = df.loc[_filter, "generated_ts"]
     df = df.sort_values(by="time")
@@ -419,7 +419,7 @@ def compute_dynamic_mood_over_interval(
         start_time = mood_inputs.index[0]
 
     if end_time is None:
-        end_time = datetime.now(tz=TZ_PST).replace(tzinfo=None)
+        end_time = now_pst()
 
     if system is None:
         system = DynamicMoodSystem()
@@ -480,7 +480,7 @@ def compute_dynamic_mood_at_time(
         system = DynamicMoodSystem()
 
     if time is None:
-        time = datetime.now(tz=TZ_PST).replace(tzinfo=None)
+        time = now_pst()
 
     start_time = None
     if window_length_days is not None:
@@ -595,7 +595,7 @@ def create_mood_graph(
         t.set_fontname(font)
 
     if save_image:
-        image_name = datetime.now(tz=TZ_PST).replace(tzinfo=None).strftime("%Y-%m-%d-%H-%M-%S") + ".png"
+        image_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S") + ".png"
         path = MOOD_IMAGE_DIR + image_name
         plt.savefig(path, bbox_inches="tight")
         plt.close(fig)
@@ -622,7 +622,7 @@ def counterfactual_mood_graph(
     ytrans = pos_sent_to_logit_diff if in_logit_diff_space else lambda x: x
 
     if end_time is None:
-        end_time = datetime.now(tz=TZ_PST).replace(tzinfo=None)
+        end_time = now_pst()
     if start_time is None:
         start_time = end_time - pd.Timedelta(days=n_days)
 

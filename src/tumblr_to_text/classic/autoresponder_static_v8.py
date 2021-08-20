@@ -13,7 +13,7 @@ def get_ts_from_fn(fn):
     if fn is None:
         return None
     try:
-        return datetime.fromtimestamp(os.path.getmtime(fn))
+        return fromtimestamp_pst(os.path.getmtime(fn))
     except FileNotFoundError:
         print(f"couldn't find {fn}")
 

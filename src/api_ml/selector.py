@@ -12,6 +12,7 @@ from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED
 from config.autoresponder_config import LOGGING_FLAGS
 from tumblr_to_text.classic.autoresponder_static import EOT
 from feels.mood import logit_diff_to_allen_schema
+from util.tz import TZ_PST
 
 RESULT_STACK = {}
 

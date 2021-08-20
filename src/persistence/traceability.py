@@ -9,7 +9,7 @@ import pandas as pd
 
 from smart_open import open
 
-from util.tz import TZ_PST
+from util.times import TZ_PST
 
 TRACEABILITY_FN = "gs://nost-trc/nbar_data/traceability_logs.pkl.gz"
 TRACEABILITY_COLD_STORAGE_FN = "gs://nost-trc/nbar_data/traceability_logs_cold_storage.pkl.gz"

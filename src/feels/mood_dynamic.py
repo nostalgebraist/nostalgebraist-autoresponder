@@ -28,7 +28,7 @@ from feels.mood import (
 )
 
 from util.past import MILESTONE_TIMES
-from util.tz import TZ_PST
+from util.times import TZ_PST
 
 MOOD_IMAGE_DIR = "data/mood_images/"
 

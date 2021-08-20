@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, time as dtime
-from util.tz import TZ_PST
+from util.times import TZ_PST
 
 BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thresh": 60, "SLEEP_TIME_scale": 1.,
                        "MAX_POSTS_PER_STEP_scale": 1.}

@@ -20,7 +20,7 @@ import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 bot_name = bot_specific_constants.blogName
 
-from util.tz import TZ_PST
+from util.times import TZ_PST
 
 UNUSED_TYPES = {"mood", "review", "manual"}
 

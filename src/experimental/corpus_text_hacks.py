@@ -15,7 +15,7 @@ from tumblr_to_text.classic.autoresponder_static_v8 import (
     timestamp_to_v10_format,
     format_segment_v8_interlocutors
 )
-from util.tz import TZ_PST
+from util.times import TZ_PST
 
 
 now = datetime.now(tz=TZ_PST).replace(tzinfo=None)  # ensures same value in long-running jobs

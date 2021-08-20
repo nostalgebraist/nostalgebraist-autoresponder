@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from smart_open import open
 
-from util.tz import TZ_PST
+from util.times import TZ_PST
 from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS
 
 

@@ -17,7 +17,7 @@ import pickle
 
 from smart_open import open
 
-from util.tz import TZ_PST
+from util.times import TZ_PST
 
 import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants

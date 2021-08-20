@@ -427,7 +427,7 @@ def get_retention_stack_judgments(retention_stack,
     from tumblr_to_text.nwo_munging import make_nwo_textpost_prompts
 
     if timestamp is None:
-        timestamp = datetime.now(tz=TZ_PST)
+        timestamp = datetime.now(tz=TZ_PST).replace(tzinfo=None)
 
     if len(retention_stack) == 0:
         proba, logit_diffs, autoreview_proba = [], [], []
@@ -437,7 +437,7 @@ def get_retention_stack_judgments(retention_stack,
 
     prompts, prompts_selector, prompts_autoreviewer, _ = make_nwo_textpost_prompts(
         blog_name=blog_name,
-        timestamp=datetime.now(tz=TZ_PST)
+        timestamp=datetime.now(tz=TZ_PST).replace(tzinfo=None)
     )
 
     selector_texts = [prompts_selector[prompts[0]] + c for c in base_texts]

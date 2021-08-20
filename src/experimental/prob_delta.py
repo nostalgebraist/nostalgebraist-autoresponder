@@ -10,7 +10,7 @@ from util.tz import TZ_PST
 
 def construct_prob_delta_prompts(thread: TumblrThread, needs_empty_reblog=True):
     if needs_empty_reblog:
-        thread = add_empty_reblog(thread, 'DUMMYUSER', datetime.now(tz=TZ_PST))
+        thread = add_empty_reblog(thread, 'DUMMYUSER', datetime.now(tz=TZ_PST).replace(tzinfo=None))
 
     prompt = npf_thread_to_formatted_text(thread, prob_delta_format=True)
 

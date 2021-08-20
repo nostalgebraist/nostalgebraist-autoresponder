@@ -28,7 +28,7 @@ def main():
     parser.add_argument("--hot-only", action="store_true")
     args = parser.parse_args()
 
-    base_head_timestamp = datetime.now(tz=TZ_PST)
+    base_head_timestamp = datetime.now(tz=TZ_PST).replace(tzinfo=None)
 
     # trace
     print("loading trace logs")

@@ -125,7 +125,7 @@ def fetch_and_process(blog_name: str = bot_name,
     if fetch_only:
         return lines
 
-    base_head_timestamp = datetime.now(tz=TZ_PST)
+    base_head_timestamp = datetime.now(tz=TZ_PST).replace(tzinfo=None)
 
     lines_new = [post_to_line_entry(pp,
                                     base_head_timestamp,

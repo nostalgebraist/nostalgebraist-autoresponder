@@ -66,7 +66,7 @@ class TraceabilityLogs:
         entry = {"api__" + k: v for k, v in api_response.items()}
         entry.update(bridge_response)
 
-        entry['timestamp_manual'] = datetime.now(tz=TZ_PST).timestamp()
+        entry['timestamp_manual'] = datetime.now(tz=TZ_PST).replace(tzinfo=None).timestamp()
 
         for k in sorted(entry.keys()):
             if k not in self.logs["fields"]:

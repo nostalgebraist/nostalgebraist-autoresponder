@@ -429,6 +429,8 @@ def compute_dynamic_mood_over_interval(
     #     system.determiner_multiplier_series(sentiment_centered) * sentiment_centered
     # )
     sentiment_centered = mood_inputs["scaled_determiner"]
+    if start_time > sentiment_centered.index.max():
+        sentiment_centered.loc[start_time] = 0.
     sentiment_centered = sentiment_centered.loc[start_time:end_time]
     sentiment_centered_indexed = sentiment_centered.resample(
         f"{system.step_sec}s"
@@ -558,6 +560,7 @@ def create_mood_graph(
             label=display_names[k],
             ls="--",
             c=colors[k],
+            zorder=1.9,
         )
 
     if in_logit_diff_space:

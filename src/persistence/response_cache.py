@@ -15,6 +15,10 @@ import time
 import os
 import pickle
 
+from smart_open import open
+
+from util.times import now_pst, fromtimestamp_pst
+
 import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 
@@ -68,21 +72,18 @@ class ResponseCache:
             self.cache["following_names"] = set()
 
     @staticmethod
-    def load(client=None, path="data/response_cache.pkl.gz", verbose=True):
+    def load(client=None, path="gs://nost-trc/nbar_data/response_cache.pkl.gz", verbose=True):
         cache = None
-        if os.path.exists(path):
-            with open(path, "rb") as f:
-                cache = pickle.load(f)
-            if verbose:
-                lengths = {k: len(cache[k]) for k in cache.keys()}
-                print(f"loaded response cache with lengths {lengths}")
-        else:
-            print(f"initialized response cache")
+        with open(path, "rb") as f:
+            cache = pickle.load(f)
+        if verbose:
+            lengths = {k: len(cache[k]) for k in cache.keys()}
+            print(f"loaded response cache with lengths {lengths}")
         loaded = ResponseCache(client, path, cache)
         loaded.remove_oldest()
         return loaded
 
-    def save(self, verbose=True, do_backup=True):
+    def save(self, verbose=True, do_backup=False):
         self.remove_oldest()
 
         t1 = time.time()
@@ -119,7 +120,7 @@ class ResponseCache:
         existing_n = self.cache[CachedResponseType.NOTES]
         existing_dpj = self.cache["dash_post_judgments"]
 
-        last_allowed_time = datetime.now() - timedelta(hours=max_hours)
+        last_allowed_time = now_pst() - timedelta(hours=max_hours)
 
         allowed_p = {pi for pi, t in lat.items() if t >= last_allowed_time}
 
@@ -368,10 +369,10 @@ class ResponseCache:
         identifier_int = PostIdentifier(identifier.blog_name, int(identifier.id_))
         identifier_str = PostIdentifier(identifier.blog_name, str(identifier.id_))
         if identifier_int in self.cache[rtype]:
-            self.cache["last_accessed_time"][identifier_int] = datetime.now()
+            self.cache["last_accessed_time"][identifier_int] = now_pst()
             return identifier_int
         if identifier_str in self.cache[rtype]:
-            self.cache["last_accessed_time"][identifier_str] = datetime.now()
+            self.cache["last_accessed_time"][identifier_str] = now_pst()
             return identifier_str
         return None
 

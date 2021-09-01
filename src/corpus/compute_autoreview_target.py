@@ -1,13 +1,13 @@
 import json
 import argparse
 from collections import defaultdict, Counter
-from datetime import datetime
 
 from tqdm.auto import tqdm
 
 from persistence import traceability
 from corpus.blog_archive import roll_head_timestamp
 from api_tumblr.client_pool import ClientPool
+from util.times import now_pst, fromtimestamp_pst
 
 
 def sub_prompt_timestamp(base_head_timestamp, actual_timestamp, prompt_autoreviewer):
@@ -27,7 +27,7 @@ def main():
     parser.add_argument("--hot-only", action="store_true")
     args = parser.parse_args()
 
-    base_head_timestamp = datetime.now()
+    base_head_timestamp = now_pst()
 
     # trace
     print("loading trace logs")
@@ -75,7 +75,7 @@ def main():
 
     trace_indices_to_texts = {}
     for i, row in enumerate(trace_logs):
-        actual_timestamp = datetime.fromtimestamp(row["timestamp_manual"])
+        actual_timestamp = fromtimestamp_pst(row["timestamp_manual"])
 
         subbed = sub_prompt_timestamp(base_head_timestamp, actual_timestamp, row["prompt_autoreviewer"])
         trace_indices_to_texts[i] = subbed + row["all_continuations"][row["choice_ix"]]

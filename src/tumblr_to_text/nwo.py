@@ -1,6 +1,5 @@
 from typing import Tuple, List, Union
 import re
-from datetime import datetime
 
 from api_tumblr.tumblr_parsing import NPFAsk, TumblrPost, TumblrThread
 
@@ -10,6 +9,8 @@ from tumblr_to_text.classic.autoresponder_static_v8 import format_segment_v8_int
 from tumblr_to_text.classic.munging_shared import sanitize_user_input_outer_shell
 from tumblr_to_text.image_munging import find_images_and_sub_text
 import tumblr_to_text.nwo_html_config
+
+from util.times import fromtimestamp_pst
 
 PostOrAsk = Union[TumblrPost, NPFAsk]
 
@@ -161,7 +162,7 @@ def _post_structural_elements_to_text(
             name_formatted = f"#{thread_index + 1}"
 
     if is_final_post_in_thread:
-        v10_timestamp = timestamp_to_v10_format(datetime.fromtimestamp(timestamp))
+        v10_timestamp = timestamp_to_v10_format(fromtimestamp_pst(timestamp))
         timestamp_formatted = control_seg_config['posted_at'].format(time_text=v10_timestamp)
 
         tag_list_formatted = ", ".join(["#" + t.rstrip(" ") for t in tags])

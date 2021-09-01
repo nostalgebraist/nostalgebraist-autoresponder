@@ -7,8 +7,12 @@ from datetime import datetime
 
 import pandas as pd
 
-TRACEABILITY_FN = "data/traceability_logs.pkl.gz"
-TRACEABILITY_COLD_STORAGE_FN = "data/traceability_logs_cold_storage.pkl.gz"
+from smart_open import open
+
+from util.times import now_pst, fromtimestamp_pst
+
+TRACEABILITY_FN = "gs://nost-trc/nbar_data/traceability_logs.pkl.gz"
+TRACEABILITY_COLD_STORAGE_FN = "gs://nost-trc/nbar_data/traceability_logs_cold_storage.pkl.gz"
 
 
 def _add_field(logs, fieldname):
@@ -41,13 +45,9 @@ class TraceabilityLogs:
 
     @staticmethod
     def load(path=TRACEABILITY_FN) -> 'TraceabilityLogs':
-        if not os.path.exists(path):
-            print('initializing fresh traceability logs')
-            logs = {"fields": [], "data": []}
-        else:
-            print('loading traceability logs')
-            with open(path, "rb") as f:
-                logs = pickle.load(f)
+        print('loading traceability logs')
+        with open(path, "rb") as f:
+            logs = pickle.load(f)
         return TraceabilityLogs(logs=logs, path=path)
 
     def save(self):
@@ -60,19 +60,13 @@ class TraceabilityLogs:
         _tsave = time.time()
         print(f"trace save 1: {_tsave-t1:.3f}s sec")
 
-        backup_path = self.path[: -len(".pkl.gz")] + "_backup.pkl.gz"
-        subprocess.check_output(f"cp {self.path} {backup_path}", shell=True)
-
-        _tsave2 = time.time()
-        print(f"trace save 2: {_tsave2-_tsave:.3f}s sec")
-
     def on_post_creation_callback(self, api_response: dict, bridge_response: dict):
         t1 = time.time()
 
         entry = {"api__" + k: v for k, v in api_response.items()}
         entry.update(bridge_response)
 
-        entry['timestamp_manual'] = datetime.now().timestamp()
+        entry['timestamp_manual'] = now_pst().timestamp()
 
         for k in sorted(entry.keys()):
             if k not in self.logs["fields"]:

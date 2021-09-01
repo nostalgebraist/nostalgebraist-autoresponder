@@ -1,5 +1,4 @@
 from typing import Optional
-from datetime import datetime
 from collections import Counter
 
 from tqdm.autonotebook import tqdm
@@ -11,6 +10,7 @@ from util.error_handling import LogExceptionAndSkip
 import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 bot_name = bot_specific_constants.blogName
+from util.times import fromtimestamp_pst
 
 
 # TODO: DRY (centralize paging helpers)
@@ -117,7 +117,7 @@ def fetch_posts(pool: ClientPool,
         if len(page) == 0:
             min_ts = None
         else:
-            min_ts = datetime.fromtimestamp(min(pp['timestamp'] for pp in page)).isoformat()
+            min_ts = fromtimestamp_pst(min(pp['timestamp'] for pp in page)).isoformat()
         tqdm_bar.update(delta_full)
         tqdm_bar.set_postfix(cl=pool.client_name(client), min_ts=min_ts, n_ok=n_ok, n_full=n_full)
 

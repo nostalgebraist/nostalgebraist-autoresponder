@@ -1,7 +1,7 @@
 """code for turning forumlike (v7) format into the v8 version"""
 import os
-from datetime import datetime
 from tumblr_to_text.classic.autoresponder_static import *
+from util.times import fromtimestamp_pst
 
 
 """V8 format: time of post"""
@@ -13,7 +13,7 @@ def get_ts_from_fn(fn):
     if fn is None:
         return None
     try:
-        return datetime.fromtimestamp(os.path.getmtime(fn))
+        return fromtimestamp_pst(os.path.getmtime(fn))
     except FileNotFoundError:
         print(f"couldn't find {fn}")
 

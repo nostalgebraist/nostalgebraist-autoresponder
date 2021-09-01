@@ -15,9 +15,10 @@ from tumblr_to_text.classic.autoresponder_static_v8 import (
     timestamp_to_v10_format,
     format_segment_v8_interlocutors
 )
+from util.times import now_pst, fromtimestamp_pst
 
 
-now = datetime.now()  # ensures same value in long-running jobs
+now = now_pst()  # ensures same value in long-running jobs
 orig_poster_regex = DEFAULT_CSC["ORIG_POST_CHAR_NAMED"].format(user_name="([^ ]*)")
 
 

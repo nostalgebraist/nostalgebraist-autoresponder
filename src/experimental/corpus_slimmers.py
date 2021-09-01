@@ -27,6 +27,29 @@ class Toggles(AttrDict):
             return False
 
 
+def make_clp_regex(control_line_prefix):
+    return re.compile(r"(^\W)*" + re.escape(control_line_prefix))
+
+
+DEFAULT_SLIMMER_OPTIONS = Toggles(
+    omit_conversation_segment=True,
+    nposts_use_in_orig=True,
+    nposts_omit_word_posts=True,
+    nposts_unspaced_num=False,
+    remove_cchar_redundancies=True,
+    tag_redundancy_use_hash=False,  # default: use comma
+    tags_no_uname=True,
+    omit_posted_words=True,
+    asked_repl=" ask",
+    control_line_prefix="|",
+    remove_control_line_prefix_from_posts=True,
+    collapse_final_post_line_and_last_cchar=True,
+    remove_para_prefix_spaces=True,
+)
+
+DEFAULT_SLIMMER_OPTIONS.clp_regex = make_clp_regex(DEFAULT_SLIMMER_OPTIONS.control_line_prefix)
+
+
 def _split_header(before):
     header, sep_header_end, prefinal_posts = before.rpartition(" |\n")
     conversation_segment, sep_conv_nposts, nposts_segment = header.partition(" |")
@@ -59,10 +82,6 @@ def segment_prefinal_posts(header):
         segments.append({"kind": "content", "text": header[start_ix:end_ix]})
 
     return segments
-
-
-def make_clp_regex(control_line_prefix):
-    return re.compile(r"(^\W)*" + re.escape(control_line_prefix))
 
 
 def slim_forumlike_doc(doc: str, options: Toggles):

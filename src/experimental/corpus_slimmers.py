@@ -84,7 +84,7 @@ def segment_prefinal_posts(header):
     return segments
 
 
-def slim_forumlike_doc(doc: str, options: Toggles):
+def slim_forumlike_doc(doc: str, options: Toggles = DEFAULT_SLIMMER_OPTIONS, verbose=True):
     control_line_prefix = (
         options.control_line_prefix
         if options.control_line_prefix
@@ -157,8 +157,10 @@ def slim_forumlike_doc(doc: str, options: Toggles):
     prefinal_text = "".join([pfseg["text"] for pfseg in prefinal_segments])
 
     if prefinal_text != prefinal_posts:
-        print(prefinal_text)
-        print(prefinal_posts)
+        if verbose:
+            print("doc: " + repr(doc))
+            print("prefinal_text: " + repr(prefinal_text))
+            print("prefinal_posts: " + repr(prefinal_posts))
         raise ValueError("prefinal_text != prefinal_posts")
 
     _tag_prefix_a, _tag_prefix_b, tags_proper = tag_segment.partition(": ")

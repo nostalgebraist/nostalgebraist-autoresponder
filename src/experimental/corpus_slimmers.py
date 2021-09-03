@@ -1,11 +1,22 @@
 import re
 from collections import UserDict
 
+from tumblr_to_text.classic.autoresponder_static import CONTROL_SEG_CONFIGS
 from experimental.corpus_text_hacks import split_forumlike_doc
 from experimental.corpus_thread_util import _get_ccs_with_fixes
 
-DEFAULT_ASK_REPL = " (ask)"
-DEFAULT_CONTROL_LINE_PREFIX = ""
+DEFAULT_ASK_REPL = " ask"
+DEFAULT_FIC_REPL = " fiction"
+DEFAULT_REVIEW_REPL = " review"
+DEFAULT_CONTROL_LINE_PREFIX = "|"
+
+FIC_PREFIX = CONTROL_SEG_CONFIGS['V10_1']['ORIG_FICTION_CHAR_FORUMLIKE']
+REVIEW_PREFIX = CONTROL_SEG_CONFIGS['V10_1']['REVIEW_CHAR_FORUMLIKE']
+
+REPL_TIME_STRING = " 10 AM December 2017"
+FIC_REVIEW_PREFIX_REPL = f""" nostalgebraist-autoresponder posted:\n\n Written{REPL_TIME_STRING} | nostalgebraist-autoresponder's tags:"""
+
+FIC_REVIEW_CCHAR_REPLS = {FIC_PREFIX: " fiction", REVIEW_PREFIX: " review"}
 
 
 class AttrDict(UserDict):
@@ -129,6 +140,12 @@ def slim_forumlike_doc(doc: str, options: Toggles = DEFAULT_SLIMMER_OPTIONS, ver
 
     # split
 
+    special_doctype = None
+    for p in (FIC_PREFIX, REVIEW_PREFIX):
+        if doc.startswith(p):
+            special_doctype = p
+            doc = doc.replace(p, FIC_REVIEW_PREFIX_REPL)
+
     (
         header,
         sep,
@@ -163,8 +180,9 @@ def slim_forumlike_doc(doc: str, options: Toggles = DEFAULT_SLIMMER_OPTIONS, ver
             print("prefinal_posts: " + repr(prefinal_posts))
         raise ValueError("prefinal_text != prefinal_posts")
 
-    _tag_prefix_a, _tag_prefix_b, tags_proper = tag_segment.partition(": ")
+    _tag_prefix_a, _tag_prefix_b, tags_proper = tag_segment.rpartition(":")
     tag_prefix = _tag_prefix_a + _tag_prefix_b
+    tags_proper = tags_proper.lstrip(" ")
 
     # slim
 
@@ -227,6 +245,9 @@ def slim_forumlike_doc(doc: str, options: Toggles = DEFAULT_SLIMMER_OPTIONS, ver
                         options.asked_repl if options.asked_repl else DEFAULT_ASK_REPL
                     )
                     word_to_slim = word_to_slim.replace("asked", asked_repl)
+                elif word_to_slim.startswith("posted") and special_doctype:
+                    fic_review_repl = FIC_REVIEW_CCHAR_REPLS[special_doctype]
+                    word_to_slim = word_to_slim.replace("posted", fic_review_repl)
                 else:
                     word_to_slim = word_to_slim[word_to_slim.find(":") :]
 
@@ -264,6 +285,9 @@ def slim_forumlike_doc(doc: str, options: Toggles = DEFAULT_SLIMMER_OPTIONS, ver
     if options.collapse_final_post_line_and_last_cchar:
         prefinal_text = prefinal_text.rstrip("\n ") + " "
         final_post_line = final_post_line.rstrip(" \n") + "\n\n"
+
+    if special_doctype:
+        final_post_line = final_post_line.replace(REPL_TIME_STRING, "")
 
     header_line = _add_control_line_prefix(header_line)
 

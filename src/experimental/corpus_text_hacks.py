@@ -143,13 +143,18 @@ def split_forumlike_doc(doc: str, newline_postfix="\n"):
         DEFAULT_CSC["ORIG_FICTION_CHAR_FORUMLIKE"],
         DEFAULT_CSC["REVIEW_CHAR_FORUMLIKE"],
     ]
+
+    done = False
+
     for c in special_chars:
         if doc.startswith(c):
             _, before, after = doc.partition(c)
             sep, time_segment, sep2 = "", "", ""
+            sentiment_segment, sep_sent_sel, select_segment, sep_dec_tag = "", "", "", ""
             tag_segment, sep3, final_content = after.partition(newline_postfix)
-            return before, sep, time_segment, sep2, tag_segment, sep3, final_content
-    else:
+            done = True
+
+    if not done:
         time_seg_start = DEFAULT_CSC["posted_at"].format(time_text="")
 
         before, sep, after = doc.rpartition(time_seg_start)
@@ -165,7 +170,6 @@ def split_forumlike_doc(doc: str, newline_postfix="\n"):
             ", "
         )
 
-    # return before, sep, time_segment, sep2, tag_segment, sep3, final_content
     return (
         before,
         sep,

@@ -416,7 +416,7 @@ def format_extracted_text(image_text, image_formatter=V9_IMAGE_FORMATTER, verbos
 
 
 class ImageAnalysisCache:
-    def __init__(self, path="gs://nost-trc/nbar_data/image_analysis_cache.pkl.gz", cache=None, hash_to_url=None):
+    def __init__(self, path="image_analysis_cache.pkl.gz", cache=None, hash_to_url=None):
         self.path = path
         self.cache = cache
         self.hash_to_url = hash_to_url

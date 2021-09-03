@@ -576,7 +576,7 @@ class ImageAnalysisCache:
 
     @staticmethod
     def load(
-        path: str = "gs://nost-trc/nbar_data/image_analysis_cache.pkl.gz", verbose=True
+        path: str = "data/image_analysis_cache.pkl.gz", verbose=True
     ) -> "ImageAnalysisCache":
         cache = None
         hash_to_url = dict()

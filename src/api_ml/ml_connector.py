@@ -473,7 +473,7 @@ def predict_autoreview(data, verbose=True):
 
 
 def save_retention(retention_stack):
-    with open("gs://nost-trc/nbar_data/retention_stack.pkl.gz", "wb") as f:
+    with open("gs://nost-trc/nbar_data/retention_stack.pkl", "wb") as f:
         pickle.dump(retention_stack, f)
 
 

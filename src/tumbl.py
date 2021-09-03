@@ -2772,12 +2772,14 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     return loop_persistent_data, response_cache
 
 
-def load_retention(path="data/retention_stack.pkl.gz"):
+def load_retention(path="gs://nost-trc/nbar_data/retention_stack.pkl"):
     retention_stack = set()
 
-    if os.path.exists(path):
+    try:
         with open(path, "rb") as f:
             retention_stack = pickle.load(f)
+    except FileNotFoundError:
+        print(f"Initialized retention_stack")
 
     retention_stack = apply_retention_cutoff(retention_stack)
 

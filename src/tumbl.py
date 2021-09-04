@@ -187,19 +187,9 @@ FIC_TRIGGER_TESTING = False
 IMAGE_CREATION = True
 IMAGE_CREATION_TESTING = False
 
-# TODO: move these files once we'rve fully jumped ship to this repo!
-scraped_username_dirs = [
-    "../gpt-2/data/autoresponder_v9/v0/post_outflow_im/segments_with_metadata/",
-    "../gpt-2/data/autoresponder_v9/v1/post_outflow_im/segments_with_metadata/",
-]
-scraped_usernames = set()
-try:
-    for scraped_username_dir in scraped_username_dirs:
-        scraped_usernames.update(
-            [fn.split(".")[0] for fn in os.listdir(scraped_username_dir)]
-        )
-except Exception as e:
-    print(f"in getting scraped_usernames, encountered {e}, {getattr(e, '__dict__')}")
+with open("data/scraped_usernames.json", "r") as f:
+    scraped_usernames = json.load(f)
+scraped_usernames = set(scraped_usernames)
 
 RTS_COMMAND = "rts"
 ACCEPT_COMMAND = "a"

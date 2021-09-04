@@ -199,7 +199,7 @@ def split_forumlike_doc(doc: str, newline_postfix="\n"):
     )
 
 
-def extract_time_from_forumlike_doc(doc: str):
+def extract_time_from_forumlike_doc(doc: str, to_datetime=True):
     (
         before,
         sep,
@@ -214,6 +214,8 @@ def extract_time_from_forumlike_doc(doc: str):
         final_content,
     ) = split_forumlike_doc(doc)
 
+    if not to_datetime:
+        return time_segment
     return datetime.strptime(time_segment, "%I %p %B %Y")
 
 

@@ -9,6 +9,7 @@ tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
 
 from tumblr_to_text.classic.autoresponder_static import EOT
 from experimental.corpus_text_hacks import extract_time_from_forumlike_doc, get_ccs_with_fixes
+from experimental.corpus_slimmers import slim_forumlike_doc
 
 quote_hell_regex = re.compile(r"<blockquote><a href=\"http://[^\.]+\.tumblr\.com/post/[^\"]+\">[^<]+</a>:")
 strip_link_attrs_regex = re.compile(r'<a[^<]*>(.*?)</a>')
@@ -329,13 +330,20 @@ def show_trail(docs, trails, key):
         print('\n------\n')
 
 
-def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True, exclude_h2_issue=True,
-                          uid_to_metadata=None, uid_fn=unique_id_ignore_frank_nost,
-                          returned_excluded_uids=False):
+def load_trails_from_docs(paths,
+                          include_usernames=False,
+                          exclude_malformed=True,
+                          exclude_h2_issue=True,
+                          exclude_unslimmable=True,
+                          uid_to_metadata=None,
+                          uid_fn=unique_id_ignore_frank_nost,
+                          return_excluded_uids=False,
+                          return_slimmed=False):
 
     using_uid_map = uid_to_metadata is not None
     doc_to_uid = {}
     excluded_uids = set()
+    slimmed = {}
 
     if isinstance(paths, str):
         paths = [paths]
@@ -360,7 +368,36 @@ def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True
             doc_to_uid.update(g_doc_to_uid)
             print(f"read group from file {p}:\n\t{n_match_uids} of {n_raw} ({n_match_uids/n_raw:.1%}) have metadata\n")
 
+        if exclude_unslimmable:
+            bad = []
+            print('slimming...')
+            for d in tqdm(g):
+                try:
+                    slimmed[d] = slim_forumlike_doc(d, verbose=False)
+                except (ValueError, IndexError):
+                    bad.append(d)
+            n_raw = len(g)
+            g = [d for d in g if d in slimmed]
+            n_excluded = n_raw - len(g)
+            print(f"\tremoved {n_excluded} unslimmable docs ({n_excluded/n_raw:.2%})\n")
+
+            print(f"verifying code works: {len(g)} docs after (vs {n_raw}, diff {n_raw - len(g)})")
+
+            examples = bad[:3]
+            for case in examples:
+                print(f"\t\texample unslimmable doc:\n\t\t\t{repr(case)}\n")
+
+            if using_uid_map:
+                bad = [uid_fn(d) for d in bad]
+                bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
+
+                nbad_meta = len(bad_with_meta)
+                print(f"\t{nbad_meta} of {n_excluded} ({nbad_meta/min(1, n_excluded):.2%}) have metadata\n")
+
+                excluded_uids.update(bad_with_meta)
+
         if exclude_malformed:
+            n_raw = len(g)
             reasons = [diagnose_malformed(d) for d in g]
             presentation_counts = Counter([tuple(sorted(r)) for r in reasons])
             symptom_counts = Counter([r for rs in reasons for r in rs])
@@ -384,7 +421,7 @@ def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True
                 bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
 
                 nbad_meta = len(bad_with_meta)
-                print(f"\t{nbad_meta} of {n_excluded} ({nbad_meta/n_excluded:.2%}) have metadata\n")
+                print(f"\t{nbad_meta} of {n_excluded} ({nbad_meta/min(1, n_excluded):.2%}) have metadata\n")
 
                 excluded_uids.update(bad_with_meta)
 
@@ -432,7 +469,7 @@ def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True
                 bad = [uid_fn(doc_groups[group_index][i]) for i in excluded_indices]
                 bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
                 nbad_meta = len(bad_with_meta)
-                print(f"\tgroup {group_index}: {nbad_meta} of {n_excluded_group} ({nbad_meta/n_excluded_group:.2%}) have metadata\n")
+                print(f"\tgroup {group_index}: {nbad_meta} of {n_excluded_group} ({nbad_meta/min(1, n_excluded_group):.2%}) have metadata\n")
                 excluded_uids.update(bad_with_meta)
 
             examples = [doc_groups[group_index][i] for i in excluded_indices][:2]
@@ -450,9 +487,13 @@ def load_trails_from_docs(paths, include_usernames=False, exclude_malformed=True
 
     trail_stats(docs, trails, nt)
 
-    if returned_excluded_uids:
-        return docs, trails, nt, doc_index_to_group_index, excluded_uids
-    return docs, trails, nt, doc_index_to_group_index
+    extra_return_values = {}
+
+    if return_excluded_uids:
+        extra_return_values['excluded_uids'] = excluded_uids
+    if return_slimmed:
+        extra_return_values['slimmed'] = slimmed
+    return docs, trails, nt, doc_index_to_group_index, extra_return_values
 
 
 def trail_stats(docs, trails, nt):
@@ -488,7 +529,10 @@ def sort_by_username_post_id(docs, uid_to_metadata):
         uid = unique_id_ignore_frank_nost(doc)
         meta = uid_to_metadata.get(uid)
         if meta:
-            key = (meta['blogname'], meta['post_id'])
+            if 'blogname' in meta and 'post_id' in meta:
+                key = (meta['blogname'], meta['post_id'])
+            else:
+                key = meta['fallback_key']
         key = fallback_keyfn(doc)
 
         # prevent unames from being alphabetical

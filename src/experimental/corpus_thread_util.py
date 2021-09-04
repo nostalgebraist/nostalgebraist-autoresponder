@@ -533,7 +533,8 @@ def sort_by_username_post_id(docs, uid_to_metadata):
                 key = (meta['blogname'], meta['post_id'])
             else:
                 key = meta['fallback_key']
-        key = fallback_keyfn(doc)
+        else:
+            key = fallback_keyfn(doc)
 
         # prevent unames from being alphabetical
         if key[0] not in uname_order:

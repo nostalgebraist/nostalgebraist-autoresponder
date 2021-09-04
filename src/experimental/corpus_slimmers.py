@@ -2,8 +2,7 @@ import re
 from collections import UserDict
 
 from tumblr_to_text.classic.autoresponder_static import CONTROL_SEG_CONFIGS
-from experimental.corpus_text_hacks import split_forumlike_doc
-from experimental.corpus_thread_util import _get_ccs_with_fixes
+from experimental.corpus_text_hacks import split_forumlike_doc, get_ccs_with_fixes
 
 DEFAULT_ASK_REPL = " ask"
 DEFAULT_FIC_REPL = " fiction"
@@ -76,7 +75,7 @@ def _split_header(before):
 
 def segment_prefinal_posts(header):
     # needs `header` not `prefinal_posts` b/c it uses the conversation text
-    cchars = _get_ccs_with_fixes(header)
+    cchars = get_ccs_with_fixes(header)
 
     SPECIAL_TEXTEND = "__INTERNAL__TEXTEND"
 

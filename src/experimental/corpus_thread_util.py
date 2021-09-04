@@ -3,13 +3,12 @@ import random
 import re
 from collections import defaultdict, Counter
 from functools import partial
-from string import ascii_lowercase, digits, punctuation
 
 from tqdm.auto import tqdm as tqdm_base
 tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
 
-from tumblr_to_text.classic.autoresponder_static import find_control_chars_forumlike, EOT
-from experimental.corpus_text_hacks import extract_time_from_forumlike_doc
+from tumblr_to_text.classic.autoresponder_static import EOT
+from experimental.corpus_text_hacks import extract_time_from_forumlike_doc, get_ccs_with_fixes
 
 quote_hell_regex = re.compile(r"<blockquote><a href=\"http://[^\.]+\.tumblr\.com/post/[^\"]+\">[^<]+</a>:")
 strip_link_attrs_regex = re.compile(r'<a[^<]*>(.*?)</a>')
@@ -48,7 +47,7 @@ def remove_ignored_substrings(s, ignore_titles=False, ignore_link_attrs=True):
 
 
 def get_title(doc):
-    ccs = _get_ccs_with_fixes(doc)
+    ccs = get_ccs_with_fixes(doc)
     if len(ccs) == 0:
         return
     start_ix = ccs[0][1] + len(ccs[0][0])
@@ -87,7 +86,7 @@ def diagnose_malformed(doc, verbose=False, use_naive_h2_pattern=False):
 
     if use_naive_h2_pattern and "<h2>" in doc:
         # check first-post-is-only-title pattern
-        ccs = _get_ccs_with_fixes(doc)
+        ccs = get_ccs_with_fixes(doc)
         if len(ccs) > 0:
             start_ix = ccs[0][1]
             end_ix = ccs[1][1] if len(ccs) > 1 else len(doc)
@@ -102,20 +101,6 @@ def diagnose_malformed(doc, verbose=False, use_naive_h2_pattern=False):
     return reasons
 
 
-def _get_ccs_with_fixes(doc):
-    extra_names = doc.split(" ")[1:2]
-    if extra_names[0] == 'nostalgebraist-autoresponder':
-        extra_names = []
-
-    ccs = find_control_chars_forumlike(doc, extra_names=extra_names)
-
-    # edge case
-    if ccs[0][0].startswith("#1 nostalgebraist-autoresponder posted"):
-        if ccs[1][0].startswith(" nostalgebraist-autoresponder posted"):
-            ccs.pop(1)
-    return ccs
-
-
 def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=False):
     def vprint(*args, **kwargs):
         if verbose:
@@ -123,7 +108,7 @@ def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=Fal
 
     vprint(f"include_username={include_username}")
 
-    ccs = _get_ccs_with_fixes(doc)
+    ccs = get_ccs_with_fixes(doc)
 
     vprint("base ccs:")
     vprint(ccs)
@@ -491,7 +476,7 @@ def fallback_keyfn(doc):
         ts = extract_time_from_forumlike_doc(doc).timestamp()
     except ValueError:
         return ('zzzzzzz', -1)
-    ccs = _get_ccs_with_fixes(doc)
+    ccs = get_ccs_with_fixes(doc)
     blogname = ccs[-1][0].split(" ")[1]
     return (blogname, ts)
 

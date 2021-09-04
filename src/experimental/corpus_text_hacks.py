@@ -15,11 +15,25 @@ from tumblr_to_text.classic.autoresponder_static_v8 import (
     timestamp_to_v10_format,
     format_segment_v8_interlocutors
 )
-from util.times import now_pst, fromtimestamp_pst
+from util.times import now_pst
 
 
 now = now_pst()  # ensures same value in long-running jobs
 orig_poster_regex = DEFAULT_CSC["ORIG_POST_CHAR_NAMED"].format(user_name="([^ ]*)")
+
+
+def get_ccs_with_fixes(doc):
+    extra_names = doc.split(" ")[1:2]
+    if extra_names[0] == 'nostalgebraist-autoresponder':
+        extra_names = []
+
+    ccs = find_control_chars_forumlike(doc, extra_names=extra_names)
+
+    # edge case
+    if ccs[0][0].startswith("#1 nostalgebraist-autoresponder posted"):
+        if ccs[1][0].startswith(" nostalgebraist-autoresponder posted"):
+            ccs.pop(1)
+    return ccs
 
 
 def _cut_forumlike(to_cut, n_cchars_retained, newline_postfix="\n", verbose=False):

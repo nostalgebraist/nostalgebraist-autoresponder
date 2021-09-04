@@ -392,7 +392,7 @@ def load_trails_from_docs(paths,
                 bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
 
                 nbad_meta = len(bad_with_meta)
-                print(f"\t{nbad_meta} of {n_excluded} ({nbad_meta/min(1, n_excluded):.2%}) have metadata\n")
+                print(f"\t{nbad_meta} of {n_excluded} ({nbad_meta/max(1, n_excluded):.2%}) have metadata\n")
 
                 excluded_uids.update(bad_with_meta)
 
@@ -421,7 +421,7 @@ def load_trails_from_docs(paths,
                 bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
 
                 nbad_meta = len(bad_with_meta)
-                print(f"\t{nbad_meta} of {n_excluded} ({nbad_meta/min(1, n_excluded):.2%}) have metadata\n")
+                print(f"\t{nbad_meta} of {n_excluded} ({nbad_meta/max(1, n_excluded):.2%}) have metadata\n")
 
                 excluded_uids.update(bad_with_meta)
 
@@ -469,7 +469,7 @@ def load_trails_from_docs(paths,
                 bad = [uid_fn(doc_groups[group_index][i]) for i in excluded_indices]
                 bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
                 nbad_meta = len(bad_with_meta)
-                print(f"\tgroup {group_index}: {nbad_meta} of {n_excluded_group} ({nbad_meta/min(1, n_excluded_group):.2%}) have metadata\n")
+                print(f"\tgroup {group_index}: {nbad_meta} of {n_excluded_group} ({nbad_meta/max(1, n_excluded_group):.2%}) have metadata\n")
                 excluded_uids.update(bad_with_meta)
 
             examples = [doc_groups[group_index][i] for i in excluded_indices][:2]

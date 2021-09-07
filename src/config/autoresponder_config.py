@@ -348,7 +348,7 @@ else:
 
 ### Sampling
 
-BREAKRUNS = False  # !
+BREAKRUNS = True
 BREAKRUNS_TAU = 0.02  # 0.03
 BREAKRUNS_DECAY = 0.0
 BREAKRUNS_DEBUG = False

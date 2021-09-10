@@ -23,8 +23,12 @@ def fetch_next_page(client, offset, limit=50, blog_name: str = bot_name, before=
     total_posts = response["total_posts"]
 
     next_offset = None
-    with LogExceptionAndSkip("get next offset for /posts"):
-        next_offset = int(response["_links"]["next"]["query_params"]["offset"])
+    # TODO: DRY (use this module in tumbl.py)
+    #
+    # TODO: use `page_number` or w/e it is tumblr wants me to do now (8/19/21)
+
+    # with LogExceptionAndSkip("get next offset for /posts"):
+    #     next_offset = response["_links"]["next"]["query_params"]["offset"]
     if next_offset is None:
         print((next_offset, offset, len(posts)))
         next_offset = offset + len(posts)  # fallback

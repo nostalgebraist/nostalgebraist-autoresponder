@@ -30,11 +30,7 @@ def fetch_next_page(client, offset, limit=50, blog_name: str = bot_name, before=
     # with LogExceptionAndSkip("get next offset for /posts"):
     #     next_offset = response["_links"]["next"]["query_params"]["offset"]
     if next_offset is None:
-        print((next_offset, offset, len(posts)))
         next_offset = offset + len(posts)  # fallback
-        print(
-            f"falling back to: old offset {offset} + page size {len(posts)} = {next_offset}"
-        )
     return posts, next_offset, total_posts
 
 

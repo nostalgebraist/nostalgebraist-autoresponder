@@ -124,6 +124,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         res_dropout=0.0,
         layer_norm_epsilon=1e-5,
         proj_ratio: float = 1.
+        use_proj=True,
     ):
         super().__init__()
 
@@ -153,7 +154,9 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         self.k_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
         self.v_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
         self.q_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
-        self.out_proj = nn.Linear(self.embed_dim, self.proj_dim, bias=True)
+        self.use_proj = use_proj
+        if self.use_proj:
+            self.out_proj = nn.Linear(self.embed_dim, self.proj_dim, bias=True)
 
     def classic_init(self, gain: float = 1.):
         with torch.no_grad():
@@ -210,7 +213,8 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         )
 
         attn_output = self._merge_heads(attn_output, self.n_head, self.head_dim)
-        attn_output = self.out_proj(attn_output)
+        if self.use_proj:
+            attn_output = self.out_proj(attn_output)
         attn_output = self.res_dropout(attn_output)
 
         attn_output = attn_output.squeeze(-2)
@@ -269,7 +273,8 @@ class NostARHead(nn.Module):
         tokenizer: GPT2TokenizerType,
         params: NostARHeadArchitectureParams,
         partial_forward_type="tfu",  # debug
-        initialize_weights=True
+        initialize_weights=True,
+        params_extras=None
     ):
         validate_arch_params(params)
 
@@ -279,10 +284,15 @@ class NostARHead(nn.Module):
         self._tokenizer = weakref.ref(tokenizer)
         self.params = params
         self.partial_forward_type = partial_forward_type
+        self.params_extras = {} if params_extras is None else params_extras
 
         self._setup()
         if initialize_weights:
             self.init_weights()
+
+    @property
+    def use_proj(self):
+        return self.params_extras.get("use_proj", True)
 
     @property
     def base_model(self) -> GPTModelType:
@@ -342,6 +352,7 @@ class NostARHead(nn.Module):
                     attn_dropout=self.params.attn_dropout,
                     res_dropout=self.params.res_dropout,
                     proj_ratio=self.params.proj_ratio,
+                    use_proj=self.use_proj
                 )
                 for nh in self.n_head
             ]

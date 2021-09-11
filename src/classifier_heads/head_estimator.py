@@ -93,6 +93,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         tokenizer: GPT2TokenizerType,
         params: NostARHeadArchitectureParams,
         opt_params: NostARHeadOptimizerParams,
+        params_extras=None,
         device='cuda:0',
         length=None,
         regression_target=False,
@@ -116,6 +117,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.tokenizer = tokenizer
         self.params = params
         self.opt_params = opt_params
+
+        self.params_extras = {} if params_extras is None else params_extras
 
         self.length = length
 
@@ -172,6 +175,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             params=self.params,
             partial_forward_type=self.partial_forward_type,
             initialize_weights=training,
+            params_extras=self.params_extras,
         )
         self.model_ = self.model_.to(self.device)
 

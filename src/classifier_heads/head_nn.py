@@ -123,7 +123,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         attn_dropout=0.0,
         res_dropout=0.0,
         layer_norm_epsilon=1e-5,
-        proj_ratio: float = 1.
+        proj_ratio: float = 1.,
         use_proj=True,
     ):
         super().__init__()

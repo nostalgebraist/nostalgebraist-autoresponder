@@ -184,7 +184,7 @@ if not model_path:
     model_path = os.path.join("/", model_name)
 
 if V12_11:
-    ckpt_select = "selector/v12_11/v2/"
+    ckpt_select = "selector/v12_11/v3/"
     ckpt_sentiment = "sentiment/v12_11/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_11/v2/"
 elif V12_10:

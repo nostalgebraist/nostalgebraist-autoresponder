@@ -162,7 +162,7 @@ def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_C
     probs = []
 
     # regular
-    probs.append(0.7)
+    probs.append(0.8)
     fake_post = fake_tumblr_post(blog_name=blog_name, text_blocks=[], tags=[])
 
     timestamp_posix = int(timestamp.timestamp())
@@ -180,14 +180,14 @@ def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_C
                                                                               ml_prompt_format=True)
 
     # fic
-    probs.append(0.15)
+    probs.append(0.1)
     prompt_fic = EOT + control_seg_config["ORIG_FICTION_CHAR_FORUMLIKE"]
     prompts.append(prompt_fic)
     prompts_selector[prompt_fic] = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
     prompts_autoreviewer[prompt_fic] = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
 
     # review
-    probs.append(0.15)
+    probs.append(0.1)
     prompt_review = EOT + control_seg_config["REVIEW_CHAR_FORUMLIKE"]
     prompts.append(prompt_review)
     prompts_selector[prompt_review] = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]

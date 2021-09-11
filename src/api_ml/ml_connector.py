@@ -527,7 +527,7 @@ def answer_from_gpt(
 
     # strategy = "proportional_winnowed"
     strategy = "eps_greedy"
-    eps = 0.3
+    eps = 0.15
 
     result, _ = serve_selection(
         data=result_generator,
@@ -667,7 +667,7 @@ def text_post_from_gpt(loop_persistent_data,
 
     # strategy = "proportional_winnowed"
     strategy = "eps_greedy"
-    eps = 0.3
+    eps = 0.15
 
     result, retention_stack = serve_selection(
         data=result_generator,

@@ -552,7 +552,8 @@ def make_text_post(
     question="",
     log_data=None,
     autoreview_proba=None,
-    reject_action=None
+    reject_action=None,
+    reply_prefix=""
 ):
     tags = list(tags)
     screener_result, traced_reasons = autopublish_screener(asking_name, question, post, tags, trace=True)
@@ -584,6 +585,8 @@ def make_text_post(
     if GLOBAL_TESTING_FLAG:
         print(f"GLOBAL_TESTING_FLAG --> draft")
         state_reasons["must_be_draft"] = True
+
+    post = reply_prefix + post
 
     post = format_post_for_api(post)
 
@@ -1077,7 +1080,8 @@ def respond_to_reblogs_replies(
                 to_drafts = HALLOWEEN_2K20_BEHAVIOR_TESTING
                 make_text_post(
                     blogName,
-                    mocked_up + "\n" + post_specifier["post"],
+                    post_specifier["post"],
+                    reply_prefix=mocked_up + "\n",
                     tags=post_specifier["tags"],
                     to_queue=False,
                     asking_name=reblog_identifier.blog_name,

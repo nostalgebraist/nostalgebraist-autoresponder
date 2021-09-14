@@ -504,7 +504,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             for pfc, metrics in all_eval_metrics_results_pfc.items():
                 wandb.log(
-                    {f"val/{pfc}/{k}": float(v) for k, v in metrics.items()},
+                    {f"val/{pfc}/{k}": float(v) for k, v in metrics.items() if not isinstance(v, str)},
                     commit=False
                 )
 

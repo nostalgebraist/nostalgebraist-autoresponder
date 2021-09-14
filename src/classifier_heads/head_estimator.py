@@ -154,6 +154,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.sched_decay_ = None
         self.sched_no_decay_ = None
         self.scaler_ = None
+        self.grad_clip_ = None
 
         self.lr_calib_ = None
 
@@ -222,6 +223,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         )
 
         self.scaler_ = torch.cuda.amp.GradScaler(enabled=self.use_amp_training)
+
+        self.grad_clip_ = self.params_extras.get('grad_clip', 1000.)
 
     def _make_batched_data(self, X, y=None):
         if y is None:
@@ -321,6 +324,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             self.scaler_.scale(loss).backward()
 
+            grad_norm = torch.nn.utils.clip_grad_norm_(self.model_.parameters(),
+                                                       max_norm=self.grad_clip_)
+
             self.scaler_.step(self.opt_decay_)
             self.scaler_.step(self.opt_no_decay_)
             self.scaler_.update()
@@ -339,6 +345,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
                 cur_lr = self.sched_decay_.state_dict()['_last_lr'][0]
 
+                grad_norm_float = grad_norm.item()
+
             del loss
             del logits
             del batch_data
@@ -352,7 +360,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                         (1 - avg_loss_beta) * loss_float
                     )
 
-            if self.use_wandb:
+            if self.use_wandb and self.show_running_loss:
                 import wandb
 
                 wandb.log(
@@ -360,6 +368,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                         f'train/loss': float(loss_float),
                         f'train/ntok': batch_max_tokens,
                         f'train/lr': cur_lr,
+                        f'train/grad_norm': grad_norm_float,
                     }
                 )
 
@@ -371,6 +380,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 loss=loss_float,
                 loss_avg=running_loss,
                 lr=cur_lr,
+                gnorm=grad_norm_float,
                 refresh=False,
                 **extra_postfixes,
             )

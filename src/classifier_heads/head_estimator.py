@@ -576,6 +576,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             if self.cleanup_on_exception:
                 self.cleanup()
             raise e
+        if self.use_wandb:
+            wandb.log({})  # commits final val
         return self
 
     def _compute_calib_probs(self, logits, pfcs):

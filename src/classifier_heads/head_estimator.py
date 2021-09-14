@@ -110,6 +110,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         pad_to_mult=None,
         display_interval_secs=3,
         partial_forward_type="tfu",
+        use_wandb=False,
+        wandb_init_args=None,
         **kwargs
     ):
         self.device = device
@@ -141,6 +143,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.pad_to_mult = pad_to_mult
         self.display_interval_secs = display_interval_secs
         self.partial_forward_type = partial_forward_type
+        self.use_wandb = use_wandb
+        self.wandb_init_args = wandb_init_args
 
         self.target_cols_ = None
 
@@ -348,6 +352,17 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                         (1 - avg_loss_beta) * loss_float
                     )
 
+            if self.use_wandb:
+                import wandb
+
+                wandb.log(
+                    {
+                        f'train/loss': float(loss_float),
+                        f'train/ntok': batch_max_tokens,
+                        f'train/lr': cur_lr,
+                    }
+                )
+
             max_tokens_so_far = max(max_tokens_so_far, batch_max_tokens)
             extra_postfixes["ntok"] = batch_max_tokens
             extra_postfixes["ntok_max"] = max_tokens_so_far
@@ -447,6 +462,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         ) as fake_iter:
             fake_iter.set_postfix(**eval_metrics_results)
 
+        all_eval_metrics_results_pfc = {}
         if pfcs is not None:
             for pfc in sorted(pfcs.unique()):
                 pfc_filter = (pfcs == pfc).values
@@ -462,10 +478,19 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                         else metric["fn"](y_true_pfc, preds_pfc)
                     )
                     eval_metrics_results_pfc[name] = m
+                all_eval_metrics_results_pfc[pfc] = eval_metrics_results_pfc
                 with tqdm(
                     list(range(0, 1)), smoothing=0.0, miniters=1, mininterval=1
                 ) as fake_iter_pfc:
                     fake_iter_pfc.set_postfix(**eval_metrics_results_pfc)
+
+        if self.use_wandb:
+            import wandb
+
+            wandb.log(
+                {f"val/{k}": float(v) for k, v in eval_metrics_results},
+                commit=False
+            )
 
         return eval_metrics_results
 
@@ -520,6 +545,14 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         }
 
     def fit(self, X, y, avg_loss_beta=0.99):
+        if self.use_wandb:
+            import wandb
+
+            wandb_init_args = {"project": "nbar-heads"}
+            if self.wandb_init_args is not None:
+                wandb_init_args.update(self.wandb_init_args)
+
+            wandb.init(**wandb_init_args)
         try:
             self.X_train_, self.y_train_, self.X_val_, self.y_val_ = self._val_split(
                 X, y

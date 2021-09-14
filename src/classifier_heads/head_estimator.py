@@ -492,6 +492,12 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 commit=False
             )
 
+            for pfc, metrics in all_eval_metrics_results_pfc.items():
+                wandb.log(
+                    {f"val/{pfc}/{k}": float(v) for k, v in metrics.items()},
+                    commit=False
+                )
+
         return eval_metrics_results
 
     def eval_on_val_set(self, X_val, y_val, disable_calibration=True):

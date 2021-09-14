@@ -488,7 +488,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             import wandb
 
             wandb.log(
-                {f"val/{k}": float(v) for k, v in eval_metrics_results},
+                {f"val/{k}": float(v) for k, v in eval_metrics_results.items()},
                 commit=False
             )
 

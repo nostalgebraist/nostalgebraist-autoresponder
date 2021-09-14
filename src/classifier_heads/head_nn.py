@@ -1,5 +1,6 @@
 import weakref
 from typing import Union, List, NamedTuple
+from functools import partial
 
 import numpy as np
 import torch
@@ -158,10 +159,10 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         if self.use_proj:
             self.out_proj = nn.Linear(self.embed_dim, self.proj_dim, bias=True)
 
-    def classic_init(self, gain: float = 1.):
+    def classic_init(self, init_callable):
         with torch.no_grad():
             qkv_weight = torch.empty(self.embed_dim, 3 * self.embed_dim, requires_grad=False)
-            nn.init.orthogonal_(qkv_weight, gain)
+            init_callable()(qkv_weight)
 
             q_weight, k_weight, v_weight = torch.split(qkv_weight, self.embed_dim, dim=-1)
 
@@ -324,19 +325,25 @@ class NostARHead(nn.Module):
 
     def _init_weights(self, module):
         """Initialize the weights."""
+        init_style = self.params_extras.get('init_style', 'orthogonal')
+        if init_style == "orthogonal":
+            init_callable = lambda gain: partial(nn.init.orthogonal_, gain=gain)
+        else:
+            init_callable = lambda gain: nn.init.kaiming_uniform_
+
         if module is self.logit_head:
-            nn.init.orthogonal_(module.weight, gain=self.params.init_gain_logit_head)
+            init_callable()(module.weight, gain=self.params.init_gain_logit_head)
             print(
                 f"initialized logit_head with gain {self.params.init_gain_logit_head:.2f}"
             )
         elif any([module is m for m in self.attns]) and self.params.classic_behavior_attn_init:
             print(f"calling classic init for {repr(module)} with gain {self.params.init_gain:.2f}")
-            module.classic_init(gain=self.params.init_gain)
+            module.classic_init(init_callable)
         elif isinstance(module, (nn.Linear,)):
             print(
                 f"initialized {repr(module)} with gain {self.params.init_gain:.2f}"
             )
-            nn.init.orthogonal_(module.weight, gain=self.params.init_gain)
+            init_callable()(module.weight, gain=self.params.init_gain)
             if module.bias is not None:
                 module.bias.data.zero_()
         elif isinstance(module, nn.LayerNorm):

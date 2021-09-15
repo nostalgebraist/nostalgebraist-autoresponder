@@ -326,6 +326,7 @@ class NostARHead(nn.Module):
     def _init_weights(self, module):
         """Initialize the weights."""
         init_style = self.params_extras.get('init_style', 'orthogonal')
+        print(f"init_style: {init_style}")
         if init_style == "orthogonal":
             init_callable = lambda gain: partial(nn.init.orthogonal_, gain=gain)
         if init_style == "normal":

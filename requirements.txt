@@ -13,6 +13,7 @@ flask
 wcwidth
 ipython
 scikit-image
+wandb
 smart_open[gcs]
 git+https://github.com/finetuneanon/transformers/@aa14178e9b4067e4b1bc6c1e9297d5ee39c74fde
 git+https://github.com/nostalgebraist/transformer-utils@main

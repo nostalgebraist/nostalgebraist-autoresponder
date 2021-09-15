@@ -159,10 +159,10 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         if self.use_proj:
             self.out_proj = nn.Linear(self.embed_dim, self.proj_dim, bias=True)
 
-    def classic_init(self, init_callable, gain=1.):
+    def classic_init(self, gain=1.):
         with torch.no_grad():
             qkv_weight = torch.empty(self.embed_dim, 3 * self.embed_dim, requires_grad=False)
-            init_callable(gain)(qkv_weight)
+            torch.nn.init.orthogonal_(qkv_weight, gain=gain)
 
             q_weight, k_weight, v_weight = torch.split(qkv_weight, self.embed_dim, dim=-1)
 
@@ -325,28 +325,19 @@ class NostARHead(nn.Module):
 
     def _init_weights(self, module):
         """Initialize the weights."""
-        init_style = self.params_extras.get('init_style', 'orthogonal')
-        print(f"init_style: {init_style}")
-        if init_style == "orthogonal":
-            init_callable = lambda gain: partial(nn.init.orthogonal_, gain=gain)
-        if init_style == "normal":
-            init_callable = lambda gain: partial(nn.init.normal_, std=gain)
-        else:
-            init_callable = lambda gain: nn.init.kaiming_uniform_
-
         if module is self.logit_head:
-            init_callable(gain=self.params.init_gain_logit_head)(module.weight)
+            torch.nn.init.orthogonal_(module.weight, gain=self.params.init_gain_logit_head)
             print(
                 f"initialized logit_head with gain {self.params.init_gain_logit_head:.2f}"
             )
         elif any([module is m for m in self.attns]) and self.params.classic_behavior_attn_init:
             print(f"calling classic init for {repr(module)} with gain {self.params.init_gain:.2f}")
-            module.classic_init(init_callable, gain=self.params.init_gain)
+            module.classic_init(gain=self.params.init_gain)
         elif isinstance(module, (nn.Linear,)):
             print(
                 f"initialized {repr(module)} with gain {self.params.init_gain:.2f}"
             )
-            init_callable(gain=self.params.init_gain)(module.weight)
+            torch.nn.init.orthogonal_(module.weight, gain=self.params.init_gain)
             if module.bias is not None:
                 module.bias.data.zero_()
         elif isinstance(module, nn.LayerNorm):

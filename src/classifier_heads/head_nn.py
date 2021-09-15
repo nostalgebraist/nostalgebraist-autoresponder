@@ -328,6 +328,8 @@ class NostARHead(nn.Module):
         init_style = self.params_extras.get('init_style', 'orthogonal')
         if init_style == "orthogonal":
             init_callable = lambda gain: partial(nn.init.orthogonal_, gain=gain)
+        if init_style == "normal":
+            init_callable = lambda gain: partial(nn.init.normal_, std=gain)
         else:
             init_callable = lambda gain: nn.init.kaiming_uniform_
 

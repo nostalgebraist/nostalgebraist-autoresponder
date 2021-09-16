@@ -357,6 +357,7 @@ def compute_dynamic_mood_inputs(
 def get_unit_mood_inputs(response_cache: ResponseCache, uii: UserInputIdentifier):
     unit_rc = ResponseCache(client=None,
                             path="",
+                            backup_path="",
                             cache={"user_input_sentiments": {uii: response_cache.get_cached_user_input_sentiment(uii)}}
                             )
     mi = compute_dynamic_mood_inputs(unit_rc)

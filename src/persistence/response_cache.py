@@ -15,9 +15,8 @@ import time
 import os
 import pickle
 
-from smart_open import open
-
-from util.times import now_pst, fromtimestamp_pst
+from util.times import now_pst
+from util.cloudsave import resilient_pickle_load, resilient_pickle_save
 
 import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
@@ -37,10 +36,11 @@ UserInputIdentifier = namedtuple(
 
 class ResponseCache:
     def __init__(
-        self, client: pytumblr.TumblrRestClient, path: str, cache: dict = None
+        self, client: pytumblr.TumblrRestClient, path: str, backup_path: str, cache: dict = None
     ):
         self.client = client
         self.path = path
+        self.backup_path = backup_path
         self.cache = cache
 
         if self.cache is None:
@@ -72,35 +72,28 @@ class ResponseCache:
             self.cache["following_names"] = set()
 
     @staticmethod
-    def load(client=None, path="gs://nost-trc/nbar_data/response_cache.pkl.gz", verbose=True):
-        cache = None
-        with open(path, "rb") as f:
-            cache = pickle.load(f)
+    def load(client=None,
+             path="gs://nost-trc/nbar_data/response_cache.pkl.gz",
+             backup_path="data/cloudsave_backups/response_cache.pkl.gz",
+             verbose=True):
+        cache = resilient_pickle_load(path=path)
         if verbose:
             lengths = {k: len(cache[k]) for k in cache.keys()}
             print(f"loaded response cache with lengths {lengths}")
-        loaded = ResponseCache(client, path, cache)
+        loaded = ResponseCache(client, path, backup_path, cache)
         loaded.remove_oldest()
         return loaded
 
-    def save(self, verbose=True, do_backup=False):
+    def save(self, verbose=True):
         self.remove_oldest()
 
         t1 = time.time()
 
-        with open(self.path, "wb") as f:
-            pickle.dump(self.cache, f)
+        resilient_pickle_save(obj=self.cache, path=self.path, backup_path=self.backup_path)
 
         _tsave = time.time()
         print(f"response_cache save 1: {_tsave-t1:.3f}s sec")
 
-        if do_backup:
-            # TODO: better path handling
-            backup_path = self.path[: -len(".pkl.gz")] + "_backup.pkl.gz"
-            subprocess.check_output(f"cp {self.path} {backup_path}", shell=True)
-
-            _tsave2 = time.time()
-            print(f"response_cache save 2: {_tsave2-_tsave:.3f}s sec")
         if verbose:
             lengths = {k: len(self.cache[k]) for k in CachedResponseType}
             print(f"saved response cache with lengths {lengths}")

@@ -1,18 +1,16 @@
-import os
 import pickle
 import time
-import subprocess
 from copy import deepcopy
-from datetime import datetime
 
 import pandas as pd
 
-from smart_open import open
-
-from util.times import now_pst, fromtimestamp_pst
+from util.times import now_pst
+from util.cloudsave import resilient_pickle_load, resilient_pickle_save
 
 TRACEABILITY_FN = "gs://nost-trc/nbar_data/traceability_logs.pkl.gz"
 TRACEABILITY_COLD_STORAGE_FN = "gs://nost-trc/nbar_data/traceability_logs_cold_storage.pkl.gz"
+
+TRACEABILITY_BACKUP_FN = "data/cloudsave_backups/traceability_logs.pkl.gz"
 
 
 def _add_field(logs, fieldname):
@@ -34,9 +32,10 @@ def _add_field_fast(logs, fieldname):
 
 
 class TraceabilityLogs:
-    def __init__(self, logs: dict, path: str):
+    def __init__(self, logs: dict, path: str, backup_path: str):
         self.logs = logs
         self.path = path
+        self.backup_path = backup_path
         print(f"traceability logs init: lengths {self.lengths}")
 
     @property
@@ -44,18 +43,16 @@ class TraceabilityLogs:
         return {k: len(v) for k, v in self.logs.items()}
 
     @staticmethod
-    def load(path=TRACEABILITY_FN) -> 'TraceabilityLogs':
+    def load(path=TRACEABILITY_FN, backup_path=TRACEABILITY_BACKUP_FN) -> 'TraceabilityLogs':
         print('loading traceability logs')
-        with open(path, "rb") as f:
-            logs = pickle.load(f)
-        return TraceabilityLogs(logs=logs, path=path)
+        logs = resilient_pickle_load(path=path)
+        return TraceabilityLogs(logs=logs, path=path, backup_path=backup_path)
 
     def save(self):
         print(f'saving traceability logs: lengths {self.lengths}')
         t1 = time.time()
 
-        with open(self.path, "wb") as f:
-            pickle.dump(self.logs, f)
+        resilient_pickle_save(obj=self.logs, path=self.path, backup_path=self.backup_path)
 
         _tsave = time.time()
         print(f"trace save 1: {_tsave-t1:.3f}s sec")

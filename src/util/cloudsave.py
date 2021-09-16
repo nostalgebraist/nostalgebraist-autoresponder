@@ -15,6 +15,9 @@ def resilient_pickle_save(obj, path, backup_path):
                 pickle.dump(obj, f)
             done = True
         except smart_open.gcs.UploadFailedError:
+            # TODO: delete the object in gcs programmatically here.
+            # as is, it will probably fail endlessly b/c it's partway through a multipart upload
+            # however, at least that keeps the obj in memory until i can manually delete it
             sleeptime = 2**tries
             print(f"gcs upload failed for {path}. {tries} tries so far.  sleeping {sleeptime}s")
             if tries == 0:

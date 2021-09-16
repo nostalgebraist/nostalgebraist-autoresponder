@@ -1,7 +1,7 @@
 import time
 import pickle
 
-import smart_open.gcs.UploadFailedError
+import smart_open.gcs
 from smart_open import open
 
 

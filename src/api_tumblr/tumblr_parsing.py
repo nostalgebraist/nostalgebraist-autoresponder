@@ -547,20 +547,23 @@ class NPFContent(TumblrContentBase):
             sign = block.indent_delta > 0
             abs = block.indent_delta if sign else -1 * block.indent_delta
 
-            if sign:
-                subtype_key = block.base_block.subtype_name
-                stack.append(subtype_key)
-            else:
-                subtype_key = stack.pop()
+            print((block.indent_delta, sign, abs, block.base_block.subtype_name, block.base_block.text))
+            print(stack)
 
-            key = (subtype_key, sign)
-            if key not in subtype_and_sign_to_tag:
-                raise ValueError(key)  # TODO: improve
+            for _ in range(abs):
+                if sign:
+                    subtype_key = block.base_block.subtype_name
+                    stack.append(subtype_key)
+                else:
+                    subtype_key = stack.pop()
 
-            tag = subtype_and_sign_to_tag[key]
-            tags = abs * tag
+                key = (subtype_key, sign)
+                if key not in subtype_and_sign_to_tag:
+                    raise ValueError(key)  # TODO: improve
 
-            block.prefix = tags + block.prefix
+                tag = subtype_and_sign_to_tag[key]
+
+                block.prefix = tag + block.prefix
 
         closers = []
         while len(stack) > 0:

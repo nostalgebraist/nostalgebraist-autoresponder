@@ -1,4 +1,3 @@
-"""work in progress"""
 from typing import List, Optional, Tuple
 from collections import defaultdict
 from itertools import zip_longest
@@ -506,21 +505,14 @@ class NPFContent(TumblrContentBase):
 
         cur_level = 0
 
-        for block, prev_subtype in zip(self.blocks, prev_subtypes):
-            indent_delta = block.base_block.indent_level - cur_level
+        for block in self.blocks:
             this_indents = block.base_block.subtype_name in indenting_subtypes
-            prev_indents = prev_subtype in indenting_subtypes
+            full_indent_level = this_indents + block.base_block.indent_level
 
-            if indent_delta != 0:
-                block.indent_delta = indent_delta
-            elif this_indents and not prev_indents:
-                block.indent_delta = 1
-            elif prev_indents and not this_indents:
-                block.indent_delta = -1
-            else:
-                block.indent_delta = 0
+            indent_delta = full_indent_level - cur_level
 
-            cur_level = block.base_block.indent_level
+            block.indent_delta = indent_delta
+            cur_level = full_indent_level
 
     def _assign_nonlocal_tags(self):
         """
@@ -546,9 +538,6 @@ class NPFContent(TumblrContentBase):
 
             sign = block.indent_delta > 0
             abs = block.indent_delta if sign else -1 * block.indent_delta
-
-            print((block.indent_delta, sign, abs, block.base_block.subtype_name, block.base_block.text))
-            print(stack)
 
             for _ in range(abs):
                 if sign:

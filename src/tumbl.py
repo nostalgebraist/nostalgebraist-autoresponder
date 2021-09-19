@@ -1227,11 +1227,7 @@ def is_statically_reblog_worthy_on_dash(
             print(f"\trejecting {post_identifier}: no text blocks\n{block_types}")
         return False
 
-    try:
-        p_body = get_body(post_payload)
-    except IndexError:
-        # TODO: handle this IndexError from _assign_nonlocal_tags more systematically
-        return False
+    p_body = get_body(post_payload)
     n_img = len(p_body.split("<img")) - 1
     if n_img > 10:
         if verbose:
@@ -1976,11 +1972,7 @@ def do_reblog_reply_handling(
         slow_scraping_ok = len(posts) < 200
         iter_ = tqdm(posts)
         for post_ix, post in enumerate(iter_):
-            try:
-                p_body = get_body(post)
-            except IndexError:
-                # TODO: handle this IndexError from _assign_nonlocal_tags more systematically
-                continue
+            p_body = get_body(post)
             n_img = len(p_body.split("<img")) - 1
             iter_.set_postfix(pi=(post["blog_name"], post["id"]), n_img=n_img)
 

@@ -1980,7 +1980,7 @@ def do_reblog_reply_handling(
                 p_body = get_body(post)
             except IndexError:
                 # TODO: handle this IndexError from _assign_nonlocal_tags more systematically
-                return False
+                continue
             n_img = len(p_body.split("<img")) - 1
             iter_.set_postfix(pi=(post["blog_name"], post["id"]), n_img=n_img)
 

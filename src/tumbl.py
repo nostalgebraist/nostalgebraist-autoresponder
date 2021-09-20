@@ -2365,6 +2365,11 @@ def do_ask_handling(loop_persistent_data, response_cache):
             thread = TumblrThread.from_payload(post_payload)
             question = get_normalized_ask_text(thread)
 
+            # anti-spam measure
+            if len(question.split(" ")) < 3:
+                print(f"Ignoring short question {repr(question)}")
+                continue
+
             # TODO: (cleanup) get rid of "forced_tags_string"
             forced_tags_string = ""
             write_fic_override = 0

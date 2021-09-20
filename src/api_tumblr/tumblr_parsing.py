@@ -548,7 +548,10 @@ class NPFContent(TumblrContentBase):
 
                 key = (subtype_key, sign)
                 if key not in subtype_and_sign_to_tag:
-                    raise ValueError(key)  # TODO: improve
+                    # tumblr appears to use non-indenting subtypes with indent_level to indicate indentation
+                    # this suddenly appeared around 9/19/21
+                    subtype_key = "indented"
+                    key = (subtype_key, sign)
 
                 tag = subtype_and_sign_to_tag[key]
 
@@ -558,6 +561,9 @@ class NPFContent(TumblrContentBase):
         while len(stack) > 0:
             subtype_key = stack.pop()
             key = (subtype_key, False)
+            if key not in subtype_and_sign_to_tag:
+                subtype_key = "indented"
+                key = (subtype_key, sign)
             closers.append(subtype_and_sign_to_tag[key])
 
         try:

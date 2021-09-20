@@ -1227,7 +1227,11 @@ def is_statically_reblog_worthy_on_dash(
             print(f"\trejecting {post_identifier}: no text blocks\n{block_types}")
         return False
 
-    p_body = get_body(post_payload)
+    try:
+        p_body = get_body(post_payload)
+    except ValueError:
+        # TODO: debug ValueError: ('heading2', True) systematically
+        return False
     n_img = len(p_body.split("<img")) - 1
     if n_img > 10:
         if verbose:
@@ -1972,7 +1976,11 @@ def do_reblog_reply_handling(
         slow_scraping_ok = len(posts) < 200
         iter_ = tqdm(posts)
         for post_ix, post in enumerate(iter_):
-            p_body = get_body(post)
+            try:
+                p_body = get_body(post)
+            except ValueError:
+                # TODO: debug ValueError: ('heading2', True) systematically
+                continue
             n_img = len(p_body.split("<img")) - 1
             iter_.set_postfix(pi=(post["blog_name"], post["id"]), n_img=n_img)
 

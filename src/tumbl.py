@@ -2272,6 +2272,16 @@ def do_ask_handling(loop_persistent_data, response_cache):
     print(f"processing {n_asks} asks")
     print()
 
+    # anti-spam measure
+    submissions_ = []
+    for post_payload in submissions:
+        words = [w for w in post_payload["question"].split(" ") if len(w) > 0]
+        if len(words) < 3:
+            print(f"Ignoring short question: {repr(post_payload['question'])}")
+        else:
+            submissions_.append(post_payload)
+    submissions = submissions_
+
     submissions = [
         post_payload
         for post_payload in submissions
@@ -2364,12 +2374,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
             # TODO: (nwo) get rid of "question"
             thread = TumblrThread.from_payload(post_payload)
             question = get_normalized_ask_text(thread)
-
-            # anti-spam measure
-            words = [w for w in question.split(" ") if len(w) > 0]
-            if len(words) < 3:
-                print(f"Ignoring short question: {repr(question)}")
-                continue
 
             # TODO: (cleanup) get rid of "forced_tags_string"
             forced_tags_string = ""

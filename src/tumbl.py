@@ -2366,12 +2366,10 @@ def do_ask_handling(loop_persistent_data, response_cache):
             question = get_normalized_ask_text(thread)
 
             # anti-spam measure
-            n_words = question.split(" ")
-            if len(n_words) < 3:
+            words = [w for w in question.split(" ") if len(w) > 0]
+            if len(words) < 3:
                 print(f"Ignoring short question: {repr(question)}")
                 continue
-            else:
-                print(f"Allowing question with n_words={n_words}: {repr(question)}")
 
             # TODO: (cleanup) get rid of "forced_tags_string"
             forced_tags_string = ""

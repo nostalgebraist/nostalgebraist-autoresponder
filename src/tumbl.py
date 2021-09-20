@@ -1230,6 +1230,7 @@ def is_statically_reblog_worthy_on_dash(
     try:
         p_body = get_body(post_payload)
     except ValueError:
+        print(f'ValueError on ({post_payload})')
         # TODO: debug ValueError: ('heading2', True) systematically
         return False
     n_img = len(p_body.split("<img")) - 1
@@ -1979,6 +1980,7 @@ def do_reblog_reply_handling(
             try:
                 p_body = get_body(post)
             except ValueError:
+                print(f'ValueError on ({post})')
                 # TODO: debug ValueError: ('heading2', True) systematically
                 continue
             n_img = len(p_body.split("<img")) - 1

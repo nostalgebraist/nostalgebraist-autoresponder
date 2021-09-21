@@ -266,22 +266,29 @@ def max_posts_per_step(slowdown_level):
 
 
 def next_queued_post_time():
-    probe_response = client_pool.get_private_client().create_text(
-        blogName, state="queue", body=REBLOG_BOOTSTRAP_TEXT
-    )
-    probe_id = probe_response["id"]
-    time.sleep(0.5)
+    next_queued_ts = None
+    tries = 0
 
-    probe_post = client_pool.get_private_client().posts(blogName, id=probe_id)["posts"][0]
-    time.sleep(0.5)
+    while next_queued_ts is None:
+        probe_response = client_pool.get_private_client().create_text(
+            blogName, state="queue", body=REBLOG_BOOTSTRAP_TEXT
+        )
+        probe_id = probe_response["id"]
+        time.sleep(0.5)
 
-    client_pool.get_private_client().delete_post(blogName, id=probe_id)
+        probe_post = client_pool.get_private_client().posts(blogName, id=probe_id)["posts"][0]
+        time.sleep(0.5)
 
-    try:
-        next_queued_ts = int(probe_post["scheduled_publish_time"])
-    except KeyError as e:
-        pprint(probe_post)
-        raise e
+        client_pool.get_private_client().delete_post(blogName, id=probe_id)
+
+        try:
+            next_queued_ts = int(probe_post["scheduled_publish_time"])
+        except KeyError as e:
+            pprint(probe_post)
+            print(f'no scheduled_publish_time in payload, trying again, {tries} tries so far...')
+            time.sleep(2 ** tries)
+            tries += 1
+
     next_queued_dt = fromtimestamp_pst(next_queued_ts)
 
     print(f"inferred next_queued_dt {next_queued_dt}")

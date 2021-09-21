@@ -2276,7 +2276,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
     submissions_ = []
     for post_payload in submissions:
         words = [w for w in post_payload["question"].split(" ") if len(w) > 0]
-        if len(words) < 3 and not post_payload["question"].startswith("!"):
+        if len(words) < 3 and not post_payload["question"].startswith("<p>!"):
             print(f"Ignoring short question: {repr(post_payload['question'])}")
         else:
             submissions_.append(post_payload)

@@ -125,6 +125,7 @@ LIMITED_USERS_PROBS = bot_specific_constants.LIMITED_USERS_PROBS(EFFECTIVE_SLEEP
 LIMITED_SUBSTRINGS = bot_specific_constants.LIMITED_SUBSTRINGS
 SCREENED_USERS = bot_specific_constants.SCREENED_USERS
 NO_SCRAPE_USERS = bot_specific_constants.NO_SCRAPE_USERS
+ask_min_words = bot_specific_constants.ask_min_words
 LIMITED_SUBSTRING_FAKE_USERNAME = "!,!,limitedsubs"
 
 client_pool = ClientPool()
@@ -2283,7 +2284,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
     submissions_ = []
     for post_payload in submissions:
         words = [w for w in post_payload["question"].split(" ") if len(w) > 0]
-        if len(words) < 3 and not post_payload["question"].startswith("<p>!"):
+        if len(words) < ask_min_words and not post_payload["question"].startswith("<p>!"):
             print(f"Ignoring short question: {repr(post_payload['question'])}")
         else:
             submissions_.append(post_payload)

@@ -22,6 +22,7 @@ class BotSpecificConstants:
         bridge_service_port: int,
         BRIDGE_SERVICE_REMOTE_HOST: str,
         BUCKET_NAME: str,
+        ask_min_words: int,
         NO_REBLOG_IDS: Set[int] = set(),
         DEF_REBLOG_IDS: Set[int] = set(),
         FORCE_TRAIL_HACK_IDS: Set[int] = set(),
@@ -40,7 +41,6 @@ class BotSpecificConstants:
         LIMITED_SUBSTRINGS: Dict[str, float] = dict(),
         SCREENED_USERS: Set[str] = set(),
         NO_SCRAPE_USERS: Set[str] = set(),
-        ask_min_words: int
     ):
         # TODO: standardize case in names
         self.blogName = blogName

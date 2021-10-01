@@ -334,6 +334,7 @@ def load_trails_from_docs(paths,
                           include_usernames=False,
                           exclude_malformed=True,
                           exclude_h2_issue=True,
+                          exclude_h2_until_group=None,
                           exclude_unslimmable=True,
                           uid_to_metadata=None,
                           uid_fn=unique_id_ignore_frank_nost,
@@ -435,10 +436,13 @@ def load_trails_from_docs(paths,
     print()
 
     if exclude_h2_issue:
-        all_docs = [d for g in doc_groups for d in g]
-        n_raw = len(all_docs)
+        if exclude_h2_until_group is None:
+            exclude_h2_until_group = len(doc_groups)
 
-        excluded_doc_indices = identify_h2_contaminated_docs(all_docs)
+        all_h2_docs = [d for g in doc_groups[:exclude_h2_until_group] for d in g]
+        n_raw = len(all_h2_docs)
+
+        excluded_doc_indices = identify_h2_contaminated_docs(all_h2_docs)
 
         allowed_doc_indices_by_group = {}
         excluded_doc_indices_by_group = {}

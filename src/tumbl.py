@@ -1982,7 +1982,13 @@ def do_reblog_reply_handling(
 
         # batch up dash posts for side judgment computation
         statically_worthy_posts = []
-        slow_scraping_ok = len(posts) < 200
+
+        # old way
+        # slow_scraping_ok = len(posts) < 200
+
+        # new way
+        slow_scraping_ok = True
+
         iter_ = tqdm(posts)
         for post_ix, post in enumerate(iter_):
             try:

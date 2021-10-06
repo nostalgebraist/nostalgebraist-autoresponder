@@ -100,7 +100,7 @@ def load_generator_model(
 def load_selector(path, base_model, tokenizer, retries=False, **kwargs):
     selector_est = NostARHeadEstimator.load(
         path, base_model=base_model, tokenizer=tokenizer, inference_batch_size=head_inference_batch_size,
-        device='cpu',
+        device=head_load_device,
         **kwargs
     )
     return selector_est
@@ -236,15 +236,6 @@ def poll(
             requested_args, requested_kwargs = data.get("args", []), data.get(
                 "kwargs", {}
             )
-
-            if GPU_TYPE != "big" and requested_method == "write":
-                # can't handle long pasts calc yet
-                prompt = requested_kwargs.get("prompt")
-                if not prompt and len(requested_args) > 0:
-                    prompt = requested_args[0]
-
-                ntok = len(generator_model.tokenizer.encode(prompt))
-                print(f"prompt length: {ntok}")
 
             for name in DEPRECATED_KWARGS:
                 if name in requested_kwargs:

@@ -329,7 +329,9 @@ def _gpu_type():
         gpu_info = subprocess.check_output("nvidia-smi").decode("utf-8")
     except:
         return "small"
-    if "P100" in gpu_info or "V100" in gpu_info:
+    if "A100" in gpu_info:
+        return "bigger"
+    elif "P100" in gpu_info or "V100" in gpu_info:
         return "big"
     else:
         return "small"
@@ -513,33 +515,18 @@ GPT_NEO_TOP_P = 0.95
 GPT_NEO_TOP_K = 0
 GPT_NEO_MAX_LENGTH = 2048 if V11 else 1024
 
-if V11 and (GPU_TYPE != "big"):
+if V11 and (GPU_TYPE == "small"):
     # TODO: figure out if this OOM happened due to something in transformers 4.6.0
     #
     # https://github.com/huggingface/transformers/compare/v4.5.1...v4.6.0
     GPT_NEO_MAX_LENGTH = 1900
 
-if V12 and (GPU_TYPE != "big"):
+if V12 and (GPU_TYPE == "small"):
     GPT_NEO_MAX_LENGTH = 1536
 
-head_inference_batch_size = 1 if V11 else None
+head_inference_batch_size = 8 if GPU_TYPE == "bigger" else 1
+head_load_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 
-# # V11 loads on cpu initially then transfers to gpu
-# TENSOR_LOAD_DEVICE = 'cpu' if V11 else 'cuda:0'
-
-# lazy init should allow this everywhere
-# TODO: get rid of this, no longer needed in ultra_defensive_load
-TENSOR_LOAD_DEVICE = 'cuda:0'
-
-if GPU_TYPE == "big":
-    MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
-elif V11_INSURANCE:
-    MODELS_SERVED = {"selector", "sentiment", "autoreviewer"}
-elif V11:
-    MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
-    # MODELS_SERVED = {"generator", }
-else:
-    # pre-v11
-    MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
+MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
 
 os.chdir(startdir)

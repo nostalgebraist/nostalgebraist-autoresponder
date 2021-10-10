@@ -29,6 +29,7 @@ V12_9 = True  # XXXX
 V12_10 = True  # XXXX
 V12_11 = True  # XXXX
 V12_12 = True
+V12_13 = False
 
 
 BUCKET_NAME = ""
@@ -46,7 +47,12 @@ LOGGING_FLAGS = {
     "parse_continuation": False
 }
 
-if V12_12:
+if V12_13:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.,  # v12_13/v1: predict true accept rate: ~XX%, false accept rate ~6.7%
+        "reject_above": 0.,  # v12_13/v1: predict true reject rate: ~XX%, false reject rate ~6%
+    }
+elif V12_12:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.149,  # v12_12/v1: predict true accept rate: ~40%, false accept rate ~6.7%
         "reject_above": 0.558,  # v12_12/v1: predict true reject rate: ~49%, false reject rate ~6%
@@ -147,7 +153,11 @@ HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
 HF_FILES_GZIPPED = True
 model_path = None
 
-if V12_12:
+if V12_13:
+    HF_FILES_GZIPPED = False
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
+    model_name = "arj-x7-1213"
+elif V12_12:
     HF_FILES_GZIPPED = False
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
     model_name = "arj-x5-no-nbar-1094"
@@ -193,7 +203,11 @@ else:
 if not model_path:
     model_path = os.path.join("/", model_name)
 
-if V12_12:
+if V12_13:
+    ckpt_select = "selector/v12_13/v1/"
+    ckpt_sentiment = "sentiment/v12_13/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_13/v1/"
+elif V12_12:
     ckpt_select = "selector/v12_12/v2/"
     ckpt_sentiment = "sentiment/v12_12/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_12/v1/"

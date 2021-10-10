@@ -31,7 +31,6 @@ V12_11 = True  # XXXX
 V12_12 = True
 V12_13 = True
 
-
 BUCKET_NAME = ""
 if not V12_7:
     # before switch to HF CDN
@@ -49,8 +48,8 @@ LOGGING_FLAGS = {
 
 if V12_13:
     AUTOREVIEWER_CUTOFFS = {
-        "accept_below": 0.,  # v12_13/v1: predict true accept rate: ~XX%, false accept rate ~6.7%
-        "reject_above": 0.,  # v12_13/v1: predict true reject rate: ~XX%, false reject rate ~6%
+        "accept_below": 0.140,  # v12_13/v1: predict true accept rate: ~41%, false accept rate ~6.7%
+        "reject_above": 0.662,  # v12_13/v1: predict true reject rate: ~42%, false reject rate ~5%
     }
 elif V12_12:
     AUTOREVIEWER_CUTOFFS = {

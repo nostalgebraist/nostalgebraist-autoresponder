@@ -190,7 +190,7 @@ def map_docs(docs, include_usernames=False, ignore_titles=False):
     trails = defaultdict(set)
 
     for i, doc in tqdm(enumerate(docs), total=len(docs)):
-        prefix = extract_prefix(doc, ignore_titles=ignore_titles)
+        prefix = extract_prefix(doc, include_username=include_usernames, ignore_titles=ignore_titles)
         prefix_hash = hashlib.md5(prefix.encode("utf-8")).hexdigest()
         trails[prefix_hash].add(i)
 

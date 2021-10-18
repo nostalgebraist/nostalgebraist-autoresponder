@@ -1,11 +1,43 @@
 """a wrapper around pytumblr's client with tools for ratelimit info, no $&^!ing param validation, etc"""
+import urllib
+import time
+
+import requests
+from requests.exceptions import TooManyRedirects, Timeout
+
 import pytumblr
 
 RAW_RESPONSES_FOR_DEBUG = False
 LOG_CALLS_FOR_DEBUG = False
 
 
+# TODO: better control over timeout secs, max retries inside pytumblr2, which we'll then switch to in this repo
 class HeaderTumblrRequest(pytumblr.TumblrRequest):
+    def get(self, url, params):
+        url = self.host + url
+        if params:
+            url = url + "?" + urllib.parse.urlencode(params)
+
+        resp = None
+        tries = 0
+        while resp is None:
+            try:
+                timeout = 2**(tries + 3)
+                resp = requests.get(
+                    url, allow_redirects=False, headers=self.headers, auth=self.oauth,
+                    timeout=timeout
+                )
+            except Timeout:
+                tries += 1
+                if tries > 10:
+                    raise ValueError(f"max retries with GET request on url {url}")
+                print(f"timed out with timeout {timeout}s, trying again...")
+                time.sleep(0.25)
+            except TooManyRedirects as e:
+                resp = e.response
+
+        return self.json_parse(resp)
+
     def json_parse(self, response):
         self.last_headers = response.headers
         if RAW_RESPONSES_FOR_DEBUG:
@@ -22,7 +54,7 @@ class RateLimitClient(pytumblr.TumblrRestClient):
         oauth_secret="",
         host="https://api.tumblr.com",
         blogName=None,
-        using_npf_consumption=False
+        using_npf_consumption=False,
     ):
         if blogName is None:
             # want to keep arg order the same as TumblrRestClient so blogName must be kwarg

@@ -33,7 +33,7 @@ def url_to_frame_bytes(
 ) -> List[bytes]:
     try:
         if http is None:
-            http = urllib3.PoolManager(retries=urllib3.util.Retry(total=10, backoff_factor=0.1), timeout=10)
+            http = urllib3.PoolManager(retries=urllib3.util.Retry(total=3, backoff_factor=0.1), timeout=10)
 
         name = url.rpartition("/")[-1]
         xtn_from_url = "." + name.rpartition(".")[-1]
@@ -448,7 +448,7 @@ class ImageAnalysisCache:
             downsize_to=[640, 540],
     ):
         if http is None:
-            http = urllib3.PoolManager(retries=urllib3.util.Retry(total=10, backoff_factor=0.1), timeout=10)
+            http = urllib3.PoolManager(retries=urllib3.util.Retry(total=3, backoff_factor=0.1), timeout=10)
 
         url_ = url
         r_pre = http.request("GET", url_, preload_content=False)

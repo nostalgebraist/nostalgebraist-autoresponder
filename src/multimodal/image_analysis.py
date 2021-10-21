@@ -416,7 +416,7 @@ def format_extracted_text(image_text, image_formatter=V9_IMAGE_FORMATTER, verbos
 
 
 class ImageAnalysisCache:
-    def __init__(self, path="image_analysis_cache.pkl.gz", cache=None, hash_to_url=None):
+    def __init__(self, path="image_analysis_cache.pkl", cache=None, hash_to_url=None):
         self.path = path
         self.cache = cache
         self.hash_to_url = hash_to_url
@@ -567,7 +567,8 @@ class ImageAnalysisCache:
             pickle.dump(data, f)
         if do_backup:
             # TODO: better path handling
-            with open(self.path[: -len(".pkl.gz")] + "_backup.pkl.gz", "wb") as f:
+            name, dot, xtn = self.path.partition('.')
+            with open(name + "_backup" + dot + xtn, "wb") as f:
                 pickle.dump(data, f)
         if verbose:
             print(
@@ -576,7 +577,7 @@ class ImageAnalysisCache:
 
     @staticmethod
     def load(
-        path: str = "data/image_analysis_cache.pkl.gz", verbose=True
+        path: str = "data/image_analysis_cache.pkl", verbose=True
     ) -> "ImageAnalysisCache":
         cache = None
         hash_to_url = dict()

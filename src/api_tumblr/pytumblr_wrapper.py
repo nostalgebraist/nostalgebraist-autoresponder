@@ -4,6 +4,7 @@ import time
 
 import requests
 from requests.exceptions import TooManyRedirects, Timeout
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
 import pytumblr
 
@@ -27,7 +28,7 @@ class HeaderTumblrRequest(pytumblr.TumblrRequest):
                     url, allow_redirects=False, headers=self.headers, auth=self.oauth,
                     timeout=timeout
                 )
-            except Timeout:
+            except (Timeout, RequestsConnectionError):
                 tries += 1
                 if tries > 10:
                     raise ValueError(f"max retries with GET request on url {url}")

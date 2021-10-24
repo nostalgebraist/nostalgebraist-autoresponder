@@ -1766,7 +1766,7 @@ def check_notifications(n_to_check=250, after_ts=0, before_ts=None, dump_to_file
         # TODO: verify this is compatible with pagination
         params = {"before": before_ts}
 
-    getter = lambda url_, params_: client_to_use.get(url_, params_)
+    getter = lambda url_, params_: client_to_use.request.get(url_, params_)
     updater = lambda page: [
         item for item in page["notifications"] if item["timestamp"] > after_ts
     ]

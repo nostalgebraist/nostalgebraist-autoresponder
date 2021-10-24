@@ -1759,33 +1759,30 @@ def get_relevant_replies_from_notes(
 
 
 def check_notifications(n_to_check=250, after_ts=0, before_ts=None, dump_to_file=False):
-    base_url = client_pool.get_private_client().request.host + f"/v2/blog/{blogName}/notifications"
+    client_to_use = client_pool.get_private_client()
+    url = f"/v2/blog/{blogName}/notifications"
+    params = {}
     if before_ts is not None:
         # TODO: verify this is compatible with pagination
-        base_url = base_url + "?" + urllib.parse.urlencode({"before": before_ts})
+        params = {"before": before_ts}
 
-    request_kwargs = dict(
-        allow_redirects=False,
-        headers=client_pool.get_private_client().request.headers,
-        auth=client_pool.get_private_client().request.oauth,
-    )
-
-    getter = lambda url: requests.get(url, **request_kwargs).json()["response"]
+    getter = lambda url_, params_: client_to_use.get(url_, params_)
     updater = lambda page: [
         item for item in page["notifications"] if item["timestamp"] > after_ts
     ]
     n = []
 
     with LogExceptionAndSkip("check notifications"):
-        page = getter(base_url)
+        page = getter(url, params)
         delta = updater(page)
 
         while len(n) < n_to_check and len(delta) > 0:
             n += delta
             print(f"{len(n)}/{n_to_check}")
             time.sleep(0.1)
-            url = client_pool.get_private_client().request.host + page["_links"]["next"]["href"]
-            page = getter(url)
+            url = page["_links"]["next"]["href"]
+            params = {}
+            page = getter(url, params)
             delta = updater(page)
 
     if dump_to_file:

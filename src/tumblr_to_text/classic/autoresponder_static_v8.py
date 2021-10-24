@@ -83,7 +83,7 @@ def format_segment_v8_interlocutors(doc, control_seg_config=DEFAULT_CSC):
     )
 
 
-def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC, verbose=True):
+def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC, use_definite_article=True, verbose=True):
     def vprint(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)
@@ -103,8 +103,9 @@ def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC, verb
                 continue
             title = title[0].upper() + title[1:]
 
-            # "A [noun]" --> "The [noun]"
-            title = re.sub(r"\AA |\AAn ", "The ", title)
+            if use_definite_article:
+                # "A [noun]" --> "The [noun]"
+                title = re.sub(r"\AA |\AAn ", "The ", title)
 
             vprint(f"on {tt} path")
             vprint(f"formed title {repr(title)}")

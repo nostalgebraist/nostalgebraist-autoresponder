@@ -23,7 +23,7 @@ from tqdm import tqdm
 from smart_open import open
 
 from util.times import now_pst, fromtimestamp_pst
-from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS
+from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS, V12_14
 
 
 from tumblr_to_text.classic.reply_munging import (
@@ -2466,7 +2466,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
             thread = TumblrThread.from_payload(post_payload)
             if write_fic_override:
-                prompt, prompt_selector, prompt_autoreviewer = make_nwo_fic_override_prompts(thread)
+                prompt, prompt_selector, prompt_autoreviewer = make_nwo_fic_override_prompts(thread,
+                                                                                             use_definite_article=not V12_14)
             else:
                 prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(thread, blogName)
 

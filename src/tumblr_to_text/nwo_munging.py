@@ -142,10 +142,15 @@ def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=False, ml_promp
     return prompt, prompt_selector, prompt_autoreviewer
 
 
-def make_nwo_fic_override_prompts(thread: TumblrThread, control_seg_config=DEFAULT_CSC, debug=False):
+def make_nwo_fic_override_prompts(thread: TumblrThread,
+                                  control_seg_config=DEFAULT_CSC,
+                                  use_definite_article=True,
+                                  debug=False):
     ask_text = get_normalized_ask_text(thread)
 
-    prompt = EOT + construct_fic_override_v2(ask_text, control_seg_config=control_seg_config)
+    prompt = EOT + construct_fic_override_v2(ask_text,
+                                             use_definite_article=use_definite_article,
+                                             control_seg_config=control_seg_config)
     prompt_selector = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
     prompt_autoreviewer = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
 

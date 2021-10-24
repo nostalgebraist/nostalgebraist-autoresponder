@@ -49,8 +49,8 @@ LOGGING_FLAGS = {
 
 if V12_14:
     AUTOREVIEWER_CUTOFFS = {
-        "accept_below": 0.000,  # v12_14/v1: predict true accept rate: ~XX%, false accept rate ~6.7%
-        "reject_above": 0.000,  # v12_14/v1: predict true reject rate: ~XX%, false reject rate ~5%
+        "accept_below": 0.150,  # v12_14/v1: predict true accept rate: ~40%, false accept rate ~6.7%
+        "reject_above": 0.595,  # v12_14/v1: predict true reject rate: ~43%, false reject rate ~5%
     }
 elif V12_13:
     AUTOREVIEWER_CUTOFFS = {

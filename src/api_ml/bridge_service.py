@@ -48,6 +48,17 @@ def requestml():
     return jsonify({})
 
 
+@app.route("/almostdone", methods=["POST"])
+def almostdone():
+    global PROMPT_STACK
+
+    data = request.json
+    if data["id"] in PROMPT_STACK:
+        PROMPT_STACK[data["id"]]["almost_done"] = True
+
+    return jsonify({})
+
+
 @app.route("/done", methods=["POST"])
 def done():
     global PROMPT_STACK

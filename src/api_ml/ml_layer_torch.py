@@ -304,14 +304,17 @@ def poll(
             if show_memory:
                 show_gpu()
 
+        almostdone_in_flight = False
         open_request_ids = set()
         for prompt_id in PROMPT_STACK:
             if PROMPT_STACK[prompt_id].get("repeat_until_done_signal", False):
                 open_request_ids.add(prompt_id)
+                if PROMPT_STACK[prompt_id].get("almost_done", False):
+                    almostdone_in_flight = True
             elif prompt_id in RESULT_STACK:
                 CLOSED_REQUESTS[prompt_id] = RESULT_STACK[prompt_id]
 
-        return open_request_ids
+        return open_request_ids, almostdone_in_flight
 
 
 def loop_poll(
@@ -327,14 +330,11 @@ def loop_poll(
 ):
     open_request_ids = set()
     while True:
-        try:
-            open_request_ids = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
-        except Exception as e:
-            raise e
-            # print(f"{type(e)}: {e}")
-            # time.sleep(period * 10)
+        open_request_ids, almostdone_in_flight = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
         if len(open_request_ids) == 0 or dummy:
             time.sleep(period)
+        elif almostdone_in_flight:
+            time.sleep(1.2)
         else:
             time.sleep(0.2)
 

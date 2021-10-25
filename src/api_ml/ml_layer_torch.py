@@ -334,7 +334,7 @@ def loop_poll(
         if len(open_request_ids) == 0 or dummy:
             time.sleep(period)
         elif almostdone_in_flight:
-            time.sleep(1.2)
+            time.sleep(2)
         else:
             time.sleep(0.2)
 

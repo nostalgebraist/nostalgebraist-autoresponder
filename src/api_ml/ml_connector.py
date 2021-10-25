@@ -231,9 +231,18 @@ def basic_n_continuations(
     all_prompts = []
     continuations = []
     n_batches_so_far = 0
+    almostdone_sent = False
+    poll_interval_secs = 5
 
     while len(continuations) < N:
-        time.sleep(5)
+        if len(continuations) >= N - 2:
+            if not almostdone_sent:
+                requests.post(bridge_service_url + "/almostdone", json={"id": bridge_id})
+                almostdone_sent = True
+            poll_interval_secs = 1
+
+        time.sleep(poll_interval_secs)
+
         batches_written_raw = requests.post(
             bridge_service_url + "/getresult", data={"id": bridge_id}
         ).json()

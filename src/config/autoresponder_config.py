@@ -392,7 +392,7 @@ else:
 ### Sampling
 
 BREAKRUNS = True
-BREAKRUNS_TAU = 0.02  # 0.03
+BREAKRUNS_TAU = 0.035  # "canon" value is 0.02
 BREAKRUNS_DECAY = 0.0
 BREAKRUNS_DEBUG = False
 

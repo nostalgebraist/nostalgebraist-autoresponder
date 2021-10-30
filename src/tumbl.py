@@ -23,6 +23,7 @@ from tqdm import tqdm
 from smart_open import open
 
 from util.times import now_pst, fromtimestamp_pst
+from util.cloudsave import CLOUDSAVE_BUCKET
 from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS, V12_14
 
 
@@ -2795,7 +2796,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     return loop_persistent_data, response_cache
 
 
-def load_retention(path="gs://nost-trc/nbar_data/retention_stack.pkl"):
+def load_retention(path=f"gs://{CLOUDSAVE_BUCKET}/nbar_data/retention_stack.pkl"):
     retention_stack = set()
 
     try:

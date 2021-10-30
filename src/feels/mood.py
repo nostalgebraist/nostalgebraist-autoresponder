@@ -7,6 +7,8 @@ import pandas as pd
 
 from smart_open import open
 
+from util.cloudsave import CLOUDSAVE_BUCKET
+
 DEFAULT_MOOD = "unrestricted"
 
 
@@ -36,7 +38,7 @@ def logit_diff_to_allen_schema(logit_diff: float):
 
 def load_logit_diff_sample():
     try:
-        with open("gs://nost-trc/nbar_data/logit_diff_sample.pkl.gz", "rb") as f:
+        with open(f"gs://{CLOUDSAVE_BUCKET}/nbar_data/logit_diff_sample.pkl.gz", "rb") as f:
             logit_diff_sample = pickle.load(f)
     except FileNotFoundError:
         logit_diff_sample = [

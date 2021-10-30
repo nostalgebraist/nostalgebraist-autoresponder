@@ -16,7 +16,7 @@ import os
 import pickle
 
 from util.times import now_pst
-from util.cloudsave import resilient_pickle_load, resilient_pickle_save
+from util.cloudsave import resilient_pickle_load, resilient_pickle_save, CLOUDSAVE_BUCKET
 
 import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
@@ -73,7 +73,7 @@ class ResponseCache:
 
     @staticmethod
     def load(client=None,
-             path="gs://nost-trc/nbar_data/response_cache.pkl.gz",
+             path=f"gs://{CLOUDSAVE_BUCKET}/nbar_data/response_cache.pkl.gz",
              backup_path="data/cloudsave_backups/response_cache.pkl.gz",
              verbose=True):
         cache = resilient_pickle_load(path=path)

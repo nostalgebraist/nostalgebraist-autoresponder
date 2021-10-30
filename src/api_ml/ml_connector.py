@@ -20,6 +20,7 @@ from api_ml import bridge_cache_singleton
 from api_ml.bridge_shared import get_bridge_service_url
 
 from util.error_handling import LogExceptionAndSkip
+from util.cloudsave import CLOUDSAVE_BUCKET
 
 from smart_open import open
 
@@ -482,7 +483,7 @@ def predict_autoreview(data, verbose=True):
 
 
 def save_retention(retention_stack):
-    with open("gs://nost-trc/nbar_data/retention_stack.pkl", "wb") as f:
+    with open(f"gs://{CLOUDSAVE_BUCKET}/nbar_data/retention_stack.pkl", "wb") as f:
         pickle.dump(retention_stack, f)
 
 

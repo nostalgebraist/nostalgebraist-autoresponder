@@ -3,14 +3,16 @@ import numpy as np
 
 from smart_open import open
 
+from util.cloudsave import CLOUDSAVE_BUCKET
+
 try:
-    with open("gs://nost-trc/nbar_data/nost_post_year_counts.json", "r") as f:
+    with open(f"gs://{CLOUDSAVE_BUCKET}/nbar_data/nost_post_year_counts.json", "r") as f:
         nost_post_years_to_counts = json.load(f)
 except FileNotFoundError:
     nost_post_years_to_counts = {y: 1 for y in range(2012, 2022)}
 
 try:
-    with open("gs://nost-trc/nbar_data/nost_post_year_fracs.json", "r") as f:
+    with open(f"gs://{CLOUDSAVE_BUCKET}/nbar_data/nost_post_year_fracs.json", "r") as f:
         nost_post_years_to_fracs = json.load(f)
 except FileNotFoundError:
     nyear = len(nost_post_years_to_counts)

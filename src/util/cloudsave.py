@@ -5,7 +5,7 @@ import smart_open.gcs
 from smart_open import open
 
 
-CLOUDSAVE_BUCKET = "nost-trc"
+CLOUDSAVE_BUCKET = "nost-us"
 
 
 def resilient_pickle_save(obj, path, backup_path):

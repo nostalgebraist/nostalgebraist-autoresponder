@@ -755,9 +755,9 @@ class LoopPersistentData:
         reply_metadata={},
         timestamps={},
         reblog_keys={},
-        n_posts_to_check_base=50, # 250, DEBUG
+        n_posts_to_check_base=50, # 250, TEMPORARY
         n_posts_to_check_dash=690,
-        n_notifications_to_check=100,  # 1000,  DEBUG
+        n_notifications_to_check=100,  # 1000,  TEMPORARY
         offset_=0,
         requests_per_check_history=[],
         apriori_requests_per_check=25,
@@ -2102,8 +2102,6 @@ def do_reblog_reply_handling(
         for item in replies_to_handle:
             print(f"\t{item}")
 
-    raise ValueError
-
     reblog_reply_timestamps = {
         r: loop_persistent_data.timestamps[r] for r in reblogs_to_handle
     }
@@ -2111,6 +2109,17 @@ def do_reblog_reply_handling(
     time_ordered_idents = sorted(
         reblog_reply_timestamps.keys(), key=lambda r: reblog_reply_timestamps[r]
     )
+
+    # TEMPORARY
+    crash_ts = 1635817456
+    for r in reblogs_to_handle:
+        if loop_persistent_data.timestamps[r] < crash_ts:
+            print(f"marking as handled: {r}")
+            response_cache.mark_handled(r)
+    for r in replies_to_handle:
+        if reblog_reply_timestamps[r] < crash_ts:
+            print(f"marking as handled: {r}")
+            response_cache.mark_reply_handled(r)
 
     costs, response_cache = prioritize_reblogs_replies(identifiers=reblog_reply_timestamps.keys(),
                                                        reply_set=replies_to_handle,

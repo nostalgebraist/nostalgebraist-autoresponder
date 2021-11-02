@@ -757,7 +757,7 @@ class LoopPersistentData:
         reblog_keys={},
         n_posts_to_check_base=250,
         n_posts_to_check_dash=690,
-        n_notifications_to_check=1000,
+        n_notifications_to_check=100,  # 1000,
         offset_=0,
         requests_per_check_history=[],
         apriori_requests_per_check=25,

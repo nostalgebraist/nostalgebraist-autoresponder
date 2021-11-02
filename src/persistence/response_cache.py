@@ -73,7 +73,7 @@ class ResponseCache:
 
     @staticmethod
     def load(client=None,
-             path=f"gs://{CLOUDSAVE_BUCKET}/nbar_data/response_cache.pkl.gz",
+             path=f"data/response_cache.pkl.gz",
              backup_path="data/cloudsave_backups/response_cache.pkl.gz",
              verbose=True):
         cache = resilient_pickle_load(path=path)

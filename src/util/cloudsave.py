@@ -1,5 +1,6 @@
 import time
 import pickle
+import os
 
 import smart_open.gcs
 from smart_open import open
@@ -11,6 +12,10 @@ CLOUDSAVE_BUCKET = "nost-us"
 def resilient_pickle_save(obj, path, backup_path):
     tries = 0
     done = False
+
+    enclosing_dir = backup_path.rpartition("/")[0]
+    print(f"ensuring {enclosing_dir} exists")
+    os.makedirs(enclosing_dir, exist_ok=True)
 
     while not done:
         try:

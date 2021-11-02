@@ -2110,17 +2110,6 @@ def do_reblog_reply_handling(
         reblog_reply_timestamps.keys(), key=lambda r: reblog_reply_timestamps[r]
     )
 
-    # TEMPORARY
-    crash_ts = 1635817456
-    for r in reblogs_to_handle:
-        if loop_persistent_data.timestamps[r] < crash_ts:
-            print(f"marking as handled: {r}")
-            response_cache.mark_handled(r)
-    for r in replies_to_handle:
-        if reblog_reply_timestamps[r] < crash_ts:
-            print(f"marking as handled: {r}")
-            response_cache.mark_reply_handled(r)
-
     costs, response_cache = prioritize_reblogs_replies(identifiers=reblog_reply_timestamps.keys(),
                                                        reply_set=replies_to_handle,
                                                        response_cache=response_cache)

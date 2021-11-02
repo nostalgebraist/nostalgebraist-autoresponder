@@ -2102,6 +2102,8 @@ def do_reblog_reply_handling(
         for item in replies_to_handle:
             print(f"\t{item}")
 
+    raise ValueError
+
     reblog_reply_timestamps = {
         r: loop_persistent_data.timestamps[r] for r in reblogs_to_handle
     }

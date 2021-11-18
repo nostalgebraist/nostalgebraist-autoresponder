@@ -88,7 +88,7 @@ def _train_val_split(docs, val_frac=0.03):
     val_docs = []
 
     while sum(map(len, val_docs)) < val_charlen:
-        ix = random.randint(0, len(train_docs))
+        ix = random.randint(0, len(train_docs) - 1)
         try:
             val_docs.append(train_docs.pop(ix))
         except IndexError as e:

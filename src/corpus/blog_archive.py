@@ -26,8 +26,12 @@ UNUSED_TYPES = {"mood", "review", "manual"}
 
 
 def roll_head_timestamp(base_head_timestamp: datetime, actual_timestamp: datetime, n_future_months: int = 2):
+    year = base_head_timestamp.year
     month = base_head_timestamp.month + random.randint(0, n_future_months)
-    return actual_timestamp.replace(year=base_head_timestamp.year, month=month, day=2)
+    if month > 12:
+        month = month - 11  # starts at 1, not 0
+        year = year + 1
+    return actual_timestamp.replace(year=year, month=month, day=2)
 
 
 # TODO: better handling of fic override

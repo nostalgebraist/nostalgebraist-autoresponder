@@ -25,7 +25,7 @@ from util.times import now_pst, fromtimestamp_pst
 UNUSED_TYPES = {"mood", "review", "manual"}
 
 
-def roll_head_timestamp(base_head_timestamp: datetime, actual_timestamp: datetime, n_future_months: int = 2):
+def roll_head_timestamp(base_head_timestamp: datetime, actual_timestamp: datetime, n_future_months: int = 3):
     year = base_head_timestamp.year
     month = base_head_timestamp.month + random.randint(0, n_future_months)
     if month > 12:

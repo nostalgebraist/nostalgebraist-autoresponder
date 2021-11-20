@@ -2693,10 +2693,11 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
 
     ### decide whether we'll do the reblog/reply check
 
-    requests_needed_to_check = np.percentile(
-        loop_persistent_data.requests_per_check_history[-30:], 50
-    )
-    checkprob = client_pool.compute_checkprob(requests_needed_to_check, EFFECTIVE_SLEEP_TIME)
+    requests_per_check_sample = loop_persistent_data.requests_per_check_history[-30:]
+    requests_needed_to_check = np.percentile(requests_per_check_sample, 50)
+    print(f"requests_needed_to_check: {requests_needed_to_check} based on history\n{requests_per_check_sample}\n")
+
+    checkprob = client_pool.compute_checkprob(requests_needed_to_check, EFFECTIVE_SLEEP_TIME, verbose=True)
 
     print(
         f"using checkprob: {checkprob:.1%}"

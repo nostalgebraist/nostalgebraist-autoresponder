@@ -109,11 +109,17 @@ class ClientPool:
     def clients(self):
         return self.private_clients + self.dashboard_clients
 
-    def compute_checkprob(self, requests_per_check: int, sleep_time: float):
+    def compute_checkprob(self, requests_per_check: int, sleep_time: float, verbose=False):
+        def vprint(*args, **kwargs):
+            if verbose:
+                print(*args, **kwargs)
+
         summed_max_rate = sum(self._group_rates(self.clients))
+        vprint(f"summed_max_rate: {summed_max_rate:.4f}")
 
         # if we checked *every* cycle, we could support up this many requests per check
         requests_per_cycle = sleep_time * summed_max_rate
+        vprint(f"requests_per_cycle: {requests_per_cycle:.4f} (vs requests_per_check {requests_per_check:.4})")
 
         # we'll check only a fraction `checkprob` of the cycles, to support up to `requests_needed_to_check`
         checkprob = requests_per_cycle / requests_per_check

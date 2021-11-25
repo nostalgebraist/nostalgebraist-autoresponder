@@ -118,7 +118,7 @@ class RateLimitClient(pytumblr.TumblrRestClient):
             self.posts(self.blogName, limit=1)
 
         headers = self.request.last_headers
-        stale_seconds = time.time() - self.last_headers_ts
+        stale_seconds = time.time() - self.request.last_headers_ts
         results = {}
 
         results["day"] = {

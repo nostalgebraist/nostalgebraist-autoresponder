@@ -42,6 +42,7 @@ class HeaderTumblrRequest(pytumblr.TumblrRequest):
 
     def json_parse(self, response):
         self.last_headers = response.headers
+        self.last_headers_ts = time.time()
         if RAW_RESPONSES_FOR_DEBUG:
             return response
         return super().json_parse(response)
@@ -117,17 +118,26 @@ class RateLimitClient(pytumblr.TumblrRestClient):
             self.posts(self.blogName, limit=1)
 
         headers = self.request.last_headers
+        stale_seconds = time.time() - self.last_headers_ts
         results = {}
 
         results["day"] = {
             "remaining": int(headers["X-Ratelimit-Perday-Remaining"]),
-            "reset": int(headers["X-Ratelimit-Perday-Reset"]),
+            "reset": int(headers["X-Ratelimit-Perday-Reset"]) - stale_seconds,
         }
 
         results["hour"] = {
             "remaining": int(headers["X-Ratelimit-Perhour-Remaining"]),
-            "reset": int(headers["X-Ratelimit-Perhour-Reset"]),
+            "reset": int(headers["X-Ratelimit-Perhour-Reset"]) - stale_seconds,
         }
+
+        while results["day"]["reset"] < 0:
+            results["day"]["reset"] += 86400
+            results["day"]["remaining"] = 5000
+
+        while results["hour"]["reset"] < 0:
+            results["hour"]["reset"] += 3600
+            results["hour"]["remaining"] = 999
 
         for k in ["day", "hour"]:
             results[k]["max_rate"] = results[k]["remaining"] / results[k]["reset"]

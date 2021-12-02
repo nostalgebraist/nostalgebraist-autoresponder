@@ -2851,7 +2851,7 @@ if __name__ == "__main__":
             # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")
             # pr_main.dump_stats(f"profiling_data/main/{_pr_name}")
             # pr_main.enable()
-        except KeyboardInterrupt:
+        except KeyError:
+            print("hit an error, waiting for a little while...")
+            time.sleep(sleep_time(multiplier=5))
             send_alldone()
-            # pr_main.disable()
-            raise KeyboardInterrupt

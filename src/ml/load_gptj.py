@@ -54,7 +54,24 @@ class SplitCheckpoint(MutableMapping):
         return SplitCheckpoint(self.ckpt_dir, device=self.device)
 
 
-def load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):
+def no_init(loading_code):
+    def dummy(self):
+        return
+
+    modules = [torch.nn.Linear, torch.nn.Embedding, torch.nn.LayerNorm]
+    original = {}
+    for mod in modules:
+        original[mod] = mod.reset_parameters
+        mod.reset_parameters = dummy
+
+    result = loading_code()
+    for mod in modules:
+        mod.reset_parameters = original[mod]
+
+    return result
+
+
+def _load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):
     model = GPTNeoForCausalLM.from_pretrained(
         pretrained_model_name_or_path=None,
         config=config,
@@ -62,3 +79,7 @@ def load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):
     )
 
     return model
+
+
+def load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):
+    return  no_init(_load_gpt_j_split_ckpt(ckpt_dir, config=config))

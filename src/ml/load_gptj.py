@@ -1,3 +1,5 @@
+from functools import partial
+
 import torch
 from transformers import GPTNeoForCausalLM, AutoConfig
 
@@ -82,4 +84,4 @@ def _load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):
 
 
 def load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):
-    return  no_init(_load_gpt_j_split_ckpt(ckpt_dir, config=config))
+    return no_init(partial(_load_gpt_j_split_ckpt, ckpt_dir=ckpt_dir, config=config))

@@ -17,3 +17,5 @@ wandb
 smart_open[gcs]
 git+https://github.com/finetuneanon/transformers/@aa14178e9b4067e4b1bc6c1e9297d5ee39c74fde
 git+https://github.com/nostalgebraist/transformer-utils@main
+ngram==4.0.3
+git+https://github.com/nostalgebraist/improved-diffusion@weave-v2-12-21-21

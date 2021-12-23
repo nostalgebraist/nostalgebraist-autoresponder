@@ -51,7 +51,7 @@ def read_and_get_ngram_similarity(image_array, gold, N=3, verbose=True, threshol
         print(f"got texts:\n{texts}")
     sims = get_ngram_similarity(gold, texts, N=N)
     if verbose:
-        print(f"got sims:\n{[(s, t) for s, t in zip(sims, texts)]}")
+        print(f"got sims:\n{sims}")
     return texts, sims
 
 
@@ -64,7 +64,9 @@ def read_and_prune(
     delete_under=0.1,
     keep_only_if_above=0.95,
 ):
-    texts, sims = read_and_get_ngram_similarity(image_array, gold, N=N, verbose=verbose, threshold=threshold)
+    texts, sims = read_and_get_ngram_similarity(
+        image_array, gold, N=N, verbose=verbose, threshold=threshold
+    )
 
     ok_indices = set(range(len(sims)))
 
@@ -85,10 +87,12 @@ def read_and_prune(
         retained_texts = [texts[i] for i in ok_indices]
 
     if verbose:
-        print(f"after prune:\n{[(i, sims[i], texts[i]) for i in ok_indices]}")
+        print(
+            f"after prune: {len(ok_indices)} of {len(sims)} left\n{[(i, sims[i]) for i in ok_indices]}"
+        )
 
     # return retained, retained_texts
-    return retained,  [gold] * len(retained)
+    return retained, [gold] * len(retained)
 
 
 def select_best(image_array, gold, N=3, verbose=True):
@@ -106,6 +110,8 @@ def run_pipeline(
     prompt,
     batch_size,
     n_samples,
+    n_samples_sres=None,
+    batch_size_sres=None,
     seed=None,
     N=3,
     verbose=True,
@@ -113,10 +119,23 @@ def run_pipeline(
     delete_under=0.1,
     keep_only_if_above=0.95,
 ):
-    prune_fn = partial(read_and_prune, N=N, verbose=verbose,
-                       threshold=threshold,
-                       delete_under=delete_under, keep_only_if_above=keep_only_if_above)
-    image_array = pipeline.sample_with_pruning(text=prompt, n_samples=n_samples, batch_size=batch_size, prune_fn=prune_fn, seed=10)
+    prune_fn = partial(
+        read_and_prune,
+        N=N,
+        verbose=verbose,
+        threshold=threshold,
+        delete_under=delete_under,
+        keep_only_if_above=keep_only_if_above,
+    )
+    image_array = pipeline.sample_with_pruning(
+        text=prompt,
+        n_samples=n_samples,
+        batch_size=batch_size,
+        prune_fn=prune_fn,
+        seed=seed,
+        batch_size_sres=batch_size_sres,
+        n_samples_sres=n_samples_sres,
+    )
 
     best = select_best(image_array, prompt)
     return best

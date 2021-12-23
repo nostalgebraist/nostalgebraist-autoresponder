@@ -30,13 +30,18 @@ def read_generated_images(image_array, threshold=80):
     return final_text
 
 
-def get_ngram_similarity(gold, candidates, N=3):
-    ng = NGram([gold], N=N)
+def get_ngram_similarity(gold, candidates, N=3, strip_space=True):
+    def _strip_space(s):
+        if not strip_space:
+            return s
+        return "\n".join([part.strip(" ") for part in s.split("\n")])
+
+    ng = NGram([_strip_space(gold)], N=N)
 
     sims = []
 
     for c in candidates:
-        ng_out = ng.search(c)
+        ng_out = ng.search(_strip_space(c))
         if len(ng_out) == 0:
             sims.append(0.0)
         else:

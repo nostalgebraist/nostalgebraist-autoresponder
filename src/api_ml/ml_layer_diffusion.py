@@ -76,7 +76,7 @@ def poll(
         )
 
         data = r.json()
-        if len(data) == 0:
+        if data is None or len(data) == 0:
             continue
 
         args = {k: v for k, v in DIFFUSION_DEFAULTS.items()}
@@ -114,11 +114,7 @@ def loop_poll(
 ):
     while True:
         poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
-        if dummy:
-            time.sleep(period)
-        else:
-            time.sleep(0.2)
-
+        time.sleep(period)
 
 if __name__ == "__main__":
     sys.exit(loop_poll())

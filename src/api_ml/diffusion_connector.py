@@ -28,7 +28,7 @@ def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=5):
         try:
             data = result_.content
             with BytesIO(data) as b:
-                im = Image.load(b)
+                im = Image.open(b)
             return im
         except Exception as e:
             print((e, e.args))

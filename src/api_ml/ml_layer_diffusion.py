@@ -84,7 +84,10 @@ def poll(
 
         print(f"running: {args}")
 
+        t1 = time.time()
         result = run_pipeline(pipeline, **args)  # PIL Image
+        delta_t = time.time() - t1
+        print(f"pipeline took {delta_t:.1f}s")
 
         with BytesIO() as output:
             result.save(output, "png")

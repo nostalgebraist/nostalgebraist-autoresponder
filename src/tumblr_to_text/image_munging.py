@@ -49,9 +49,9 @@ def upload_images_to_tumblr_urls(images, keys, client, blogname):
         return {}
     if len(images) == 0:
         return {}
-    paths = [f"{IMAGE_DIR}/temp{i}.jpg" for i, im in enumerate(images)]
+    paths = [f"{IMAGE_DIR}/temp{i}.png" for i, im in enumerate(images)]
     for p, im in zip(paths, images):
-        im.save(p, format="jpeg")
+        im.save(p, format="png")
 
     # TODO: figure out how to do this in NPF consumption world
     orig_npf_flag = client.using_npf_consumption

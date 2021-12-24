@@ -187,7 +187,7 @@ FIC_TRIGGER = True
 FIC_TRIGGER_TESTING = False
 
 IMAGE_CREATION = True
-IMAGE_CREATION_TESTING = True
+IMAGE_CREATION_TESTING = False
 IMAGE_CREATION_DIFFUSION = True
 
 with open("data/scraped_usernames.json", "r") as f:

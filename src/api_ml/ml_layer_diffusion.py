@@ -79,12 +79,12 @@ def poll(
         if len(data) == 0:
             continue
 
-        args = DIFFUSION_DEFAULTS
+        args = {k: v for k, v in DIFFUSION_DEFAULTS.items()}
         args.update(data)
 
         print(f"running: {args}")
 
-        result = run_pipeline(**args)  # PIL Image
+        result = run_pipeline(pipeline, **args)  # PIL Image
 
         with BytesIO() as output:
             result.save(output, "png")

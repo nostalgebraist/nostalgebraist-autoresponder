@@ -8,7 +8,7 @@ from api_ml.bridge_shared import get_bridge_service_url
 
 
 def request_diffusion(text, **kwargs):
-    data = {'text': text}
+    data = {'prompt': text}
     data.update(kwargs)
 
     bridge_service_url = get_bridge_service_url()

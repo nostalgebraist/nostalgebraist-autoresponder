@@ -30,8 +30,8 @@ def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=5):
             print(type(data))
             if not isinstance(data, bytes) or len(data) == 0:
                 return
-            with BytesIO(data) as b:
-                im = Image.open(b)
+            b = BytesIO(data)
+            im = Image.open(b)
             return im
         except Exception as e:
             print((e, e.args))

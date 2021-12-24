@@ -40,7 +40,7 @@ def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=5):
         n_tries += 1
         print(n_tries, end="... ")
         time.sleep(time_to_wait)
-        result = requests.post(bridge_service_url + "/getresult", data=data).json()
+        result = requests.post(bridge_service_url + "/getresultdiffusion").json()
         im = _try_load(result)
 
     done_waiting_ts = time.time()

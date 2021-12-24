@@ -136,7 +136,7 @@ def getresultdiffusion():
     if RESULT_DIFFUSION is not None:
         ret = RESULT_DIFFUSION
         print((type(ret), len(ret)))
-        # RESULT_DIFFUSION = None
+        RESULT_DIFFUSION = None
         response = make_response(ret)
         response.headers.set('Content-Type', 'image/png')
         return response

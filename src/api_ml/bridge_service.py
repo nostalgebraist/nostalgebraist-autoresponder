@@ -147,8 +147,11 @@ def getresultdiffusion():
 
     if RESULT_DIFFUSION is not None:
         ret = RESULT_DIFFUSION
+        print((type(ret), len(ret)))
         # RESULT_DIFFUSION = None
-        return make_response(ret)
+        response = make_response(ret)
+        response.headers.set('Content-Type', 'image/png')
+        return response
     else:
         return jsonify({})
 

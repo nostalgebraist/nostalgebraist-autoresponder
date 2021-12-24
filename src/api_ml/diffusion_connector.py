@@ -11,7 +11,7 @@ def request_diffusion(text, **kwargs):
 
     bridge_service_url = get_bridge_service_url()
 
-    requests.post(bridge_service_url + "/requestdiffusion", json=data_to_send)
+    requests.post(bridge_service_url + "/requestdiffusion", json=data)
 
 
 def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=5):

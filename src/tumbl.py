@@ -693,6 +693,7 @@ def answer_ask(
             client_pool.get_private_client(),
             blogname,
             verbose=IMAGE_CREATION_TESTING,
+            use_diffusion=IMAGE_CREATION_DIFFUSION
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state = "draft"

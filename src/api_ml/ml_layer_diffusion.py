@@ -20,8 +20,6 @@ bridge_service_port = bot_specific_constants.bridge_service_port
 BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 
 
-CLOSED_REQUESTS = {}
-
 
 # constants
 HF_REPO_NAME_DIFFUSION = 'nostalgebraist-autoresponder-diffusion'
@@ -116,7 +114,7 @@ def loop_poll(
 ):
     while True:
         poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
-        if len(open_request_ids) == 0 or dummy:
+        if dummy:
             time.sleep(period)
         else:
             time.sleep(0.2)

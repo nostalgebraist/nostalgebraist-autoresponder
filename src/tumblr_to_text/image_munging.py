@@ -13,6 +13,8 @@ image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
 from multimodal.text_segmentation import make_image_simple
 
+from api_ml.diffusion_connector import make_image_with_diffusion
+
 # image stuff
 
 
@@ -74,8 +76,13 @@ def find_text_images_and_sub_real_images(
     blogname,
     verbose=False,
     dryrun=False,
-    image_maker=make_image_simple,
+    use_diffusion=False,
 ):
+    print(f'using diffusion?: {use_diffusion}')
+    if use_diffusion:
+        image_maker = make_image_with_diffusion
+    else:
+        image_maker = make_image_simple
     def vprint(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)

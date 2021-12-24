@@ -61,6 +61,7 @@ from api_ml.ml_connector import (
     sentiment_logit_diffs_from_gpt,
     autoreview_proba_from_gpt,
 )
+from api_ml.diffusion_connector import make_image_with_diffusion
 
 from tumblr_to_text.classic.autoresponder_static import EOT, DEFAULT_CSC
 from tumblr_to_text.classic.munging_shared import get_body, \
@@ -187,7 +188,8 @@ FIC_TRIGGER = True
 FIC_TRIGGER_TESTING = False
 
 IMAGE_CREATION = True
-IMAGE_CREATION_TESTING = False
+IMAGE_CREATION_TESTING = True
+IMAGE_CREATION_DIFFUSION = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
@@ -577,11 +579,13 @@ def make_text_post(
 
     if IMAGE_CREATION:
         presub_post = post
+        kwargs = {"image_maker": make_image_with_diffusion} if IMAGE_CREATION_DIFFUSION else {}
         post, images_were_created = find_text_images_and_sub_real_images(
             post,
             client_pool.get_private_client(),
             blogname,
             verbose=IMAGE_CREATION_TESTING,
+            **kwargs
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state_reasons["must_be_draft"] = True

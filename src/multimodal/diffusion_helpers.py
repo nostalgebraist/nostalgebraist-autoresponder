@@ -123,6 +123,7 @@ def run_pipeline(
     threshold=80,
     delete_under=0.1,
     keep_only_if_above=0.95,
+    to_pil_image=True
 ):
     prune_fn = partial(
         read_and_prune,
@@ -143,4 +144,6 @@ def run_pipeline(
     )
 
     best = select_best(image_array, prompt)
+    if to_pil_image:
+        best = Image.fromarray(best)
     return best

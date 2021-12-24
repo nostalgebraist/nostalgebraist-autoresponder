@@ -1,5 +1,6 @@
 import sys
 import time
+from io import BytesIO
 
 import requests
 import numpy as np
@@ -71,50 +72,35 @@ def poll(
     ],
     show_memory=True,
 ):
-    global CLOSED_REQUESTS
-
     for port, route in zip(ports, routes):
         r = requests.get(
             f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
         )
 
-        PROMPT_STACK = {prompt_id: data for prompt_id, data in r.json().items()}
+        data = r.json()
+        if len(data) == 0:
+            continue
 
-        RESULT_STACK = {}
+        args = DIFFUSION_DEFAULTS
+        args.update(data)
 
-        for prompt_id, data in PROMPT_STACK.items():
-            if prompt_id in CLOSED_REQUESTS:
-                RESULT_STACK[prompt_id] = CLOSED_REQUESTS[prompt_id]
-                continue
+        print(f"running: {args}")
 
-            args = DIFFUSION_DEFAULTS
-            args.update(data)
+        result = run_pipeline(**args)  # PIL Image
 
-            print(f"running: {args}")
+        with BytesIO() as output:
+            result.save(output, "png")
+            b = output.getvalue()
 
-            result = run_pipeline(**args)
-
-            if isinstance(result, np.ndarray):
-                result = result.tolist()
-
-            RESULT_STACK[prompt_id] = {"result": result}
-
-        if len(RESULT_STACK) > 0:
+        if not dummy:
             requests.post(
                 f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
-                json=RESULT_STACK if not dummy else {},
+                data=b
             )
 
-            collect_and_show()
-            if show_memory:
-                show_gpu()
-
-        open_request_ids = set()
-        for prompt_id in PROMPT_STACK:
-            if prompt_id in RESULT_STACK:
-                CLOSED_REQUESTS[prompt_id] = RESULT_STACK[prompt_id]
-
-        return open_request_ids
+        collect_and_show()
+        if show_memory:
+            show_gpu()
 
 
 def loop_poll(
@@ -128,9 +114,8 @@ def loop_poll(
     ],
     show_memory=True,
 ):
-    open_request_ids = set()
     while True:
-        open_request_ids = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
+        poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
         if len(open_request_ids) == 0 or dummy:
             time.sleep(period)
         else:

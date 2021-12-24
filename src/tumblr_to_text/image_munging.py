@@ -74,6 +74,7 @@ def find_text_images_and_sub_real_images(
     blogname,
     verbose=False,
     dryrun=False,
+    image_maker=make_image_simple,
 ):
     def vprint(*args, **kwargs):
         if verbose:
@@ -115,7 +116,7 @@ def find_text_images_and_sub_real_images(
     keys = []
     for imtext in imtexts:
         if len(imtext) > 0:
-            images.append(make_image_simple(imtext))
+            images.append(image_maker(imtext))
             keys.append(imtext)
 
     imtexts_to_tumblr_images = upload_images_to_tumblr_urls(

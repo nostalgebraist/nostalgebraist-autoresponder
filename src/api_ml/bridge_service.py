@@ -2,7 +2,7 @@
 Coordinating switchboard that handles communication between the generator, selector, and
 tumblr API compontents.
 """
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 
 import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
@@ -12,6 +12,9 @@ bridge_service_url = bot_specific_constants.bridge_service_url
 
 PROMPT_STACK = {}
 RESULT_STACK = {}
+
+PROMPT_DIFFUSION = {}
+RESULT_DIFFUSION = None
 
 ### FLASK
 app = Flask(__name__)
@@ -48,6 +51,29 @@ def requestml():
     return jsonify({})
 
 
+@app.route("/polldiffusion", methods=["GET", "POST"])
+def polldiffusion():
+    global PROMPT_DIFFUSION
+    global RESULT_DIFFUSION
+
+    if request.method == "POST":
+        RESULT_DIFFUSION = request.data
+        PROMPT_DIFFUSION = None
+        return jsonify({})
+    elif request.method == "GET":
+        return jsonify(PROMPT_DIFFUSION)
+
+
+@app.route("/requestdiffusion", methods=["POST"])
+def requestdiffusion():
+    global PROMPT_DIFFUSION
+
+    data = request.json
+    PROMPT_DIFFUSION = data
+
+    return jsonify({})
+
+
 @app.route("/almostdone", methods=["POST"])
 def almostdone():
     global PROMPT_STACK
@@ -63,6 +89,8 @@ def almostdone():
 def done():
     global PROMPT_STACK
     global RESULT_STACK
+    global PROMPT_STACK_DIFFUSION
+    global RESULT_STACK_DIFFUSION
 
     cleared_from = []
 
@@ -73,6 +101,12 @@ def done():
     if data["id"] in RESULT_STACK:
         del RESULT_STACK[data["id"]]
         cleared_from.append("RESULT_STACK")
+    if data["id"] in PROMPT_STACK_DIFFUSION:
+        del PROMPT_STACK_DIFFUSION[data["id"]]
+        cleared_from.append("PROMPT_STACK_DIFFUSION")
+    if data["id"] in RESULT_STACK_DIFFUSION:
+        del RESULT_STACK_DIFFUSION[data["id"]]
+        cleared_from.append("RESULT_STACK_DIFFUSION")
 
     return jsonify({"cleared_from": cleared_from})
 
@@ -81,9 +115,13 @@ def done():
 def alldone():
     global PROMPT_STACK
     global RESULT_STACK
+    global PROMPT_STACK_DIFFUSION
+    global RESULT_STACK_DIFFUSION
 
     PROMPT_STACK = {}
     RESULT_STACK = {}
+    PROMPT_STACK_DIFFUSION = {}
+    RESULT_STACK_DIFFUSION = {}
 
     return jsonify({})
 
@@ -101,6 +139,18 @@ def getresult():
         response = []
 
     return jsonify(response)
+
+
+@app.route("/getresultdiffusion", methods=["POST"])
+def getresultdiffusion():
+    global RESULT_DIFFUSION
+
+    if RESULT_DIFFUSION is not None:
+        ret = RESULT_DIFFUSION
+        RESULT_DIFFUSION = None
+        return make_response(ret)
+    else:
+        return jsonify({})
 
 
 if __name__ == "__main__":

@@ -19,6 +19,8 @@ from api_ml.selector import serve_selection
 from api_ml import bridge_cache_singleton
 from api_ml.bridge_shared import get_bridge_service_url
 
+from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED
+
 from util.error_handling import LogExceptionAndSkip
 from util.cloudsave import CLOUDSAVE_BUCKET
 
@@ -305,14 +307,15 @@ def basic_n_continuations(
                 c = csub
 
             roll = np.random.rand()
+            has_img = IMAGE_DELIMITER_WHITESPACED in c
             # NOTE: the < 100 check is for weird posts where the newline doesn't happen
-            if len(c.partition("\n")[2].split(" ")) < avoid_if_under and len(c) < 100:
+            if len(c.partition("\n")[2].split(" ")) < avoid_if_under and len(c) < 100 and (not has_img):
                 print(
                     f"\n\trejecting because length under {avoid_if_under}: {_tabfill(c)}\n"
                 )
             elif (
                 len(c.partition("\n")[2].split(" ")) < avoid_half_if_under
-            ) and roll < 0.5:
+            ) and len(c) < 100 and  (not has_img) and roll < 0.5:
                 print(
                     f"\n\trejecting because length under {avoid_half_if_under} and roll {roll}: {_tabfill(c)}\n"
                 )
@@ -578,7 +581,7 @@ def old_bridge_call__answer(
 
     best_of = adjust_best_of(best_of, mood)
 
-    avoid_if_under = 15
+    avoid_if_under = 10
     if write_fic_override:
         avoid_if_under = 75
     avoid_half_if_under = 15

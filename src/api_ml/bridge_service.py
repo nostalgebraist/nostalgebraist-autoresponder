@@ -89,8 +89,6 @@ def almostdone():
 def done():
     global PROMPT_STACK
     global RESULT_STACK
-    global PROMPT_STACK_DIFFUSION
-    global RESULT_STACK_DIFFUSION
 
     cleared_from = []
 
@@ -101,12 +99,6 @@ def done():
     if data["id"] in RESULT_STACK:
         del RESULT_STACK[data["id"]]
         cleared_from.append("RESULT_STACK")
-    if data["id"] in PROMPT_STACK_DIFFUSION:
-        del PROMPT_STACK_DIFFUSION[data["id"]]
-        cleared_from.append("PROMPT_STACK_DIFFUSION")
-    if data["id"] in RESULT_STACK_DIFFUSION:
-        del RESULT_STACK_DIFFUSION[data["id"]]
-        cleared_from.append("RESULT_STACK_DIFFUSION")
 
     return jsonify({"cleared_from": cleared_from})
 
@@ -115,13 +107,9 @@ def done():
 def alldone():
     global PROMPT_STACK
     global RESULT_STACK
-    global PROMPT_STACK_DIFFUSION
-    global RESULT_STACK_DIFFUSION
 
     PROMPT_STACK = {}
     RESULT_STACK = {}
-    PROMPT_STACK_DIFFUSION = {}
-    RESULT_STACK_DIFFUSION = {}
 
     return jsonify({})
 

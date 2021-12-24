@@ -339,7 +339,7 @@ def basic_n_continuations(
             else:
                 if len(c.partition("\n")[2].split(" ")) < avoid_half_if_under:
                     print(
-                        f"\n\tkeeping with roll {roll}, although length under {avoid_half_if_under}\n"
+                        f"\n\tkeeping with roll {roll}, although length under {avoid_half_if_under}: {_tabfill(c)}\n"
                     )
                 continuations.append(c)
                 sdata_plus_minfo = {k: v for k, v in sdata.items()}

@@ -1990,6 +1990,9 @@ def do_reblog_reply_handling(
         # new way
         slow_scraping_ok = True
 
+        if IMAGE_CREATION_TESTING and IMAGE_CREATION_DIFFUSION:
+            slow_scraping_ok = False
+
         iter_ = tqdm(posts)
         for post_ix, post in enumerate(iter_):
             try:

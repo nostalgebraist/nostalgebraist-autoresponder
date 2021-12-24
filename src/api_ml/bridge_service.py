@@ -141,7 +141,7 @@ def getresult():
     return jsonify(response)
 
 
-@app.route("/getresultdiffusion", methods=["POST"])
+@app.route("/getresultdiffusion", methods=["GET"])
 def getresultdiffusion():
     global RESULT_DIFFUSION
 

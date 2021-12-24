@@ -147,7 +147,7 @@ def getresultdiffusion():
 
     if RESULT_DIFFUSION is not None:
         ret = RESULT_DIFFUSION
-        RESULT_DIFFUSION = None
+        # RESULT_DIFFUSION = None
         return make_response(ret)
     else:
         return jsonify({})

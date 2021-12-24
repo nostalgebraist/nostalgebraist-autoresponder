@@ -21,12 +21,14 @@ ENFORCE_RETENTION_CUTOFF = True
 FIC_COLDSTART = False
 REVIEW_COLDSTART = False
 IMAGE_COLDSTART = True
+GIF_COLDSTART = True
 QUOTES_COLDSTART = False
 DREAMS_COLDSTART = False
 
 FIC_COLDSTART_DELTA = 0.05
 REVIEW_COLDSTART_DELTA = 0.05
 IMAGE_COLDSTART_DELTA = 0.8  # !
+GIF_COLDSTART_DELTA = -1 * IMAGE_COLDSTART_DELTA
 QUOTES_COLDSTART_DELTA = -0.25
 DREAMS_COLDSTART_DELTA = 0.15
 
@@ -223,6 +225,9 @@ do_review_coldstart = partial(
 do_image_coldstart = partial(
     do_coldstart, substring=IMAGE_DELIMITER_WHITESPACED, delta=IMAGE_COLDSTART_DELTA
 )
+do_gif_coldstart = partial(
+    do_coldstart, substring=IMAGE_DELIMITER_WHITESPACED + "[Animated GIF]", delta=GIF_COLDSTART_DELTA
+)
 do_quotes_coldstart = partial(
     do_coldstart, substring="#quotes", delta=QUOTES_COLDSTART_DELTA
 )
@@ -240,6 +245,9 @@ def do_all_coldstarts(continuations, selection_proba):
 
     if IMAGE_COLDSTART:
         selection_proba = do_image_coldstart(continuations, selection_proba)
+
+    if GIF_COLDSTART:
+        selection_proba = do_gif_coldstart(continuations, selection_proba)
 
     if QUOTES_COLDSTART:
         selection_proba = do_quotes_coldstart(continuations, selection_proba)

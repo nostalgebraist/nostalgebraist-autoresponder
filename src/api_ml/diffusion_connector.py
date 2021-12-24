@@ -27,7 +27,6 @@ def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=5):
     def _try_load(result_):
         try:
             data = result_.content
-            print(type(data))
             if not isinstance(data, bytes) or len(data) == 0:
                 return
             with BytesIO(data) as b:
@@ -35,7 +34,7 @@ def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=5):
                 im.load()
             return im
         except Exception as e:
-            print((e, e.args))
+            return
 
     im = _try_load(result)
 

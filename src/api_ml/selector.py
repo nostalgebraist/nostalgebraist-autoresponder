@@ -324,10 +324,10 @@ def serve_selection(
 
     proba = np.asarray(retained_selection_proba)  # TODO: clearer name here
 
-    # diffusion coldstart
-    if any(IMAGE_DELIMITER_WHITESPACED in c for c in continuations):
-        strategy = "argmax"
-        print("found an image, using argmax")
+    # # diffusion coldstart
+    # if any(IMAGE_DELIMITER_WHITESPACED in c for c in continuations):
+    #     strategy = "argmax"
+    #     print("found an image, using argmax")
 
     if strategy == "argmax":
         choice_ix = proba.argmax()

@@ -123,8 +123,12 @@ def run_pipeline(
     threshold=80,
     delete_under=0.1,
     keep_only_if_above=0.95,
-    to_pil_image=True
+    to_pil_image=True,
+    truncate_length=None,
 ):
+    if truncate_length:
+        prompt = prompt[:truncate_length]
+
     prune_fn = partial(
         read_and_prune,
         N=N,

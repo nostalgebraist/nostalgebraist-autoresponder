@@ -27,7 +27,13 @@ model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 timestep_respacing_sres1 = '250'
 timestep_respacing_sres2 = '250'
 
-DIFFUSION_DEFAULTS = dict(batch_size=4, n_samples=4, batch_size_sres=4, n_samples_sres=4)
+DIFFUSION_DEFAULTS = dict(
+    batch_size=4,
+    n_samples=4,
+    delete_under=-1,
+    keep_only_if_above=0.7,
+    truncate_length=190,
+)
 
 # download
 if not os.path.exists(model_path_diffusion):

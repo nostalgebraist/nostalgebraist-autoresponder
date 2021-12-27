@@ -576,7 +576,7 @@ def make_text_post(
     )
     state_reasons["reject_action"] = reject_action
 
-    if IMAGE_CREATION:
+    if IMAGE_CREATION and not state_reasons["ml_rejected"]:  # don't waste time making images if post was rejected
         presub_post = post
         post, images_were_created = find_text_images_and_sub_real_images(
             post,
@@ -686,7 +686,7 @@ def answer_ask(
     )
     state_reasons["reject_action"] = reject_action
 
-    if IMAGE_CREATION:
+    if IMAGE_CREATION and not state_reasons["ml_rejected"]:  # don't waste time making images if post was rejected
         presub_answer = answer
         answer, images_were_created = find_text_images_and_sub_real_images(
             answer,

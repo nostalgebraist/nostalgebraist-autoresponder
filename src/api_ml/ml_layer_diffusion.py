@@ -33,6 +33,7 @@ DIFFUSION_DEFAULTS = dict(
     delete_under=-1,
     keep_only_if_above=0.7,
     truncate_length=190,
+    threshold=65
 )
 
 # download

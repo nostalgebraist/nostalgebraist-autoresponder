@@ -588,6 +588,8 @@ def make_text_post(
         if IMAGE_CREATION_TESTING and images_were_created:
             state_reasons["must_be_draft"] = True
             print(f"IMAGE_CREATION: for\n{repr(presub_post)}\n, subbed\n{repr(post)}\n")
+        if images_were_created:
+            tags.append("computer generated image")
 
     if IMAGE_DELIMITER in post:
         print("image delimiter still in post")
@@ -701,6 +703,8 @@ def answer_ask(
             print(
                 f"IMAGE_CREATION: for\n{repr(presub_answer)}\n, subbed\n{repr(answer)}\n"
             )
+        if images_were_created:
+            tags.append("computer generated image")
 
     if IMAGE_DELIMITER in answer:
         print("image delimiter still in post")

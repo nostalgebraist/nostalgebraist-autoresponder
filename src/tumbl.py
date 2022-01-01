@@ -589,6 +589,7 @@ def make_text_post(
             state_reasons["must_be_draft"] = True
             print(f"IMAGE_CREATION: for\n{repr(presub_post)}\n, subbed\n{repr(post)}\n")
         if images_were_created:
+            tags = [t for t in tags if t != "computer generated image"]
             tags.append("computer generated image")
 
     if IMAGE_DELIMITER in post:
@@ -704,6 +705,7 @@ def answer_ask(
                 f"IMAGE_CREATION: for\n{repr(presub_answer)}\n, subbed\n{repr(answer)}\n"
             )
         if images_were_created:
+            tags = [t for t in tags if t != "computer generated image"]
             tags.append("computer generated image")
 
     if IMAGE_DELIMITER in answer:

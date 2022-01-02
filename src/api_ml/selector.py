@@ -327,7 +327,7 @@ def serve_selection(
 
     # diffusion coldstart
     if IMAGE_COLDSTART_USE_ARGMAX:
-        if any(IMAGE_DELIMITER_WHITESPACED in c for c in continuations):
+        if any(IMAGE_DELIMITER_WHITESPACED in c for c in retained_continuations):
             strategy = "argmax"
             print("found an image, using argmax")
 

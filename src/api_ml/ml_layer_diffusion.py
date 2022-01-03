@@ -32,7 +32,7 @@ DIFFUSION_DEFAULTS = dict(
     n_samples=4,
     delete_under=-1,
     keep_only_if_above=0.7,
-    truncate_length=190,
+    truncate_length=380,
     threshold=65
 )
 

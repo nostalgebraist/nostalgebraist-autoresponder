@@ -587,7 +587,8 @@ def make_text_post(
             blogname,
             verbose=IMAGE_CREATION_TESTING,
             use_diffusion=IMAGE_CREATION_DIFFUSION,
-            guidance_scale=guidance_scale
+            guidance_scale=guidance_scale,
+            guidance_scale_sres=guidance_scale
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state_reasons["must_be_draft"] = True
@@ -704,7 +705,8 @@ def answer_ask(
             blogname,
             verbose=IMAGE_CREATION_TESTING,
             use_diffusion=IMAGE_CREATION_DIFFUSION,
-            guidance_scale=guidance_scale
+            guidance_scale=guidance_scale,
+            guidance_scale_sres=guidance_scale
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state = "draft"

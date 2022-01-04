@@ -78,11 +78,12 @@ def find_text_images_and_sub_real_images(
     dryrun=False,
     use_diffusion=False,
     guidance_scale=0.,
+    guidance_scale_sres=0.,
 ):
     print(f'using diffusion?: {use_diffusion}')
     if use_diffusion:
         image_maker = make_image_with_diffusion
-        image_maker_kwargs = {"guidance_scale": guidance_scale}
+        image_maker_kwargs = {"guidance_scale": guidance_scale, "guidance_scale_sres": guidance_scale_sres}
     else:
         image_maker = make_image_simple
         image_maker_kwargs = {}

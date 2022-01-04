@@ -117,8 +117,13 @@ def run_pipeline(
     prompt,
     batch_size,
     n_samples,
+    clf_free_guidance=False,
+    guidance_scale=0.,
+    txt_drop_string='<mask><mask><mask><mask>',
     n_samples_sres=None,
     batch_size_sres=None,
+    clf_free_guidance_sres=False,
+    guidance_scale_sres=0.,
     seed=None,
     N=3,
     verbose=True,
@@ -147,6 +152,11 @@ def run_pipeline(
         seed=seed,
         batch_size_sres=batch_size_sres,
         n_samples_sres=n_samples_sres,
+        clf_free_guidance=clf_free_guidance,
+        guidance_scale=guidance_scale,
+        txt_drop_string=txt_drop_string,
+        clf_free_guidance_sres=clf_free_guidance_sres,
+        guidance_scale_sres=guidance_scale_sres,
     )
 
     best = select_best(image_array, prompt)

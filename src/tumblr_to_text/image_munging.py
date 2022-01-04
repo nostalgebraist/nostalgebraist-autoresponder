@@ -1,4 +1,4 @@
-import re
+import re, random
 
 from multimodal.image_analysis_static import (
     V9_IMAGE_FORMATTER,
@@ -77,12 +77,15 @@ def find_text_images_and_sub_real_images(
     verbose=False,
     dryrun=False,
     use_diffusion=False,
+    guidance_scale=0.,
 ):
     print(f'using diffusion?: {use_diffusion}')
     if use_diffusion:
         image_maker = make_image_with_diffusion
+        image_maker_kwargs = {"guidance_scale": guidance_scale}
     else:
         image_maker = make_image_simple
+        image_maker_kwargs = {}
     def vprint(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)
@@ -123,7 +126,7 @@ def find_text_images_and_sub_real_images(
     keys = []
     for imtext in imtexts:
         if len(imtext) > 0:
-            images.append(image_maker(imtext))
+            images.append(image_maker(imtext, **image_maker_kwargs))
             keys.append(imtext)
 
     imtexts_to_tumblr_images = upload_images_to_tumblr_urls(

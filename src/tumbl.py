@@ -187,8 +187,9 @@ FIC_TRIGGER = True
 FIC_TRIGGER_TESTING = False
 
 IMAGE_CREATION = True
-IMAGE_CREATION_TESTING = False
+IMAGE_CREATION_TESTING = True
 IMAGE_CREATION_DIFFUSION = True
+GUIDANCE_SCALE_OPTIONS = (0, 1, 2, 3)
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
@@ -578,12 +579,15 @@ def make_text_post(
 
     if IMAGE_CREATION and not state_reasons["ml_rejected"]:  # don't waste time making images if post was rejected
         presub_post = post
+
+        guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS)
         post, images_were_created = find_text_images_and_sub_real_images(
             post,
             client_pool.get_private_client(),
             blogname,
             verbose=IMAGE_CREATION_TESTING,
-            use_diffusion=IMAGE_CREATION_DIFFUSION
+            use_diffusion=IMAGE_CREATION_DIFFUSION,
+            guidance_scale=guidance_scale
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state_reasons["must_be_draft"] = True
@@ -591,6 +595,7 @@ def make_text_post(
         if images_were_created:
             tags = [t for t in tags if t != "computer generated image"]
             tags.append("computer generated image")
+            tags.append(f"guidance scale {guidance_scale}")
 
     if IMAGE_DELIMITER in post:
         print("image delimiter still in post")
@@ -691,12 +696,15 @@ def answer_ask(
 
     if IMAGE_CREATION and not state_reasons["ml_rejected"]:  # don't waste time making images if post was rejected
         presub_answer = answer
+
+        guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS)
         answer, images_were_created = find_text_images_and_sub_real_images(
             answer,
             client_pool.get_private_client(),
             blogname,
             verbose=IMAGE_CREATION_TESTING,
-            use_diffusion=IMAGE_CREATION_DIFFUSION
+            use_diffusion=IMAGE_CREATION_DIFFUSION,
+            guidance_scale=guidance_scale
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state = "draft"
@@ -707,6 +715,7 @@ def answer_ask(
         if images_were_created:
             tags = [t for t in tags if t != "computer generated image"]
             tags.append("computer generated image")
+            tags.append(f"guidance scale {guidance_scale}")
 
     if IMAGE_DELIMITER in answer:
         print("image delimiter still in post")

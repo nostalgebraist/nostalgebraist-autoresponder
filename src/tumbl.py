@@ -189,7 +189,7 @@ FIC_TRIGGER_TESTING = False
 IMAGE_CREATION = True
 IMAGE_CREATION_TESTING = False
 IMAGE_CREATION_DIFFUSION = True
-GUIDANCE_SCALE_OPTIONS = (1, 1, 2, 2, 2, 3, 3, 3, 4, 10)
+GUIDANCE_SCALE_OPTIONS = (1, 1, 2, 2, 2, 3, 3, 3, 4)
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)

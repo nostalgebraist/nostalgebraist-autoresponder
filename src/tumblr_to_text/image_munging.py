@@ -106,7 +106,8 @@ def find_text_images_and_sub_real_images(
     escaped_delim_ws = IMAGE_DELIMITER_WHITESPACED.encode('unicode_escape').decode()
     imtext_regex = rf"({escaped_delim_ws})(.+?)({escaped_delim}\n)"
     figure_format = """<figure data-orig-height="{h}" data-orig-width="{w}"><img src="{url}" data-orig-height="{h}" data-orig-width="{w}"/></figure>"""
-    imtexts = set()
+    imtexts = []
+    imtext_positions = []
     ims_checksum = 0
 
     for match in re.finditer(
@@ -115,7 +116,11 @@ def find_text_images_and_sub_real_images(
         flags=re.DOTALL,
     ):
         imtext = match.group(2).rstrip("\n")
-        imtexts.add(imtext)
+        pos = match.start(2)
+
+        imtexts.append(imtext)
+        imtext_positions.append(pos)
+
         ims_checksum += 1
 
     vprint(f"find_text_images_and_sub_real_images: found {len(imtexts)} imtexts")
@@ -125,10 +130,10 @@ def find_text_images_and_sub_real_images(
 
     images = []
     keys = []
-    for imtext in imtexts:
+    for imtext, pos in zip(imtexts, imtext_positions):
         if len(imtext) > 0:
             images.append(image_maker(imtext, **image_maker_kwargs))
-            keys.append(imtext)
+            keys.append((imtext, pos))
 
     imtexts_to_tumblr_images = upload_images_to_tumblr_urls(
         images, keys, client, blogname
@@ -138,10 +143,12 @@ def find_text_images_and_sub_real_images(
 
     def _replace_with_figure(match):
         imtext = match.group(2).rstrip("\n")
-        if imtext in imtexts_to_tumblr_images:
-            tumblr_image = imtexts_to_tumblr_images[imtext]
+        pos = match.start(2)
+        key = (imtext, pos)
+        if key in imtexts_to_tumblr_images:
+            tumblr_image = imtexts_to_tumblr_images[key]
             vprint(
-                f"find_text_images_and_sub_real_images: subbing {repr(tumblr_image)} for {repr(imtext)}"
+                f"find_text_images_and_sub_real_images: subbing {repr(tumblr_image)} for {repr(imtext)} at {pos}"
             )
             return figure_format.format(
                 url=tumblr_image["url"],
@@ -150,7 +157,7 @@ def find_text_images_and_sub_real_images(
             )
         else:
             vprint(
-                f"find_text_images_and_sub_real_images: nothing to sub for {repr(imtext)}"
+                f"find_text_images_and_sub_real_images: nothing to sub for {repr(imtext)} at {pos}"
             )
             return ""
 

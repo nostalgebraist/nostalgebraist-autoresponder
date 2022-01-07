@@ -1,6 +1,6 @@
 ## Technical overview
 
-This doc contains a high-level description of how the bot is implemented.  It is up to date as of early January 2022.
+This doc contains a overview of what this codebase does.  It is up to date as of early January 2022.
 
 ### Basics
 
@@ -52,7 +52,7 @@ The full scripts that runs on ML machines are private and not included in this r
 
 When the main loop executes ML tasks, it uses an interface that abstracts away the details of the bridge service.  This is implemented in files suffixed with `_connector.py`.
 
-For instance, `ml_connector.py` [provides classes](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/src/api_ml/ml_connector.py#L82-L129) that look to the caller like local instances of the actual ML models, but which operate "under the hood" by interacting with the bridge service.
+For instance, `ml_connector.py` [provides classes](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_ml/ml_connector.py#L82-L129) that look to the caller like local instances of the actual ML models, but which operate "under the hood" by interacting with the bridge service.
 
 (Unforunately, `ml_connector.py` also contains a large amount of main loop business logic.  In a future refactor, I would want to separate these concerns.)
 
@@ -171,13 +171,13 @@ I originally produced the text format by parsing HTML from legacy-format tumblr 
 1. Many posts are created as NPF, and NPF's adoption grew over this bot's lifetime.  Legacy API representations of NPF posts are very unreliable.
 2. I had two textual formats (HTML from the API, and the internal text format), but no structured format, even internally.  This made transformations on posts (e.g. simulating what a post would look like if the bot's response was included) into text parsing problems, which required increasingly complex regex work and was eventually unsustainable.
 
-These days, I request posts in NPF, and the code uses its data model of NPF as its fundamental data model for posts.  That is, transformations on posts [happen on NPF objects](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/src/tumblr_to_text/nwo_munging.py), not on text.
+These days, I request posts in NPF, and the code uses its data model of NPF as its fundamental data model for posts.  That is, transformations on posts [happen on NPF objects](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumblr_to_text/nwo_munging.py), not on text.
 
-To produce the text representation from NPF, I use my own [NPF to legacy conversion code](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_tumblr/tumblr_parsing.py#L701-L710) to translate content within posts into a legacy-like HTML format.  I then construct the delimeters between posts by [translating the relevant parts of the NPF structure](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/src/tumblr_to_text/nwo.py#L40-L87).
+To produce the text representation from NPF, I use my own [NPF to legacy conversion code](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_tumblr/tumblr_parsing.py#L701-L710) to translate content within posts into a legacy-like HTML format.  I then construct the delimeters between posts by [translating the relevant parts of the NPF structure](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumblr_to_text/nwo.py#L40-L87).
 
 #### Reading images
 
-When converting a tumblr post that contains images, the main process fetches the images and sends the to the DetectText endpoint of AWS's Rekognition service.  The raw response is distilled into a text representation, which is substituted into the text representation of the post.  Most of the relevant code is [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/src/multimodal/image_analysis.py).
+When converting a tumblr post that contains images, the main process fetches the images and sends the to the DetectText endpoint of AWS's Rekognition service.  The raw response is distilled into a text representation, which is substituted into the text representation of the post.  Most of the relevant code is [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/multimodal/image_analysis.py).
 
 These calls are cached, both by image URL and (on a URL cache miss) by a hash of the image bytes.  The latter mechanism accounts for the fact that some images are uploaded to tumblr many times under different URLs.
 

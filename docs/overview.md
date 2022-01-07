@@ -278,4 +278,8 @@ How it does this is complex.  It has two steps:
 
 ### The ML models
 
+TODO: write this part.
+
 ### Data persistence
+
+TODO: write this part.

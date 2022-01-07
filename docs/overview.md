@@ -56,7 +56,7 @@ When the main loop executes ML tasks, it uses an interface that abstracts away t
 
 ### The main loop
 
-A single iteration of the main loop (consists)[https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumbl.py#L2714-L2820] of the following steps in order:
+A single iteration of the main loop [consists](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumbl.py#L2714-L2820) of the following steps in order:
 
 1. Check drafts, respond to content moderation tags if needed
 2. Check asks, write and post responses if needed

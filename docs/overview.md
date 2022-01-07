@@ -44,9 +44,158 @@ The description above is accurate in broad strokes, but note that the actual cod
   - This parallelizes the task across all ML machines currently available.
 - There are two kinds of ML machine: the ones that deal with text, and the ones that do image generation tasks.  Image generation tasks have their own version of each bridge endpoint.
 
+#### Layers and connectors
+
+Code that runs on the ML machines generally lives in the `src/ml/` directory, and the core code lives in files prefixed with `ml_layer_`.
+
+The full scripts that runs on ML machines are private and not included in this repo, but they essentially consist of installing dependencies, importing everything from an `ml_layer_` module, and running the module's `loop_poll` function.
+
+When the main loop executes ML tasks, it uses an interface that abstracts away the details of the bridge service.  This is implemented in files suffixed with `_connector.py`.  For instance, `ml_connector.py` [provides classes](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/src/api_ml/ml_connector.py#L82-L129) that look to the caller like local instances of the actual ML models, but which operate "under the hood" by interacting with the bridge service.
+
+(Unforunately, `ml_connector.py` also contains a large amount of main loop business logic.  In a future refactor, I would want to separate these concerns.)
+
 ### The main loop
 
+A single iteration of the main loop consists of the following steps in order:
+
+1. Check drafts, respond to content moderation tags if needed
+2. Check asks, write and post responses if needed
+3. Check for new reblogs and replies, write and post responses if needed
+4. Repeat step 1 (content moderation check)
+5. Repeat step 2 (asks check)
+6. Read new posts on the dash, decide whether to reblog them, write and post responses if needed
+7. Repeat step 2 (asks check)
+8. Repeat step 1 (content moderation check)
+9. Check queue, write and queue new original posts if there are too few in the queue
+10. Repeat step 1 (content moderation check)
+11. Wait for 60 seconds, or longer in some cases
+
+Steps that can modify the bot's internal state will often save state data to disk after running; for example, this happens after every asks check if any new asks were handled.
+
+Some steps require the bot to read content from tumblr (asks, reblogs/replies, dash), or create new content to post (asks, reblogs/replies, dash, and queue).
+
+When it "reads" tumblr posts, the main loop first fetches them from the tumblr API.  In most cases, it then uses data in the API response to decide what to do next.  These decisions include things like:
+
+- To spread out user demand, the steps that check asks/reblogs/replies will only respond to one such message per tumblr user.   If there's more than one new ask/reblog/reply from a user, the oldest one is handled first.
+- To spread out user demand, at most 5 asks can be handled per asks check.  If there are more than five (after applying the previous rule), the oldest ones are handled first.
+- The bot can only reblog a post from the dash if it meets a list of conditions.  For example, the bot never reblogs posts which the user on the dash has reblogged without their own added commentary.
+
+After applying these rules, the main loop may decide that it needs to write new post(s).
+
+### Writing posts
+
+This is the bot's most fundamental job, and is quite complex.
+
+Schematically, writing a post looks like:
+
+1. Preparing to write
+  - If we are replying to something (i.e. not writing an original post for the queue), convert the tumblr API response to a standardized text representation, using the **text munging layer**.
+  - If we are replying to something, run ML tasks to produce **sentiment** and **autoreview** scores for the input.  (Respectively, "how happy/sad is this input?" and "how likely is this input to be 'problematic' or otherwise 'unpostable'?")
+  -  Determine the current **mood**.
+  -  Estimate how many candidate posts will be rejected as incompatible with current the mood, and choose the number of target candidates `N` to account for this.
+2. Writing candidates
+  - Run an ML task to write `N` candidate posts.
+3. Candidate assessment
+  - Run ML tasks to produce **selector** ("how much will people like this?"), sentiment, and autoreview scores for each candidate.
+  - Remove candidates inconsistent with the current mood.
+  - Pick one post from the remaining candidates based on selector scores, typically with an eps-greedy strategy.
+4. Automated content moderation
+  - Decide whether to post it automatically, send it to content moderation, or flat-out reject it.  The rules behind this decision use the autoreview score together with a manually curated word list.
+5.  Making the post
+   - Parse the the chosen post into an HTML main body and a list of tags.
+   - If the main body contains text representations of images, generate images for each one, upload them to tumblr, and replace the text representations with corresponding `<img>` tags.
+   - If we are OK to post automatically (step 4), send a tumblr API request to publish or queue the post.  If it's being sent to content moderation, save it to drafts instead.  If we're flat-out rejecting it, save it to drafts with a special rejection tag.
+
+Most of the nontrivial parts of the codebase are used somewhere in this procedure.  Below, I'll describe some of these.
+
 ### The text munging layer
+
+The tumblr API returns structured data.  However, the ML model that "reads" and "writes" post is an autoregressive language model and operates only on _text_.  To connect the two, I define a standard textual representation for a tumblr post.
+
+Within a post, this representation is simply HTML with a stripped-down set of tags.  The boundaries between posts are denoted by special delimeters containing info about usernames, position and role in the conversation, and (for the final post) tags and posting date.
+
+An ask and response in this format might look like this:
+
+```
+<|endoftext|> Conversation between example-username and nostalgebraist-autoresponder | 2 posts |
+#1 example-username asked:
+
+ How's it going?
+
+#2 nostalgebraist-autoresponder responded:
+
+ Written 11 PM January 2021 | nostalgebraist-autoresponder's tags: #example tag, #other example tag
+ 
+ Pretty good!  <i>Great</i>, actually!<|endoftext|>
+```
+
+To write the bot's response, the main loop would first convert the content of the ask into a prompt for the language model:
+
+```
+<|endoftext|> Conversation between example-username and nostalgebraist-autoresponder | 2 posts |
+#1 example-username asked:
+
+ How's it going?
+
+#2 nostalgebraist-autoresponder responded:
+
+ Written 11 PM January 2021 | nostalgebraist-autoresponder's tags:
+```
+
+The language model then writes the rest of the text.  In this example, that's:
+
+```
+ #example tag, #other example tag
+ 
+ Pretty good!  <i>Great</i>, actually!<|endoftext|>
+```
+
+#### Converting posts to text
+
+Tumblr has two post formats, legacy and NPF.
+
+Legacy expresses both structure and content as HTML: for example, the boundaries between posts in a conversation are conveyed through nested blockquotes.  A parser for this format must extract this implicit structure, distinguishing these "structural blockquotes" from the "content blockquotes" that can be used to style text within a post.  (Legacy API responses include a sort-of-redundnant field called the "trail" which conveys tumblr's opinion about structure vs. content, but it is undocumented and unreliable.)
+
+NPF is a structured JSON format similar to the internal formats of DraftJS or WordPress.  It distinguishes posts from one another explicitly.  Within a post, it uses a domain-specific language of "content blocks" instead of HTML.
+
+Posts can be created in either format, and requested in either format.  If you request a legacy post in NPF, or vice versa, tumblr attempts to translate between formats.  This translation is usually reliable for legacy --> NPF, but quite flaky for NPF --> legacy.
+
+I originally produced the text format by parsing HTML from legacy-format tumblr API responses.  This had two large downsides:
+
+1. Many posts are created as NPF, and NPF's adoption grew over this bot's lifetime.  Legacy API representations of NPF posts are very unreliable.
+2. I had two textual formats (HTML from the API, and the internal text format), but no structured format, even internally.  This made transformations on posts (e.g. simulating what a post would look like if the bot's response was included) into text parsing problems, which required increasingly complex regex work and was eventually unsustainable.
+
+These days, I request posts in NPF, and the code uses its data model of NPF as its fundamental data model for posts.  That is, transformations on posts [happen on NPF objects](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/src/tumblr_to_text/nwo_munging.py), not on text.
+
+To produce the text representation from NPF, I use my own [NPF to legacy conversion code](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_tumblr/tumblr_parsing.py#L701-L710) to translate content within posts into a legacy-like HTML format.  I then construct the delimeters between posts by [translating the relevant parts of the NPF structure](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/src/tumblr_to_text/nwo.py#L40-L87).
+
+#### Reading images
+
+When converting a tumblr post that contains images, the main process fetches the images and sends the to the DetectText endpoint of AWS's Rekognition service.  The raw response is distilled into a text representation, which is substituted into the text representation of the post.  Most of the relevant code is [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/src/multimodal/image_analysis.py).
+
+### The mood
+
+The bot's "mood" is a scalar variable that evolves continuously over time.  It is the sum of two parts:
+
+- a base value, constant within a calendar day, randomly reset at midnight to one of a few possible values
+- a user-impact signal, whose evolution is governed by a Linear Time-Invariant system of differential equations
+
+When the bot responds to user input, the main process calculates a mood effect.  This is a weighted average of 
+
+- the sentiment score of the input (did the user's words sound positive or negative?), and
+- a summary statistic of the sentiment scores for all the candidate responses (did the user say something that would receive a positive-sounding response, or a negative-sounding one?)
+
+The resulting value affects the user-impact signal as a Dirac delta kick to its first derivative.  That is, when the effect happens, the mood's rate of increase or decrease immediately changes by a proportional amount.  In addition to these effects, the rate naturally relaxes exponentially towards zero with a time constant of several hours.
+
+The mood is re-calculated at most once every 10 minutes.  When it is required for a decision, if there's a fresh value from the last ten minutes, this "slightly stale" value is used.  If the saved value is over 10 minutes old, a new value is computed by numerically integrating the equations.  This calculation only uses user effects from the last 2.5 days, as the exponential decay means older effects have negligble impact.
+
+The code for this is mostly [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood_dynamic.py).
+
+#### Mood consistency
+
+The mood is used when making posts.  The mood value determines an acceptable range of sentiment scores.  I define a mapping from mood values to ranges for (a short list of "basic moods")[https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood.py#L61-L143], and interpolate the ranges linearly when the current mood lies between two of these.
+
+During generation
 
 ### The ML models
 

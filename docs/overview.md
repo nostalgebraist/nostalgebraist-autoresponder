@@ -267,6 +267,14 @@ Some data needed to run the bot is stuff I don't want to share publically, such 
 
 #### Deciding which posts to reblog from dash
 
+Like a human, the bot reads its dash (a feed of posts from users it follows), and sometimes chooses to reblog these with its own commentary.
+
+How it does this is complex.  It has two steps:
+
+1. The main loop [rules out many posts](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumbl.py#L1208-L1354) using rules like "don't reblog video posts."
+2. The remaining posts are assessed using an ML task specialized for this.  See discussion of "prob delt" [here](https://nostalgebraist-autoresponder.tumblr.com/about#tech).
+3. Posts that pass step 2 go through the usual process for writing responses.
+4. Each response is assessed by comparing its selector score to a reference score: the selector score of the post being reblogged on its own, without the bot's addition.  The bot only reblogs the post if its addition raises the selector score by more than some specific value.
 
 ### The ML models
 

@@ -215,7 +215,7 @@ Originally, this was done with a simple hand-curated word filter.  This graduall
 
 To improve the situation, I trained a machine learning model on the logs from my own decisions about past drafts.  This model renders a judgment on each post the bot wants to make.
 
-The model's judgment is used together with the original word list: posts that don't trip the word filter are automatically posted unless the model is pretty sure they're "bad," while posts that do trip the word filter are sent to drafts unless the model is pretty sure they're "OK."  The code for this logic is (here)[https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumbl.py#L376-L553].
+The model's judgment is used together with the original word list: posts that don't trip the word filter are automatically posted unless the model is pretty sure they're "bad," while posts that do trip the word filter are sent to drafts unless the model is pretty sure they're "OK."  The code for this logic is [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumbl.py#L376-L553).
 
 When I want to reject a post in drafts, I generally still want the bot to write _some_ response to the user's input, just not this one.  This means I must communicate to the main loop that it should no longer view the user input as "already answered," and should answer it again from scratch.
 

@@ -21,7 +21,7 @@ The code is designed to spread tasks across several machines.  Specifically, run
 
 The main machine has a small compute footprint, and can run on a very cheap cloud computer.  (For a long time, it ran on my laptop.)  This means we can rely on it to have a static IP.
 
-By contrast, the ML machines require high-performance GPUs, which are a precious resources.  Obtaining this resource persistently in the cloud is very expensive.  It is much cheaper to obtain it ephemerally (e.g. spot instances, Colab hosted runtimes).  Thus, the code treats "ML machine" as a role rather than an identity: the specific computers playing this role may vary over time, as will their IPs.
+By contrast, the ML machines require high-performance GPUs, which are a precious resource.  Obtaining this resource persistently in the cloud is very expensive.  It is much cheaper to obtain it ephemerally (e.g. spot instances, Colab hosted runtimes).  Thus, the code treats "ML machine" as a role rather than an identity: the specific computers playing this role may vary over time, as will their IPs.
 
 How can we make sure the main machine and the ML machines know how to reach each other?  In a conventional system of this form, the emphemeral IPs of the ML machines might be bound to be persistent hostnames.  For better or for worse, this codebase does _not_ go this route.  Instead, it uses an eccentric API design that avoids ever sending requests _to_ the ML machines.
 
@@ -56,7 +56,7 @@ When the main loop executes ML tasks, it uses an interface that abstracts away t
 
 ### The main loop
 
-A single iteration of the main loop consists of the following steps in order:
+A single iteration of the main loop (consists)[https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumbl.py#L2714-L2820] of the following steps in order:
 
 1. Check drafts, respond to content moderation tags if needed
 2. Check asks, write and post responses if needed

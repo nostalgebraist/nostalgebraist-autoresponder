@@ -50,7 +50,9 @@ Code that runs on the ML machines generally lives in the `src/ml/` directory, an
 
 The full scripts that runs on ML machines are private and not included in this repo, but they essentially consist of installing dependencies, importing everything from an `ml_layer_` module, and running the module's `loop_poll` function.
 
-When the main loop executes ML tasks, it uses an interface that abstracts away the details of the bridge service.  This is implemented in files suffixed with `_connector.py`.  For instance, `ml_connector.py` [provides classes](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/src/api_ml/ml_connector.py#L82-L129) that look to the caller like local instances of the actual ML models, but which operate "under the hood" by interacting with the bridge service.
+When the main loop executes ML tasks, it uses an interface that abstracts away the details of the bridge service.  This is implemented in files suffixed with `_connector.py`.
+
+For instance, `ml_connector.py` [provides classes](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/src/api_ml/ml_connector.py#L82-L129) that look to the caller like local instances of the actual ML models, but which operate "under the hood" by interacting with the bridge service.
 
 (Unforunately, `ml_connector.py` also contains a large amount of main loop business logic.  In a future refactor, I would want to separate these concerns.)
 
@@ -176,6 +178,8 @@ To produce the text representation from NPF, I use my own [NPF to legacy convers
 #### Reading images
 
 When converting a tumblr post that contains images, the main process fetches the images and sends the to the DetectText endpoint of AWS's Rekognition service.  The raw response is distilled into a text representation, which is substituted into the text representation of the post.  Most of the relevant code is [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/src/multimodal/image_analysis.py).
+
+These calls are cached, both by image URL and (on a URL cache miss) by a hash of the image bytes.  The latter mechanism accounts for the fact that some images are uploaded to tumblr many times under different URLs.
 
 ### The mood
 

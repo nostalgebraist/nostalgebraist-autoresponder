@@ -33,14 +33,16 @@ The main machine runs two python processes: the main loop itself, and a [**bridg
 
 When the main loop process needs to use an ML model, it makes a `/requestml` POST request to the bridge service.  This pushes the desired ML task onto a queue stored in the bridge service.  The main loop process now begins to poll the bridge service with `/getresult` requests.
 
-The next time an ML machine polls the bridge service with GET `/pollml`, it receives the queue and executes the tasks on it.  When it's done, it sends the results in a a POST `/pollml` request to the bridge service.  The bridge service records the result, and pushes the task off the queue.
+The next time an ML machine polls the bridge service with GET `/pollml`, it receives the queue and executes the tasks on it.  When it's done, it sends the results in a a POST `/pollml` request to the bridge service.  The bridge service records the result.
 
-On the next `/getresult` request from the main loop, the bridge service informs the main loop that the task is complete and sends over the results.
+On the next `/getresult` request from the main loop, the bridge service returns the results.  If the main loop decides the job is now complete, it sends a `/done` request to the bridge service, which removes the job from the queue.
+
+(Since it's the responsibility of the main process to decide when the task ends, I have the flexibility to make this decision in a nuanced way while keeping the bridge service simple.)
 
 The description above is accurate in broad strokes, but note that the actual code is somewhat more complicated.  For example:
 
 - A common ML task is "write `N` different versions of the same post."  In this case, the ML machines do not wait until they have completed the entire task before sending results back.
-  - Instead, they send each text they write immediately upon its completion, and the bridge service "keeps the task alive" until it has received `N` or more texts.
+  - Instead, they send each text they write immediately upon its completion, and the bridge service accumulates the results in a list.  It sends this list to main process on each `/getresult`.
   - This parallelizes the task across all ML machines currently available.
 - There are two kinds of ML machine: the ones that deal with text, and the ones that do image generation tasks.  Image generation tasks have their own version of each bridge endpoint.
 
@@ -54,7 +56,7 @@ When the main loop executes ML tasks, it uses an interface that abstracts away t
 
 For instance, `ml_connector.py` [provides classes](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_ml/ml_connector.py#L82-L129) that look to the caller like local instances of the actual ML models, but which operate "under the hood" by interacting with the bridge service.
 
-(Unforunately, `ml_connector.py` also contains a large amount of main loop business logic.  In a future refactor, I would want to separate these concerns.)
+(Unfortunately, `ml_connector.py` also contains a large amount of main loop business logic.  In a future refactor, I would want to separate these concerns.)
 
 ### The main loop
 

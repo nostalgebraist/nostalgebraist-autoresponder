@@ -199,11 +199,23 @@ The resulting value affects the user-impact signal as a Dirac delta kick to its 
 
 The mood is re-calculated at most once every 10 minutes.  When it is required for a decision, if there's a fresh value from the last ten minutes, this "slightly stale" value is used.  If the saved value is over 10 minutes old, a new value is computed by numerically integrating the equations.  This calculation only uses user effects from the last 2.5 days, as the exponential decay means older effects have negligble impact.
 
-The code for this is mostly [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood_dynamic.py).
+The code implementing the LTI system and mood effects is in [mood_dynamic.py](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood_dynamic.py).  The base moods and other mood code not related to the LTI system is in [mood.py](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood.py).  The staleness logic is in [this function](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumbl.py#L302-L357) in the main script.
+
+#### Baselines and scales
+
+Ideally, the bot's mood should vary over time in a way that explores the range from the lowest base mood to the highest, without being low much more often than high or vice versa.  Also, it should not stray vary often into ranges far above the highest base mood or far below the lowest.
+
+These properties are hard to ensure automatically, as the size and "niceness" of the user base vary unpredictably over time.  In particular, as the userbase and input volume grow, the impact of any one message has to decrease to prevent the mood getting too extreme.  (This is true even if the average effect is zero: a random walk is reaches extreme values faster, with higher probability, when its step size is higher.)
+
+I've tried to maintain the right properties manually, by occasionally tweaking the "zero point" for mood effects and the scale of their impact on the mood value.  
+
+You can see these updates [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood_dynamic.py#L44-L135).  They are timestamped because we need to integrate over 2.5 days of historical mood effects to compute the current mood.  For example, if it's 9 AM and I want to change the zero point, the bot should use the new value for mood effects after 9 AM, and the old value for earlier mood effects in the 2.5-day window.
 
 #### Mood consistency
 
-The mood is used when making posts.  The mood value determines an acceptable range of sentiment scores.  I define a mapping from mood values to ranges for [a short list of "basic moods"](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood.py#L61-L143), and interpolate the ranges linearly when the current mood lies between two of these.
+The mood is _used_ when making posts.
+
+The mood value determines an acceptable range of sentiment scores.  I define a mapping from mood values to ranges for [a short list of "basic moods"](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood.py#L61-L143), and interpolate the ranges linearly when the current mood lies between two of these.
 
 During post writing, a large number of candidate posts are generated.  Any of these that fall outside the range are discarded, though their scores are still included when calculating mood effects (see above).
 
@@ -248,6 +260,33 @@ Given a fixed budget of API calls per 24 hours, the code tries to spread the cal
 This mechanism rarely kicks in these days, but does in the occasional edge case.
 
 Additionally, some individual API requests are cached -- although I've removed much of this over time, as the calls have become both less repetitive and more efficient.
+
+#### Varying the sleep time
+
+As mentioned above, the main loop waits for some number of seconds at the end of every loop iteration.  This spreads out the tumblr API call budget across time, and also makes the bot feel less "spammy" by spreading out its posts even during periods of high user input volume.
+
+Originally, this "sleep time" was always 3 minutes.  This became frustratingly long during busy times, but I worried I'd over-spend API calls if I used a lower value.
+
+##### Sleep time varies with the clock
+
+I can't predict in advance exactly when the bot will get a lot of input, but there are regular patterns.  Empirically, the bot gets most of its engagement during the "peak hours" from 8 AM PST to midnight PST, and much less engagement in the "off hours" from midnight to 8 AM PST.  (Conveniently, the "off hours" happen to match when I'm typically asleep, and thus unavailable to do content moderation.)
+
+After I noticed this, I added logic to use a shorter sleep time (1 minute) during peak hours, and a longer sleep time (5 minutes) during off hours.
+
+##### Sleep time anticipates the post limit
+
+Tumblr has a "post limit": users can post a maximum of 250 posts per 24 hours.  If they hit the limit, they can't post until it resets, which happens at midnight EST.
+
+As the bot became more popular, it sometimes hit the post limit.  (This also prevented _me_ from posting, since limit applies across all of a user's blogs.)
+
+To make this less likely, I added [logic](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_tumblr/post_limit.py) that tries to slow down the bot when its posting rate is not sustainable.
+
+I define several ["slowdown levels,"](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_tumblr/post_limit.py#L7-L15) which can be triggered by either of these conditions:
+
+- The number of posts left until the reset has gone below a specific value
+- The following ratio is above a specific value: _bot's empirical posting rate over the last 2 hours / (number of posts left until reset / time until reset)_ 
+
+When a slowdown level is reached, this increases the current sleep time by a multiplier > 1.  It also decreases the number of posts the bot is allow to make per step of the main loop.  (Ordinarily, the bot is allowed to make at most 5 posts per step.)
 
 #### Original posts: mood projection
 

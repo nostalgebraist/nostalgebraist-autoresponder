@@ -213,7 +213,22 @@ To improve the situation, I trained a machine learning model on the logs from my
 
 The model's judgment is used together with the original word list: posts that don't trip the word filter are automatically posted unless the model is pretty sure they're "bad," while posts that do trip the word filter are sent to drafts unless the model is pretty sure they're "OK."  The code for this logic is (here)[https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumbl.py#L376-L553].
 
-When I want to reject a post in drafts, I generally still want the bot to write _some_ response, just not this one.  This means I must communicate to the main loop that the 
+When I want to reject a post in drafts, I generally still want the bot to write _some_ response to the user's input, just not this one.  This means I must communicate to the main loop that it should no longer view the user input as "already answered," and should answer it again from scratch.
+
+To do this, I add a special tag to the draft post, which the bot is not allowed to use in published posts.  During the "content moderation check" parts of the main loop, posts with this tag are identified and "reset."  This looks something like
+
+- Asks: change the state of the post from "draft" to "submission," which is the state of asks in a user's inbox.  During the next asks check, the main loop will see the ask and respond again.
+- Reblogs, replies, mentions: delete the draft and un-set the "already handled" flag for the input in the bot's state.  During the next reblog/reply/mentions check, the main loop will respond again
+
+Original posts and dash reblogs can simply be deleted if they're unacceptable.
+
+When this system causes a post to be written multiple times, only the first write has mood effects.  (Before I enforced this, the bot could become very unhappy as it tried to respond over and over to something borderline-unpublishable.)
+
+### Odds and ends
+
+#### Tumblr API load management
+
+#### Private config data
 
 ### The ML models
 

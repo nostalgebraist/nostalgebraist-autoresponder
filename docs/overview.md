@@ -232,7 +232,41 @@ When this system causes a post to be written multiple times, only the first writ
 
 #### Tumblr API load management
 
-#### Private config data
+Early on, I had a lot of trouble staying under the tumblr API rate limits.  Improvements to the call logic over time have rendered this mostly a non-issue, but the code still uses some features that I developed during this period.
+
+There are two rate limits, daily and hourly.  The daily one, which resets every 24 hours, was the source of my early issues.
+
+Given a fixed budget of API calls per 24 hours, the code tries to spread the calls out evenly, rather than spending them all quickly and then having to halt until the next reset.  It does this with a control system.  The code
+
+1. records the number of calls used in each iteration of the main loop
+2. calculates how many times the main loop could be run in a 24-hour interval, if every iteration used the median number of calls from the last 30 loops of data
+3. calculates an upper bound on how many times we _want_ to run the main loop in the next 24 hours, by assuming the main loop is instantaneous and only counting the "sleep time" between iterations
+4. if the number we can support (2) is less than the number we want to do (3), randomly skips the main loop some fraction of the time
+
+This mechanism rarely kicks in these days, but does in the occasional edge case.
+
+Additionally, some individual API requests are cached -- although I've removed much of this over time, as the calls have become both less repetitive and more efficient.
+
+#### Original posts: mood projection
+
+Original posts are queued well in advance, using tumblr's queue mechanism.  This makes it impossible to ensure they are consistent with the bot's mood at the time they are posted, since it will be affected by future input from users.
+
+I do screen these posts for mood like other posts, though.  To get a best guess for the future mood value, the code evolves the mood system forward to the intended posting time, pretending that no user input will occur between now and then.
+
+#### Original posts: retention
+
+Writing an original post is much like writing a response: we generate many candidates, reject some based on mood, and select one of the remaining ones.
+
+However, doing this naively means discarding a lot of good posts that could be used later.  Original posts are fungible in a way that responses are not, since there's no pressure to post them at any particular time.  A post that gets rejected for mood consistency might be just right given the mood at some other, later time.  And if we get several great posts consistent with the current mood, we still have to pick only one of them.
+
+To make this less wasteful, the bot's state includes a "retention set" of original posts that have not been made.  Each time the bot writes an original post, it uses this as a starting set of candidates, to which the newly-written candidates are added.  After selecting the next original post, any candidate with very high selector scores that were _not_ chosen are added to the set.
+
+#### Private config
+
+Some data needed to run the bot is stuff I don't want to share publically, such as API keys and the "bad words list" for content moderation.  This data is stored in a json file in a private GCS bucket, rather than in this repo.  The contents of this file are loaded and modeled by the code [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/config/bot_config.py).
+
+#### Deciding which posts to reblog from dash
+
 
 ### The ML models
 

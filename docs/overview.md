@@ -60,7 +60,7 @@ A single iteration of the main loop consists of the following steps in order:
 
 1. Check drafts, respond to content moderation tags if needed
 2. Check asks, write and post responses if needed
-3. Check for new reblogs and replies, write and post responses if needed
+3. Check for new reblogs, replies and mentions, write and post responses if needed
 4. Repeat step 1 (content moderation check)
 5. Repeat step 2 (asks check)
 6. Read new posts on the dash, decide whether to reblog them, write and post responses if needed
@@ -69,6 +69,10 @@ A single iteration of the main loop consists of the following steps in order:
 9. Check queue, write and queue new original posts if there are too few in the queue
 10. Repeat step 1 (content moderation check)
 11. Wait for 60 seconds, or longer in some cases
+
+_(Note that step 3 is implemented by looping over the bot's last 250 posts, checking the notes of each one, and looking for user input that has not been marked "handled" in the bot's internal state.  This is expensive in terms of API calls, but was the only way to do it when I started this project._
+
+_More recently, tumblr has introduced a notifications endpoint, much like a human user's activity page, which is a much nicer way to do it.  I do use this endpoint to check for mentions, which was previously impossible, but I still use the old approach for reblog and reply checking.)_
 
 Steps that can modify the bot's internal state will often save state data to disk after running; for example, this happens after every asks check if any new asks were handled.
 
@@ -89,22 +93,22 @@ This is the bot's most fundamental job, and is quite complex.
 Schematically, writing a post looks like:
 
 1. Preparing to write
-  - If we are replying to something (i.e. not writing an original post for the queue), convert the tumblr API response to a standardized text representation, using the **text munging layer**.
-  - If we are replying to something, run ML tasks to produce **sentiment** and **autoreview** scores for the input.  (Respectively, "how happy/sad is this input?" and "how likely is this input to be 'problematic' or otherwise 'unpostable'?")
-  -  Determine the current **mood**.
-  -  Estimate how many candidate posts will be rejected as incompatible with current the mood, and choose the number of target candidates `N` to account for this.
+    - If we are replying to something (i.e. not writing an original post for the queue), convert the tumblr API response to a standardized text representation, using the **text munging layer**.
+    - If we are replying to something, run ML tasks to produce **sentiment** and **autoreview** scores for the input.  (Respectively, "how happy/sad is this input?" and "how likely is this input to be 'problematic' or otherwise 'unpostable'?")
+    -  Determine the current **mood**.
+    -  Estimate how many candidate posts will be rejected as incompatible with current the mood, and choose the number of target candidates `N` to account for this.
 2. Writing candidates
-  - Run an ML task to write `N` candidate posts.
+    - Run an ML task to write `N` candidate posts.
 3. Candidate assessment
-  - Run ML tasks to produce **selector** ("how much will people like this?"), sentiment, and autoreview scores for each candidate.
-  - Remove candidates inconsistent with the current mood.
-  - Pick one post from the remaining candidates based on selector scores, typically with an eps-greedy strategy.
+    - Run ML tasks to produce **selector** ("how much will people like this?"), sentiment, and autoreview scores for each candidate.
+    - Remove candidates inconsistent with the current mood.
+    - Pick one post from the remaining candidates based on selector scores, typically with an eps-greedy strategy.
 4. Automated content moderation
-  - Decide whether to post it automatically, send it to content moderation, or flat-out reject it.  The rules behind this decision use the autoreview score together with a manually curated word list.
+    - Decide whether to post it automatically, send it to content moderation, or flat-out reject it.  The rules behind this decision use the autoreview score together with a manually curated word list.
 5.  Making the post
-   - Parse the the chosen post into an HTML main body and a list of tags.
-   - If the main body contains text representations of images, generate images for each one, upload them to tumblr, and replace the text representations with corresponding `<img>` tags.
-   - If we are OK to post automatically (step 4), send a tumblr API request to publish or queue the post.  If it's being sent to content moderation, save it to drafts instead.  If we're flat-out rejecting it, save it to drafts with a special rejection tag.
+     - Parse the the chosen post into an HTML main body and a list of tags.
+     - If the main body contains text representations of images, generate images for each one, upload them to tumblr, and replace the text representations with corresponding `<img>` tags.
+     - If we are OK to post automatically (step 4), send a tumblr API request to publish or queue the post.  If it's being sent to content moderation, save it to drafts instead.  If we're flat-out rejecting it, save it to drafts with a special rejection tag.
 
 Most of the nontrivial parts of the codebase are used somewhere in this procedure.  Below, I'll describe some of these.
 
@@ -195,7 +199,21 @@ The code for this is mostly [here](https://github.com/nostalgebraist/nostalgebra
 
 The mood is used when making posts.  The mood value determines an acceptable range of sentiment scores.  I define a mapping from mood values to ranges for (a short list of "basic moods")[https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood.py#L61-L143], and interpolate the ranges linearly when the current mood lies between two of these.
 
-During generation
+During post writing, a large number of candidate posts are generated.  Any of these that fall outside the range are discarded, though their scores are still included when calculating mood effects (see above).
+
+#### Content moderation
+
+The language model is capable of writing some very bad things, e.g. racist material.
+
+The code tries to identify this kind of content -- or content that _might_ be this kind -- before posting it, and will save the post as a draft if it's "worried" about it.  I manually check the bot's drafts folder many times a day, and decide whether to post or delete the drafts.
+
+Originally, this was done with a simple hand-curated word filter.  This gradually became unsustainable, with lots of posts ending up in drafts for silly reasons, while others slipped through because they used words or phrases I hadn't thought of in advance.
+
+To improve the situation, I trained a machine learning model on the logs from my own decisions about past drafts.  This model renders a judgment on each post the bot wants to make.
+
+The model's judgment is used together with the original word list: posts that don't trip the word filter are automatically posted unless the model is pretty sure they're "bad," while posts that do trip the word filter are sent to drafts unless the model is pretty sure they're "OK."  The code for this logic is (here)[https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumbl.py#L376-L553].
+
+When I want to reject a post in drafts, I generally still want the bot to write _some_ response, just not this one.  This means I must communicate to the main loop that the 
 
 ### The ML models
 

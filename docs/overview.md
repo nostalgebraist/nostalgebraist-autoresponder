@@ -201,7 +201,7 @@ The code for this is mostly [here](https://github.com/nostalgebraist/nostalgebra
 
 #### Mood consistency
 
-The mood is used when making posts.  The mood value determines an acceptable range of sentiment scores.  I define a mapping from mood values to ranges for (a short list of "basic moods")[https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood.py#L61-L143], and interpolate the ranges linearly when the current mood lies between two of these.
+The mood is used when making posts.  The mood value determines an acceptable range of sentiment scores.  I define a mapping from mood values to ranges for [a short list of "basic moods"](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood.py#L61-L143), and interpolate the ranges linearly when the current mood lies between two of these.
 
 During post writing, a large number of candidate posts are generated.  Any of these that fall outside the range are discarded, though their scores are still included when calculating mood effects (see above).
 

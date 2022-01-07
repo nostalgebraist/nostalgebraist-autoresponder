@@ -23,8 +23,6 @@ In principle, you could adapt this codebase to run a similar bot of your own, bu
 
 ### Documentation
 
-In the past, this README contained a long description of how the code works.  This description was chronically out of date, so to avoid misleading people, I've removed it.
-
-When I get time, I'll write some documentation that is currently (Jan 2022) up to date.
+There is a mostly-finished [technical overview](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/main/docs/overview.md) under `docs/overview.md`.  It is up to date as of January 2022.
 
 There are [some visualizations](https://github.com/nostalgebraist/nostalgebraist-autoresponder/tree/visualizations/visualizations) on a branch called `visualizations`, in a subdirectory called (you guessed it) `visualizations`.  Check these out if you want to learn more about how the selector works.

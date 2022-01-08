@@ -1,4 +1,5 @@
 # TODO: (nwo) nwo-ify this
+# NOTE: deprecated and unused (1/7/22)
 import argparse
 import pickle
 from collections import defaultdict

@@ -349,8 +349,87 @@ For ease of use, I wrote a [wrapper](https://github.com/nostalgebraist/nostalgeb
 
 ##### Sampling beyond the context window
 
-GPT-J can only "see" a window of 2048 tokens at any one time.  This can be problematic when the 
+GPT-J can only "see" a window of 2048 tokens at any one time.  (To avoid intermittent OOMs, I actually limit the window to a somewhat shorter length in practice, varying with GPU type.)
+
+This can be problematic when the conversational context is very long, e.g. a long reblog thread.  If the full context is longer than the window length, you have to truncate it to give the model room to write anything, and there is a tradeoff between how much the bot can write and how much of the context it can see.
+
+To make this easier, I do sampling with multiple steps ([code here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/generator_model_torch.py#L74-L173)).  I truncate all prompts on the left to give the model at least 256 tokens of room to write.  When the context window is full, I truncate it on the left again, and write the next 256 tokens.  This repeats until either 
+
+- the model indicates the text is complete with the `<|endoftext|>` token
+- the number of tokens in the model's continuation has reached some max value (currently 1600)
+
+#### The heads
+
+The selector, sentiment, and autoreviewer models are responsible for producing the corresponding scores used in the main loop.
+
+These models all have the same design.  They are "heads" on top of the generator.  Specifically, they process a text by:
+
+- feeding it through the first N layers of the generator, for some N
+- running multi-head attention over the generator's hidden states at layer N, in a variant form that outputs a single vector rather than a sequence
+- passing this vector to a residual fully-connected layer
+- applying a linear-softmax layer to get the output
+
+There is a more detailed, though out-of-date, description [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/tree/visualizations/visualizations).
+
+The generator weights are frozen during head training; only the new head weights are trained.  This is conceptually similar to ELMo, with GPT instead of a BiLSTM.
+
+I adopted this design to leverage the linguistic knowledge of the generator without having to finetune the entire thing end-to-end, which would impose high memory costs during training and high memory/storage costs for inference.
+
+The implementation for the head model architecture lives under [`src/classifier_heads/`](https://github.com/nostalgebraist/nostalgebraist-autoresponder/tree/docs-reference-commit/src/classifier_heads).
+
+##### Selector
+
+The selector is trained to predict a binary variable, which I compute from note counts on historical bot posts.  The code to scrape these counts is [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/corpus/blog_archive.py).
+
+The full data prep pipeline is complex (and not included here), but roughly:
+
+- I compute a moving average over quantiles of note counts, to adjust for secular trends in the bot's overall popularity
+- I compute quantiles over this moving average
+- I drop data in the "middle quantiles," keeping roughly the highest ~25% and lowest ~25% of the data
+- I code these as positive and negative, respectively, and train the model as a binary classifier
+
+The "selector scores" are the probabilities assigned by the trained classifier.
+
+##### Sentiment
+
+The sentiment model began as a call to an external API, which returned results from a BERT-Large finetuned for sentiment analysis.  Later, I used my logs from calling this API as training data, and trained a head to do the same thing.
+
+The "sentiment scores" are the probabilities assigned by the trained classifier.
+
+##### Autoreviewer
+
+The autoreviewer is a binary classifier trained on my own decisions to reject or accept posts in content moderation.  The code to scrape this data is [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/corpus/compute_autoreview_target.py).
+
+The "autoreview scores" are the probabilities assigned by the trained classifier.
+
+#### The image generator
+
+The image generator is a text-conditioned denoising diffusion model.  For a detailed description, [read this](https://nostalgebraist.tumblr.com/post/672300992964050944/franks-image-generation-model-explained).
+
+The model is represented in code as a `SamplingPipeline` object from [my fork of OpenAI's improved-diffusion repo](https://github.com/nostalgebraist/improved-diffusion/blob/nbar-prod/improved_diffusion/pipeline.py).  The bot uses the model through the logic defined in [`diffusion_helpers.py`](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/multimodal/diffusion_helpers.py) here.
 
 ### Data persistence
 
-TODO: write this part.
+Data persistence is the part of the code I'm least happy with.
+
+Any ordinary project of this size would have a database.  This one doesn't.
+
+In early experiments, when I didn't expect the project to grow like it has, I took the easy route of saving pickle files to disk every time data needs to be persisted.  At this point, this approach is so ingrained into the code (and so closely tied to the bot's operation) that it would be difficult to replace it with a database.
+
+Hence, I still use pickle files.  This has many downsides: it is a slow step that needs to happen multiple times in the main loop, it makes it easy to lose data, and it makes it unsafe to interrupt the main loop at certain points.  Also, the files can grow large and increasingly slow to save, forcing me to either drop old data or move it to "cold storage" that is loaded but never saved.
+
+Data is persisted in three different files, corresponding to three python classes.
+
+#### "Response cache"
+
+Most of the bot's state is stored in an [object](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/persistence/response_cache.py) confusingly called a `ResponseCache`.  This is what it actually was, originally, but it became the default place for persisted data over time.  Noteable data stored here includes the time series of past mood effects, as well as various caches.
+
+#### "Image analysis cache"
+
+[This object](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/multimodal/image_analysis.py#L418-L598) saves the results of calling the AWS Rekognition API to detect text in images.
+
+#### "Traceability logs"
+
+[This object](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/persistence/traceability.py#L34-L78) stores data for my own use in analytics and debugging.
+
+A callback logs a line here every time the bot sends a post to tumblr.  The log line includes a large amount of information about the event, including the tumblr API's response, the automatic content moderation result and the rationale for it, the current mood, the user input (if any), and all candidate posts generated together with their head scores.

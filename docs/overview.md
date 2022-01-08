@@ -33,14 +33,16 @@ The main machine runs two python processes: the main loop itself, and a [**bridg
 
 When the main loop process needs to use an ML model, it makes a `/requestml` POST request to the bridge service.  This pushes the desired ML task onto a queue stored in the bridge service.  The main loop process now begins to poll the bridge service with `/getresult` requests.
 
-The next time an ML machine polls the bridge service with GET `/pollml`, it receives the queue and executes the tasks on it.  When it's done, it sends the results in a a POST `/pollml` request to the bridge service.  The bridge service records the result, and pushes the task off the queue.
+The next time an ML machine polls the bridge service with GET `/pollml`, it receives the queue and executes the tasks on it.  When it's done, it sends the results in a a POST `/pollml` request to the bridge service.  The bridge service records the result.
 
-On the next `/getresult` request from the main loop, the bridge service informs the main loop that the task is complete and sends over the results.
+On the next `/getresult` request from the main loop, the bridge service returns the results.  If the main loop decides the job is now complete, it sends a `/done` request to the bridge service, which removes the job from the queue.
+
+(Since it's the responsibility of the main process to decide when the task ends, I have the flexibility to make this decision in a nuanced way while keeping the bridge service simple.)
 
 The description above is accurate in broad strokes, but note that the actual code is somewhat more complicated.  For example:
 
 - A common ML task is "write `N` different versions of the same post."  In this case, the ML machines do not wait until they have completed the entire task before sending results back.
-  - Instead, they send each text they write immediately upon its completion, and the bridge service "keeps the task alive" until it has received `N` or more texts.
+  - Instead, they send each text they write immediately upon its completion, and the bridge service accumulates the results in a list.  It sends this list to main process on each `/getresult`.
   - This parallelizes the task across all ML machines currently available.
 - There are two kinds of ML machine: the ones that deal with text, and the ones that do image generation tasks.  Image generation tasks have their own version of each bridge endpoint.
 
@@ -54,7 +56,7 @@ When the main loop executes ML tasks, it uses an interface that abstracts away t
 
 For instance, `ml_connector.py` [provides classes](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_ml/ml_connector.py#L82-L129) that look to the caller like local instances of the actual ML models, but which operate "under the hood" by interacting with the bridge service.
 
-(Unforunately, `ml_connector.py` also contains a large amount of main loop business logic.  In a future refactor, I would want to separate these concerns.)
+(Unfortunately, `ml_connector.py` also contains a large amount of main loop business logic.  In a future refactor, I would want to separate these concerns.)
 
 ### The main loop
 
@@ -197,11 +199,23 @@ The resulting value affects the user-impact signal as a Dirac delta kick to its 
 
 The mood is re-calculated at most once every 10 minutes.  When it is required for a decision, if there's a fresh value from the last ten minutes, this "slightly stale" value is used.  If the saved value is over 10 minutes old, a new value is computed by numerically integrating the equations.  This calculation only uses user effects from the last 2.5 days, as the exponential decay means older effects have negligble impact.
 
-The code for this is mostly [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood_dynamic.py).
+The code implementing the LTI system and mood effects is in [mood_dynamic.py](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood_dynamic.py).  The base moods and other mood code not related to the LTI system is in [mood.py](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood.py).  The staleness logic is in [this function](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumbl.py#L302-L357) in the main script.
+
+#### Baselines and scales
+
+Ideally, the bot's mood should vary over time in a way that explores the range from the lowest base mood to the highest, without being low much more often than high or vice versa.  Also, it should not stray vary often into ranges far above the highest base mood or far below the lowest.
+
+These properties are hard to ensure automatically, as the size and "niceness" of the user base vary unpredictably over time.  In particular, as the userbase and input volume grow, the impact of any one message has to decrease to prevent the mood getting too extreme.  (This is true even if the average effect is zero: a random walk is reaches extreme values faster, with higher probability, when its step size is higher.)
+
+I've tried to maintain the right properties manually, by occasionally tweaking the "zero point" for mood effects and the scale of their impact on the mood value.  
+
+You can see these updates [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood_dynamic.py#L44-L135).  They are timestamped because we need to integrate over 2.5 days of historical mood effects to compute the current mood.  For example, if it's 9 AM and I want to change the zero point, the bot should use the new value for mood effects after 9 AM, and the old value for earlier mood effects in the 2.5-day window.
 
 #### Mood consistency
 
-The mood is used when making posts.  The mood value determines an acceptable range of sentiment scores.  I define a mapping from mood values to ranges for [a short list of "basic moods"](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood.py#L61-L143), and interpolate the ranges linearly when the current mood lies between two of these.
+The mood is _used_ when making posts.
+
+The mood value determines an acceptable range of sentiment scores.  I define a mapping from mood values to ranges for [a short list of "basic moods"](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/feels/mood.py#L61-L143), and interpolate the ranges linearly when the current mood lies between two of these.
 
 During post writing, a large number of candidate posts are generated.  Any of these that fall outside the range are discarded, though their scores are still included when calculating mood effects (see above).
 
@@ -247,6 +261,33 @@ This mechanism rarely kicks in these days, but does in the occasional edge case.
 
 Additionally, some individual API requests are cached -- although I've removed much of this over time, as the calls have become both less repetitive and more efficient.
 
+#### Varying the sleep time
+
+As mentioned above, the main loop waits for some number of seconds at the end of every loop iteration.  This spreads out the tumblr API call budget across time, and also makes the bot feel less "spammy" by spreading out its posts even during periods of high user input volume.
+
+Originally, this "sleep time" was always 3 minutes.  This became frustratingly long during busy times, but I worried I'd over-spend API calls if I used a lower value.
+
+##### Sleep time varies with the clock
+
+I can't predict in advance exactly when the bot will get a lot of input, but there are regular patterns.  Empirically, the bot gets most of its engagement during the "peak hours" from 8 AM PST to midnight PST, and much less engagement in the "off hours" from midnight to 8 AM PST.  (Conveniently, the "off hours" happen to match when I'm typically asleep, and thus unavailable to do content moderation.)
+
+After I noticed this, I added logic to use a shorter sleep time (1 minute) during peak hours, and a longer sleep time (5 minutes) during off hours.
+
+##### Sleep time anticipates the post limit
+
+Tumblr has a "post limit": users can post a maximum of 250 posts per 24 hours.  If they hit the limit, they can't post until it resets, which happens at midnight EST.
+
+As the bot became more popular, it sometimes hit the post limit.  (This also prevented _me_ from posting, since limit applies across all of a user's blogs.)
+
+To make this less likely, I added [logic](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_tumblr/post_limit.py) that tries to slow down the bot when its posting rate is not sustainable.
+
+I define several ["slowdown levels,"](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_tumblr/post_limit.py#L7-L15) which can be triggered by either of these conditions:
+
+- The number of posts left until the reset has gone below a specific value
+- The following ratio is above a specific value: _bot's empirical posting rate over the last 2 hours / (number of posts left until reset / time until reset)_ 
+
+When a slowdown level is reached, this increases the current sleep time by a multiplier > 1.  It also decreases the number of posts the bot is allow to make per step of the main loop.  (Ordinarily, the bot is allowed to make at most 5 posts per step.)
+
 #### Original posts: mood projection
 
 Original posts are queued well in advance, using tumblr's queue mechanism.  This makes it impossible to ensure they are consistent with the bot's mood at the time they are posted, since it will be affected by future input from users.
@@ -265,6 +306,8 @@ To make this less wasteful, the bot's state includes a "retention set" of origin
 
 Some data needed to run the bot is stuff I don't want to share publically, such as API keys and the "bad words list" for content moderation.  This data is stored in a json file in a private GCS bucket, rather than in this repo.  The contents of this file are loaded and modeled by the code [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/config/bot_config.py).
 
+_Public_ configuration lives in several places, including constants in the main script and in [autoresponder_config.py](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/config/autoresponder_config.py) (which is badly in need of a rewrite).
+
 #### Deciding which posts to reblog from dash
 
 Like a human, the bot reads its dash (a feed of posts from users it follows), and sometimes chooses to reblog these with its own commentary.
@@ -278,8 +321,115 @@ How it does this is complex.  It has two steps:
 
 ### The ML models
 
-TODO: write this part.
+This doc is mostly about the bot as a web app -- i.e., about the code that runs on the main machine -- and about the machine learning aspect of the project.  The details of how I trained these models are not in scope here.  That said, I'll give a brief description of each one and the code supporting it.
+
+#### The generator
+
+The generator is responsible for writing bot posts, and producing likelihoods used in the "prob delt" calculation that affects dash reblog behavior.
+
+It is an autoregressive causal language model from the GPT family.  It is currently a fine-tuned version of [EleutherAI](https://www.eleuther.ai/)'s model [GPT-J 6.1B](https://arankomatsuzaki.wordpress.com/2021/06/04/gpt-j/).  Earlier on in the project, I used GPT-2, followed by EleutherAI's GPT-Neo 2.7B.
+
+I fine-tuned GPT-J on my corpus of tumblr data very soon after its release.  I did this by adapting the project's distributed training code into a script that works on a single TPU VM, which I then [contributed to the project's repo](https://github.com/kingoflolz/mesh-transformer-jax/blob/master/device_train.py).
+
+This produced a model implemented in Jax that runs on TPUs.  I wanted to use pytorch on GPUs.  Thankfully, finetuneanon had already developed code to convert the model and run it in [their fork of the Huggingface (HF) transformers library](https://github.com/finetuneanon/transformers#patches).
+
+I still use finetuneanon's fork in this project, rather than the official version of HF transformers.  The latter can now support GPT-J, but I find finetuneanon's fork more usable and performant.  Finetuneanon also wrote [the code this repo uses to construct GPT-J and load weights](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/load_gptj.py), which minimizes unnecessary use of system RAM while the model is being loaded into GPU VRAM.  (Earlier, to get GPT-Neo working, I had written loader code with a similar purpose, which still lives in the repo [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/ultra_defensive_loading.py).)
+
+Note that this code refers to `GPTNeoForCausalLM`, not "GPT-J," because the fork expresses GPT-J as a variant of the HF library's GPT-Neo implementation.  (To use GPT-J, you set `jax=True` in the config for GPT-Neo.)
+
+##### Sampling
+
+Naive sampling from GPT-like models often produces text that strays into "the repetition trap," becoming increasingly (and absurdly) repetitive over time.  The most common fix for this issue is nucleus sampling, AKA top-p sampling.
+
+I originally used top-p, then adopted a different sampler called Mirostat.  Dissatisfaction with top-p and Mirostat led me to devise my own sampler called [Breakruns](https://nostalgebraist.tumblr.com/post/648042918390759424/breakruns).  Breakruns is implemented in the code [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/sample_torch.py).
+
+##### Interface
+
+For ease of use, I wrote a [wrapper](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/generator_model_torch.py#L45-L243) around the HF transformers object that abstracts away the details of tokenization, conversion to and from pytorch tensors, etc.  On the main main, a class with the same methods as this one allows the code to send jobs to the bridge service, instructing the ML machines to run the methods on the actual objects and return the result.
+
+##### Sampling beyond the context window
+
+GPT-J can only "see" a window of 2048 tokens at any one time.  (To avoid intermittent OOMs, I actually limit the window to a somewhat shorter length in practice, varying with GPU type.)
+
+This can be problematic when the conversational context is very long, e.g. a long reblog thread.  If the full context is longer than the window length, you have to truncate it to give the model room to write anything, and there is a tradeoff between how much the bot can write and how much of the context it can see.
+
+To make this easier, I do sampling with multiple steps ([code here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/generator_model_torch.py#L74-L173)).  I truncate all prompts on the left to give the model at least 256 tokens of room to write.  When the context window is full, I truncate it on the left again, and write the next 256 tokens.  This repeats until either 
+
+- the model indicates the text is complete with the `<|endoftext|>` token
+- the number of tokens in the model's continuation has reached some max value (currently 1600)
+
+#### The heads
+
+The selector, sentiment, and autoreviewer models are responsible for producing the corresponding scores used in the main loop.
+
+These models all have the same design.  They are "heads" on top of the generator.  Specifically, they process a text by:
+
+- feeding it through the first N layers of the generator, for some N
+- running multi-head attention over the generator's hidden states at layer N, in a variant form that outputs a single vector rather than a sequence
+- passing this vector to a residual fully-connected layer
+- applying a linear-softmax layer to get the output
+
+There is a more detailed, though out-of-date, description [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/tree/visualizations/visualizations).
+
+The generator weights are frozen during head training; only the new head weights are trained.  This is conceptually similar to ELMo, with GPT instead of a BiLSTM.
+
+I adopted this design to leverage the linguistic knowledge of the generator without having to finetune the entire thing end-to-end, which would impose high memory costs during training and high memory/storage costs for inference.
+
+The implementation for the head model architecture lives under [`src/classifier_heads/`](https://github.com/nostalgebraist/nostalgebraist-autoresponder/tree/docs-reference-commit/src/classifier_heads).
+
+##### Selector
+
+The selector is trained to predict a binary variable, which I compute from note counts on historical bot posts.  The code to scrape these counts is [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/corpus/blog_archive.py).
+
+The full data prep pipeline is complex (and not included here), but roughly:
+
+- I compute a moving average over quantiles of note counts, to adjust for secular trends in the bot's overall popularity
+- I compute quantiles over this moving average
+- I drop data in the "middle quantiles," keeping roughly the highest ~25% and lowest ~25% of the data
+- I code these as positive and negative, respectively, and train the model as a binary classifier
+
+The "selector scores" are the probabilities assigned by the trained classifier.
+
+##### Sentiment
+
+The sentiment model began as a call to an external API, which returned results from a BERT-Large finetuned for sentiment analysis.  Later, I used my logs from calling this API as training data, and trained a head to do the same thing.
+
+The "sentiment scores" are the probabilities assigned by the trained classifier.
+
+##### Autoreviewer
+
+The autoreviewer is a binary classifier trained on my own decisions to reject or accept posts in content moderation.  The code to scrape this data is [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/corpus/compute_autoreview_target.py).
+
+The "autoreview scores" are the probabilities assigned by the trained classifier.
+
+#### The image generator
+
+The image generator is a text-conditioned denoising diffusion model.  For a detailed description, [read this](https://nostalgebraist.tumblr.com/post/672300992964050944/franks-image-generation-model-explained).
+
+The model is represented in code as a `SamplingPipeline` object from [my fork of OpenAI's improved-diffusion repo](https://github.com/nostalgebraist/improved-diffusion/blob/nbar-prod/improved_diffusion/pipeline.py).  The bot uses the model through the logic defined in [`diffusion_helpers.py`](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/multimodal/diffusion_helpers.py) here.
 
 ### Data persistence
 
-TODO: write this part.
+Data persistence is the part of the code I'm least happy with.
+
+Any ordinary project of this size would have a database.  This one doesn't.
+
+In early experiments, when I didn't expect the project to grow like it has, I took the easy route of saving pickle files to disk every time data needs to be persisted.  At this point, this approach is so ingrained into the code (and so closely tied to the bot's operation) that it would be difficult to replace it with a database.
+
+Hence, I still use pickle files.  This has many downsides: it is a slow step that needs to happen multiple times in the main loop, it makes it easy to lose data, and it makes it unsafe to interrupt the main loop at certain points.  Also, the files can grow large and increasingly slow to save, forcing me to either drop old data or move it to "cold storage" that is loaded but never saved.
+
+Data is persisted in three different files, corresponding to three python classes.
+
+#### "Response cache"
+
+Most of the bot's state is stored in an [object](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/persistence/response_cache.py) confusingly called a `ResponseCache`.  This is what it actually was, originally, but it became the default place for persisted data over time.  Noteable data stored here includes the time series of past mood effects, as well as various caches.
+
+#### "Image analysis cache"
+
+[This object](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/multimodal/image_analysis.py#L418-L598) saves the results of calling the AWS Rekognition API to detect text in images.
+
+#### "Traceability logs"
+
+[This object](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/persistence/traceability.py#L34-L78) stores data for my own use in analytics and debugging.
+
+A callback logs a line here every time the bot sends a post to tumblr.  The log line includes a large amount of information about the event, including the tumblr API's response, the automatic content moderation result and the rationale for it, the current mood, the user input (if any), and all candidate posts generated together with their head scores.

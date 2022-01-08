@@ -306,6 +306,8 @@ To make this less wasteful, the bot's state includes a "retention set" of origin
 
 Some data needed to run the bot is stuff I don't want to share publically, such as API keys and the "bad words list" for content moderation.  This data is stored in a json file in a private GCS bucket, rather than in this repo.  The contents of this file are loaded and modeled by the code [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/config/bot_config.py).
 
+_Public_ configuration lives in several places, including constants in the main script and in [autoresponder_config.py](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/config/autoresponder_config.py) (which is badly in need of a rewrite).
+
 #### Deciding which posts to reblog from dash
 
 Like a human, the bot reads its dash (a feed of posts from users it follows), and sometimes chooses to reblog these with its own commentary.
@@ -319,7 +321,35 @@ How it does this is complex.  It has two steps:
 
 ### The ML models
 
-TODO: write this part.
+This doc is mostly about the bot as a web app -- i.e., about the code that runs on the main machine -- and about the machine learning aspect of the project.  The details of how I trained these models are not in scope here.  That said, I'll give a brief description of each one and the code supporting it.
+
+#### The generator
+
+The generator is responsible for writing bot posts, and producing likelihoods used in the "prob delt" calculation that affects dash reblog behavior.
+
+It is an autoregressive causal language model from the GPT family.  It is currently a fine-tuned version of [EleutherAI](https://www.eleuther.ai/)'s model [GPT-J 6.1B](https://arankomatsuzaki.wordpress.com/2021/06/04/gpt-j/).  Earlier on in the project, I used GPT-2, followed by EleutherAI's GPT-Neo 2.7B.
+
+I fine-tuned GPT-J on my corpus of tumblr data very soon after its release.  I did this by adapting the project's distributed training code into a script that works on a single TPU VM, which I then [contributed to the project's repo](https://github.com/kingoflolz/mesh-transformer-jax/blob/master/device_train.py).
+
+This produced a model implemented in Jax that runs on TPUs.  I wanted to use pytorch on GPUs.  Thankfully, finetuneanon had already developed code to convert the model and run it in [their fork of the Huggingface (HF) transformers library](https://github.com/finetuneanon/transformers#patches).
+
+I still use finetuneanon's fork in this project, rather than the official version of HF transformers.  The latter can now support GPT-J, but I find finetuneanon's fork more usable and performant.  Finetuneanon also wrote [the code this repo uses to construct GPT-J and load weights](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/load_gptj.py), which minimizes unnecessary use of system RAM while the model is being loaded into GPU VRAM.  (Earlier, to get GPT-Neo working, I had written loader code with a similar purpose, which still lives in the repo [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/ultra_defensive_loading.py).)
+
+Note that this code refers to `GPTNeoForCausalLM`, not "GPT-J," because the fork expresses GPT-J as a variant of the HF library's GPT-Neo implementation.  (To use GPT-J, you set `jax=True` in the config for GPT-Neo.)
+
+##### Sampling
+
+Naive sampling from GPT-like models often produces text that strays into "the repetition trap," becoming increasingly (and absurdly) repetitive over time.  The most common fix for this issue is nucleus sampling, AKA top-p sampling.
+
+I originally used top-p, then adopted a different sampler called Mirostat.  Dissatisfaction with top-p and Mirostat led me to devise my own sampler called [Breakruns](https://nostalgebraist.tumblr.com/post/648042918390759424/breakruns).  Breakruns is implemented in the code [here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/sample_torch.py).
+
+##### Interface
+
+For ease of use, I wrote a [wrapper](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/generator_model_torch.py#L45-L243) around the HF transformers object that abstracts away the details of tokenization, conversion to and from pytorch tensors, etc.  On the main main, a class with the same methods as this one allows the code to send jobs to the bridge service, instructing the ML machines to run the methods on the actual objects and return the result.
+
+##### Sampling beyond the context window
+
+GPT-J can only "see" a window of 2048 tokens at any one time.  This can be problematic when the 
 
 ### Data persistence
 

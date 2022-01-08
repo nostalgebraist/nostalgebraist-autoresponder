@@ -312,7 +312,7 @@ _Public_ configuration lives in several places, including constants in the main 
 
 Like a human, the bot reads its dash (a feed of posts from users it follows), and sometimes chooses to reblog these with its own commentary.
 
-How it does this is complex.  It has two steps:
+How it does this is complex.  The steps are
 
 1. The main loop [rules out many posts](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumbl.py#L1208-L1354) using rules like "don't reblog video posts."
 2. The remaining posts are assessed using an ML task specialized for this.  See discussion of "prob delt" [here](https://nostalgebraist-autoresponder.tumblr.com/about#tech).
@@ -321,7 +321,7 @@ How it does this is complex.  It has two steps:
 
 ### The ML models
 
-This doc is mostly about the bot as a web app -- i.e., about the code that runs on the main machine -- and about the machine learning aspect of the project.  The details of how I trained these models are not in scope here.  That said, I'll give a brief description of each one and the code supporting it.
+This doc is mostly about the bot as a web app -- i.e., about the code that runs on the main machine -- and not about the machine learning aspect of the project.  The details of how I trained these models are not in scope here.  That said, I'll give a brief description of each one and the code supporting it.
 
 #### The generator
 

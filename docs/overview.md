@@ -345,7 +345,9 @@ I originally used top-p, then adopted a different sampler called Mirostat.  Diss
 
 ##### Interface
 
-For ease of use, I wrote a [wrapper](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/generator_model_torch.py#L45-L243) around the HF transformers object that abstracts away the details of tokenization, conversion to and from pytorch tensors, etc.  On the main main, a class with the same methods as this one allows the code to send jobs to the bridge service, instructing the ML machines to run the methods on the actual objects and return the result.
+For ease of use, I wrote a [wrapper](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/generator_model_torch.py#L45-L243) around the HF transformers object that abstracts away the details of tokenization, conversion to and from pytorch tensors, etc.
+
+On the main machine, a class with the same methods as this one allows the code to send jobs to the bridge service, instructing the ML machines to run the methods on the actual objects and return the result.
 
 ##### Sampling beyond the context window
 

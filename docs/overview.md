@@ -23,7 +23,7 @@ The main machine has a small compute footprint, and can run on a very cheap clou
 
 By contrast, the ML machines require high-performance GPUs, which are a precious resource.  Obtaining this resource persistently in the cloud is very expensive.  It is much cheaper to obtain it ephemerally (e.g. spot instances, Colab hosted runtimes).  Thus, the code treats "ML machine" as a role rather than an identity: the specific computers playing this role may vary over time, as will their IPs.
 
-How can we make sure the main machine and the ML machines know how to reach each other?  In a conventional system of this form, the emphemeral IPs of the ML machines might be bound to be persistent hostnames.  For better or for worse, this codebase does _not_ go this route.  Instead, it uses an eccentric API design that avoids ever sending requests _to_ the ML machines.
+How can we make sure the main machine and the ML machines know how to reach each other?  In a conventional system of this form, the ephemeral IPs of the ML machines might be bound to be persistent hostnames.  For better or for worse, this codebase does _not_ go this route.  Instead, it uses an eccentric API design that avoids ever sending requests _to_ the ML machines.
 
 #### Life-cycle of an ML task
 

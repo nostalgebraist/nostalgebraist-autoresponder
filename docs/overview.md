@@ -424,7 +424,7 @@ Data is persisted in three different files, corresponding to three python classe
 
 #### "Response cache"
 
-Most of the bot's state is stored in an [object](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/persistence/response_cache.py) confusingly called a `ResponseCache`.  This is what it actually was, originally, but it became the default place for persisted data over time.  Noteable data stored here includes the time series of past mood effects, as well as various caches.
+Most of the bot's state is stored in an [object](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/persistence/response_cache.py) confusingly called a `ResponseCache`.  This is what it actually was, originally, but it became the default place for persisted data over time.  Noteable data stored here includes the time series of past mood effects, a record of which reblogs/replies/mentions have already been handled, and various caches.
 
 #### "Image analysis cache"
 

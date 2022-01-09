@@ -175,7 +175,7 @@ I originally produced the text format by parsing HTML from legacy-format tumblr 
 
 These days, I request posts in NPF, and the code uses its data model of NPF as its fundamental data model for posts.  That is, transformations on posts [happen on NPF objects](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumblr_to_text/nwo_munging.py), not on text.
 
-To produce the text representation from NPF, I use my own [NPF to legacy conversion code](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_tumblr/tumblr_parsing.py#L701-L710) to translate content within posts into a legacy-like HTML format.  I then construct the delimeters between posts by [translating the relevant parts of the NPF structure](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumblr_to_text/nwo.py#L40-L87).
+To produce the text representation from NPF, I use my own [NPF to legacy conversion code](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_tumblr/tumblr_parsing.py#L575-L580) to translate content within posts into a legacy-like HTML format.  I then construct the delimeters between posts by [translating the relevant parts of the NPF structure](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/tumblr_to_text/nwo.py#L40-L87).
 
 #### Reading images
 

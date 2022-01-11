@@ -133,7 +133,7 @@ An ask and response in this format might look like this:
 #2 nostalgebraist-autoresponder responded:
 
  Written 11 PM January 2021 | nostalgebraist-autoresponder's tags: #example tag, #other example tag
- 
+
  Pretty good!  <i>Great</i>, actually!<|endoftext|>
 ```
 
@@ -154,7 +154,7 @@ The language model then writes the rest of the text.  In this example, that's:
 
 ```
  #example tag, #other example tag
- 
+
  Pretty good!  <i>Great</i>, actually!<|endoftext|>
 ```
 
@@ -190,7 +190,7 @@ The bot's "mood" is a scalar variable that evolves continuously over time.  It i
 - a base value, constant within a calendar day, randomly reset at midnight to one of a few possible values
 - a user-impact signal, whose evolution is governed by a Linear Time-Invariant system of differential equations
 
-When the bot responds to user input, the main process calculates a mood effect.  This is a weighted average of 
+When the bot responds to user input, the main process calculates a mood effect.  This is a weighted average of
 
 - the sentiment score of the input (did the user's words sound positive or negative?), and
 - a summary statistic of the sentiment scores for all the candidate responses (did the user say something that would receive a positive-sounding response, or a negative-sounding one?)
@@ -284,7 +284,7 @@ To make this less likely, I added [logic](https://github.com/nostalgebraist/nost
 I define several ["slowdown levels,"](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/api_tumblr/post_limit.py#L7-L15) which can be triggered by either of these conditions:
 
 - The number of posts left until the reset has gone below a specific value
-- The following ratio is above a specific value: _bot's empirical posting rate over the last 2 hours / (number of posts left until reset / time until reset)_ 
+- The following ratio is above a specific value: _bot's empirical posting rate over the last 2 hours / (number of posts left until reset / time until reset)_
 
 When a slowdown level is reached, this increases the current sleep time by a multiplier > 1.  It also decreases the number of posts the bot is allow to make per step of the main loop.  (Ordinarily, the bot is allowed to make at most 5 posts per step.)
 
@@ -351,11 +351,11 @@ On the main machine, a class with the same methods as this one allows the code t
 
 ##### Sampling beyond the context window
 
-GPT-J can only "see" a window of 2048 tokens at any one time.  (To avoid intermittent OOMs, I actually limit the window to a somewhat shorter length in practice, varying with GPU type.)
+GPT-J can only "see" a window of 2048 tokens at any one time.
 
 This can be problematic when the conversational context is very long, e.g. a long reblog thread.  If the full context is longer than the window length, you have to truncate it to give the model room to write anything, and there is a tradeoff between how much the bot can write and how much of the context it can see.
 
-To make this easier, I do sampling with multiple steps ([code here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/generator_model_torch.py#L74-L173)).  I truncate all prompts on the left to give the model at least 256 tokens of room to write.  When the context window is full, I truncate it on the left again, and write the next 256 tokens.  This repeats until either 
+To make this easier, I do sampling with multiple steps ([code here](https://github.com/nostalgebraist/nostalgebraist-autoresponder/blob/docs-reference-commit/src/ml/generator_model_torch.py#L74-L173)).  I truncate all prompts on the left to give the model at least 256 tokens of room to write.  When the context window is full, I truncate it on the left again, and write the next 256 tokens.  This repeats until either
 
 - the model indicates the text is complete with the `<|endoftext|>` token
 - the number of tokens in the model's continuation has reached some max value (currently 1600)

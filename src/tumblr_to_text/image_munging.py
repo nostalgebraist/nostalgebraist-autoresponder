@@ -154,7 +154,7 @@ def find_text_images_and_sub_real_images(
                 url=tumblr_image["url"],
                 h=tumblr_image["height"],
                 w=tumblr_image["width"],
-                alt=imtext,
+                alt=imtext.replace("\n", "&#10;"),
             )
         else:
             vprint(

@@ -105,7 +105,7 @@ def find_text_images_and_sub_real_images(
     escaped_delim = IMAGE_DELIMITER.encode('unicode_escape').decode()
     escaped_delim_ws = IMAGE_DELIMITER_WHITESPACED.encode('unicode_escape').decode()
     imtext_regex = rf"({escaped_delim_ws})(.+?)({escaped_delim}\n)"
-    figure_format = """<figure data-orig-height="{h}" data-orig-width="{w}"><img src="{url}" data-orig-height="{h}" data-orig-width="{w}"/></figure>"""
+    figure_format = """<figure data-orig-height="{h}" data-orig-width="{w}"><img src="{url}" data-orig-height="{h}" data-orig-width="{w}" alt={alt}/></figure>"""
     imtexts = []
     imtext_positions = []
     ims_checksum = 0
@@ -154,6 +154,7 @@ def find_text_images_and_sub_real_images(
                 url=tumblr_image["url"],
                 h=tumblr_image["height"],
                 w=tumblr_image["width"],
+                alt=imtext,
             )
         else:
             vprint(

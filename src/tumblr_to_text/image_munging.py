@@ -1,4 +1,4 @@
-import re, random
+import re, random, html
 
 from multimodal.image_analysis_static import (
     V9_IMAGE_FORMATTER,
@@ -154,7 +154,7 @@ def find_text_images_and_sub_real_images(
                 url=tumblr_image["url"],
                 h=tumblr_image["height"],
                 w=tumblr_image["width"],
-                alt=imtext.replace("\n", "&#10;"),
+                alt=html.escape(imtext).replace("\n", "&#10;"),
             )
         else:
             vprint(

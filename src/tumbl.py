@@ -585,7 +585,7 @@ def make_text_post(
             post,
             client_pool.get_private_client(),
             blogname,
-            verbose=IMAGE_CREATION_TESTING,
+            verbose=True, # IMAGE_CREATION_TESTING,
             use_diffusion=IMAGE_CREATION_DIFFUSION,
             guidance_scale=guidance_scale,
             guidance_scale_sres=guidance_scale
@@ -703,7 +703,7 @@ def answer_ask(
             answer,
             client_pool.get_private_client(),
             blogname,
-            verbose=IMAGE_CREATION_TESTING,
+            verbose=True, # IMAGE_CREATION_TESTING,
             use_diffusion=IMAGE_CREATION_DIFFUSION,
             guidance_scale=guidance_scale,
             guidance_scale_sres=guidance_scale

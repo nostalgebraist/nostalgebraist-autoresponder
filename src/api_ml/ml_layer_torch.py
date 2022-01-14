@@ -327,9 +327,17 @@ def loop_poll(
         "pollml",
     ],
     show_memory=True,
+    n_loops=None,
 ):
+    loop_counter = 0
     open_request_ids = set()
-    while True:
+
+    def _should_stop(loop_counter):
+        if n_loops is not None:
+            return loop_counter >= n_loops
+        return False
+
+    while not _should_stop(loop_counter):
         open_request_ids, almostdone_in_flight = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
         if len(open_request_ids) == 0 or dummy:
             time.sleep(period)
@@ -337,6 +345,7 @@ def loop_poll(
             time.sleep(2)
         else:
             time.sleep(0.2)
+        loop_counter += 1
 
 
 if __name__ == "__main__":

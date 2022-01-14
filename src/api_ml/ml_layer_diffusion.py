@@ -125,10 +125,19 @@ def loop_poll(
         "polldiffusion",
     ],
     show_memory=True,
+    n_loops=None,
 ):
-    while True:
+    loop_counter = 0
+
+    def _should_stop(loop_counter):
+        if n_loops is not None:
+            return loop_counter >= n_loops
+        return False
+
+    while not _should_stop(loop_counter):
         poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
         time.sleep(period)
+        loop_counter += 1
 
 if __name__ == "__main__":
     sys.exit(loop_poll())

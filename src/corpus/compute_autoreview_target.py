@@ -44,7 +44,7 @@ def main():
 
     print(f"subsetted trace logs to draft/queue:  {len(trace_logs)} rows")
 
-    required_keys = ["api__id", "prompt_autoreviewer", "choice_ix", "all_continuations", "timestamp_manual", "post_type"]
+    required_keys = ["api__id", "prompt_autoreviewer", "choice_ix", "all_continuations", "timestamp_manual", "post_type", "state_reasons"]
     keycounts = Counter()
     key_nonnull_counts = Counter()
 
@@ -65,6 +65,15 @@ def main():
     ]
 
     print(f"subsetted trace logs to nwo / usable:  {len(trace_logs)} rows")
+
+    # don't let the model learn from its own use of the rts tag
+    trace_logs = [
+        row
+        for row in trace_logs
+        if not row['state_reasons'].get('ml_rejected')
+    ]
+
+    print(f"removed model-rejected drafts from trace logs:  {len(trace_logs)} rows")
 
     pool = ClientPool()
     current_queue = [pp['id'] for pp in pool.get_private_client().queue('nostalgebraist-autoresponder')['posts']]

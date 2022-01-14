@@ -332,12 +332,12 @@ def loop_poll(
     loop_counter = 0
     open_request_ids = set()
 
-    def _should_stop(loop_counter):
+    def _should_stop(loop_counter, open_request_ids):
         if n_loops is not None:
-            return loop_counter >= n_loops
+            return (loop_counter >= n_loops) and (open_request_ids == set())
         return False
 
-    while not _should_stop(loop_counter):
+    while not _should_stop(loop_counter, open_request_ids):
         open_request_ids, almostdone_in_flight = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
         if len(open_request_ids) == 0 or dummy:
             time.sleep(period)

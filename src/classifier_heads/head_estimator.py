@@ -635,7 +635,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         results["preds"] = probs[:, 1] > threshold
         return results
 
-    def _predict(self, X, key="preds", disable_calibration=False):
+    def _predict(self, X, key="preds", disable_calibration=False, suppress_tqdm=False):
         if isinstance(X, list):
             X = pd.DataFrame.from_records(X)
 
@@ -648,7 +648,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         step_iter = (
             tqdm(list(range(0, steps)), smoothing=0.0, miniters=1, mininterval=self.display_interval_secs)
-            if steps > 1
+            if (steps > 1) and (not suppress_tqdm)
             else list(range(0, steps))
         )
 
@@ -679,15 +679,15 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         pd_obj = pd_obj.sort_index()
         return pd_obj.values
 
-    def predict(self, X):
+    def predict(self, X, suppress_tqdm=False):
         # TODO: make this less of a shitty hack
-        return self._predict(X, key="preds" if not self.regression_target else "logits")
+        return self._predict(X, key="preds" if not self.regression_target else "logits", suppress_tqdm=suppress_tqdm)
 
-    def predict_proba(self, X):
-        return self._predict(X, key="probs")
+    def predict_proba(self, X, suppress_tqdm=False):
+        return self._predict(X, key="probs", suppress_tqdm=suppress_tqdm)
 
-    def decision_function(self, X):
-        return self._predict(X, key="probs")
+    def decision_function(self, X, suppress_tqdm=False):
+        return self._predict(X, key="probs", suppress_tqdm=suppress_tqdm)
 
     def cleanup(self):
         print("cleanup: deleting state")

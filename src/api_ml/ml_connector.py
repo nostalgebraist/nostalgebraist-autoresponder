@@ -398,7 +398,7 @@ def predict_select(data, verbose=True):
 
     data = data.to_dict(orient="records")
 
-    response_data = selector_est.predict_proba(data)
+    response_data = selector_est.predict_proba(data, suppress_tqdm=True)
 
     result = np.array(response_data[0]["result"])
     probs = result[:, 1]
@@ -440,7 +440,7 @@ def predict_sentiment(data, verbose=True):
 
     data = data.to_dict(orient="records")
 
-    response_data = sentiment_est._predict(data, key="logits")
+    response_data = sentiment_est._predict(data, key="logits", suppress_tqdm=True)
 
     logits = np.array(response_data[0]["result"])
 
@@ -473,7 +473,7 @@ def predict_autoreview(data, verbose=True):
 
     data = data.to_dict(orient="records")
 
-    response_data = autoreviewer_est.predict_proba(data)
+    response_data = autoreviewer_est.predict_proba(data, suppress_tqdm=True)
 
     result = np.array(response_data[0]["result"])
     probs = result[:, 1]

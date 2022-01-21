@@ -5,7 +5,7 @@ Code for the tumblr bot [nostalgebraist-autoresponder](https://nostalgebraist-au
 For some context, see:
 
 - the bot's [About/FAQ page](https://nostalgebraist-autoresponder.tumblr.com/about)
-- [my tumblr tag for posts about the bot](https://nostalgebraist.tumblr.com/tagged/nostalgebraist-autoresponder-meta)
+- [my tumblr tag for posts about the bot](https://nostalgebraist.tumblr.com/tagged/nostalgebraist%20autoresponder%20meta)
 
 ----
 
@@ -26,7 +26,7 @@ This is a hacky personal project for my own entertainment.  Its primary goals ar
 1. stay up and running as close to 24/7 as possible
     - ...in a context where a development/sandbox environment is essentially impossible
     - ...while handling a wide variety of unpredictable user behavior
-    - ...while depending on external APIs that often lack complete contracts or guarantees 
+    - ...while depending on external APIs that often lack complete contracts or guarantees
 2. do a lot of cool stuff at once
 3. be legible to my future self
 

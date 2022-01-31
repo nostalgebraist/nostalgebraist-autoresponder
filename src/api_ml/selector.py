@@ -227,7 +227,7 @@ do_image_coldstart = partial(
     do_coldstart, substring=IMAGE_DELIMITER_WHITESPACED, delta=IMAGE_COLDSTART_DELTA
 )
 do_gif_coldstart = partial(
-    do_coldstart, substring=IMAGE_DELIMITER_WHITESPACED + "[Animated GIF]", delta=GIF_COLDSTART_DELTA
+    do_coldstart, substring="[Animated GIF]" + IMAGE_DELIMITER_WHITESPACED, delta=GIF_COLDSTART_DELTA
 )
 do_quotes_coldstart = partial(
     do_coldstart, substring="#quotes", delta=QUOTES_COLDSTART_DELTA

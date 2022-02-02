@@ -54,7 +54,8 @@ def handle_no_commentary_and_populate_tags(thread: TumblrThread,
 
 def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[ClientPool] = None,
                       allow_posts_with_unrecoverable_tags=True,
-                      ouro=True):
+                      ouro=True,
+                      read_without_write=False):
     # import inside b/c it loads image cache
     from tumblr_to_text.nwo import npf_thread_to_formatted_text
 
@@ -71,6 +72,9 @@ def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[C
             thread = apply_nost_identity_ouroboros(thread)
 
         doc = npf_thread_to_formatted_text(thread)
+
+        if read_without_write:
+            return 
 
         if separator in doc:
             raise ValueError(f"separator in doc: {repr(doc)}")

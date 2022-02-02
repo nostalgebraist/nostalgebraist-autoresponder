@@ -1208,7 +1208,8 @@ def am_i_tagged_in_reblog(post_payload):
 
 
 def is_statically_reblog_worthy_on_dash(
-    post_payload, response_cache, verbose=True, is_nost_dash_scraper=False, slow_scraping_ok=True
+    post_payload, response_cache, verbose=True, is_nost_dash_scraper=False, slow_scraping_ok=True,
+    get_images_from_no_scrape_users=True,
 ):
     post_identifier = PostIdentifier(post_payload["blog_name"], str(post_payload["id"]))
 
@@ -1344,6 +1345,9 @@ def is_statically_reblog_worthy_on_dash(
 
     if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):
         scrape_worthy = False
+        if get_images_from_no_scrape_users:
+            print(f"reading {post_identifier} | ", end="")
+            archive_to_corpus(post_payload, path=None, client_pool=client_pool, read_without_write=True)
 
     if scrape_worthy:
         path = "data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "data/dash_post_dump_frank.txt"

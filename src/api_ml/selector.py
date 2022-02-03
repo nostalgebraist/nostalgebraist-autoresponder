@@ -7,11 +7,13 @@ import numpy as np
 from textwrap import wrap
 
 from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED
+from tumblr_to_text.image_munging import mock_up_image_generation_tags_for_heads
 
 from config.autoresponder_config import LOGGING_FLAGS
 from tumblr_to_text.classic.autoresponder_static import EOT
 from feels.mood import logit_diff_to_allen_schema
 from util.times import now_pst
+
 
 RESULT_STACK = {}
 
@@ -454,6 +456,11 @@ def get_retention_stack_judgments(retention_stack,
         blog_name=blog_name,
         timestamp=now_pst()
     )
+
+    base_texts_for_selector_and_autoreviewer = [
+        mock_up_image_generation_tags_for_heads(c, guidance_scale=2)  # fixed value for determinism
+        for c in continuations
+    ]
 
     selector_texts = [prompts_selector[prompts[0]] + c for c in base_texts]
     sentiment_texts = base_texts

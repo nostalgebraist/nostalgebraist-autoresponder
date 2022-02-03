@@ -173,3 +173,20 @@ def find_text_images_and_sub_real_images(
     if not happened:
         text_subbed = orig_text  # ensure no munging for matching went through
     return text_subbed, happened
+
+
+def mock_up_image_generation_tags_for_heads(continuation: str, guidance_scale: float, debug=True) -> str:
+    criterion = IMAGE_DELIMITER_WHITESPACED in continuation
+    if not criterion:
+        return continuation
+
+    tagstr, newl, suffix = continuation.partition('\n')
+    extra = f' #computer generated image, #guidance scale {guidance_scale}'
+    if '#' in tagstr:
+        tagstr += ','
+    mocked_up = tagstr + extra + newl + suffix
+
+    if debug:
+        print(f"from\n{repr(continuation)}\nmocked up\n{repr(mocked_up)}\n")
+
+    return mocked_up

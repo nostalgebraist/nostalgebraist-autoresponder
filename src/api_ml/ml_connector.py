@@ -20,6 +20,7 @@ from api_ml import bridge_cache_singleton
 from api_ml.bridge_shared import get_bridge_service_url
 
 from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED
+from tumblr_to_text.image_munging import mock_up_image_generation_tags_for_heads
 
 from util.error_handling import LogExceptionAndSkip
 from util.cloudsave import CLOUDSAVE_BUCKET
@@ -522,6 +523,7 @@ def answer_from_gpt(
         write_fic_override=False,
         write_review_override=False,
         avoid_initial_blockquote=False,
+        guidance_scale=None,
 ):
     t1 = time.time()
 
@@ -535,7 +537,8 @@ def answer_from_gpt(
         mood=mood,
         write_fic_override=write_fic_override,
         write_review_override=write_review_override,
-        avoid_initial_blockquote=avoid_initial_blockquote
+        avoid_initial_blockquote=avoid_initial_blockquote,
+        guidance_scale=guidance_scale
     )
 
     # strategy = "proportional_winnowed"
@@ -547,7 +550,7 @@ def answer_from_gpt(
         post_type="answer",
         mood=mood,
         strategy=strategy,
-        eps=eps
+        eps=eps,
     )
 
     # for logging, add input fields that didn't make the round trip
@@ -572,7 +575,8 @@ def old_bridge_call__answer(
         mood=None,
         write_fic_override=False,
         write_review_override=False,
-        avoid_initial_blockquote=False
+        avoid_initial_blockquote=False,
+        guidance_scale=None
 ):
     best_of = 11 if (not TRADE_QUALITY_FOR_SPEED) else 8
 
@@ -619,7 +623,16 @@ def old_bridge_call__answer(
 
     # selector
 
-    selector_inputs = [prompt_selector + c for c in continuations]
+    if guidance_scale is not None:
+        continuations_for_selector_and_autoreviewer = [
+            mock_up_image_generation_tags_for_heads(c, guidance_scale=guidance_scale)
+            for c in continuations
+        ]
+    else:
+        continuations_for_selector_and_autoreviewer = continuations
+        print("warning: got guidance_scale None in old_bridge_call__answer")
+
+    selector_inputs = [prompt_selector + c for c in continuations_for_selector_and_autoreviewer]
 
     selector_inputs = pd.DataFrame(
         {
@@ -641,7 +654,7 @@ def old_bridge_call__answer(
 
     # autoreview
 
-    autoreview_inputs = [prompt_autoreviewer + c for c in continuations]
+    autoreview_inputs = [prompt_autoreviewer + c for c in continuations_for_selector_and_autoreviewer]
 
     autoreview_inputs = pd.DataFrame(
         {
@@ -663,6 +676,7 @@ def text_post_from_gpt(loop_persistent_data,
                        prompts_autoreviewer,
                        prompts_probs,
                        mood_name=None,
+                       guidance_scale=None,
                        ):
     t1 = time.time()
 
@@ -675,7 +689,8 @@ def text_post_from_gpt(loop_persistent_data,
                                                  prompts=prompts,
                                                  prompts_selector=prompts_selector,
                                                  prompts_autoreviewer=prompts_autoreviewer,
-                                                 prompts_probs=prompts_probs
+                                                 prompts_probs=prompts_probs,
+                                                 guidance_scale=guidance_scale
                                                  )
 
     # strategy = "proportional_winnowed"
@@ -711,6 +726,7 @@ def old_bridge_call__textpost(
         prompts_autoreviewer,
         prompts_probs,
         mood=None,
+        guidance_scale=None,
 ):
     avoid_if_under = 10
     avoid_half_if_under = 15
@@ -751,8 +767,17 @@ def old_bridge_call__textpost(
 
     response_data["continuation_side_data"] = continuation_side_data
 
+    if guidance_scale is not None:
+        continuations_for_selector_and_autoreviewer = [
+            mock_up_image_generation_tags_for_heads(c, guidance_scale=guidance_scale)
+            for c in continuations
+        ]
+    else:
+        continuations_for_selector_and_autoreviewer = continuations
+        print("warning: got guidance_scale None in old_bridge_call__textpost")
+
     selector_inputs = [sdata["prompt_selector"] + c
-                       for c, sdata in zip(continuations, continuation_side_data)]
+                       for c, sdata in zip(continuations_for_selector_and_autoreviewer, continuation_side_data)]
 
     selector_inputs = pd.DataFrame(
         {
@@ -785,7 +810,7 @@ def old_bridge_call__textpost(
     # TODO: (nwo) maybe combine prompts_autoreviewer with prompts_selector?
     autoreview_inputs["selector_input"] = [
         sdata["prompt_autoreviewer"] + c
-        for c, sdata in zip(continuations, continuation_side_data)
+        for c, sdata in zip(continuations_for_selector_and_autoreviewer, continuation_side_data)
     ]
 
     autoreview_results = predict_autoreview(

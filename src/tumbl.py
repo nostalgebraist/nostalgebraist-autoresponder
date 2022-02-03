@@ -957,6 +957,7 @@ def respond_to_reblogs_replies(
             asking_name=reblog_identifier.blog_name,
             mood_name=determine_mood(response_cache),
             avoid_initial_blockquote=is_reply,
+            guidance_scale=random.choice(GUIDANCE_SCALE_OPTIONS),  # for selector, may not be the actual one we'll use
         )
 
         if (
@@ -2282,7 +2283,9 @@ def handle_review_command(
         forced_tags_string="",
         write_fic_override=False,
         write_review_override=True,
-        no_timestamp=True)
+        no_timestamp=True,
+        guidance_scale=random.choice(GUIDANCE_SCALE_OPTIONS),  # for selector, may not be the actual one we'll use
+    )
 
     log_data = gpt2_output
     log_data["post_type"] = "review"
@@ -2505,6 +2508,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 asking_name=post_payload["asking_name"],
                 mood_name=determine_mood(response_cache),
                 write_fic_override=write_fic_override,
+                guidance_scale=random.choice(GUIDANCE_SCALE_OPTIONS),  # for selector, may not be the actual one we'll use
             )
 
             if (
@@ -2574,7 +2578,10 @@ def do_queue_handling(loop_persistent_data, response_cache):
                                                                    prompts=prompts,
                                                                    prompts_selector=prompts_selector,
                                                                    prompts_autoreviewer=prompts_autoreviewer,
-                                                                   prompts_probs=prompts_probs)
+                                                                   prompts_probs=prompts_probs,
+                                                                   # for selector, may not be the actual scale we'll use
+                                                                   guidance_scale=random.choice(GUIDANCE_SCALE_OPTIONS),
+                                                                   )
 
             log_data = gpt2_output
             log_data["post_type"] = "textpost"

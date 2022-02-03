@@ -459,12 +459,12 @@ def get_retention_stack_judgments(retention_stack,
 
     base_texts_for_selector_and_autoreviewer = [
         mock_up_image_generation_tags_for_heads(c, guidance_scale=2)  # fixed value for determinism
-        for c in continuations
+        for c in base_texts
     ]
 
-    selector_texts = [prompts_selector[prompts[0]] + c for c in base_texts]
+    selector_texts = [prompts_selector[prompts[0]] + c for c in base_texts_for_selector_and_autoreviewer]
     sentiment_texts = base_texts
-    autoreviewer_texts = [prompts_autoreviewer[prompts[0]] + c for c in base_texts]
+    autoreviewer_texts = [prompts_autoreviewer[prompts[0]] + c for c in base_texts_for_selector_and_autoreviewer]
 
     proba = selection_proba_from_gpt(selector_texts)
 

@@ -175,7 +175,7 @@ def find_text_images_and_sub_real_images(
     return text_subbed, happened
 
 
-def mock_up_image_generation_tags_for_heads(continuation: str, guidance_scale: float, debug=True) -> str:
+def mock_up_image_generation_tags_for_heads(continuation: str, guidance_scale: float, debug=False) -> str:
     criterion = IMAGE_DELIMITER_WHITESPACED in continuation
     if not criterion:
         return continuation

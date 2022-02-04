@@ -27,7 +27,8 @@ SamplingParams = NamedTuple(
     breakruns_tau=float,
     breakruns_decay=float,
     typical_sampling=bool,
-    typical_sampling_mass=float
+    typical_sampling_mass=float,
+    typical_sampling_min_tokens_to_keep=int,
 )
 
 
@@ -61,7 +62,8 @@ DEFAULT_SAMPLING_CONFIG = SamplingConfig(
         breakruns_tau=FIRST_STEP_BREAKRUNS_TAU,
         breakruns_decay=FIRST_STEP_BREAKRUNS_DECAY,
         typical_sampling=TYPICAL_SAMPLING,
-        typical_sampling_mass=TYPICAL_SAMPLING_MASS
+        typical_sampling_mass=TYPICAL_SAMPLING_MASS,
+        typical_sampling_min_tokens_to_keep=TYPICAL_SAMPLING_MIN_TOKENS_TO_KEEP,
     ),
     params=SamplingParams(
         temperature=temperature,

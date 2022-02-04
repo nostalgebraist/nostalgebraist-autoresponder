@@ -25,7 +25,9 @@ SamplingParams = NamedTuple(
     mirostat=bool,
     breakruns=bool,
     breakruns_tau=float,
-    breakruns_decay=float
+    breakruns_decay=float,
+    typical_sampling=bool,
+    typical_sampling_mass=float
 )
 
 
@@ -58,6 +60,8 @@ DEFAULT_SAMPLING_CONFIG = SamplingConfig(
         breakruns=BREAKRUNS,
         breakruns_tau=FIRST_STEP_BREAKRUNS_TAU,
         breakruns_decay=FIRST_STEP_BREAKRUNS_DECAY,
+        typical_sampling=TYPICAL_SAMPLING,
+        typical_sampling_mass=TYPICAL_SAMPLING_MASS
     ),
     params=SamplingParams(
         temperature=temperature,
@@ -69,7 +73,9 @@ DEFAULT_SAMPLING_CONFIG = SamplingConfig(
         mirostat=MIRO,
         breakruns=BREAKRUNS,
         breakruns_tau=BREAKRUNS_TAU,
-        breakruns_decay=BREAKRUNS_DECAY
+        breakruns_decay=BREAKRUNS_DECAY,
+        typical_sampling=TYPICAL_SAMPLING,
+        typical_sampling_mass=TYPICAL_SAMPLING_MASS
     ),
     disable_prints=True,
     first_step_length=first_step_length,

@@ -7,7 +7,7 @@ from config.autoresponder_config import *  # TODO: move elsewhere?
 from ml.sampling_params import SamplingParams, DEFAULT_SAMPLING_CONFIG
 
 from transformers import LogitsProcessorList
-from ml.sample_torch import BreakrunsLogitsProcessor
+from ml.sample_torch import BreakrunsLogitsProcessor, TypicalLogitsWarper
 
 from util.util import copy_and_update_config, collect_and_show
 
@@ -42,6 +42,16 @@ def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=Fal
     return _override_get_breakruns
 
 
+def make_override_get_typical_sampling(mass):
+    def _override_get_typical_sampling(*args, **kwargs) -> LogitsProcessorList:
+        return LogitsProcessorList([
+            TypicalLogitsWarper(
+                mass=mass,
+            )
+        ])
+    return _override_get_typical_sampling
+
+
 class GeneratorModelTorch:
     def __init__(
         self,
@@ -60,12 +70,19 @@ class GeneratorModelTorch:
         self.transformers_model = self.transformers_model.to(device)
 
         if self.sampling_params.breakruns:
+            print(f'using breakruns, base T={self.sampling_params.temperature}, tau={self.sampling_params.breakruns_tau}')
             breakruns_override = make_override_get_breakruns(
                 base_temperature=self.sampling_params.temperature,
                 tau=self.sampling_params.breakruns_tau,
                 tokenizer=self.tokenizer if BREAKRUNS_DEBUG else None,
                 debug=BREAKRUNS_DEBUG)
             self.transformers_model._get_logits_processor = breakruns_override
+        elif self.sampling_params.typical_sampling:
+            print(f'using typical sampling, mass={self.sampling_params.typical_sampling_mass}')
+            typical_sampling_override = make_override_get_typical_sampling(
+                mass=self.sampling_params.typical_sampling_mass,
+            )
+            self.transformers_model._get_logits_warper = typical_sampling_override
 
     def write_random_prompt(self, prompts: list, probs: list, verbose=False):
         prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))

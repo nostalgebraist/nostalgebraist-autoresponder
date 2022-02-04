@@ -77,7 +77,8 @@ DEFAULT_SAMPLING_CONFIG = SamplingConfig(
         breakruns_tau=BREAKRUNS_TAU,
         breakruns_decay=BREAKRUNS_DECAY,
         typical_sampling=TYPICAL_SAMPLING,
-        typical_sampling_mass=TYPICAL_SAMPLING_MASS
+        typical_sampling_mass=TYPICAL_SAMPLING_MASS,
+        typical_sampling_min_tokens_to_keep=TYPICAL_SAMPLING_MIN_TOKENS_TO_KEEP
     ),
     disable_prints=True,
     first_step_length=first_step_length,

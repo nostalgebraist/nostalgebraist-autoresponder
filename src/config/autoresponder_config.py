@@ -405,7 +405,7 @@ else:
 
 ### Sampling
 
-BREAKRUNS = True
+BREAKRUNS = False
 BREAKRUNS_TAU = 0.035  # "canon" value is 0.02
 BREAKRUNS_DECAY = 0.0
 BREAKRUNS_DEBUG = False
@@ -415,7 +415,7 @@ top_k = 0
 top_p = 0.95
 middle_p = 0
 
-FIRST_STEP_BREAKRUNS = False  # disable via tau=0
+FIRST_STEP_BREAKRUNS = True  # disable via tau=0
 FIRST_STEP_BREAKRUNS_TAU = 0.0
 FIRST_STEP_BREAKRUNS_DECAY = 0.0
 

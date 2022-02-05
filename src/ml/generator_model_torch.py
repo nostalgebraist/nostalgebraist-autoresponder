@@ -29,6 +29,10 @@ def hardcore_collect_and_show():
     torch.cuda.empty_cache()
 
 
+def override_disable_logits_processors(*args, **kwargs) -> LogitsProcessorList:
+    return LogitsProcessorList()
+
+
 def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=False):
     def _override_get_breakruns(*args, **kwargs) -> LogitsProcessorList:
         return LogitsProcessorList([
@@ -84,6 +88,7 @@ class GeneratorModelTorch:
                 mass=self.sampling_params.typical_sampling_mass,
                 min_tokens_to_keep=self.sampling_params.typical_sampling_min_tokens_to_keep,
             )
+            self.transformers_model._get_logits_processor = override_disable_logits_processors
             self.transformers_model._get_logits_warper = typical_sampling_override
 
     def write_random_prompt(self, prompts: list, probs: list, verbose=False):

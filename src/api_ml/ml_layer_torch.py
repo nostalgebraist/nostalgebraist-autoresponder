@@ -270,6 +270,9 @@ def poll(
                 "first_step_p": first_step_top_p,
                 "first_step_chop_lowest": first_step_chop_lowest,
                 "first_step_chop_highest": first_step_chop_highest,
+                "TYPICAL_SAMPLING": TYPICAL_SAMPLING,
+                "TYPICAL_SAMPLING_MASS": TYPICAL_SAMPLING_MASS,
+                "TYPICAL_SAMPLING_MIN_TOKENS_TO_KEEP": TYPICAL_SAMPLING_MIN_TOKENS_TO_KEEP
             }
 
             hparams_select, hparams_select_sentiment = None, None

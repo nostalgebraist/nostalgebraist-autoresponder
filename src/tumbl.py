@@ -846,6 +846,7 @@ def prioritize_reblogs_replies(
     reply_set,
     response_cache,
     word_cost=-1 / 5.,
+    word_cost_first_n_words=50,
     thread_length_cost=1,
     short_under_n_words=4,
     short_cost=6,
@@ -886,7 +887,7 @@ def prioritize_reblogs_replies(
         cost = 0
         for item in [
             (thread_length_cost, thread_length, "thread_length"),
-            (word_cost, word_count, "word_count"),
+            (word_cost, min(word_count, word_cost_first_n_words), "min(word_count, word_cost_first_n_words)"),
             (short_cost, (word_count < short_under_n_words), "word_count < short_under_n_words"),
             (empty_cost, (word_count == 0), "word_count == 0")
         ]:

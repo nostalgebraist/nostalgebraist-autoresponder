@@ -2329,7 +2329,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
         if ask_ruleout_too_short:
             print(f"Ignoring short question from {repr(post_payload['asking_name']}: {repr(post_payload['question'])}")
         elif ask_ruleout_no_text:
-            print(f"Ignoring no-text ask from {repr(post_payload['asking_name']} with block types: {repr(block_types)}, question {repr(post_payload['question'])})")
+            print(f"Ignoring no-text ask from {repr(post_payload['asking_name'])} with block types: {repr(block_types)}, question {repr(post_payload['question'])}")
         else:
             submissions_.append(post_payload)
     submissions = submissions_

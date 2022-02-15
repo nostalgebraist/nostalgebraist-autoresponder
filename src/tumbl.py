@@ -2321,8 +2321,15 @@ def do_ask_handling(loop_persistent_data, response_cache):
     submissions_ = []
     for post_payload in submissions:
         words = [w for w in post_payload["question"].split(" ") if len(w) > 0]
-        if len(words) < ask_min_words and not post_payload["question"].startswith("<p>!"):
+        block_types = [bl.get('type') for bl in post_payload['content']]
+
+        ask_ruleout_too_short = len(words) < ask_min_words and not post_payload["question"].startswith("<p>!")
+        ask_ruleout_no_text = not any(blt == 'text' for blt in block_types)
+
+        if ask_ruleout_too_short:
             print(f"Ignoring short question: {repr(post_payload['question'])}")
+        elif ask_ruleout_no_text:
+            print(f"Ignoring no-text ask with block types: {repr(block_types)}")
         else:
             submissions_.append(post_payload)
     submissions = submissions_

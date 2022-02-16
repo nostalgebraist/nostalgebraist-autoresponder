@@ -510,7 +510,11 @@ class ResponseCache:
         )
         return self.cache["user_input_sentiments"].get(identifier_normalized)
 
-    def mark_user_input_response_post_id(self, identifier: UserInputIdentifier, post_id: str, verbose=True):
+    def mark_user_input_response_post_id(self,
+                                         identifier: UserInputIdentifier,
+                                         post_id: str,
+                                         post_id_is_genesis: bool,
+                                         verbose=True):
         post_id = str(post_id)  # just to make sure
 
         identifier_normalized = UserInputIdentifier(
@@ -522,6 +526,8 @@ class ResponseCache:
         self.cache["user_input_response_post_ids"][identifier] = post_id
         if verbose:
             print(f"marked post_id {post_id} as response to {identifier}")
+        if post_id_is_genesis:
+            self.record_post_id_as_genesis(post_id, verbose=verbose)
 
     def get_user_input_response_post_id(self, identifier: UserInputIdentifier, post_id: str):
         identifier_normalized = UserInputIdentifier(
@@ -531,6 +537,14 @@ class ResponseCache:
             timestamp=identifier.timestamp,
         )
         return self.cache["user_input_response_post_ids"].get(identifier_normalized)
+
+    def record_post_id_as_genesis(self, post_id: str, verbose=True):
+        """marks post_id as a genesis id, whose pub id will need to be fetched later"""
+        post_id = str(post_id)  # just to make sure
+        if post_id not in self.cache['genesis_id_to_published_id']:
+            self.cache['genesis_id_to_published_id'][post_id] = None  # indicates we don't know
+            if verbose:
+                print(f"marked post id {post_id} as a genesis id")
 
     def record_genesis_id(self, post_payload: dict, verbose=True):
         if 'genesis_post_id' in post_payload and 'id_string' in post_payload:

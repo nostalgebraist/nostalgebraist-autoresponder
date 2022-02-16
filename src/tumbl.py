@@ -638,7 +638,7 @@ def make_text_post(
         log_data["state_reasons"] = state_reasons
         log_data["api_request_payload"] = kwargs
         traceability_singleton.TRACE_LOGS.on_post_creation_callback(api_response, log_data)
-    return api_response
+    return api_response, log_data
 
 
 def answer_ask(
@@ -764,7 +764,7 @@ def answer_ask(
         log_data["state_reasons"] = state_reasons
         log_data["api_request_payload"] = data
         traceability_singleton.TRACE_LOGS.on_post_creation_callback(api_response, log_data)
-    return api_response
+    return api_response, log_data
 
 
 class LoopPersistentData:
@@ -1113,7 +1113,7 @@ def respond_to_reblogs_replies(
                     ]["reply_text"],
                 )
                 to_drafts = HALLOWEEN_2K20_BEHAVIOR_TESTING
-                api_response = make_text_post(
+                api_response, log_data = make_text_post(
                     blogName,
                     post_specifier["post"],
                     reply_prefix=mocked_up + "\n",
@@ -1127,7 +1127,8 @@ def respond_to_reblogs_replies(
                     reject_action="rts"
                 )
                 response_cache.mark_user_input_response_post_id(
-                    user_input_identifier, api_response['id_string']
+                    user_input_identifier, api_response['id_string'],
+                    post_id_is_genesis=(log_data['requested__state'] != 'published')
                 )
 
         elif okay_to_reply:
@@ -1162,7 +1163,7 @@ def respond_to_reblogs_replies(
                 print(f"using screener_question: {repr(screener_question)}")
 
                 to_drafts = HALLOWEEN_2K20_BEHAVIOR_TESTING
-                api_response = answer_ask(
+                api_response, log_data = answer_ask(
                     blogName,
                     ask_id=reblog_identifier.id_,
                     asking_name=reblog_identifier.blog_name,
@@ -1178,7 +1179,8 @@ def respond_to_reblogs_replies(
                 )
                 if is_user_input and (user_input_identifier is not None):
                     response_cache.mark_user_input_response_post_id(
-                        user_input_identifier, api_response['id_string']
+                        user_input_identifier, api_response['id_string'],
+                        post_id_is_genesis=(log_data['requested__state'] != 'published')
                     )
 
         if is_reply:
@@ -2559,7 +2561,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
             log_data["post_type"] = "ask"
             log_data["input_ident"] = (post_payload["id"], post_payload["asking_name"])
             log_data["question"] = question
-            api_response = answer_ask(
+            api_response, log_data = answer_ask(
                 blogName,
                 ask_id=post_payload["id"],
                 asking_name=post_payload["asking_name"],
@@ -2571,7 +2573,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 reject_action="rts",
             )
             response_cache.mark_user_input_response_post_id(
-                user_input_identifier, api_response['id_string']
+                user_input_identifier, api_response['id_string'],
+                post_id_is_genesis=(log_data['requested__state'] != 'published')
             )
     return loop_persistent_data, response_cache, n_asks
 

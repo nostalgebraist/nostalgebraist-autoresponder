@@ -22,3 +22,25 @@ def V9_IMAGE_FORMATTER(image_text):
 
 def extract_image_texts_from_post_text(s):
     return extract_image_text_regex.findall(s)
+
+
+def xtract_res(url, verbose=False):
+    ps = url.split('/')
+    fp = ps[-1]
+    fn, _, xtn = fp.partition('.')
+    _, _, rez = fn.partition('_')
+    try:
+        return int(rez)
+    except Exception as e:
+        if verbose:
+            print((e, e.args))
+        pass
+    rezp = ps[-2]
+    if rezp.startswith('s') and 'x' in rezp:
+        try:
+            x, y = rezp[1:].split('x')
+            return (int(x), int(y))
+        except Exception as e:
+            if verbose:
+                print((e, e.args))
+            pass

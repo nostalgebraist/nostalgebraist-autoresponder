@@ -537,8 +537,9 @@ class ResponseCache:
             gid = str(post_payload['genesis_post_id'])  # just in case, should be string
             pid = post_payload['id_string']
             if gid != pid:
+                entry_before = self.cache['genesis_id_to_published_id'].get(gid)
                 self.cache['genesis_id_to_published_id'][gid] = pid
-                if verbose:
+                if verbose and (entry_before != pid):
                     print(f"recorded genesis id {gid} --> pub id {pid}")
 
     def mark_dash_post_judgments(

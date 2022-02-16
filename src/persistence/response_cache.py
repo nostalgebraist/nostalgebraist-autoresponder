@@ -74,6 +74,9 @@ class ResponseCache:
         if "user_input_response_post_ids" not in self.cache:
             self.cache["user_input_response_post_ids"] = {}
 
+        if "genesis_id_to_published_id" not in self.cache:
+            self.cache["genesis_id_to_published_id"] = {}
+
     @staticmethod
     def load(client=None,
              path=f"data/response_cache.pkl.gz",
@@ -166,6 +169,8 @@ class ResponseCache:
         for response_core in response["posts"]:
             identifier = PostIdentifier(response_core["blog_name"], response_core["id"])
             post_payload = {k: v for k, v in response_core.items() if k != "notes"}
+
+            self.record_genesis_id(post_payload)
 
             notes = self.normalized_lookup(CachedResponseType.NOTES, identifier)
             if notes is None:
@@ -527,6 +532,15 @@ class ResponseCache:
         )
         return self.cache["user_input_response_post_ids"].get(identifier_normalized)
 
+    def record_genesis_id(self, post_payload: dict, verbose=True):
+        if 'genesis_post_id' in post_payload and 'id_string' in post_payload:
+            gid = str(post_payload['genesis_post_id'])  # just in case, should be string
+            pid = post_payload['id_string']
+            if gid != pid:
+                self.cache['genesis_id_to_published_id'][gid] = pid
+                if verbose:
+                    print(f"recorded genesis id {gid} --> pub id {pid}")
+
     def mark_dash_post_judgments(
         self, identifier: PostIdentifier, judgments: dict
     ):
@@ -666,3 +680,7 @@ class ResponseCache:
     @property
     def user_input_response_post_ids(self):
         return self.cache["user_input_response_post_ids"]
+
+    @property
+    def genesis_id_to_published_id(self):
+        return self.cache["genesis_id_to_published_id"]

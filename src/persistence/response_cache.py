@@ -71,6 +71,9 @@ class ResponseCache:
         if "following_names" not in self.cache:
             self.cache["following_names"] = set()
 
+        if "user_input_response_post_ids" not in self.cache:
+            self.cache["user_input_response_post_ids"] = {}
+
     @staticmethod
     def load(client=None,
              path=f"data/response_cache.pkl.gz",
@@ -502,6 +505,28 @@ class ResponseCache:
         )
         return self.cache["user_input_sentiments"].get(identifier_normalized)
 
+    def mark_user_input_response_post_id(self, identifier: UserInputIdentifier, post_id: str, verbose=True):
+        post_id = str(post_id)  # just to make sure
+
+        identifier_normalized = UserInputIdentifier(
+            input_type=identifier.input_type,
+            blog_name=identifier.blog_name,
+            id_=str(identifier.id_) if identifier.id_ is not None else None,
+            timestamp=identifier.timestamp,
+        )
+        self.cache["user_input_response_post_ids"][identifier] = post_id
+        if verbose:
+            print(f"marked post_id {post_id} as response to {identifier}")
+
+    def get_user_input_response_post_id(self, identifier: UserInputIdentifier, post_id: str):
+        identifier_normalized = UserInputIdentifier(
+            input_type=identifier.input_type,
+            blog_name=identifier.blog_name,
+            id_=str(identifier.id_) if identifier.id_ is not None else None,
+            timestamp=identifier.timestamp,
+        )
+        return self.cache["user_input_response_post_ids"].get(identifier_normalized)
+
     def mark_dash_post_judgments(
         self, identifier: PostIdentifier, judgments: dict
     ):
@@ -608,6 +633,8 @@ class ResponseCache:
         self.cache["following_names"].remove(name)
         dashboard_client.unfollow(name)
 
+    # TODO (?): these properties should return immutable things probably
+    # (though that is the least of this class's problems)
     @property
     def reblogs_handled(self):
         return self.cache["reblogs_handled"]
@@ -635,3 +662,7 @@ class ResponseCache:
     @property
     def following_names(self):
         return self.cache["following_names"]
+
+    @property
+    def user_input_response_post_ids(self):
+        return self.cache["user_input_response_post_ids"]

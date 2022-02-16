@@ -961,6 +961,8 @@ def respond_to_reblogs_replies(
             guidance_scale=random.choice(GUIDANCE_SCALE_OPTIONS),  # for selector, may not be the actual one we'll use
         )
 
+        user_input_identifier = None
+
         if (
             SAVE_USER_INPUT_SENTIMENTS
             and (REPLY_RELEVANCE_V2 or (not is_reply))
@@ -1111,7 +1113,7 @@ def respond_to_reblogs_replies(
                     ]["reply_text"],
                 )
                 to_drafts = HALLOWEEN_2K20_BEHAVIOR_TESTING
-                make_text_post(
+                api_response = make_text_post(
                     blogName,
                     post_specifier["post"],
                     reply_prefix=mocked_up + "\n",
@@ -1124,6 +1126,10 @@ def respond_to_reblogs_replies(
                     autoreview_proba=post_specifier["autoreview_proba"],
                     reject_action="rts"
                 )
+                response_cache.mark_user_input_response_post_id(
+                    user_input_identifier, api_response['id_string']
+                )
+
         elif okay_to_reply:
             for i, post_specifier in enumerate(post_specifiers_from_gpt2):
                 if i > 0:
@@ -1156,7 +1162,7 @@ def respond_to_reblogs_replies(
                 print(f"using screener_question: {repr(screener_question)}")
 
                 to_drafts = HALLOWEEN_2K20_BEHAVIOR_TESTING
-                answer_ask(
+                api_response = answer_ask(
                     blogName,
                     ask_id=reblog_identifier.id_,
                     asking_name=reblog_identifier.blog_name,
@@ -1170,6 +1176,10 @@ def respond_to_reblogs_replies(
                     autoreview_proba=post_specifier["autoreview_proba"],
                     reject_action="rts" if is_user_input else "do_not_post",
                 )
+                if is_user_input and (user_input_identifier is not None):
+                    response_cache.mark_user_input_response_post_id(
+                        user_input_identifier, api_response['id_string']
+                    )
 
         if is_reply:
             if not HALLOWEEN_2K20_BEHAVIOR_TESTING:
@@ -2549,7 +2559,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
             log_data["post_type"] = "ask"
             log_data["input_ident"] = (post_payload["id"], post_payload["asking_name"])
             log_data["question"] = question
-            answer_ask(
+            api_response = answer_ask(
                 blogName,
                 ask_id=post_payload["id"],
                 asking_name=post_payload["asking_name"],
@@ -2559,6 +2569,9 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 log_data=log_data,
                 autoreview_proba=gpt2_output["autoreview_proba"],
                 reject_action="rts",
+            )
+            response_cache.mark_user_input_response_post_id(
+                user_input_identifier, api_response['id_string']
             )
     return loop_persistent_data, response_cache, n_asks
 

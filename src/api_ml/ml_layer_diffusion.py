@@ -28,10 +28,10 @@ timestep_respacing_sres1 = '90,60,60,20,20'
 timestep_respacing_sres2 = '250'
 
 DIFFUSION_DEFAULTS = dict(
-    batch_size=2,
-    n_samples=2,
+    batch_size=4,
+    n_samples=4,
     delete_under=-1,
-    keep_only_if_above=0.9,
+    keep_only_if_above=2,
     truncate_length=380,
     threshold=65,
     clf_free_guidance=True,

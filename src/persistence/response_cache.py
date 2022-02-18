@@ -523,9 +523,9 @@ class ResponseCache:
             id_=str(identifier.id_) if identifier.id_ is not None else None,
             timestamp=identifier.timestamp,
         )
-        self.cache["user_input_response_post_ids"][identifier] = post_id
+        self.cache["user_input_response_post_ids"][identifier_normalized] = post_id
         if verbose:
-            print(f"marked post_id {post_id} as response to {identifier}")
+            print(f"marked post_id {post_id} as response to {identifier_normalized}")
         if post_id_is_genesis:
             self.record_post_id_as_genesis(post_id, verbose=verbose)
 

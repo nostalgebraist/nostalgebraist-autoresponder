@@ -317,7 +317,7 @@ def compute_dynamic_mood_inputs(
     df = pd.DataFrame.from_records(
         [
             {
-                "timestamp": ident.timestamp,
+                "timestamp": ident.timestamp,  # TODO: distinguish ts of input sent vs. ts of bot seeing and responding
                 "blog_name": ident.blog_name,
                 "logit_diff": sent["logit_diff"],
                 "generated_logit_diff": sent.get("generated_logit_diff")

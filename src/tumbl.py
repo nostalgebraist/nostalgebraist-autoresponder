@@ -2376,7 +2376,8 @@ def handle_mood_command(response_cache, post_payload):
     print(f"use_mood_graph_links: {use_mood_graph_links}")
 
     if use_mood_graph_links:
-        caption_segments.append(make_mood_graph_links_section(response_cache, start_time, now))
+        with LogExceptionAndSkip('making mood graph links'):
+            caption_segments.append(make_mood_graph_links_section(response_cache, start_time, now))
 
     caption_segments.append(
         MOOD_GRAPH_EXPLAINER_STRING_SUFFIX.format(

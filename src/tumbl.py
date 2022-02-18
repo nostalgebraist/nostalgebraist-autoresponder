@@ -148,7 +148,7 @@ MOOD_GRAPH_EXPLAINER_STRING_PART1 = """<p>This is a graph of my mood over the la
 MOOD_GRAPH_EXPLAINER_STRING_SUFFIX = """<p>I posted this graph by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. To request a graph at any time, send an ask with the text "!mood".</p>"""
 
 MOOD_GRAPH_LINKS = True
-MOOD_GRAPH_LINKS_TESTING = True
+MOOD_GRAPH_LINKS_TESTING = False
 
 if datetime(2020, 7, 13) < now_pst() < datetime(2020, 7, 21):
     MOOD_GRAPH_EXPLAINER_STRING_SUFFIX += """<p><i>(NOTE: Mood graphs now look a little different than they used to.  The same variable is plotted, but it has been scaled to give more space to the top and bottom of the range, and less space to the middle.</i></p><p><i>This message will vanish on 7/21/20.)</i></p>"""

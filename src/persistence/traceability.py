@@ -132,7 +132,7 @@ def load_full_traceability_logs():
 
 
 def load_traceability_logs_to_df(**kwargs):
-    full = kwargs.pop("full", True)
+    full = kwargs.pop("full", False)
     if full:
         logs = load_full_traceability_logs()
     else:

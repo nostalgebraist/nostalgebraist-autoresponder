@@ -2353,8 +2353,11 @@ def make_mood_graph_links_section(response_cache, start_time, end_time, n=5):
     input_type_names = {UserInputType.ASK: "an <b>ask</b>", UserInputType.REBLOG: "a <b>reblog</b>", UserInputType.REPLY: "a <b>reply</b>"}
 
     def render_item(uid):
-        link_title = f"<b>{uids_to_effects[uid]:+.2f}:</b> Responding to {input_type_names[uid.input_type]} from <b>{uid.blog_name}</b>"
-        return f"<li><a href=\"https://{blogName}.tumblr.com/post/{post_ids[uid]}\">{link_title}</a></li>"
+        before_link = f"<b>{uids_to_effects[uid]:+.2f}:</b> "
+        link_title = "Responding"
+        after_link = f"{input_type_names[uid.input_type]} from <b>{uid.blog_name}</b>"
+        # link_title = f"<b>{uids_to_effects[uid]:+.2f}:</b> Responding to {input_type_names[uid.input_type]} from <b>{uid.blog_name}</b>"
+        return f"<li>{before_link}<a href=\"https://{blogName}.tumblr.com/post/{post_ids[uid]}\">{link_title}</a>{after_link}</li>"
 
     best_prefix = f"""<p>The {n_best} interactions from the last {MOOD_GRAPH_DAYS_STRING} that had the biggest <b>positive</b> impacts on my mood were:</p>"""
 

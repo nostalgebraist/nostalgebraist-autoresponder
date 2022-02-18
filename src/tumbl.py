@@ -2322,6 +2322,31 @@ def handle_review_command(
     )
 
 
+def handle_mood_command(response_cache, post_payload):
+    path = create_mood_graph(
+        response_cache,
+        start_time=now_pst() - pd.Timedelta(days=MOOD_GRAPH_N_DAYS),
+        end_time=now_pst(),
+    )
+    state = "published"
+    if post_payload["asking_name"] == "nostalgebraist":
+        state = "draft"
+
+    caption = MOOD_GRAPH_EXPLAINER_STRING.format(
+        days_string=MOOD_GRAPH_DAYS_STRING,
+        asking_name=post_payload["asking_name"],
+        asking_url=post_payload["asking_url"],
+    )
+
+    client_pool.get_private_client().create_photo(
+        blogName,
+        state=state,
+        data=path,
+        caption=caption,
+    )
+    client_pool.get_private_client().delete_post(blogName, post_payload["id"])
+
+
 def do_ask_handling(loop_persistent_data, response_cache):
     submissions = client_pool.get_private_client().submission(blogName)["posts"]
 
@@ -2388,25 +2413,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 client_pool.get_private_client().delete_post(blogName, post_payload["id"])
                 print(f"unfollowed {post_payload['asking_name']}")
         elif post_payload.get("summary", "") == MOOD_GRAPH_COMMAND:
-            path = create_mood_graph(
-                response_cache,
-                start_time=now_pst() - pd.Timedelta(days=MOOD_GRAPH_N_DAYS),
-                end_time=now_pst(),
-            )
-            state = "published"
-            if post_payload["asking_name"] == "nostalgebraist":
-                state = "draft"
-            client_pool.get_private_client().create_photo(
-                blogName,
-                state=state,
-                data=path,
-                caption=MOOD_GRAPH_EXPLAINER_STRING.format(
-                    days_string=MOOD_GRAPH_DAYS_STRING,
-                    asking_name=post_payload["asking_name"],
-                    asking_url=post_payload["asking_url"],
-                ),
-            )
-            client_pool.get_private_client().delete_post(blogName, post_payload["id"])
+            handle_mood_command(response_cache, post_payload)
         elif post_payload.get("summary", "").startswith(REVIEW_COMMAND):
             with LogExceptionAndSkip("write review"):
                 thread = TumblrThread.from_payload(post_payload)

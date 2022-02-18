@@ -317,7 +317,7 @@ def compute_dynamic_mood_inputs(
     df = pd.DataFrame.from_records(
         [
             {
-                "timestamp": ident.timestamp,  # TODO: distinguish ts of input sent vs. ts of bot seeing and responding
+                "timestamp": ident.timestamp,
                 "blog_name": ident.blog_name,
                 "logit_diff": sent["logit_diff"],
                 "generated_logit_diff": sent.get("generated_logit_diff")
@@ -399,7 +399,6 @@ def get_unit_mood_effects_from_interval(response_cache: ResponseCache, start_tim
 
     # TODO: make this faster / less silly
     return {uid: get_unit_mood_inputs(response_cache, uid).scaled_determiner for uid in subset}
-
 
 
 def show_unit_mood_inputs(response_cache: ResponseCache, uii: UserInputIdentifier):

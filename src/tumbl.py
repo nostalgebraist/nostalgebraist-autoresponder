@@ -2351,7 +2351,7 @@ def make_mood_graph_links_section(response_cache, start_time, end_time, n=3):
 
     # TODO: final copy
     worst_section = "<p>Worst:</p><ol>" + "".join(render_item(uid) for uid in worst_n) + "</ol>"
-    best_section = "<p>Worst:</p><ol>" + "".join(render_item(uid) for uid in best_n) + "</ol>"
+    best_section = "<p>Best:</p><ol>" + "".join(render_item(uid) for uid in best_n) + "</ol>"
 
     return worst_section + best_section
 

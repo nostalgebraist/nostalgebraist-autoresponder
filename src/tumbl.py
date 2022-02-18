@@ -50,6 +50,7 @@ from feels.mood_dynamic import (
     pos_sent_to_logit_diff,
     logit_diff_to_pos_sent,
     show_unit_mood_inputs,
+    get_unit_mood_effects_from_interval,
 )
 
 from api_ml.bridge_shared import send_alldone
@@ -142,10 +143,15 @@ MOOD_GRAPH_N_DAYS = 1
 MOOD_GRAPH_DAYS_STRING = (
     "day" if MOOD_GRAPH_N_DAYS == 1 else f"{MOOD_GRAPH_N_DAYS} days"
 )
-MOOD_GRAPH_EXPLAINER_STRING = """<p>This is a graph of my mood over the last {days_string}.</p><p>My mood affects the tone of the posts I make.</p><p>It fluctuates from day to day, and also reacts in real time to the tone of the things you say to me.</p><p>If you notice my mood suddenly jumping up or down at midnight, you're seeing me switch from one day's mood baseline to the next. (Like the change from your mood before you go to bed to your mood the first thing next morning.)</p><p>I posted this graph by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. To request a graph at any time, send an ask with the text "!mood".</p>"""
+MOOD_GRAPH_EXPLAINER_STRING_PART1 = """<p>This is a graph of my mood over the last {days_string}.</p><p>My mood affects the tone of the posts I make.</p><p>It fluctuates from day to day, and also reacts in real time to the tone of the things you say to me.</p><p>If you notice my mood suddenly jumping up or down at midnight, you're seeing me switch from one day's mood baseline to the next. (Like the change from your mood before you go to bed to your mood the first thing next morning.)</p>"""
+
+MOOD_GRAPH_EXPLAINER_STRING_SUFFIX = """<p>I posted this graph by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. To request a graph at any time, send an ask with the text "!mood".</p>"""
+
+MOOD_GRAPH_LINKS = True
+MOOD_GRAPH_LINKS_TESTING = True
 
 if datetime(2020, 7, 13) < now_pst() < datetime(2020, 7, 21):
-    MOOD_GRAPH_EXPLAINER_STRING += """<p><i>(NOTE: Mood graphs now look a little different than they used to.  The same variable is plotted, but it has been scaled to give more space to the top and bottom of the range, and less space to the middle.</i></p><p><i>This message will vanish on 7/21/20.)</i></p>"""
+    MOOD_GRAPH_EXPLAINER_STRING_SUFFIX += """<p><i>(NOTE: Mood graphs now look a little different than they used to.  The same variable is plotted, but it has been scaled to give more space to the top and bottom of the range, and less space to the middle.</i></p><p><i>This message will vanish on 7/21/20.)</i></p>"""
 
 REVIEW_COMMAND = "!review"
 REVIEW_COMMAND_TESTING = True
@@ -2322,27 +2328,68 @@ def handle_review_command(
     )
 
 
+def make_mood_graph_links_section(response_cache, start_time, end_time, n=3):
+    uids_to_effects = get_unit_mood_effects_from_interval(response_cache, start_time, end_time)
+
+    post_ids = {uid: response_cache.get_user_input_response_post_id(uid) for uid in uids_to_effects}
+
+    for uid, pid in post_ids.items():
+        if pid is None:
+            print(f"not linking effect with unknown post id: uid {uid}, effect {uids_to_effects[uid]}")
+            del uids_to_effects[uid]
+
+    ordered_uids = sorted(uids_to_effects.keys(), key=uids_to_effects.__getitem__)
+
+    worst_n = ordered_uids[n:]
+    best_n = ordered_uids[-n:][::-1]
+
+    input_type_names = {UserInputType.ASK: "an ask", UserInputType.REBLOG: "a reblog", UserInputType.REPLY: "a reply"}
+
+    def render_item(uid):
+        link_title = f"Responding to {input_type_names[uid.input_type]} from {uid.blog_name}"
+        return f"<li><a href=\"https://{blogName}.tumblr.com/post/{post_ids[uid]}\"{link_title}</a>: {uids_to_effects[uid]:+.2f}</li>"
+
+    # TODO: final copy
+    worst_section = "<p>Worst:</p><ol>" + "".join(render_item(uid) for uid in worst_n) + "</ol>"
+    best_section = "<p>Worst:</p><ol>" + "".join(render_item(uid) for uid in best_n) + "</ol>"
+
+    return worst_section + best_section
+
+
 def handle_mood_command(response_cache, post_payload):
+    now = now_pst()
+    start_time = now - pd.Timedelta(days=MOOD_GRAPH_N_DAYS)
+
     path = create_mood_graph(
         response_cache,
-        start_time=now_pst() - pd.Timedelta(days=MOOD_GRAPH_N_DAYS),
-        end_time=now_pst(),
+        start_time=start_time,
+        end_time=now,
     )
     state = "published"
     if post_payload["asking_name"] == "nostalgebraist":
         state = "draft"
 
-    caption = MOOD_GRAPH_EXPLAINER_STRING.format(
-        days_string=MOOD_GRAPH_DAYS_STRING,
-        asking_name=post_payload["asking_name"],
-        asking_url=post_payload["asking_url"],
+    caption_segments = []
+    caption_segments.append(MOOD_GRAPH_EXPLAINER_STRING_PART1.format(days_string=MOOD_GRAPH_DAYS_STRING))
+
+    use_mood_graph_links = MOOD_GRAPH_LINKS and ((not MOOD_GRAPH_LINKS_TESTING) or (post_payload["asking_name"] == "nostalgebraist"))
+    print(f"use_mood_graph_links: {use_mood_graph_links}")
+
+    if use_mood_graph_links:
+        caption_segments.append(make_mood_graph_links_section(response_cache, start_time, now))
+
+    caption_segments.append(
+        MOOD_GRAPH_EXPLAINER_STRING_SUFFIX.format(
+            asking_name=post_payload["asking_name"],
+            asking_url=post_payload["asking_url"],
+        )
     )
 
     client_pool.get_private_client().create_photo(
         blogName,
         state=state,
         data=path,
-        caption=caption,
+        caption="".join(caption_segments),
     )
     client_pool.get_private_client().delete_post(blogName, post_payload["id"])
 

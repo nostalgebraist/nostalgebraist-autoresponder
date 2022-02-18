@@ -537,7 +537,7 @@ class ResponseCache:
             timestamp=identifier.timestamp,
         )
         pid = self.cache["user_input_response_post_ids"].get(identifier_normalized)
-        if map_genesis_ids:
+        if map_genesis_ids and pid is not None:
             mapped = self.cache['genesis_id_to_published_id'].get(pid)
             if mapped is not None:  # guards against both not-found and None-value
                 pid = mapped

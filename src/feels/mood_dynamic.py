@@ -388,6 +388,20 @@ def get_unit_mood_inputs(response_cache: ResponseCache, uii: UserInputIdentifier
     return umi
 
 
+def get_unit_mood_effects_from_interval(response_cache: ResponseCache, start_time: datetime, end_time: datetime):
+    start_ts = start_time.timestamp()
+    end_ts = end_ts.timestamp()
+
+    subset = {
+        uid for uid in response_cache.user_input_sentiments
+        if start_ts < uid.timestamp < end_ts
+    }
+
+    # TODO: make this faster / less silly
+    return {uid: get_unit_mood_inputs(response_cache, uid).scaled_determiner for uid in subset}
+
+
+
 def show_unit_mood_inputs(response_cache: ResponseCache, uii: UserInputIdentifier):
     umi = get_unit_mood_inputs(response_cache, uii)
     print(f"mood inputs/effects:")

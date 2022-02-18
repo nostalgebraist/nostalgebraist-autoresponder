@@ -529,14 +529,19 @@ class ResponseCache:
         if post_id_is_genesis:
             self.record_post_id_as_genesis(post_id, verbose=verbose)
 
-    def get_user_input_response_post_id(self, identifier: UserInputIdentifier, post_id: str):
+    def get_user_input_response_post_id(self, identifier: UserInputIdentifier, post_id: str, map_genesis_ids=True):
         identifier_normalized = UserInputIdentifier(
             input_type=identifier.input_type,
             blog_name=identifier.blog_name,
             id_=str(identifier.id_) if identifier.id_ is not None else None,
             timestamp=identifier.timestamp,
         )
-        return self.cache["user_input_response_post_ids"].get(identifier_normalized)
+        pid = self.cache["user_input_response_post_ids"].get(identifier_normalized)
+        if map_genesis_ids:
+            mapped = self.cache['genesis_id_to_published_id'].get(pid)
+            if mapped is not None:  # guards against both not-found and None-value
+                pid = mapped
+        return pid
 
     def record_post_id_as_genesis(self, post_id: str, verbose=True):
         """marks post_id as a genesis id, whose pub id will need to be fetched later"""
@@ -555,6 +560,20 @@ class ResponseCache:
                 self.cache['genesis_id_to_published_id'][gid] = pid
                 if verbose and (entry_before != pid):
                     print(f"recorded genesis id {gid} --> pub id {pid}")
+
+    def published_post_id(self, uid: UserInputIdentifier):
+
+        gid_to_pid = self.cache['genesis_id_to_published_id']
+        unks = [gid for gid in gid_to_pid if gid_to_pid[gid] is None]
+
+        n_unks = len(unks)
+        if n_unks > max_n:
+            print(f"sync_genesis_ids: {n_unks} need fetching but max_n is {max_n}, only fetching that many")
+        unks = sorted(unks)[-max_n:]
+
+        for
+
+    def resolve_post_ids_for
 
     def mark_dash_post_judgments(
         self, identifier: PostIdentifier, judgments: dict

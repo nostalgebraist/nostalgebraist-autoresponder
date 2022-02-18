@@ -2347,7 +2347,7 @@ def make_mood_graph_links_section(response_cache, start_time, end_time, n=3):
 
     def render_item(uid):
         link_title = f"Responding to {input_type_names[uid.input_type]} from {uid.blog_name}"
-        return f"<li><a href=\"https://{blogName}.tumblr.com/post/{post_ids[uid]}\"{link_title}</a>: {uids_to_effects[uid]:+.2f}</li>"
+        return f"<li><a href=\"https://{blogName}.tumblr.com/post/{post_ids[uid]}\">{link_title}</a>: {uids_to_effects[uid]:+.2f}</li>"
 
     # TODO: final copy
     worst_section = "<p>Worst:</p><ol>" + "".join(render_item(uid) for uid in worst_n) + "</ol>"

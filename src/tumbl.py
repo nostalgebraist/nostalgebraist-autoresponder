@@ -2328,7 +2328,7 @@ def handle_review_command(
     )
 
 
-def make_mood_graph_links_section(response_cache, start_time, end_time, n=3):
+def make_mood_graph_links_section(response_cache, start_time, end_time, n=5):
     uids_to_effects = get_unit_mood_effects_from_interval(response_cache, start_time, end_time)
 
     post_ids = {uid: response_cache.get_user_input_response_post_id(uid) for uid in uids_to_effects}

@@ -561,20 +561,6 @@ class ResponseCache:
                 if verbose and (entry_before != pid):
                     print(f"recorded genesis id {gid} --> pub id {pid}")
 
-    def published_post_id(self, uid: UserInputIdentifier):
-
-        gid_to_pid = self.cache['genesis_id_to_published_id']
-        unks = [gid for gid in gid_to_pid if gid_to_pid[gid] is None]
-
-        n_unks = len(unks)
-        if n_unks > max_n:
-            print(f"sync_genesis_ids: {n_unks} need fetching but max_n is {max_n}, only fetching that many")
-        unks = sorted(unks)[-max_n:]
-
-        for
-
-    def resolve_post_ids_for
-
     def mark_dash_post_judgments(
         self, identifier: PostIdentifier, judgments: dict
     ):

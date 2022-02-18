@@ -173,7 +173,7 @@ def run_pipeline(
         best_lowres = image_array_lowres[amax]
 
         if to_pil_image:
-            best = Image.fromarray(best)
+            best_lowres = Image.fromarray(best_lowres)
 
         return best, best_lowres
 

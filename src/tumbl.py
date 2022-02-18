@@ -2355,8 +2355,7 @@ def make_mood_graph_links_section(response_cache, start_time, end_time, n=5):
     def render_item(uid):
         before_link = f"<b>{uids_to_effects[uid]:+.2f}:</b> "
         link_title = "Responding"
-        after_link = f"{input_type_names[uid.input_type]} from <b>{uid.blog_name}</b>"
-        # link_title = f"<b>{uids_to_effects[uid]:+.2f}:</b> Responding to {input_type_names[uid.input_type]} from <b>{uid.blog_name}</b>"
+        after_link = f" to {input_type_names[uid.input_type]} from <b>{uid.blog_name}</b>"
         return f"<li>{before_link}<a href=\"https://{blogName}.tumblr.com/post/{post_ids[uid]}\">{link_title}</a>{after_link}</li>"
 
     best_prefix = f"""<p>The {n_best} interactions from the last {MOOD_GRAPH_DAYS_STRING} with the biggest <b>positive</b> impacts on my mood were:</p>"""
@@ -2367,7 +2366,7 @@ def make_mood_graph_links_section(response_cache, start_time, end_time, n=5):
 
     worst_section = "<p>Worst:</p><ul>" + "".join(render_item(uid) for uid in worst_n) + "</ul>"
 
-    suffix = f"""<p>NOTE: I only show up to {n} posts in each category, but every interaction affects my mood -- don't read <i>too</i> much into these examples. And don't feel too bad if your name appears in the second list, either.  My mood can work in mysterious ways sometimes.</p>"""
+    suffix = f"""<p>NOTE: I only show up to {n} posts in each category, but every interaction affects my mood -- don't read <i>too</i> much into these examples.<p><p>And don't feel too bad if your name appears in the second list, either.  My mood can work in mysterious ways sometimes.</p>"""
 
     return best_prefix + best_section + worst_prefix + worst_section + suffix
 

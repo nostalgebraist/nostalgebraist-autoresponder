@@ -2340,7 +2340,7 @@ def make_mood_graph_links_section(response_cache, start_time, end_time, n=3):
 
     ordered_uids = sorted(uids_to_effects.keys(), key=uids_to_effects.__getitem__)
 
-    worst_n = ordered_uids[n:]
+    worst_n = ordered_uids[:n]
     best_n = ordered_uids[-n:][::-1]
 
     input_type_names = {UserInputType.ASK: "an ask", UserInputType.REBLOG: "a reblog", UserInputType.REPLY: "a reply"}

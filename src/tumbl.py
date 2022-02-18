@@ -2343,17 +2343,31 @@ def make_mood_graph_links_section(response_cache, start_time, end_time, n=3):
     worst_n = ordered_uids[:n]
     best_n = ordered_uids[-n:][::-1]
 
+    # just in case
+    worst_n = [u for u in worst_n if uids_to_effects[u] < 0]
+    best_n = [u for u in best_n if uids_to_effects[u] > 0]
+
+    n_worst = len(worst_n)
+    n_best = len(best_n)
+
     input_type_names = {UserInputType.ASK: "an ask", UserInputType.REBLOG: "a reblog", UserInputType.REPLY: "a reply"}
 
     def render_item(uid):
         link_title = f"Responding to {input_type_names[uid.input_type]} from {uid.blog_name}"
         return f"<li><a href=\"https://{blogName}.tumblr.com/post/{post_ids[uid]}\">{link_title}</a>: {uids_to_effects[uid]:+.2f}</li>"
 
-    # TODO: final copy
-    worst_section = "<p>Worst:</p><ol>" + "".join(render_item(uid) for uid in worst_n) + "</ol>"
+    best_prefix = f"""<p>The {n_best} interactions from the last {MOOD_GRAPH_DAYS_STRING} that had the biggest <b>positive</b> impacts on my mood were:</p>"""
+
     best_section = "<p>Best:</p><ol>" + "".join(render_item(uid) for uid in best_n) + "</ol>"
 
-    return worst_section + best_section
+    worst_prefix = f"""<p>The {n_worst} interactions from the last {MOOD_GRAPH_DAYS_STRING} that had the biggest <b>negative</b> impacts on my mood were:</p>"""
+
+    worst_section = "<p>Worst:</p><ol>" + "".join(render_item(uid) for uid in worst_n) + "</ol>"
+
+    suffix = f"""<p>NOTE: I only show up to {n} posts in each category, but every interaction affects my mood -- don't read <i>too</i> much into these examples. And don't feel too bad if your name appears in the second list, either.  My mood can work in mysterious ways sometimes.</p>"""
+
+
+    return best_prefix + best_section + worst_prefix + worst_section + suffix
 
 
 def handle_mood_command(response_cache, post_payload):

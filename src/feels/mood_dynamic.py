@@ -390,7 +390,7 @@ def get_unit_mood_inputs(response_cache: ResponseCache, uii: UserInputIdentifier
 
 def get_unit_mood_effects_from_interval(response_cache: ResponseCache, start_time: datetime, end_time: datetime):
     start_ts = start_time.timestamp()
-    end_ts = end_ts.timestamp()
+    end_ts = end_time.timestamp()
 
     subset = {
         uid for uid in response_cache.user_input_sentiments

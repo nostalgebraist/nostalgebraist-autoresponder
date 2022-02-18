@@ -529,7 +529,7 @@ class ResponseCache:
         if post_id_is_genesis:
             self.record_post_id_as_genesis(post_id, verbose=verbose)
 
-    def get_user_input_response_post_id(self, identifier: UserInputIdentifier, post_id: str, map_genesis_ids=True):
+    def get_user_input_response_post_id(self, identifier: UserInputIdentifier, map_genesis_ids=True):
         identifier_normalized = UserInputIdentifier(
             input_type=identifier.input_type,
             blog_name=identifier.blog_name,

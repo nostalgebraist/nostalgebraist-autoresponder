@@ -109,7 +109,7 @@ def select_best(image_array, gold, N=3, verbose=True):
     if verbose:
         print(f"picked {amax} with sim {sims[amax]}, text {texts[amax]}")
 
-    return image_array[amax]
+    return image_array[amax], amax
 
 
 def run_pipeline(
@@ -132,6 +132,7 @@ def run_pipeline(
     keep_only_if_above=0.95,
     to_pil_image=True,
     truncate_length=None,
+    return_both_resolutions=False,
 ):
     if truncate_length:
         prompt = prompt[:truncate_length]
@@ -157,9 +158,23 @@ def run_pipeline(
         txt_drop_string=txt_drop_string,
         clf_free_guidance_sres=clf_free_guidance_sres,
         guidance_scale_sres=guidance_scale_sres,
+        return_both_resolutions=return_both_resolutions
     )
 
-    best = select_best(image_array, prompt)
+    if return_both_resolutions:
+        image_array, image_array_lowres = image_array
+
+    best, amax = select_best(image_array, prompt)
+
     if to_pil_image:
         best = Image.fromarray(best)
+
+    if return_both_resolutions:
+        best_lowres = image_array_lowres[amax]
+
+        if to_pil_image:
+            best = Image.fromarray(best)
+
+        return best, best_lowres
+
     return best

@@ -791,6 +791,7 @@ class LoopPersistentData:
         apriori_requests_per_check=25,
         retention_stack: set = set(),
         slowdown_level: dict = BASE_SLOWDOWN_LEVEL,
+        manual_ask_post_ids: set = set(),
     ):
         self.reblogs_from_me = reblogs_from_me
         self.reblog_worthy_dash_posts = reblog_worthy_dash_posts
@@ -805,6 +806,7 @@ class LoopPersistentData:
         self.apriori_requests_per_check = apriori_requests_per_check
         self.retention_stack = retention_stack
         self.slowdown_level = slowdown_level
+        self.manual_ask_post_ids = manual_ask_post_ids
 
         if len(self.requests_per_check_history) == 0:
             self.requests_per_check_history.extend(
@@ -2413,6 +2415,13 @@ def handle_mood_command(response_cache, post_payload):
 def do_ask_handling(loop_persistent_data, response_cache):
     submissions = client_pool.get_private_client().submission(blogName)["posts"]
 
+    for pid in loop_persistent_data.manual_ask_post_ids:
+        response = client_pool.get_private_client().posts(blogName, id=pid)
+        if "posts" in response:
+            submissions.extend(response["posts"])
+        else:
+            print(f"manual_ask_post_ids: couldn't find {pid}!")
+
     n_asks = len(submissions)
     print(f"processing {n_asks} asks")
     print()
@@ -2477,6 +2486,12 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 print(f"unfollowed {post_payload['asking_name']}")
         elif post_payload.get("summary", "") == MOOD_GRAPH_COMMAND:
             handle_mood_command(response_cache, post_payload)
+        elif post_payload['asking_name'] == 'nostalgebraist' and post_payload.get("summary", "").startswith('!pid'):
+            with LogExceptionAndSkip("add manual ask id"):
+                pid = post_payload['summary'].split(' ')[-1]
+                print(f'adding manual ask id {repr(pid)}')
+                loop_persistent_data.manual_ask_post_ids.add(pid)
+                client_pool.get_private_client().delete_post(blogName, post_payload["id"])
         elif post_payload.get("summary", "").startswith(REVIEW_COMMAND):
             with LogExceptionAndSkip("write review"):
                 thread = TumblrThread.from_payload(post_payload)
@@ -2646,6 +2661,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 user_input_identifier, api_response['id_string'],
                 post_id_is_genesis=(log_data['requested__state'] != 'published')
             )
+            if post_payload["id"] in loop_persistent_data.manual_ask_post_ids:
+                loop_persistent_data.manual_ask_post_ids.remove(post_payload["id"])
     return loop_persistent_data, response_cache, n_asks
 
 

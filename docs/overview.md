@@ -17,7 +17,7 @@ The rest of the codebase exists to implement a wide variety of functionality whi
 The code is designed to spread tasks across several machines.  Specifically, running the bot involves:
 
 - A **main machine**.  This machine is responsible for running the main loop, making tumblr API requests, various lightweight tasks, and data persistence.
-- One ore more **ML machines**.  These are responsible for running tasks that need a GPU to achieve reasonable performance.  Here, that means running machine learning models.
+- One or more **ML machines**.  These are responsible for running tasks that need a GPU to achieve reasonable performance.  Here, that means running machine learning models.
 
 The main machine has a small compute footprint, and can run on a very cheap cloud computer.  (For a long time, it ran on my laptop.)  This means we can rely on it to have a static IP.
 

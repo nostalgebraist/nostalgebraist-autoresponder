@@ -30,8 +30,8 @@ DREAMS_COLDSTART = False
 
 FIC_COLDSTART_DELTA = 0.05
 REVIEW_COLDSTART_DELTA = 0.05
-IMAGE_COLDSTART_DELTA = 0.35  # !
-GIF_COLDSTART_DELTA = -0.2 - (IMAGE_COLDSTART * IMAGE_COLDSTART_DELTA)
+IMAGE_COLDSTART_DELTA = 0.4  # !
+GIF_COLDSTART_DELTA = -0.3 - (IMAGE_COLDSTART * IMAGE_COLDSTART_DELTA)
 QUOTES_COLDSTART_DELTA = -0.25
 DREAMS_COLDSTART_DELTA = 0.15
 
@@ -229,7 +229,7 @@ do_image_coldstart = partial(
     do_coldstart, substring=IMAGE_DELIMITER_WHITESPACED, delta=IMAGE_COLDSTART_DELTA
 )
 do_gif_coldstart = partial(
-    do_coldstart, substring="[Animated GIF]" + IMAGE_DELIMITER_WHITESPACED, delta=GIF_COLDSTART_DELTA
+    do_coldstart, substring="[Animated GIF]", delta=GIF_COLDSTART_DELTA
 )
 do_quotes_coldstart = partial(
     do_coldstart, substring="#quotes", delta=QUOTES_COLDSTART_DELTA

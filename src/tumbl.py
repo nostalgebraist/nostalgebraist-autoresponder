@@ -410,6 +410,9 @@ def autopublish_screener(
         for s in okay_superstrings:
             review_string = review_string.replace(s, "")
     bad_strings = {s for s in bad_strings_base}
+    bad_strings.update(hardstop_strings_review)
+    bad_strings.update(hardstop_strings_reject)
+
     if profanity_strictness:
         bad_strings.update(profane_strings)
     for short_word in bad_strings_shortwords:

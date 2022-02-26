@@ -2446,12 +2446,6 @@ def do_ask_handling(loop_persistent_data, response_cache):
             submissions_.append(post_payload)
     submissions = submissions_
 
-    submissions = [
-        post_payload
-        for post_payload in submissions
-        if roll_for_limited_users(post_payload["asking_name"], text=post_payload["question"])
-    ]
-
     blog_names_to_asks = defaultdict(list)
     for r in submissions[::-1]:
         blog_names_to_asks[r["asking_name"]].append(r)
@@ -2462,6 +2456,12 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 f"\t * user equity rule*: saving {r['asking_name']}, question={r['question']} for later..."
             )
             submissions.remove(r)
+
+    submissions = [
+        post_payload
+        for post_payload in submissions
+        if roll_for_limited_users(post_payload["asking_name"], text=post_payload["question"])
+    ]
 
     max_posts_per_step_with_slowdown = max_posts_per_step(loop_persistent_data.slowdown_level)
     kept = submissions[-max_posts_per_step_with_slowdown:]

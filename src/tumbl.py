@@ -2660,10 +2660,11 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 autoreview_proba=gpt2_output["autoreview_proba"],
                 reject_action="rts",
             )
-            response_cache.mark_user_input_response_post_id(
-                user_input_identifier, api_response['id_string'],
-                post_id_is_genesis=(log_data['requested__state'] != 'published')
-            )
+            with LogExceptionAndSkip('mark_user_input_response_post_id'):
+                response_cache.mark_user_input_response_post_id(
+                    user_input_identifier, api_response['id_string'],
+                    post_id_is_genesis=(log_data['requested__state'] != 'published')
+                )
             if post_payload["id"] in loop_persistent_data.manual_ask_post_ids:
                 loop_persistent_data.manual_ask_post_ids.remove(post_payload["id"])
     return loop_persistent_data, response_cache, n_asks

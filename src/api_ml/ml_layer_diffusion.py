@@ -25,8 +25,8 @@ BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 # timestep_respacing_sres1 = '90,60,60,20,20'
-timestep_respacing_sres1 = '150'
-timestep_respacing_sres2 = '100'
+timestep_respacing_sres1 = '250'
+timestep_respacing_sres2 = '250'
 
 DIFFUSION_DEFAULTS = dict(
     batch_size=2,

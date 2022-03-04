@@ -133,6 +133,8 @@ def run_pipeline(
     to_pil_image=True,
     truncate_length=None,
     return_both_resolutions=False,
+    use_plms=False,
+    use_plms_sres=False
 ):
     if truncate_length:
         prompt = prompt[:truncate_length]
@@ -158,7 +160,9 @@ def run_pipeline(
         txt_drop_string=txt_drop_string,
         clf_free_guidance_sres=clf_free_guidance_sres,
         guidance_scale_sres=guidance_scale_sres,
-        return_both_resolutions=return_both_resolutions
+        return_both_resolutions=return_both_resolutions,
+        use_plms=use_plms,
+        use_plms_sres=use_plms_sres,
     )
 
     if return_both_resolutions:

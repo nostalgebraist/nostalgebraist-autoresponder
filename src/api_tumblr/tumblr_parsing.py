@@ -1,3 +1,4 @@
+import html as html_lib
 from typing import List, Optional, Tuple
 from collections import defaultdict
 from itertools import zip_longest
@@ -140,7 +141,7 @@ class NPFTextBlock(NPFBlock):
 
         for ix1, ix2 in zip_longest(split_ixs, split_ixs[1:], fillvalue=split_ixs[-1]):
             accum.extend(insert_ix_to_inserted_text[ix1])
-            accum.append(self.text[ix1:ix2])
+            accum.append(html_lib.escape(self.text[ix1:ix2]))
 
         return "".join(accum)
 

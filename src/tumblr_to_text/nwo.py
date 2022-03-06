@@ -1,5 +1,6 @@
-from typing import Tuple, List, Union
 import re
+import html as html_lib
+from typing import Tuple, List, Union
 
 from api_tumblr.tumblr_parsing import NPFAsk, TumblrPost, TumblrThread
 
@@ -198,7 +199,6 @@ def format_and_normalize_post_html(content):
         "post_info_link",
         "tumblelog",
     }
-
     def _strip_no_href_classes(m):
         if any([c in m.group(1) for c in no_href_classes]):
             return m.group(2)
@@ -244,6 +244,9 @@ def format_and_normalize_post_html(content):
 
     # apply OCR and replaces <img> and <figure> tags with text from the image
     content = find_images_and_sub_text(content)
+
+    # undo html escapes now that tag munging is complete
+    content = html_lib.unescape(content)
 
     # the following lines make whitespace tweaks to match quirks of the previous implementation
 

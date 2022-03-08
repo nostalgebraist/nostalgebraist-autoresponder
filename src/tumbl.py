@@ -2451,6 +2451,16 @@ def do_ask_handling(loop_persistent_data, response_cache):
         blog_names_to_asks[r["asking_name"]].append(r)
 
     for bn, rs in blog_names_to_asks.items():
+        if len(rs) > 2:
+            r = random.choice(rs)
+            print(
+                f"\t * ask spam rule*: deleting {r['asking_name']}, id={r['id']} question={r['question']}"
+            )
+            client_pool.get_private_client().delete_post(blogName, id=r['id'])
+            rs.remove(r)
+            submissions.remove(r)
+
+    for bn, rs in blog_names_to_asks.items():
         for r in rs[1:]:
             print(
                 f"\t * user equity rule*: saving {r['asking_name']}, question={r['question']} for later..."

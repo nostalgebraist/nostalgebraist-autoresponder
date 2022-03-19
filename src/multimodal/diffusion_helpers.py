@@ -70,7 +70,7 @@ def read_and_prune(
     keep_only_if_above=0.95,
 ):
     if verbose:
-        print(f"using delete_under={delete_under} | keep_only_if_above={keep_only_if_above}")
+        print(f"len(image_array)={len(image_array)} | using delete_under={delete_under} | keep_only_if_above={keep_only_if_above}")
     texts, sims = read_and_get_ngram_similarity(
         image_array, gold, N=N, verbose=verbose, threshold=threshold
     )

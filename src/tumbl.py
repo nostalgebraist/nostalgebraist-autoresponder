@@ -2202,6 +2202,10 @@ def do_reblog_reply_handling(
         blog_names_to_idents[ident.blog_name].append(ident)
 
     if not is_dashboard:
+        # todo: avoid globals
+        global LIMITED_USERS
+        global LIMITED_USERS_PROBS
+        global bot_specific_constants
         for bn, idents in blog_names_to_idents.items():
             if len(idents) > 8 and bn not in LIMITED_USERS:
                 print(f"adding {bn} to LIMITED_USERS with {len(idents)} unhandled reblogs")

@@ -720,14 +720,17 @@ def answer_ask(
         presub_answer = answer
 
         guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS)
-        answer, images_were_created = find_text_images_and_sub_real_images(
+        anti_guidance_scale = random.choice(ANTI_GUIDANCE_SCALE_OPTIONS)
+        answer, images_were_created, regular_guidance_used, anti_guidance_used = find_text_images_and_sub_real_images(
             answer,
             client_pool.get_private_client(),
             blogname,
             verbose=True, # IMAGE_CREATION_TESTING,
             use_diffusion=IMAGE_CREATION_DIFFUSION,
             guidance_scale=guidance_scale,
-            guidance_scale_sres=guidance_scale
+            guidance_scale_sres=guidance_scale,
+            use_anti_guidance=ANTI_GUIDANCE,
+            anti_guidance_scale=anti_guidance_scale
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state = "draft"
@@ -738,7 +741,12 @@ def answer_ask(
         if images_were_created:
             tags = [t for t in tags if t != "computer generated image"]
             tags.append("computer generated image")
-            tags.append(f"guidance scale {guidance_scale}")
+
+            if regular_guidance_used:
+                tags.append(f"guidance scale {guidance_scale}")
+
+            if anti_guidance_used:
+                tags.append(f"anti guidance scale {anti_guidance_scale}")
 
     if IMAGE_DELIMITER in answer:
         print("image delimiter still in post")

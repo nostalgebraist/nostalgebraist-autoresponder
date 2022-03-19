@@ -2201,6 +2201,14 @@ def do_reblog_reply_handling(
     for ident in cost_ordered_idents:
         blog_names_to_idents[ident.blog_name].append(ident)
 
+    if not is_dashboard:
+        for bn, idents in blog_names_to_idents.items():
+            if len(idents) > 8 and bn not in LIMITED_USERS:
+                print(f"adding {bn} to LIMITED_USERS with {len(idents)} unhandled reblogs")
+                bot_specific_constants.LIMITED_USERS[bn] = 0.5
+                LIMITED_USERS = bot_specific_constants.LIMITED_USERS
+                LIMITED_USERS_PROBS = bot_specific_constants.LIMITED_USERS_PROBS(EFFECTIVE_SLEEP_TIME)
+
     for bn, idents in blog_names_to_idents.items():
         for ident in idents[1:]:
             print(f"\t * user equity rule*: saving {ident} for later...")

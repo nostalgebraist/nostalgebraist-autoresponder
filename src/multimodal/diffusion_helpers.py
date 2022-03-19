@@ -134,7 +134,8 @@ def run_pipeline(
     truncate_length=None,
     return_both_resolutions=False,
     use_plms=False,
-    use_plms_sres=False
+    use_plms_sres=False,
+    guidance_after_step_base=100000
 ):
     if truncate_length:
         prompt = prompt[:truncate_length]
@@ -163,6 +164,7 @@ def run_pipeline(
         return_both_resolutions=return_both_resolutions,
         use_plms=use_plms,
         use_plms_sres=use_plms_sres,
+        guidance_after_step_base=guidance_after_step_base
     )
 
     if return_both_resolutions:

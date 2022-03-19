@@ -197,6 +197,9 @@ IMAGE_CREATION_TESTING = False
 IMAGE_CREATION_DIFFUSION = True
 GUIDANCE_SCALE_OPTIONS = (0.5, 1, 1, 1.5)
 
+ANTI_GUIDANCE = True
+ANTI_GUIDANCE_SCALE_OPTIONS = (30, 100)
+
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
 scraped_usernames = set(scraped_usernames)
@@ -590,14 +593,17 @@ def make_text_post(
         presub_post = post
 
         guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS)
-        post, images_were_created = find_text_images_and_sub_real_images(
+        anti_guidance_scale = random.choice(ANTI_GUIDANCE_SCALE_OPTIONS)
+        post, images_were_created, regular_guidance_used, anti_guidance_used = find_text_images_and_sub_real_images(
             post,
             client_pool.get_private_client(),
             blogname,
             verbose=True, # IMAGE_CREATION_TESTING,
             use_diffusion=IMAGE_CREATION_DIFFUSION,
             guidance_scale=guidance_scale,
-            guidance_scale_sres=guidance_scale
+            guidance_scale_sres=guidance_scale,
+            use_anti_guidance=ANTI_GUIDANCE,
+            anti_guidance_scale=anti_guidance_scale,
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state_reasons["must_be_draft"] = True
@@ -605,7 +611,12 @@ def make_text_post(
         if images_were_created:
             tags = [t for t in tags if t != "computer generated image"]
             tags.append("computer generated image")
-            tags.append(f"guidance scale {guidance_scale}")
+
+            if regular_guidance_used:
+                tags.append(f"guidance scale {guidance_scale}")
+
+            if anti_guidance_used:
+                tags.append(f"anti guidance scale {anti_guidance_scale}")
 
     if IMAGE_DELIMITER in post:
         print("image delimiter still in post")

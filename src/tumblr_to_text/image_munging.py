@@ -79,6 +79,8 @@ def find_text_images_and_sub_real_images(
     use_diffusion=False,
     guidance_scale=0.,
     guidance_scale_sres=0.,
+    use_anti_guidance=False,
+    anti_guidance_scale=30,
 ):
     print(f'using diffusion?: {use_diffusion}')
     if use_diffusion:
@@ -130,9 +132,30 @@ def find_text_images_and_sub_real_images(
 
     images = []
     keys = []
+    regular_guidance_used = False
+    anti_guidance_used = False
     for imtext, pos in zip(imtexts, imtext_positions):
-        if len(imtext) > 0:
-            images.append(image_maker(imtext, **image_maker_kwargs))
+        prompt = imtext
+        per_image_kwargs = {}
+        per_image_kwargs.update(image_maker_kwargs)
+
+        generate_here = (len(imtext) > 0) or use_anti_guidance
+
+        anti_guidance_substrings = ['[image]', '[animated gif]']
+        anti_guidance_trigger = (len(imtext) == 0) or any(s == imtext.lower() for s in anti_guidance_substrings)
+
+        if use_anti_guidance and anti_guidance_trigger:
+            print(f'using anti guidance for imtext {repr(imtext)}')
+
+            anti_guidance_used = True
+            prompt = ''
+            per_image_kwargs['guidance_scale'] = anti_guidance_scale
+            per_image_kwargs['guidance_after_step_base'] = 10000  # disabled
+        elif generate_here:
+            regular_guidance_used = True
+
+        if generate_here:
+            images.append(image_maker(prompt, **per_image_kwargs))
             keys.append((imtext, pos))
 
     imtexts_to_tumblr_images = upload_images_to_tumblr_urls(
@@ -172,7 +195,7 @@ def find_text_images_and_sub_real_images(
     happened = len(imtexts_to_tumblr_images) > 0
     if not happened:
         text_subbed = orig_text  # ensure no munging for matching went through
-    return text_subbed, happened
+    return text_subbed, happened, regular_guidance_used, anti_guidance_used
 
 
 def mock_up_image_generation_tags_for_heads(continuation: str, guidance_scale: float, debug=False) -> str:

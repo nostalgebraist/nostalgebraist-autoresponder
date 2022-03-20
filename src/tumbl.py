@@ -2996,7 +2996,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     return loop_persistent_data, response_cache
 
 
-def load_retention(path=f"gs://{CLOUDSAVE_BUCKET}/nbar_data/retention_stack.pkl"):
+def load_retention(path="data/retention_stack.pkl"):
     retention_stack = set()
 
     try:

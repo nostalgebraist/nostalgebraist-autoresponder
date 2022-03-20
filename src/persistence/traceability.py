@@ -7,7 +7,8 @@ import pandas as pd
 from util.times import now_pst
 from util.cloudsave import resilient_pickle_load, resilient_pickle_save, CLOUDSAVE_BUCKET
 
-TRACEABILITY_FN = f"gs://{CLOUDSAVE_BUCKET}/nbar_data/traceability_logs.pkl.gz"
+# TRACEABILITY_FN = f"gs://{CLOUDSAVE_BUCKET}/nbar_data/traceability_logs.pkl.gz"
+TRACEABILITY_FN = "data/traceability_logs.pkl.gz"
 TRACEABILITY_COLD_STORAGE_FN = f"gs://{CLOUDSAVE_BUCKET}/nbar_data/traceability_logs_cold_storage.pkl.gz"
 
 TRACEABILITY_BACKUP_FN = "data/cloudsave_backups/traceability_logs.pkl.gz"

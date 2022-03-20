@@ -487,7 +487,7 @@ def predict_autoreview(data, verbose=True):
 
 
 def save_retention(retention_stack):
-    with open(f"gs://{CLOUDSAVE_BUCKET}/nbar_data/retention_stack.pkl", "wb") as f:
+    with open("data/retention_stack.pkl", "wb") as f:
         pickle.dump(retention_stack, f)
 
 

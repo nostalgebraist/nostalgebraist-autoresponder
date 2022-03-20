@@ -2209,7 +2209,7 @@ def do_reblog_reply_handling(
         for bn, idents in blog_names_to_idents.items():
             if len(idents) > 8 and bn not in LIMITED_USERS:
                 print(f"adding {bn} to LIMITED_USERS with {len(idents)} unhandled reblogs/replies")
-                bot_specific_constants.LIMITED_USERS[bn] = 0.5
+                bot_specific_constants.LIMITED_USERS[bn] = 1.0
                 LIMITED_USERS = bot_specific_constants.LIMITED_USERS
                 LIMITED_USERS_PROBS = bot_specific_constants.LIMITED_USERS_PROBS(EFFECTIVE_SLEEP_TIME)
 

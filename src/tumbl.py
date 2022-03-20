@@ -2465,7 +2465,11 @@ def do_ask_handling(loop_persistent_data, response_cache):
     # anti-spam measure
     submissions_ = []
     for post_payload in submissions:
-        words = [w for w in post_payload["question"].split(" ") if len(w) > 0]
+        # word_source = post_payload["question"]
+        word_source = ' '.join(
+            bl.get('text', '') for bl in post_payload.get('content', []) if bl.get('type', '') == 'text'
+        )
+        words = [w for w in word_source.split(" ") if len(w) > 0]
         block_types = [bl.get('type') for bl in post_payload['content']]
 
         ask_ruleout_too_short = len(words) < ask_min_words and not post_payload["question"].startswith("<p>!")

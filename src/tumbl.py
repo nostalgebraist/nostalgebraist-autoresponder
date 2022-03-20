@@ -1156,11 +1156,11 @@ def respond_to_reblogs_replies(
                     autoreview_proba=post_specifier["autoreview_proba"],
                     reject_action="rts"
                 )
-                id_string = str(api_response['id'])
-                response_cache.mark_user_input_response_post_id(
-                    user_input_identifier, id_string,
-                    post_id_is_genesis=(log_data['requested__state'] != 'published')
-                )
+                if 'id_string' in api_response:
+                    response_cache.mark_user_input_response_post_id(
+                        user_input_identifier, api_response['id_string'],
+                        post_id_is_genesis=(log_data['requested__state'] != 'published')
+                    )
 
         elif okay_to_reply:
             for i, post_specifier in enumerate(post_specifiers_from_gpt2):
@@ -1209,11 +1209,11 @@ def respond_to_reblogs_replies(
                     reject_action="rts" if is_user_input else "do_not_post",
                 )
                 if is_user_input and (user_input_identifier is not None):
-                    id_string = str(api_response['id'])
-                    response_cache.mark_user_input_response_post_id(
-                        user_input_identifier, id_string,
-                        post_id_is_genesis=(log_data['requested__state'] != 'published')
-                    )
+                    if 'id_string' in api_response:
+                        response_cache.mark_user_input_response_post_id(
+                            user_input_identifier, api_response['id_string'],
+                            post_id_is_genesis=(log_data['requested__state'] != 'published')
+                        )
 
         if is_reply:
             if not HALLOWEEN_2K20_BEHAVIOR_TESTING:
@@ -2708,11 +2708,11 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 reject_action="rts",
             )
             with LogExceptionAndSkip('mark_user_input_response_post_id'):
-                id_string = str(api_response['id'])
-                response_cache.mark_user_input_response_post_id(
-                    user_input_identifier, id_string,
-                    post_id_is_genesis=(log_data['requested__state'] != 'published')
-                )
+                if 'id_string' in api_response:
+                    response_cache.mark_user_input_response_post_id(
+                        user_input_identifier, api_response['id_string'],
+                        post_id_is_genesis=(log_data['requested__state'] != 'published')
+                    )
             if post_payload["id"] in loop_persistent_data.manual_ask_post_ids:
                 loop_persistent_data.manual_ask_post_ids.remove(post_payload["id"])
     return loop_persistent_data, response_cache, n_asks

@@ -2996,14 +2996,16 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     return loop_persistent_data, response_cache
 
 
-def load_retention(path="data/retention_stack.pkl"):
+def load_retention(path="data/retention_stack.jsonl"):
     retention_stack = set()
 
     try:
-        with open(path, "rb") as f:
-            retention_stack = pickle.load(f)
+        with open(path, "r") as f:
+            retention_stack = json.load(f)
     except FileNotFoundError:
         print(f"Initialized retention_stack")
+
+    retention_stack = set(retention_stack)
 
     retention_stack = apply_retention_cutoff(retention_stack)
 

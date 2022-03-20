@@ -487,8 +487,8 @@ def predict_autoreview(data, verbose=True):
 
 
 def save_retention(retention_stack):
-    with open("data/retention_stack.pkl", "wb") as f:
-        pickle.dump(retention_stack, f)
+    with open("data/retention_stack.jsonl", "w") as f:
+        json.dump(list(retention_stack), f, indent=1)
 
 
 def adjust_best_of(best_of, mood):

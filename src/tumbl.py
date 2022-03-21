@@ -198,7 +198,7 @@ IMAGE_CREATION_DIFFUSION = True
 GUIDANCE_SCALE_OPTIONS = (0.5, 1, 1, 1.5)
 
 ANTI_GUIDANCE = True
-ANTI_GUIDANCE_SCALE_OPTIONS = (0, 1, 5, 10, 30)
+ANTI_GUIDANCE_SCALE_OPTIONS = (0, 1, 5, 10, 15, 20)
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)

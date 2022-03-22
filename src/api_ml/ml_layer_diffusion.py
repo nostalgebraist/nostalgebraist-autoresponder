@@ -41,7 +41,7 @@ DIFFUSION_DEFAULTS = dict(
     guidance_scale_sres=0,
     use_plms=False,
     use_plms_sres=False,
-    guidance_after_step_base=180,
+    guidance_after_step_base=1000,
 )
 
 # download

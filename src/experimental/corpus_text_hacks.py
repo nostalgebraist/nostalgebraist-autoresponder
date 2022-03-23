@@ -171,7 +171,26 @@ def split_forumlike_doc(doc: str, newline_postfix="\n"):
     if not done:
         time_seg_start = DEFAULT_CSC["posted_at"].format(time_text="")
 
-        before, sep, after = doc.rpartition(time_seg_start)
+        splits = doc.split(time_seg_start)
+
+        if len(splits) < 3:
+            before, sep, after = splits[0], time_seg_start, splits[1]
+        else:
+            i_correct = None
+            for i in range(len(splits)):
+                should_be_time_seg = splits[i].partition(" |")[0]
+                try:
+                    datetime.strptime(should_be_time_seg, "%I %p %B %Y")
+                    i_correct = i
+                    break
+                except:
+                    pass
+            if i_correct is None:
+                raise ValueError
+
+            before, sep, after = time_seg_start.join(splits[:i_correct]), time_seg_start, time_seg_start.join(splits[i_correct:])
+
+        # before, sep, after = doc.rpartition(time_seg_start)
 
         time_segment, sep2, after2 = after.partition(" | ")
 

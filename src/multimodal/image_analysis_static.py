@@ -22,7 +22,6 @@ def V9_IMAGE_FORMATTER(image_text, *args, **kwargs):
 
 
 def URL_PRESERVING_IMAGE_FORMATTER(image_text, url):
-    print(f'got url: {repr(url)}')
     return "\n" + IMAGE_URL_DELIMITER + url + IMAGE_DELIMITER_WHITESPACED + image_text + IMAGE_DELIMITER_WHITESPACED
 
 

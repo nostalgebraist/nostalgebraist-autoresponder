@@ -29,11 +29,15 @@ def expand_asks(thread: TumblrThread) -> Tuple[bool, List[PostOrAsk]]:
 def post_payload_to_formatted_text(post_payload: dict,
                                    ml_prompt_format: bool = False,
                                    prob_delta_format: bool = False,
+                                   include_image_urls: bool = False,
+                                   include_post_identifier: bool = False,
                                    control_seg_config: dict = DEFAULT_CSC):
     return npf_thread_to_formatted_text(
         TumblrThread.from_payload(post_payload),
         ml_prompt_format=ml_prompt_format,
         prob_delta_format=prob_delta_format,
+        include_image_urls=include_image_urls,
+        include_post_identifier=include_post_identifier,
         control_seg_config=control_seg_config
     )
 
@@ -41,6 +45,8 @@ def post_payload_to_formatted_text(post_payload: dict,
 def npf_thread_to_formatted_text(thread: TumblrThread,
                                  ml_prompt_format: bool = False,
                                  prob_delta_format: bool = False,
+                                 include_image_urls: bool = False,
+                                 include_post_identifier: bool = False,
                                  control_seg_config: dict = DEFAULT_CSC):
     is_ask = [False for _ in thread.posts]
 
@@ -62,6 +68,7 @@ def npf_thread_to_formatted_text(thread: TumblrThread,
             is_final_post_in_thread=thread_index == len(posts_with_ask) - 1,
             ml_prompt_format=ml_prompt_format,
             prob_delta_format=prob_delta_format,
+            include_image_urls=include_image_urls,
             control_seg_config=control_seg_config,
         )
         for thread_index, (post, is_ask) in enumerate(zip(posts_with_ask, is_ask))
@@ -85,6 +92,10 @@ def npf_thread_to_formatted_text(thread: TumblrThread,
     formatted_text = normalize_for_generator(formatted_text)
     formatted_text = formatted_text.rstrip(" ")
 
+    if include_post_identifier:
+        last_post = posts_with_ask[-1]
+        formatted_text = formatted_text + f"\nbn {last_post.blog_name} id {last_post.id}"
+
     return formatted_text
 
 
@@ -97,6 +108,7 @@ def _npf_post_to_formatted_text(post: TumblrPost,
                                 is_final_post_in_thread: bool,
                                 ml_prompt_format: bool,
                                 prob_delta_format: bool,
+                                include_image_urls: bool,
                                 control_seg_config: dict = DEFAULT_CSC,
                                 ):
     user_name = post.blog_name
@@ -117,6 +129,7 @@ def _npf_post_to_formatted_text(post: TumblrPost,
         is_final_post_in_thread=is_final_post_in_thread,
         ml_prompt_format=ml_prompt_format,
         prob_delta_format=prob_delta_format,
+        include_image_urls=include_image_urls,
         control_seg_config=control_seg_config
     )
 
@@ -133,6 +146,7 @@ def _post_structural_elements_to_text(
         is_final_post_in_thread: bool,
         ml_prompt_format: bool,
         prob_delta_format: bool,
+        include_image_urls: bool,
         control_seg_config: dict = DEFAULT_CSC,
 ):
     if ml_prompt_format and is_final_post_in_thread:
@@ -142,7 +156,7 @@ def _post_structural_elements_to_text(
         tags = []
     else:
         # strips or modifies certain html tags, adds whitespace after certain html tags
-        content = format_and_normalize_post_html(content)
+        content = format_and_normalize_post_html(content, include_image_urls=include_image_urls)
 
     if is_single_original_post:
         name_formatted = control_seg_config['ORIG_POST_CHAR_NAMED'].format(user_name=user_name)
@@ -191,7 +205,7 @@ def _post_structural_elements_to_text(
     return formatted_text
 
 
-def format_and_normalize_post_html(content):
+def format_and_normalize_post_html(content, include_image_urls=False):
     no_href_classes = {
         "tmblr-truncated-link",
         "tumblr_blog",
@@ -243,7 +257,7 @@ def format_and_normalize_post_html(content):
     content = sanitize_user_input_outer_shell(content)
 
     # apply OCR and replaces <img> and <figure> tags with text from the image
-    content = find_images_and_sub_text(content)
+    content = find_images_and_sub_text(content, include_urls=include_image_urls)
 
     # undo html escapes now that tag munging is complete
     content = html_lib.unescape(content)

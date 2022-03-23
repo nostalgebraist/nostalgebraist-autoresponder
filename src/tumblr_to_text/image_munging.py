@@ -2,6 +2,7 @@ import re, random, html
 
 from multimodal.image_analysis_static import (
     V9_IMAGE_FORMATTER,
+    URL_PRESERVING_IMAGE_FORMATTER,
     IMAGE_DIR,
     IMAGE_DELIMITER,
     IMAGE_DELIMITER_WHITESPACED
@@ -20,14 +21,19 @@ from api_ml.diffusion_connector import make_image_with_diffusion
 
 def find_images_and_sub_text(
     text: str,
-    image_formatter=V9_IMAGE_FORMATTER,
+    include_urls=False,
+    # image_formatter=V9_IMAGE_FORMATTER,
     verbose=False,
 ):
+    image_formatter = V9_IMAGE_FORMATTER
+    if include_urls:
+        image_formatter = URL_PRESERVING_IMAGE_FORMATTER
+
     text_subbed = text
 
     for match in re.finditer(r"(<img src=\")([^\"]+)(\"[^>]*>)", text):
         imtext = image_analysis_cache.extract_and_format_text_from_url(
-            match.group(2)
+            match.group(2), image_formatter=image_formatter
         )
 
         text_subbed = text_subbed.replace(

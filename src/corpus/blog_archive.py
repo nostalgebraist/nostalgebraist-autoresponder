@@ -1,3 +1,4 @@
+# TODO: scrape format v2 here?
 import json
 import argparse
 import random

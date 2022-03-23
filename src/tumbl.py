@@ -200,6 +200,8 @@ GUIDANCE_SCALE_OPTIONS = (0.5, 1, 1, 1.5)
 ANTI_GUIDANCE = True
 ANTI_GUIDANCE_SCALE_OPTIONS = (0, 1, 5, 10, 15, 20)
 
+SCRAPE_FORMAT_V2 = True
+
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
 scraped_usernames = set(scraped_usernames)
@@ -1398,7 +1400,9 @@ def is_statically_reblog_worthy_on_dash(
     if scrape_worthy:
         path = "data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "data/dash_post_dump_frank.txt"
         print(f"archiving {post_identifier} | ", end="")
-        archive_to_corpus(post_payload, path=path, client_pool=client_pool)
+        archive_to_corpus(post_payload, path=path, client_pool=client_pool,
+                          include_image_urls=SCRAPE_FORMAT_V2,
+                          include_post_identifier=SCRAPE_FORMAT_V2)
 
     if is_nost_dash_scraper:
         reblog_worthy = False

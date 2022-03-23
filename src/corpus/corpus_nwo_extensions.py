@@ -82,7 +82,7 @@ def fetch(
         pickle.dump(posts, f)
 
 
-def process(blog_name):
+def process(blog_name, scrape_format_v2=False):
     processed_after_path = os.path.join("data/corpus_nwo_extensions/", f"processed_after_{blog_name}.json")
 
     processed_after = None
@@ -109,7 +109,10 @@ def process(blog_name):
     archive_path = os.path.join("data/corpus_nwo_extensions/", f"{blog_name}.txt")
 
     for pp in tqdm(posts, mininterval=0.3, smoothing=0):
-        archive_to_corpus(pp, archive_path)
+        archive_to_corpus(pp, archive_path,
+                          include_image_urls=scrape_format_v2,
+                          include_post_identifier=scrape_format_v2,
+                          )
 
     print()
 
@@ -127,6 +130,7 @@ def main():
     parser.add_argument("--needs-private-client", action="store_true")
     parser.add_argument("--slow-scraping-off", action="store_true")
     parser.add_argument("--scrape-all", action="store_true")
+    parser.add_argument("--scrape-format-v2", action="store_true")
     args = parser.parse_args()
 
     if not args.process_only:
@@ -139,7 +143,7 @@ def main():
         )
 
     if not args.fetch_only:
-        process(blog_name=args.blog_name)
+        process(blog_name=args.blog_name, scrape_format_v2=args.scrape_format_v2)
 
     if args.save_image_cache:
         multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()

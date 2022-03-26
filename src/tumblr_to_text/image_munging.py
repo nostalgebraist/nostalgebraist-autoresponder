@@ -148,7 +148,7 @@ def find_text_images_and_sub_real_images(
         generate_here = (len(imtext) > 0) or use_anti_guidance
 
         anti_guidance_substrings = ['[image]', '[animated gif]']
-        anti_guidance_trigger = (len(imtext) == 0) or any(s == imtext.lower() for s in anti_guidance_substrings)
+        anti_guidance_trigger = (len(imtext) == 0) or any(s == imtext.strip().lower() for s in anti_guidance_substrings)
 
         if use_anti_guidance and anti_guidance_trigger:
             print(f'using anti guidance for imtext {repr(imtext)}')

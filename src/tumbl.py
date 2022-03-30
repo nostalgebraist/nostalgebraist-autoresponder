@@ -808,7 +808,7 @@ class LoopPersistentData:
         timestamps={},
         reblog_keys={},
         n_posts_to_check_base=150,
-        n_posts_to_check_dash=200,
+        n_posts_to_check_dash=350,
         n_notifications_to_check=1000,
         offset_=0,
         requests_per_check_history_private=[],
@@ -2909,11 +2909,15 @@ def do_rts(response_cache):
     return response_cache
 
 
-def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False):
+def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False, skip_most_recent_record=False):
     if dashboard:
         requests_per_check_sample = loop_persistent_data.requests_per_check_history_dash[-30:]
     else:
         requests_per_check_sample = loop_persistent_data.requests_per_check_history_private[-30:]
+
+    if skip_most_recent_record:
+        requests_per_check_sample = requests_per_check_sample[:-1]
+
     requests_needed_to_check = np.percentile(requests_per_check_sample, 50)
     print(f"requests_needed_to_check: {requests_needed_to_check} based on history\n{requests_per_check_sample}\n")
 
@@ -2977,7 +2981,10 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         (True, client_pool.get_private_client()),
         (False, client_pool.get_dashboard_client()),
     ]:
-        do_check = get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=not is_nost_dash_scraper)
+        do_check = get_checkprob_and_roll(loop_persistent_data,
+                                          client_pool,
+                                          dashboard=not is_nost_dash_scraper,
+                                          skip_most_recent_record=is_nost_dash_scraper)
         n_posts_to_check_dash = loop_persistent_data.n_posts_to_check_dash if do_check else 0
 
         if n_posts_to_check_dash > 0:

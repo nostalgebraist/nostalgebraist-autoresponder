@@ -281,6 +281,7 @@ def max_posts_per_step(slowdown_level):
 
 
 def next_queued_post_time():
+    global client_pool
     next_queued_ts = None
     tries = 0
 
@@ -580,6 +581,7 @@ def make_text_post(
     reject_action=None,
     reply_prefix=""
 ):
+    global client_pool
     tags = list(tags)
     screener_result, traced_reasons = autopublish_screener(asking_name, question, post, tags, trace=True)
 
@@ -677,6 +679,7 @@ def answer_ask(
     autoreview_proba=None,
     reject_action=None,
 ):
+    global client_pool
     if is_reblog:
         url = "/v2/blog/{}/post/reblog".format(blogname)
         valid_options = [
@@ -845,6 +848,7 @@ class LoopPersistentData:
 
 
 def update_follower_names(response_cache):
+    global client_pool
     offset = 0
     response = client_pool.get_dashboard_client().blog_following(dash_blogName, offset=offset, limit=20)
     total_blogs = response.get("total_blogs")
@@ -891,6 +895,7 @@ def prioritize_reblogs_replies(
     empty_cost=10,
     verbose=True
 ):
+    global client_pool
     def vprint(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)
@@ -1265,6 +1270,7 @@ def is_statically_reblog_worthy_on_dash(
     post_payload, response_cache, verbose=True, is_nost_dash_scraper=False, slow_scraping_ok=True,
     get_images_from_no_scrape_users=True,
 ):
+    global client_pool
     post_identifier = PostIdentifier(post_payload["blog_name"], str(post_payload["id"]))
 
     if post_payload.get("id") in DEF_REBLOG_IDS:
@@ -1625,6 +1631,7 @@ def review_statically_worthy_dashboard_post(
 
 
 def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
+    global client_pool
     note_payload_iter = (
         tqdm(note_payloads[::-1]) if len(note_payloads) > 5 else note_payloads[::-1]
     )
@@ -1842,6 +1849,7 @@ def get_relevant_replies_from_notes(
 
 
 def check_notifications(n_to_check=250, after_ts=0, before_ts=None, dump_to_file=False):
+    global client_pool
     client_to_use = client_pool.get_private_client()
     url = f"/v2/blog/{blogName}/notifications"
     params = {}
@@ -1888,6 +1896,7 @@ def do_reblog_reply_handling(
     is_nost_dash_scraper: bool = False,
     max_pages_beyond_expected: int = 2
 ):
+    global client_pool
     relevant_client_getter = client_pool.get_client
     relevant_client_type = 'any'
 
@@ -2432,6 +2441,7 @@ def make_mood_graph_links_section(response_cache, start_time, end_time, n=5):
 
 
 def handle_mood_command(response_cache, post_payload):
+    global client_pool
     now = now_pst()
     start_time = now - pd.Timedelta(days=MOOD_GRAPH_N_DAYS)
 
@@ -2471,6 +2481,7 @@ def handle_mood_command(response_cache, post_payload):
 
 
 def do_ask_handling(loop_persistent_data, response_cache):
+    global client_pool
     submissions = client_pool.get_private_client().submission(blogName)["posts"]
 
     for pid in loop_persistent_data.manual_ask_post_ids:
@@ -2741,6 +2752,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
 
 def do_queue_handling(loop_persistent_data, response_cache):
+    global client_pool
     queue = client_pool.get_private_client().queue(blogName, limit=20)["posts"]
 
     n_posts_in_queue = len(queue)
@@ -2789,6 +2801,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
 
 def do_rts(response_cache):
+    global client_pool
     drafts = client_pool.get_private_client().drafts(blogName, reblog_info=True)["posts"]
     to_send_back = [p for p in drafts if RTS_COMMAND in p["tags"]]
     to_autopub = [p for p in drafts if ACCEPT_COMMAND in p["tags"]]
@@ -2938,6 +2951,7 @@ def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False, s
 
 
 def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseCache):
+    global client_pool
     response_cache = do_rts(response_cache)
 
     ### decide whether we'll do the reblog/reply check

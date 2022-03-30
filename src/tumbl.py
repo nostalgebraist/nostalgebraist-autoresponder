@@ -1882,30 +1882,31 @@ def do_reblog_reply_handling(
     is_nost_dash_scraper: bool = False,
     max_pages_beyond_expected: int = 2
 ):
-    relevant_client = client_pool.get_client()
+    relevant_client_getter = client_pool.get_client
+    relevant_client_type = 'any'
 
     if is_dashboard:
         if is_nost_dash_scraper:
-            relevant_client = client_pool.get_private_client()
+            relevant_client_getter = client_pool.get_private_client
+            relevant_client_type = 'private'
             relevant_last_seen_ts_key = "last_seen_ts_nost_dash_scraper"
         else:
-            relevant_client = client_pool.get_dashboard_client()
+            relevant_client_getter = client_pool.get_dashboard_client
+            relevant_client_type = 'dashboard'
             relevant_last_seen_ts_key = "last_seen_ts"
     else:
           relevant_last_seen_ts_key = "last_seen_ts_notifications"
 
     relevant_last_seen_ts = response_cache.get_last_seen_ts(relevant_last_seen_ts_key)
 
-    count_check_requests_start = relevant_client.get_ratelimit_data()["day"][
-        "remaining"
-    ]
+    count_check_requests_start = client_pool.remaining(relevant_client_type)
 
     expected_pages = max(1, n_posts_to_check // 50)
     max_pages = expected_pages + max_pages_beyond_expected
 
     def dashboard_post_getter(**kwargs):
         response = response_cache.record_response_to_cache(
-            relevant_client.dashboard(**kwargs), care_about_notes=False
+            relevant_client_getter().dashboard(**kwargs), care_about_notes=False
         )
         posts = response["posts"]
         next_offset = kwargs["offset"] + len(posts)
@@ -1913,7 +1914,7 @@ def do_reblog_reply_handling(
 
     def reblogs_post_getter(**kwargs):
         response = response_cache.record_response_to_cache(
-            relevant_client.posts(blogName, **kwargs), care_about_notes=False
+            relevant_client_getter().posts(blogName, **kwargs), care_about_notes=False
         )
         posts = response["posts"]
 
@@ -2282,7 +2283,7 @@ def do_reblog_reply_handling(
 
     ### post-check stuff
 
-    count_check_requests_end = relevant_client.get_ratelimit_data()["day"]["remaining"]
+    count_check_requests_end = client_pool.remaining(relevant_client_type)
     count_check_requests_diff = count_check_requests_start - count_check_requests_end
     print(f"used {count_check_requests_diff} requests in this check")
 

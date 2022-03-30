@@ -47,19 +47,27 @@ class ClientPool:
     def is_client_available(self, client):
         return self.is_group_available([client])
 
-    def _group_rates(self, clients):
-        rates = []
+    def _group_agg(self, clients, key, key2=None):
+        values = []
         for client in clients:
             if not self.is_client_available(client):
-                rate = 0
+                value = 0
             else:
                 try:
-                    rate = client.get_ratelimit_data()['effective_max_rate']
+                    value = client.get_ratelimit_data()[key]
+                    if key2:
+                        value = value[key2]
                 except KeyError:
-                    rate = 0
-            rates.append(rate)
+                    value = 0
+            values.append(value)
 
-        return rates
+        return values
+
+    def _group_rates(self, clients):
+        return self._group_agg(clients, 'effective_max_rate')
+
+    def _group_remaining(self, clients):
+        return self._group_agg(clients, 'day', key2="remaining")
 
     def pick_from_group(self, clients):
         rates = self._group_rates(clients)
@@ -73,6 +81,25 @@ class ClientPool:
         choice = clients[ix_max]
 
         return choice
+
+    def _get_group(self, client_type='any'):
+        if client_type == 'any':
+            group = self.clients
+        elif client_type == 'private':
+            group = self.private_clients
+        elif client_type == 'dashboard':
+            group = self.dashboard_clients
+        else:
+            raise ValueError(client_type)
+        return group
+
+    def remaining(self, client_type='any'):
+        group = self._get_group(client_type)
+        return sum(self._group_remaining(group))
+
+    def max_rate(self, client_type='any'):
+        group = self._get_group(client_type)
+        return sum(self._group_rates(group))
 
     def pick_group(self):
         if not self.is_group_available(self.private_clients):
@@ -109,12 +136,13 @@ class ClientPool:
     def clients(self):
         return self.private_clients + self.dashboard_clients
 
-    def compute_checkprob(self, requests_per_check: int, sleep_time: float, verbose=False):
+    def compute_checkprob(self, requests_per_check: int, sleep_time: float, verbose=False, client_type='any'):
         def vprint(*args, **kwargs):
             if verbose:
                 print(*args, **kwargs)
 
-        summed_max_rate = sum(self._group_rates(self.clients))
+        summed_max_rate = self.max_rate(client_type)
+
         vprint(f"summed_max_rate: {summed_max_rate:.4f}")
 
         # if we checked *every* cycle, we could support up this many requests per check

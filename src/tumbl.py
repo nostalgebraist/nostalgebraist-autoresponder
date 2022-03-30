@@ -2295,7 +2295,10 @@ def do_reblog_reply_handling(
 
     if is_dashboard:
         # record calls for this check -- hack
-        loop_persistent_data.requests_per_check_history_dash[-1] += count_check_requests_diff
+        if is_nost_dash_scraper:
+            loop_persistent_data.requests_per_check_history_private[-1] += count_check_requests_diff
+        else:
+            loop_persistent_data.requests_per_check_history_dash[-1] += count_check_requests_diff
 
         # update last_seen_ts
         response_cache.update_last_seen_ts(relevant_last_seen_ts_key, updated_last_seen_ts)

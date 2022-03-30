@@ -1879,7 +1879,8 @@ def do_reblog_reply_handling(
     n_posts_to_check: int,
     is_dashboard: bool = False,
     mood_value: float = None,
-    is_nost_dash_scraper: bool = False
+    is_nost_dash_scraper: bool = False,
+    max_pages_beyond_expected: int = 2
 ):
     relevant_client = client_pool.get_client()
 
@@ -1898,6 +1899,9 @@ def do_reblog_reply_handling(
     count_check_requests_start = relevant_client.get_ratelimit_data()["day"][
         "remaining"
     ]
+
+    expected_pages = max(1, n_posts_to_check // 50)
+    max_pages = expected_pages + max_pages_beyond_expected
 
     def dashboard_post_getter(**kwargs):
         response = response_cache.record_response_to_cache(
@@ -1961,7 +1965,8 @@ def do_reblog_reply_handling(
     ]
     posts.extend(next_)
     offset_ = next_offset
-    while len(next_) != 0 and len(posts) < n_posts_to_check:
+    n_pages = 1
+    while (len(next_) != 0) and (len(posts) < n_posts_to_check) and (n_pages < max_pages):
         # TODO: DRY
         min_ts = min([p["timestamp"] for p in next_])
         print(f"got {len(next_)}, starting with {next_[0]['id']}, min_ts={min_ts}, next_offset={next_offset}")
@@ -1987,6 +1992,9 @@ def do_reblog_reply_handling(
         ]
         posts.extend(next_)
         offset_ = next_offset
+        n_pages += 1
+        if (len(posts) < n_posts_to_check) and (n_pages == max_pages):
+            print(f"bailing with only {len(posts)} posts: n_pages {n_pages} hit max (= expected {expected_pages} + extra {max_pages_beyond_expected})")
     if len(next_) > 0:
         # TODO: DRY
         min_ts = min([p["timestamp"] for p in next_])

@@ -808,7 +808,7 @@ class LoopPersistentData:
         timestamps={},
         reblog_keys={},
         n_posts_to_check_base=150,
-        n_posts_to_check_dash=690,
+        n_posts_to_check_dash=200,
         n_notifications_to_check=1000,
         offset_=0,
         requests_per_check_history=[],
@@ -1349,10 +1349,10 @@ def is_statically_reblog_worthy_on_dash(
     if '.gif' in p_body:
         scrape_worthy = False
 
-    if n_img > 8:
+    if n_img > 5:
         scrape_worthy = False
 
-    if n_img > 0 and random.random() > 1.:  # disabled
+    if n_img > 0 and random.random() > 0.75:  # disabled
         scrape_worthy = False
 
     if (not slow_scraping_ok) and (n_img > 0):

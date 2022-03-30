@@ -2906,11 +2906,11 @@ def do_rts(response_cache):
     return response_cache
 
 
-def get_checkprob_and_roll(loop_persistent_data, client_pool, n, dashboard=False):
+def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False):
     if dashboard:
-        requests_per_check_sample = loop_persistent_data.requests_per_check_history_private[-30:]
-    else:
         requests_per_check_sample = loop_persistent_data.requests_per_check_history_dash[-30:]
+    else:
+        requests_per_check_sample = loop_persistent_data.requests_per_check_history_private[-30:]
     requests_needed_to_check = np.percentile(requests_per_check_sample, 50)
     print(f"requests_needed_to_check: {requests_needed_to_check} based on history\n{requests_per_check_sample}\n")
 
@@ -2923,10 +2923,10 @@ def get_checkprob_and_roll(loop_persistent_data, client_pool, n, dashboard=False
     check_roll = np.random.rand()
     if check_roll >= checkprob:
         print(f"skipping check this time ({check_roll:.2f} >= {checkprob})...")
-        n_posts_to_check = 0
+        return False
     else:
         print(f"checking ({check_roll:.2f} < {checkprob:.2f})...")
-        n_posts_to_check = n
+        return True
     return n_posts_to_check
 
 
@@ -2935,7 +2935,8 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
 
     ### decide whether we'll do the reblog/reply check
 
-    n_posts_to_check = get_checkprob_and_roll(loop_persistent_data, client_pool, n=loop_persistent_data.n_posts_to_check_base, dashboard=False)
+    do_check = get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False)
+    n_posts_to_check = loop_persistent_data.n_posts_to_check_base if do_check else 0
 
     def _mainloop_asks_block(loop_persistent_data, response_cache, save_after=True):
         relevant_ratelimit_data = client_pool.get_private_client().get_ratelimit_data()
@@ -2973,8 +2974,8 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         (True, client_pool.get_private_client()),
         (False, client_pool.get_dashboard_client()),
     ]:
-        n_posts_to_check_dash = get_checkprob_and_roll(loop_persistent_data, client_pool, loop_persistent_data.n_posts_to_check_dash, dashboard=not is_nost_dash_scraper
-        )
+        do_check = get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=not is_nost_dash_scraper)
+        n_posts_to_check_dash = loop_persistent_data.n_posts_to_check_dash if do_check else 0
 
         if n_posts_to_check_dash > 0:
             print(f"checking dash (is_nost_dash_scraper={is_nost_dash_scraper})...")

@@ -813,7 +813,7 @@ class LoopPersistentData:
         offset_=0,
         requests_per_check_history_private=[],
         requests_per_check_history_dash=[],
-        apriori_requests_per_check=25,
+        apriori_requests_per_check=10,
         retention_stack: set = set(),
         slowdown_level: dict = BASE_SLOWDOWN_LEVEL,
         manual_ask_post_ids: set = set(),
@@ -2968,31 +2968,27 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             loop_persistent_data, response_cache
         )
 
-    n_posts_to_check_dash1 = get_checkprob_and_roll(loop_persistent_data, client_pool, loop_persistent_data.n_posts_to_check_dash, dashboard=False)
-    n_posts_to_check_dash2 = get_checkprob_and_roll(loop_persistent_data, client_pool, n=loop_persistent_data.n_posts_to_check_dash, dashboard=True)
+    # dash check
+    for is_nost_dash_scraper, relevant_client in [
+        (True, client_pool.get_private_client()),
+        (False, client_pool.get_dashboard_client()),
+    ]:
+        n_posts_to_check_dash = get_checkprob_and_roll(loop_persistent_data, client_pool, loop_persistent_data.n_posts_to_check_dash, dashboard=not is_nost_dash_scraper
+        )
 
-    if n_posts_to_check > 0:
-        # dash check
-        for is_nost_dash_scraper, relevant_client in [
-            (True, client_pool.get_private_client()),
-            (False, client_pool.get_dashboard_client()),
-        ]:
-            n_posts_to_check_dash = get_checkprob_and_roll(loop_persistent_data, client_pool, loop_persistent_data.n_posts_to_check_dash, dashboard=not is_nost_dash_scraper
+        if n_posts_to_check_dash > 0:
+            print(f"checking dash (is_nost_dash_scraper={is_nost_dash_scraper})...")
+            _, mood_value = determine_mood(response_cache, return_mood_value=True)
+            loop_persistent_data, response_cache = do_reblog_reply_handling(
+                loop_persistent_data,
+                response_cache,
+                n_posts_to_check_dash,
+                is_dashboard=True,
+                mood_value=mood_value,
+                is_nost_dash_scraper=is_nost_dash_scraper
             )
-
-            if n_posts_to_check_dash > 0:
-                print(f"checking dash (is_nost_dash_scraper={is_nost_dash_scraper})...")
-                _, mood_value = determine_mood(response_cache, return_mood_value=True)
-                loop_persistent_data, response_cache = do_reblog_reply_handling(
-                    loop_persistent_data,
-                    response_cache,
-                    n_posts_to_check_dash,
-                    is_dashboard=True,
-                    mood_value=mood_value,
-                    is_nost_dash_scraper=is_nost_dash_scraper
-                )
-            else:
-                print("skipping dash check this time")
+        else:
+            print("skipping dash check this time")
 
         ### do another asks check
         loop_persistent_data, response_cache = _mainloop_asks_block(

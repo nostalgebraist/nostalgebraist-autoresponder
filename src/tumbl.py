@@ -811,7 +811,8 @@ class LoopPersistentData:
         n_posts_to_check_dash=200,
         n_notifications_to_check=1000,
         offset_=0,
-        requests_per_check_history=[],
+        requests_per_check_history_private=[],
+        requests_per_check_history_dash=[],
         apriori_requests_per_check=25,
         retention_stack: set = set(),
         slowdown_level: dict = BASE_SLOWDOWN_LEVEL,
@@ -826,14 +827,19 @@ class LoopPersistentData:
         self.n_posts_to_check_dash = n_posts_to_check_dash
         self.n_notifications_to_check = n_notifications_to_check
         self.offset_ = offset_
-        self.requests_per_check_history = requests_per_check_history
+        self.requests_per_check_history_private = requests_per_check_history_private
+        self.requests_per_check_history_dash = requests_per_check_history_dash
         self.apriori_requests_per_check = apriori_requests_per_check
         self.retention_stack = retention_stack
         self.slowdown_level = slowdown_level
         self.manual_ask_post_ids = manual_ask_post_ids
 
-        if len(self.requests_per_check_history) == 0:
-            self.requests_per_check_history.extend(
+        if len(self.requests_per_check_history_private) == 0:
+            self.requests_per_check_history_private.extend(
+                [self.apriori_requests_per_check, self.apriori_requests_per_check]
+            )
+        if len(self.requests_per_check_history_dash) == 0:
+            self.requests_per_check_history_dash.extend(
                 [self.apriori_requests_per_check, self.apriori_requests_per_check]
             )
 
@@ -2289,7 +2295,7 @@ def do_reblog_reply_handling(
 
     if is_dashboard:
         # record calls for this check -- hack
-        loop_persistent_data.requests_per_check_history[-1] += count_check_requests_diff
+        loop_persistent_data.requests_per_check_history_dash[-1] += count_check_requests_diff
 
         # update last_seen_ts
         response_cache.update_last_seen_ts(relevant_last_seen_ts_key, updated_last_seen_ts)
@@ -2299,7 +2305,7 @@ def do_reblog_reply_handling(
         # setattr(loop_persistent_data, relevant_last_seen_ts_key, updated_last_seen_ts)
     else:
         # record calls for this check
-        loop_persistent_data.requests_per_check_history.append(
+        loop_persistent_data.requests_per_check_history_private.append(
             count_check_requests_diff
         )
 
@@ -2900,16 +2906,15 @@ def do_rts(response_cache):
     return response_cache
 
 
-def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseCache):
-    response_cache = do_rts(response_cache)
-
-    ### decide whether we'll do the reblog/reply check
-
-    requests_per_check_sample = loop_persistent_data.requests_per_check_history[-30:]
+def get_checkprob_and_roll(loop_persistent_data, client_pool, n, dashboard=False):
+    if dashboard:
+        requests_per_check_sample = loop_persistent_data.requests_per_check_history_private[-30:]
+    else:
+        requests_per_check_sample = loop_persistent_data.requests_per_check_history_dash[-30:]
     requests_needed_to_check = np.percentile(requests_per_check_sample, 50)
     print(f"requests_needed_to_check: {requests_needed_to_check} based on history\n{requests_per_check_sample}\n")
 
-    checkprob = client_pool.compute_checkprob(requests_needed_to_check, EFFECTIVE_SLEEP_TIME, verbose=True)
+    checkprob = client_pool.compute_checkprob(requests_needed_to_check, EFFECTIVE_SLEEP_TIME, verbose=True, client_type='dashboard' if dashboard else 'private')
 
     print(
         f"using checkprob: {checkprob:.1%}"
@@ -2921,9 +2926,16 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         n_posts_to_check = 0
     else:
         print(f"checking ({check_roll:.2f} < {checkprob:.2f})...")
-        n_posts_to_check = loop_persistent_data.n_posts_to_check_base
+        n_posts_to_check = n
+    return n_posts_to_check
 
-    n_posts_to_check_dash = loop_persistent_data.n_posts_to_check_dash
+
+def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseCache):
+    response_cache = do_rts(response_cache)
+
+    ### decide whether we'll do the reblog/reply check
+
+    n_posts_to_check = get_checkprob_and_roll(loop_persistent_data, client_pool, n=loop_persistent_data.n_posts_to_check_base, dashboard=False)
 
     def _mainloop_asks_block(loop_persistent_data, response_cache, save_after=True):
         relevant_ratelimit_data = client_pool.get_private_client().get_ratelimit_data()
@@ -2956,13 +2968,19 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             loop_persistent_data, response_cache
         )
 
+    n_posts_to_check_dash1 = get_checkprob_and_roll(loop_persistent_data, client_pool, loop_persistent_data.n_posts_to_check_dash, dashboard=False)
+    n_posts_to_check_dash2 = get_checkprob_and_roll(loop_persistent_data, client_pool, n=loop_persistent_data.n_posts_to_check_dash, dashboard=True)
+
     if n_posts_to_check > 0:
         # dash check
         for is_nost_dash_scraper, relevant_client in [
             (True, client_pool.get_private_client()),
             (False, client_pool.get_dashboard_client()),
         ]:
-            if relevant_client.get_ratelimit_data()["effective_remaining"] > 0:
+            n_posts_to_check_dash = get_checkprob_and_roll(loop_persistent_data, client_pool, loop_persistent_data.n_posts_to_check_dash, dashboard=not is_nost_dash_scraper
+            )
+
+            if n_posts_to_check_dash > 0:
                 print(f"checking dash (is_nost_dash_scraper={is_nost_dash_scraper})...")
                 _, mood_value = determine_mood(response_cache, return_mood_value=True)
                 loop_persistent_data, response_cache = do_reblog_reply_handling(

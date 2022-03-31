@@ -2032,7 +2032,7 @@ def do_reblog_reply_handling(
     if not is_dashboard:
         loop_persistent_data.slowdown_level = select_slowdown_level(posts_no_filters, ref_level=loop_persistent_data.slowdown_level, hardstop_pad=WRITE_POSTS_WHEN_QUEUE_BELOW)
     if not is_dashboard:
-        print("checking mentions...")
+        print("checking notifications...")
         notifications = check_notifications(
             n_to_check=loop_persistent_data.n_notifications_to_check,
             after_ts=relevant_last_seen_ts,
@@ -2062,10 +2062,7 @@ def do_reblog_reply_handling(
 
                     loop_persistent_data.reblogs_from_me.add(pi)
                     loop_persistent_data.timestamps[pi] = item["timestamp"]
-                    mp = client_pool.get_private_client().posts(mention_blogname, id=mention_post_id)[
-                        "posts"
-                    ][0]
-                    loop_persistent_data.reblog_keys[pi] = mp["reblog_key"]
+                    loop_persistent_data.reblog_keys[pi] = item["reblog_key"]
 
             # update last_seen_ts_notifications
             updated_last_seen_ts = max(

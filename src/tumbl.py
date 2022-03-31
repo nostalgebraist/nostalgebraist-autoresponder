@@ -810,7 +810,7 @@ class LoopPersistentData:
         reply_metadata={},
         timestamps={},
         reblog_keys={},
-        n_posts_to_check_base=250,
+        n_posts_to_check_base=150,
         n_posts_to_check_dash=350,
         n_notifications_to_check=1000,
         offset_=0,
@@ -2040,16 +2040,17 @@ def do_reblog_reply_handling(
         )
 
         if len(notifications) > 0:
-            mentions = [
-                item for item in notifications if item["type"] == "user_mention"
+            relevant_notifications = [
+                item for item in notifications if item["type"] in {"user_mention", "reblog"}  # todo: reply
             ]
 
-            for item in mentions:
-                with LogExceptionAndSkip(f"handle mention {repr(item)}"):
-                    mention_blogname = item["target_tumblelog_name"]
-                    mention_post_id = int(item["target_post_id"])
+            for item in relevant_notifications:
+                with LogExceptionAndSkip(f"handle notification {repr(item)}"):
+                    notification_blogname = item["from_tumblelog_name"]
+                    notification_post_id = int(item["target_post_id"])
 
                     # don't add if duplicate
+                    # TODO: is this doing anything? i think "posts" is bot posts not the reblogs of bot posts
                     if any([post["id"] == mention_post_id for post in posts]):
                         continue
 

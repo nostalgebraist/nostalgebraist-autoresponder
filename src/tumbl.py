@@ -2051,10 +2051,10 @@ def do_reblog_reply_handling(
 
                     # don't add if duplicate
                     # TODO: is this doing anything? i think "posts" is bot posts not the reblogs of bot posts
-                    if any([post["id"] == mention_post_id for post in posts]):
+                    if any([post["id"] == notification_post_id for post in posts]):
                         continue
 
-                    pi = PostIdentifier(mention_blogname, mention_post_id)
+                    pi = PostIdentifier(notification_blogname, notification_post_id)
 
                     if response_cache.is_handled(pi):
                         continue

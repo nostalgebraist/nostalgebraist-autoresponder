@@ -2051,24 +2051,32 @@ def do_reblog_reply_handling(
 
             for item in relevant_notifications:
                 with LogExceptionAndSkip(f"handle notification {repr(item)}"):
-                    notification_blogname = item["from_tumblelog_name"]
-                    notification_post_id = int(item["target_post_id"])
+                    if item['type'] == 'user_mention':
+                        notification_blogname = item["from_tumblelog_name"]  # mentioner blog
+                        notification_post_id = int(item["target_post_id"])  # mentioning post
 
-                    # don't add if duplicate
-                    # TODO: is this doing anything? i think "posts" is bot posts not the reblogs of bot posts
-                    if any([post["id"] == notification_post_id for post in posts]):
-                        continue
+                        pi = PostIdentifier(notification_blogname, str(notification_post_id))
 
-                    pi = PostIdentifier(notification_blogname, notification_post_id)
+                        if response_cache.is_handled(pi):
+                            continue
 
-                    if response_cache.is_handled(pi):
-                        continue
+                        print(f"reblogging from mentions: {pi}")
 
-                    print(f"reblogging from mentions: {pi}")
+                        loop_persistent_data.reblogs_from_me.add(pi)
+                        loop_persistent_data.timestamps[pi] = item["timestamp"]
+                        loop_persistent_data.reblog_keys[pi] = item["reblog_key"]
 
-                    loop_persistent_data.reblogs_from_me.add(pi)
-                    loop_persistent_data.timestamps[pi] = item["timestamp"]
-                    loop_persistent_data.reblog_keys[pi] = item["reblog_key"]
+                    elif item['type'] == 'reblog':
+                        notification_post_id = int(item["target_post_id"])  # bot post being reblogged
+
+                        pi = PostIdentifier(blogName, str(notification_post_id))
+
+                        if pi not in known_pis:
+                            # fetch post
+                            with LogExceptionAndSkip('fetching post that got a reblog notification'):
+                                pp = client_pool.get_private_client().posts(blogName, id=notification_post_id)['posts'][0]
+                                posts.append(pp)
+                                known_pis.add(pi)
 
             # update last_seen_ts_notifications
             updated_last_seen_ts = max(

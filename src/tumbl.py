@@ -160,7 +160,7 @@ REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this re
 MAX_POSTS_PER_STEP = 5
 STOP_ABOVE_COST = 13
 
-DASH_REBLOG_PROB_DELT_CUTOFF = 0.0025
+DASH_REBLOG_PROB_DELT_CUTOFF = 0.002 # 0.0025
 DASH_REBLOG_PROB_DELT_NOISE = 0.002
 
 DASH_REBLOG_SELECTION_CUTOFF = 0.
@@ -1510,7 +1510,7 @@ def is_dynamically_reblog_worthy_on_dash(
 
     if buffed_prob_delt < DASH_REBLOG_PROB_DELT_CUTOFF:
         msg = f"\trejecting {post_identifier}: buffed_prob_delt {formatted_buffed_prob_delt}"
-        msg += f"< cutoff {DASH_REBLOG_PROB_DELT_CUTOFF:.4f}"
+        msg += f" < cutoff {DASH_REBLOG_PROB_DELT_CUTOFF:.4f}"
         print(msg)
         return False
 

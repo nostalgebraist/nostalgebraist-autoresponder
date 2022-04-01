@@ -161,6 +161,7 @@ MAX_POSTS_PER_STEP = 5
 STOP_ABOVE_COST = 13
 
 DASH_REBLOG_PROB_DELT_CUTOFF = 0.0025
+DASH_REBLOG_PROB_DELT_NOISE = 0.002
 
 DASH_REBLOG_SELECTION_CUTOFF = 0.
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
@@ -1495,16 +1496,22 @@ def is_dynamically_reblog_worthy_on_dash(
         judg["prob"],
         judg["sentiment"],
         judg["autoreview_prob"],
-        judg.get("prob_delt")
+        judg["prob_delt"]
     )
 
-    if prob_delt and prob_delt < DASH_REBLOG_PROB_DELT_CUTOFF:
-        # DEBUG
-        # if verbose:
-        if True:
-            msg = f"\trejecting {post_identifier}: prob_delt {prob_delt:.4f} "
-            msg += f"< cutoff {DASH_REBLOG_PROB_DELT_CUTOFF:.4f}"
-            print(msg)
+    prob_delt_buff = (
+        2 * DASH_REBLOG_PROB_DELT_NOISE * np.random.random()
+        - DASH_REBLOG_PROB_DELT_NOISE
+    )
+    buffed_prob_delt = prob_delt + prob_delt_buff
+
+    formatted_buffed_prob_delt = f"{buffed_prob_delt:.4f} "
+    formatted_buffed_prob_delt += f"(= prob_delt {prob_delt:.4f} + buff {prob_delt_buff:.4f})"
+
+    if buffed_prob_delt < DASH_REBLOG_PROB_DELT_CUTOFF:
+        msg = f"\trejecting {post_identifier}: buffed_prob_delt {formatted_buffed_prob_delt}"
+        msg += f"< cutoff {DASH_REBLOG_PROB_DELT_CUTOFF:.4f}"
+        print(msg)
         return False
 
     if len(text) < 10:
@@ -1604,7 +1611,7 @@ def is_dynamically_reblog_worthy_on_dash(
             explanation += f"\n\tneg_sentiment: {neg_sentiment:.0%} vs. {DASH_REBLOG_MAX_NEG_SENTIMENT:.0%}"
         explanation += f"\n\tautoreview_prob: {autoreview_prob:.1%} vs. {AUTOREVIEWER_CUTOFFS['reject_above']:.1%}"
         if prob_delt:
-            explanation += f"\n\tprob_delt: {prob_delt:.4f}"
+            explanation += f"\n\tbuffed_prob_delt: {formatted_buffed_prob_delt}"
         print(explanation)
     return reblog_worthy
 

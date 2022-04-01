@@ -893,6 +893,7 @@ def prioritize_reblogs_replies(
     short_under_n_words=4,
     short_cost=6,
     empty_cost=10,
+    api_fail_cost=10000,
     verbose=True
 ):
     global client_pool
@@ -913,6 +914,10 @@ def prioritize_reblogs_replies(
         post_payload = response_cache.query(
             CachedResponseType.POSTS, ident_for_payload, care_about_notes=False
         )
+        if post_payload is None:
+            # response_cache.query returns None if the request fails (e.g. post was deleted)
+            print(f'attempting to ignore {ident} (deleted post?)')
+            costs[ident] = api_fail_cost
         thread = TumblrThread.from_payload(post_payload)
 
         thread_length = len(thread.posts)

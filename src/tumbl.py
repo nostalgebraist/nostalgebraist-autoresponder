@@ -2078,6 +2078,9 @@ def do_reblog_reply_handling(
 
                         pi = PostIdentifier(blogName, str(notification_post_id))
 
+                        if response_cache.is_handled(pi):
+                            continue
+
                         if pi not in known_pis:
                             print(f"reblogging from notifications: {pi}")
 

@@ -2079,6 +2079,8 @@ def do_reblog_reply_handling(
                         pi = PostIdentifier(blogName, str(notification_post_id))
 
                         if pi not in known_pis:
+                            print(f"reblogging from notifications: {pi}")
+
                             # fetch post
                             with LogExceptionAndSkip('fetching post that got a reblog notification'):
                                 pp = client_pool.get_private_client().posts(blogName, id=notification_post_id)['posts'][0]

@@ -58,6 +58,7 @@ def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[C
                       read_without_write=False,
                       include_image_urls=False,
                       include_post_identifier=False,
+                      skip_image_analysis=False,
                       ):
     # import inside b/c it loads image cache
     from tumblr_to_text.nwo import npf_thread_to_formatted_text
@@ -78,6 +79,7 @@ def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[C
             thread,
             include_image_urls=include_image_urls,
             include_post_identifier=include_post_identifier,
+            skip_image_analysis=skip_image_analysis,
         )
 
         if read_without_write:

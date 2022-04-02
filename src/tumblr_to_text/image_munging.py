@@ -24,6 +24,7 @@ def find_images_and_sub_text(
     include_urls=False,
     # image_formatter=V9_IMAGE_FORMATTER,
     verbose=False,
+    skip=False
 ):
     image_formatter = V9_IMAGE_FORMATTER
     if include_urls:
@@ -33,7 +34,7 @@ def find_images_and_sub_text(
 
     for match in re.finditer(r"(<img src=\")([^\"]+)(\"[^>]*>)", text):
         imtext = image_analysis_cache.extract_and_format_text_from_url(
-            match.group(2), image_formatter=image_formatter
+            match.group(2), image_formatter=image_formatter, skip=skip
         )
 
         text_subbed = text_subbed.replace(

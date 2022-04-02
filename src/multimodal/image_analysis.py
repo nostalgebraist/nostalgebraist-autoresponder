@@ -519,10 +519,16 @@ class ImageAnalysisCache:
         url: str,
         image_formatter=V9_IMAGE_FORMATTER,
         verbose=False,
+        skip=False,
     ):
         def vprint(*args, **kwargs):
             if verbose:
                 print(*args, **kwargs)
+
+        if skip:
+            cached_text = """This image was not analyzed with the STR model. This text is a placeholder."""
+            formatted_text = format_extracted_text(cached_text, url, image_formatter=image_formatter, verbose=verbose)
+            return formatted_text
 
         # TODO: integrate downsizing
         if url not in self.cache:

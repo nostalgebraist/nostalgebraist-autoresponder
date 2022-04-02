@@ -47,6 +47,7 @@ def npf_thread_to_formatted_text(thread: TumblrThread,
                                  prob_delta_format: bool = False,
                                  include_image_urls: bool = False,
                                  include_post_identifier: bool = False,
+                                 skip_image_analysis: bool = False,
                                  control_seg_config: dict = DEFAULT_CSC):
     is_ask = [False for _ in thread.posts]
 
@@ -69,6 +70,7 @@ def npf_thread_to_formatted_text(thread: TumblrThread,
             ml_prompt_format=ml_prompt_format,
             prob_delta_format=prob_delta_format,
             include_image_urls=include_image_urls,
+            skip_image_analysis=skip_image_analysis,
             control_seg_config=control_seg_config,
         )
         for thread_index, (post, is_ask) in enumerate(zip(posts_with_ask, is_ask))
@@ -109,6 +111,7 @@ def _npf_post_to_formatted_text(post: TumblrPost,
                                 ml_prompt_format: bool,
                                 prob_delta_format: bool,
                                 include_image_urls: bool,
+                                skip_image_analysis: bool,
                                 control_seg_config: dict = DEFAULT_CSC,
                                 ):
     user_name = post.blog_name
@@ -130,6 +133,7 @@ def _npf_post_to_formatted_text(post: TumblrPost,
         ml_prompt_format=ml_prompt_format,
         prob_delta_format=prob_delta_format,
         include_image_urls=include_image_urls,
+        skip_image_analysis=skip_image_analysis,
         control_seg_config=control_seg_config
     )
 
@@ -147,6 +151,7 @@ def _post_structural_elements_to_text(
         ml_prompt_format: bool,
         prob_delta_format: bool,
         include_image_urls: bool,
+        skip_image_analysis: bool,
         control_seg_config: dict = DEFAULT_CSC,
 ):
     if ml_prompt_format and is_final_post_in_thread:
@@ -156,7 +161,9 @@ def _post_structural_elements_to_text(
         tags = []
     else:
         # strips or modifies certain html tags, adds whitespace after certain html tags
-        content = format_and_normalize_post_html(content, include_image_urls=include_image_urls)
+        content = format_and_normalize_post_html(content,
+                                                 include_image_urls=include_image_urls,
+                                                 skip_image_analysis=skip_image_analysis)
 
     if is_single_original_post:
         name_formatted = control_seg_config['ORIG_POST_CHAR_NAMED'].format(user_name=user_name)
@@ -205,7 +212,7 @@ def _post_structural_elements_to_text(
     return formatted_text
 
 
-def format_and_normalize_post_html(content, include_image_urls=False):
+def format_and_normalize_post_html(content, include_image_urls=False, skip_image_analysis=False):
     no_href_classes = {
         "tmblr-truncated-link",
         "tumblr_blog",
@@ -257,7 +264,7 @@ def format_and_normalize_post_html(content, include_image_urls=False):
     content = sanitize_user_input_outer_shell(content)
 
     # apply OCR and replaces <img> and <figure> tags with text from the image
-    content = find_images_and_sub_text(content, include_urls=include_image_urls)
+    content = find_images_and_sub_text(content, include_urls=include_image_urls, skip=skip_image_analysis)
 
     # undo html escapes now that tag munging is complete
     content = html_lib.unescape(content)

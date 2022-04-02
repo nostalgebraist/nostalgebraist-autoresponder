@@ -8,7 +8,7 @@ import urllib.parse
 import argparse
 import random
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from string import punctuation, whitespace
 from itertools import product
 from collections import defaultdict
@@ -2087,8 +2087,13 @@ def do_reblog_reply_handling(
                             # fetch post
                             with LogExceptionAndSkip('fetching post that got a reblog notification'):
                                 pp = client_pool.get_private_client().posts(blogName, id=notification_post_id)['posts'][0]
-                                posts.append(pp)
-                                known_pis.add(pi)
+
+                                post_ts_pst = fromtimestamp_pst(int(pp['timestamp']))
+                                if now_pst() - post_ts_pst > timedelta(days=1):
+                                    print(f"not reblogging old post made on {post_ts_pst}")
+                                else:
+                                    posts.append(pp)
+                                    known_pis.add(pi)
 
             # update last_seen_ts_notifications
             updated_last_seen_ts = max(

@@ -1363,15 +1363,28 @@ def is_statically_reblog_worthy_on_dash(
     ### rule-out conditions below don't block scraping, just reblog-from-dash
     reblog_worthy = True
     scrape_worthy = True
+    image_scrape_only = False
 
     if '.gif' in p_body:
         scrape_worthy = False
 
     if n_img > 5:
         scrape_worthy = False
+    elif n_img > 2:
+        image_scrape_only = True
 
-    if n_img > 0 and random.random() > 0.75:  # disabled
-        scrape_worthy = False
+    if n_img > 0:
+        roll = random.random()
+        if roll > 0.75:
+            scrape_worthy = False
+        elif roll > 0.5:
+            image_scrape_only = True
+
+    if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):
+        if get_images_from_no_scrape_users:
+            image_scrape_only = True
+        else:
+            scrape_worthy = False
 
     if (not slow_scraping_ok) and (n_img > 0):
         scrape_worthy = False
@@ -1417,10 +1430,12 @@ def is_statically_reblog_worthy_on_dash(
 
     if scrape_worthy:
         path = "data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "data/dash_post_dump_frank.txt"
-        print(f"archiving {post_identifier} | ", end="")
+        log_verb = "reading" if image_scrape_only else "archiving"
+        print(f"{log_verb} {post_identifier} | ", end="")
         archive_to_corpus(post_payload, path=path, client_pool=client_pool,
                           include_image_urls=SCRAPE_FORMAT_V2,
-                          include_post_identifier=SCRAPE_FORMAT_V2)
+                          include_post_identifier=SCRAPE_FORMAT_V2,
+                          read_without_write=image_scrape_only)
 
     if is_nost_dash_scraper:
         reblog_worthy = False

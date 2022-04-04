@@ -66,11 +66,12 @@ def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[C
     with LogExceptionAndSkip("archive post to corpus"):
         thread = TumblrThread.from_payload(post_payload)
 
-        thread, skip = handle_no_commentary_and_populate_tags(
-            thread, client_pool, allow_posts_with_unrecoverable_tags
-        )
-        if skip:
-            return
+        if not read_without_write:
+            thread, skip = handle_no_commentary_and_populate_tags(
+                thread, client_pool, allow_posts_with_unrecoverable_tags
+            )
+            if skip:
+                return
 
         if ouro:
             thread = apply_nost_identity_ouroboros(thread)

@@ -2617,7 +2617,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
             handle_mood_command(response_cache, post_payload)
         elif post_payload['asking_name'] == 'nostalgebraist' and post_payload.get("summary", "").startswith('!pid'):
             with LogExceptionAndSkip("add manual ask id"):
-                pid = post_payload['summary'].split(' ')[-1]
+                pid = post_payload['summary'].split(' ')[1]
+                pid = int(pid)
                 print(f'adding manual ask id {repr(pid)}')
                 loop_persistent_data.manual_ask_post_ids.add(pid)
                 client_pool.get_private_client().delete_post(blogName, post_payload["id"])

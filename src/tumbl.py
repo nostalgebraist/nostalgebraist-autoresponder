@@ -2805,6 +2805,20 @@ def do_queue_handling(loop_persistent_data, response_cache):
     n_posts_in_queue = len(queue)
     print(f"{n_posts_in_queue} posts in queue")
 
+    with LogExceptionAndSkip('delete queued bootstrap text'):
+        to_delete = [pp['id'] for pp in queue if pp['summary'] == REBLOG_BOOTSTRAP_TEXT]
+
+        if len(to_delete) > 0:
+            print(f'deleting bootstrap text post(s) in queue: {to_delete}')
+
+            for pid in to_delete:
+                client_pool.get_private_client().delete_post(blogName, id=pid)
+
+            queue = client_pool.get_private_client().queue(blogName, limit=20)["posts"]
+
+            n_posts_in_queue = len(queue)
+            print(f"now {n_posts_in_queue} posts in queue")
+
     if n_posts_in_queue < WRITE_POSTS_WHEN_QUEUE_BELOW:
         for textpost_ix in range(N_TO_WRITE):
             timestamp = next_queued_post_time()

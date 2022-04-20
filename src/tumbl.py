@@ -811,7 +811,7 @@ class LoopPersistentData:
         reply_metadata={},
         timestamps={},
         reblog_keys={},
-        n_posts_to_check_base=150,
+        n_posts_to_check_base=250,
         n_posts_to_check_dash=350,
         n_notifications_to_check=200,
         offset_=0,

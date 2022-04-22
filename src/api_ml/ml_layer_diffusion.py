@@ -1,6 +1,7 @@
 import sys
 import time
 from io import BytesIO
+from PIL import Image
 
 import requests
 import numpy as np
@@ -134,7 +135,7 @@ def poll(
                 n_samples=1,
                 low_res=np.expand_dims(np.array(result), 0)
             )
-            result = Image.fromarray(result)
+            result = Image.fromarray(result[0])
 
             delta_t = time.time() - t1
             print(f"sres3 took {delta_t:.1f}s")

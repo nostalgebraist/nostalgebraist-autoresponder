@@ -26,6 +26,7 @@ HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 timestep_respacing_sres1 = '40,70,80,40,20'
 timestep_respacing_sres2 = '90,60,60,20,20'
+timestep_respacing_sres3 = '90,60,60,20,20'
 
 DIFFUSION_DEFAULTS = dict(
     batch_size=2,
@@ -57,6 +58,11 @@ config_path_sres1 = os.path.join(model_path_diffusion, "config_sres1.json")
 checkpoint_path_sres2 = os.path.join(model_path_diffusion, "sres2.pt")
 config_path_sres2 = os.path.join(model_path_diffusion, "config_sres2.json")
 
+checkpoint_path_sres3 = os.path.join(model_path_diffusion, "sres3.pt")
+config_path_sres3 = os.path.join(model_path_diffusion, "config_sres3.json")
+
+using_sres3 = os.path.exists(checkpoint_path_sres3) and os.path.exists(config_path_sres3)
+
 # load
 sampling_model_sres1 = improved_diffusion.pipeline.SamplingModel.from_config(
     checkpoint_path=checkpoint_path_sres1,
@@ -70,8 +76,17 @@ sampling_model_sres2 = improved_diffusion.pipeline.SamplingModel.from_config(
     timestep_respacing=timestep_respacing_sres2
 )
 
-pipeline = improved_diffusion.pipeline.SamplingPipeline(sampling_model_sres1, sampling_model_sres2)
+sampling_model_sres3 = None
 
+if using_sres3:
+    sampling_model_sres3 = improved_diffusion.pipeline.SamplingModel.from_config(
+        checkpoint_path=checkpoint_path_sres3,
+        config_path=config_path_sres3,
+        timestep_respacing=timestep_respacing_sres3
+    )
+
+
+pipeline = improved_diffusion.pipeline.SamplingPipeline(sampling_model_sres1, sampling_model_sres2)
 
 
 def poll(
@@ -102,6 +117,26 @@ def poll(
         result = run_pipeline(pipeline, **args)  # PIL Image
         delta_t = time.time() - t1
         print(f"pipeline took {delta_t:.1f}s")
+
+        if using_sres3:
+            t1 = time.time()
+
+            # TODO: better separation of concerns
+            #
+            # conceptually, this part "should" go in diffusion_helpers
+            # since it's about diffusion internals and not just API
+            #
+            # however, diffusion_helpers itself does more harm than good at this point
+            # and it's easier to do this (visibly) here than to push it inside a cumbersome "helper"
+            result = sampling_model_sres3.sample(
+                text=None,
+                batch_size=1,
+                n_samples=1,
+                low_res=np.expand_dims(np.array(result), 0)
+            )
+
+            delta_t = time.time() - t1
+            print(f"sres3 took {delta_t:.1f}s")
 
         with BytesIO() as output:
             result.save(output, "png")

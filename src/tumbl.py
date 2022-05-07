@@ -1368,7 +1368,7 @@ def is_statically_reblog_worthy_on_dash(
     if '.gif' in p_body:
         scrape_worthy = False
 
-    if n_img > 5:
+    if n_img > 3:
         scrape_worthy = False
     elif n_img > 2:
         image_scrape_only = True

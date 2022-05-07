@@ -107,6 +107,7 @@ DETERMINER_CENTER_UPDATES = {
     pd.Timestamp("2022-03-14 10:20:00"): 0.05,
     pd.Timestamp("2022-03-24 08:30:00"): 0.15,
     pd.Timestamp("2022-03-25 09:50:00"): 0.25,
+    pd.Timestamp("2022-05-06 17:40:00"): 0.1,
 }
 DETERMINER_MULTIPLIER_UPDATES = {
     pd.Timestamp("2020-08-25 17:00:00"): 0.1 / RESPONSE_SCALE_BASE,

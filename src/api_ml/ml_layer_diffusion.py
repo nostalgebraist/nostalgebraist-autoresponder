@@ -95,12 +95,12 @@ def poll(
         if data is None or len(data) == 0:
             continue
 
-        prompt = data['text'][:TRUNCATE_LENGTH]
+        text = data['prompt'][:TRUNCATE_LENGTH]
 
         t1 = time.time()
 
         result = sampling_model_sres1.sample(
-            text=prompt,
+            text=text,
             batch_size=1,
             n_samples=1,
             to_visible=False,
@@ -109,7 +109,7 @@ def poll(
         )
 
         result = sampling_model_sres2.sample(
-            text=prompt,
+            text=text,
             batch_size=1,
             n_samples=1,
             to_visible=not using_sres3,

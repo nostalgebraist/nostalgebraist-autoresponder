@@ -31,14 +31,20 @@ timestep_respacing_sres3 = '150,50,25,25'
 
 TRUNCATE_LENGTH = 380
 
-DIFFUSION_DEFAULTS = dict(
+DIFFUSION_DEFAULTS_STEP1 = dict(
     batch_size=1,
     n_samples=1,
     clf_free_guidance=True,
-    clf_free_guidance_sres=False,
     guidance_scale=1,
-    guidance_scale_sres=0,
 )
+
+DIFFUSION_DEFAULTS_STEP2 = dict(
+    batch_size=1,
+    n_samples=1,
+    clf_free_guidance=False,
+    guidance_scale=0,
+)
+
 
 # download
 if not os.path.exists(model_path_diffusion):
@@ -107,12 +113,14 @@ def poll(
         data['text'] = data['text'][:TRUNCATE_LENGTH]
 
         args = {k: v for k, v in DIFFUSION_DEFAULTS.items()}
-        args.update(data)
+        args['text'] = data['text']
+        args['guidance_scale'] = data['guidance_scale']
 
-        print(f"running: {args}")
+        print(f"running step1: {args}")
 
         t1 = time.time()
-        result = run_pipeline(pipeline, **args)  # PIL Image
+        result = pipeline.sample(*args)
+
         delta_t = time.time() - t1
         print(f"pipeline took {delta_t:.1f}s")
 

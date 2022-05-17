@@ -31,21 +31,6 @@ timestep_respacing_sres3 = '150,50,25,25'
 
 TRUNCATE_LENGTH = 380
 
-DIFFUSION_DEFAULTS_STEP1 = dict(
-    batch_size=1,
-    n_samples=1,
-    clf_free_guidance=True,
-    guidance_scale=1,
-)
-
-DIFFUSION_DEFAULTS_STEP2 = dict(
-    batch_size=1,
-    n_samples=1,
-    clf_free_guidance=False,
-    guidance_scale=0,
-)
-
-
 # download
 if not os.path.exists(model_path_diffusion):
     model_tar_name = 'model.tar'
@@ -110,33 +95,40 @@ def poll(
         if data is None or len(data) == 0:
             continue
 
-        data['text'] = data['text'][:TRUNCATE_LENGTH]
-
-        args = {k: v for k, v in DIFFUSION_DEFAULTS.items()}
-        args['text'] = data['text']
-        args['guidance_scale'] = data['guidance_scale']
-
-        print(f"running step1: {args}")
+        prompt = data['text'][:TRUNCATE_LENGTH]
 
         t1 = time.time()
-        result = pipeline.sample(*args)
 
-        delta_t = time.time() - t1
-        print(f"pipeline took {delta_t:.1f}s")
+        result = sampling_model_sres1.sample(
+            text=prompt,
+            batch_size=1,
+            n_samples=1,
+            to_visible=False,
+            clf_free_guidance=True,
+            guidance_scale=data.get('guidance_scale', 1)
+        )
+
+        result = sampling_model_sres2.sample(
+            text=prompt,
+            batch_size=1,
+            n_samples=1,
+            to_visible=not using_sres3,
+            from_visible=False,
+            low_res=result,
+        )
 
         if using_sres3:
-            t1 = time.time()
-
             result = sampling_model_sres3.sample(
                 text=None,
                 batch_size=1,
                 n_samples=1,
-                low_res=np.expand_dims(np.array(result), 0)
+                to_visible=True,
+                from_visible=False,
+                low_res=result,
             )
-            result = Image.fromarray(result[0])
 
-            delta_t = time.time() - t1
-            print(f"sres3 took {delta_t:.1f}s")
+        delta_t = time.time() - t1
+        print(f"pipeline took {delta_t:.1f}s")
 
         with BytesIO() as output:
             result.save(output, "png")

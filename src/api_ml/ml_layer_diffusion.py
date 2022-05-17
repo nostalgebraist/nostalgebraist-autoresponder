@@ -126,12 +126,13 @@ def poll(
                 from_visible=False,
                 low_res=result,
             )
+        im = Image.fromarray(result[0])
 
         delta_t = time.time() - t1
         print(f"pipeline took {delta_t:.1f}s")
 
         with BytesIO() as output:
-            result.save(output, "png")
+            im.save(output, "png")
             b = output.getvalue()
 
         if not dummy:

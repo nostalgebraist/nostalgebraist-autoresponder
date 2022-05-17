@@ -29,20 +29,15 @@ timestep_respacing_sres1 = '90,60,60,20,20'
 timestep_respacing_sres2 = '150,50,25,25'
 timestep_respacing_sres3 = '150,50,25,25'
 
+TRUNCATE_LENGTH = 380
+
 DIFFUSION_DEFAULTS = dict(
-    batch_size=2,
-    n_samples=2,
-    delete_under=-1,
-    keep_only_if_above=2,
-    truncate_length=380,
-    threshold=65,
+    batch_size=1,
+    n_samples=1,
     clf_free_guidance=True,
     clf_free_guidance_sres=False,
-    guidance_scale=0,
+    guidance_scale=1,
     guidance_scale_sres=0,
-    use_plms=False,
-    use_plms_sres=False,
-    guidance_after_step_base=1000,
 )
 
 # download
@@ -109,6 +104,8 @@ def poll(
         if data is None or len(data) == 0:
             continue
 
+        data['text'] = data['text'][:TRUNCATE_LENGTH]
+
         args = {k: v for k, v in DIFFUSION_DEFAULTS.items()}
         args.update(data)
 
@@ -122,13 +119,6 @@ def poll(
         if using_sres3:
             t1 = time.time()
 
-            # TODO: better separation of concerns
-            #
-            # conceptually, this part "should" go in diffusion_helpers
-            # since it's about diffusion internals and not just API
-            #
-            # however, diffusion_helpers itself does more harm than good at this point
-            # and it's easier to do this (visibly) here than to push it inside a cumbersome "helper"
             result = sampling_model_sres3.sample(
                 text=None,
                 batch_size=1,

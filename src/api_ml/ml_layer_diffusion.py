@@ -106,6 +106,7 @@ def poll(
             to_visible=False,
             clf_free_guidance=True,
             guidance_scale=data.get('guidance_scale', 1)
+            dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995)
         )
 
         result = sampling_model_sres2.sample(

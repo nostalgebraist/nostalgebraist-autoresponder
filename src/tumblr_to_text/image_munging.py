@@ -88,11 +88,13 @@ def find_text_images_and_sub_real_images(
     guidance_scale_sres=0.,
     use_anti_guidance=False,
     anti_guidance_scale=30,
+    dynamic_threshold_p=0.995,
 ):
     print(f'using diffusion?: {use_diffusion}')
     if use_diffusion:
         image_maker = make_image_with_diffusion
-        image_maker_kwargs = {"guidance_scale": guidance_scale, "guidance_scale_sres": guidance_scale_sres}
+        image_maker_kwargs = {"guidance_scale": guidance_scale, "guidance_scale_sres": guidance_scale_sres,
+                              "dynamic_threshold_p": dynamic_threshold_p}
     else:
         image_maker = make_image_simple
         image_maker_kwargs = {}

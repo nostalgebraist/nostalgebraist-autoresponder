@@ -196,10 +196,12 @@ FIC_TRIGGER_TESTING = False
 IMAGE_CREATION = True
 IMAGE_CREATION_TESTING = False
 IMAGE_CREATION_DIFFUSION = True
-GUIDANCE_SCALE_OPTIONS = (0.5, 1, 1, 1, 1.5)
+# GUIDANCE_SCALE_OPTIONS = (0.5, 1, 1, 1, 1.5)  # static thresholding
+GUIDANCE_SCALE_OPTIONS = (1, 2, 4, 4, 5, 5, 6, 6, 8)  # dynamic thresholding
 
 ANTI_GUIDANCE = True
-ANTI_GUIDANCE_SCALE_OPTIONS = (0, 1, 1, 5, 10,)
+# ANTI_GUIDANCE_SCALE_OPTIONS = (0, 1, 1, 5, 10,)  # static thresholding
+ANTI_GUIDANCE_SCALE_OPTIONS = (0, 5, 5, 10, 10, 15, 15, 20)  # dynamic thresholding
 
 SCRAPE_FORMAT_V2 = True
 

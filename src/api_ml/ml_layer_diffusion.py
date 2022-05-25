@@ -26,6 +26,7 @@ BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 timestep_respacing_sres1 = '350,150'
+timestep_respacing_sres1p5 = '150,50,25,25'
 timestep_respacing_sres2 = '150,50,25,25'
 timestep_respacing_sres3 = '150,50,25,25'
 
@@ -42,6 +43,11 @@ if not os.path.exists(model_path_diffusion):
 checkpoint_path_sres1 = os.path.join(model_path_diffusion, "sres1.pt")
 config_path_sres1 = os.path.join(model_path_diffusion, "config_sres1.json")
 
+checkpoint_path_sres1p5 = os.path.join(model_path_diffusion, "sres1p5.pt")
+config_path_sres1p5 = os.path.join(model_path_diffusion, "config_sres1p5.json")
+
+using_sres1p5 = os.path.exists(checkpoint_path_sres1p5) and os.path.exists(config_path_sres1p5)
+
 checkpoint_path_sres2 = os.path.join(model_path_diffusion, "sres2.pt")
 config_path_sres2 = os.path.join(model_path_diffusion, "config_sres2.json")
 
@@ -56,6 +62,15 @@ sampling_model_sres1 = improved_diffusion.pipeline.SamplingModel.from_config(
     config_path=config_path_sres1,
     timestep_respacing=timestep_respacing_sres1
 )
+
+sampling_model_sres1p5 = None
+
+if using_sres1p5:
+    sampling_model_sres1p5 = improved_diffusion.pipeline.SamplingModel.from_config(
+        checkpoint_path=checkpoint_path_sres1p5,
+        config_path=config_path_sres1p5,
+        timestep_respacing=timestep_respacing_sres1p5
+    )
 
 sampling_model_sres2 = improved_diffusion.pipeline.SamplingModel.from_config(
     checkpoint_path=checkpoint_path_sres2,
@@ -109,8 +124,18 @@ def poll(
             dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995)
         )
 
+        if using_sres1p5:
+            result = sampling_model_sres1p5.sample(
+                text=text,
+                batch_size=1,
+                n_samples=1,
+                to_visible=False,
+                from_visible=False,
+                low_res=result,
+            )
+
         result = sampling_model_sres2.sample(
-            text=text,
+            text=text if sampling_model_sres2.model.txt else None,
             batch_size=1,
             n_samples=1,
             to_visible=not using_sres3,

@@ -54,6 +54,13 @@ config_path_sres2 = os.path.join(model_path_diffusion, "config_sres2.json")
 checkpoint_path_sres3 = os.path.join(model_path_diffusion, "sres3.pt")
 config_path_sres3 = os.path.join(model_path_diffusion, "config_sres3.json")
 
+# shared model for steps 2 and 3
+checkpoint_path_sres2_3 = os.path.join(model_path_diffusion, "sres2_3.pt")
+
+if os.path.exists(checkpoint_path_sres2_3):
+    checkpoint_path_sres2 = checkpoint_path_sres2_3
+    checkpoint_path_sres3 = checkpoint_path_sres2_3
+
 using_sres3 = os.path.exists(checkpoint_path_sres3) and os.path.exists(config_path_sres3)
 
 # load

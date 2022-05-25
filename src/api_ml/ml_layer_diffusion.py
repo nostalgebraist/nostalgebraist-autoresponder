@@ -25,7 +25,7 @@ BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 # constants
 HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
-timestep_respacing_sres1 = '350,150'
+timestep_respacing_sres1 = '100,150'
 timestep_respacing_sres1p5 = '150,50,25,25'
 timestep_respacing_sres2 = '150,50,25,25'
 timestep_respacing_sres3 = '150,50,25,25'
@@ -84,6 +84,7 @@ sampling_model_sres2 = improved_diffusion.pipeline.SamplingModel.from_config(
     config_path=config_path_sres2,
     timestep_respacing=timestep_respacing_sres2
 )
+sampling_model_sres2.model.image_size = 256
 
 sampling_model_sres3 = None
 
@@ -93,6 +94,7 @@ if using_sres3:
         config_path=config_path_sres3,
         timestep_respacing=timestep_respacing_sres3
     )
+    sampling_model_sres2.model.image_size = 512
 
 
 pipeline = improved_diffusion.pipeline.SamplingPipeline(sampling_model_sres1, sampling_model_sres2)

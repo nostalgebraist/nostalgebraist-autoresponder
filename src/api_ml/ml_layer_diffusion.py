@@ -94,7 +94,7 @@ if using_sres3:
         config_path=config_path_sres3,
         timestep_respacing=timestep_respacing_sres3
     )
-    sampling_model_sres2.model.image_size = 512
+    sampling_model_sres3.model.image_size = 512
 
 
 pipeline = improved_diffusion.pipeline.SamplingPipeline(sampling_model_sres1, sampling_model_sres2)

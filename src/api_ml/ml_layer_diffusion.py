@@ -141,6 +141,7 @@ def poll(
                 to_visible=False,
                 from_visible=False,
                 low_res=result,
+                guidance_scale=1,
             )
 
         result = sampling_model_sres2.sample(

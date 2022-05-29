@@ -141,7 +141,8 @@ def poll(
                 to_visible=False,
                 from_visible=False,
                 low_res=result,
-                guidance_scale=1,
+                guidance_scale=data.get('guidance_scale', 1),
+                noise_cond_ts=300,
             )
 
         result = sampling_model_sres2.sample(

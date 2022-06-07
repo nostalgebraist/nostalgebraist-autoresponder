@@ -28,7 +28,7 @@ model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 timestep_respacing_sres1 = '100,150'
 timestep_respacing_sres1p5 = '90,60,60,20,20'
 timestep_respacing_sres2 = '150,50,25,25'
-timestep_respacing_sres3 = '150,50,25,25'
+timestep_respacing_sres3 = '250'
 
 TRUNCATE_LENGTH = 380
 
@@ -162,6 +162,7 @@ def poll(
                 to_visible=True,
                 from_visible=False,
                 low_res=result,
+                noise_cond_ts=125,
             )
         im = Image.fromarray(result[0])
 

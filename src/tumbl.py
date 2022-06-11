@@ -1386,6 +1386,11 @@ def is_statically_reblog_worthy_on_dash(
         elif roll > 0.5:
             image_scrape_only = True
 
+    if not has_comment:
+        roll = random.random()
+        if roll > 0.667:
+            image_scrape_only = True
+
     if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):
         if get_images_from_no_scrape_users:
             image_scrape_only = True

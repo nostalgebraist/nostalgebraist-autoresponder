@@ -27,7 +27,7 @@ HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 timestep_respacing_sres1 = '100,150'
 timestep_respacing_sres1p5 = '90,60,60,20,20'
-timestep_respacing_sres2 = '150,50,25,25'
+timestep_respacing_sres2 = '90,60,60,20,20'
 timestep_respacing_sres3 = '250'
 
 TRUNCATE_LENGTH = 380
@@ -152,6 +152,8 @@ def poll(
             to_visible=not using_sres3,
             from_visible=False,
             low_res=result,
+            guidance_scale=data.get('guidance_scale', 1),
+            noise_cond_ts=100,
         )
 
         if using_sres3:
@@ -162,7 +164,7 @@ def poll(
                 to_visible=True,
                 from_visible=False,
                 low_res=result,
-                noise_cond_ts=125,
+                noise_cond_ts=100,
             )
         im = Image.fromarray(result[0])
 

@@ -1374,14 +1374,14 @@ def is_statically_reblog_worthy_on_dash(
     if '.gif' in p_body:
         scrape_worthy = False
 
-    if n_img > 3:
+    if n_img > 4:
         scrape_worthy = False
     elif n_img > 2:
         image_scrape_only = True
 
     if n_img > 0:
         roll = random.random()
-        if roll > 0.75:
+        if roll > 1:  # disabled
             scrape_worthy = False
         elif roll > 0.5:
             image_scrape_only = True

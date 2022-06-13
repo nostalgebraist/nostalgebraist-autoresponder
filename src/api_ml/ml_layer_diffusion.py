@@ -28,7 +28,7 @@ model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 timestep_respacing_sres1 = '250'
 timestep_respacing_sres1p5 = '90,60,60,20,20'
 timestep_respacing_sres2 = '90,60,60,20,20'
-timestep_respacing_sres3 = '250'
+timestep_respacing_sres3 = '90,60,60,20,20'
 
 TRUNCATE_LENGTH = 380
 

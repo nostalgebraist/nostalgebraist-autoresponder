@@ -868,7 +868,7 @@ def update_follower_names(response_cache):
         names = {entry["name"] for entry in response["blogs"]}
         while len(names) < total_blogs:
             print(f'have {len(names)}')
-            time.sleep(0.5)
+            time.sleep(1)
 
             offset = len(names)
             response = client_pool.get_dashboard_client().blog_following(
@@ -876,7 +876,7 @@ def update_follower_names(response_cache):
             )
             if "blogs" not in response:
                 pprint(response)
-                time.sleep(2)
+                time.sleep(5)
                 continue
 
             names.update({entry["name"] for entry in response["blogs"]})

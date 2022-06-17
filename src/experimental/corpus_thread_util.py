@@ -357,6 +357,13 @@ def stream_read_docs(fp, page_size=128, maxdocs=None):
     return docs
 
 
+def stream_write_docs(fp, docs, mode="w"):
+    with open(fp, mode, encoding="utf-8") as f:
+        for doc in tqdm(docs):
+            line = doc + EOT
+            f.write(line)
+
+
 def load_trails_from_docs(paths,
                           include_usernames=False,
                           exclude_malformed=True,

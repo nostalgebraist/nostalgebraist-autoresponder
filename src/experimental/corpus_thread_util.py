@@ -8,7 +8,7 @@ from tqdm.auto import tqdm as tqdm_base
 tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
 
 from tumblr_to_text.classic.autoresponder_static import EOT
-from experimental.corpus_text_hacks import extract_time_from_forumlike_doc, get_ccs_with_fixes
+from experimental.corpus_text_hacks import extract_time_from_forumlike_doc, get_ccs_with_fixes, strip_post_identifier
 from experimental.corpus_slimmers import slim_forumlike_doc
 
 quote_hell_regex = re.compile(r"<blockquote><a href=\"http://[^\.]+\.tumblr\.com/post/[^\"]+\">[^<]+</a>:")
@@ -366,7 +366,9 @@ def load_trails_from_docs(paths,
                           uid_to_metadata=None,
                           uid_fn=unique_id_ignore_frank_nost,
                           return_excluded_uids=False,
-                          return_slimmed=False):
+                          return_slimmed=False,
+                          doc_preprocessor=strip_post_identifier,
+                          ):
 
     using_uid_map = uid_to_metadata is not None
     doc_to_uid = {}
@@ -382,6 +384,8 @@ def load_trails_from_docs(paths,
         #     ds = f.read()
         # g = [d for d in ds.split(EOT) if len(d) > 0]
         g = stream_read_docs(p)
+        if doc_preprocessor is not None:
+            g = [doc_preprocessor(d) for d in g]
         n_raw = len(g)
         print(f"read group from file {p}:\n\t{n_raw} raw docs\n")
 

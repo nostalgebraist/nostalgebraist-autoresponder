@@ -95,20 +95,29 @@ def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[C
 
 
 def _train_val_split(docs, val_frac=0.03):
-    charlen = sum(map(len, docs))
+    charlens = list(map(len, docs))
+    charlen = sum(charlens)
     val_charlen = val_frac * charlen
 
-    train_docs = list(iter(docs))  # deep copy
-    val_docs = []
+    # train_docs = list(iter(docs))  # deep copy
+    train_doc_ixs = list(range(len(docs)))
+    val_doc_ixs = []
 
-    while sum(map(len, val_docs)) < val_charlen:
-        ix = random.randint(0, len(train_docs) - 1)
+    current_val_charlen = 0
+
+    while current_val_charlen < val_charlen:
+        ixix = random.randint(0, len(train_doc_ixs) - 1)
         try:
-            val_docs.append(train_docs.pop(ix))
+            moved = train_doc_ixs.pop(ixix)
+            val_doc_ixs.append(moved)
+            current_val_charlen += charlens[moved]
         except IndexError as e:
-            print(f"tried to pop {ix} from train_docs with length {len(train_docs)}")
-            print(f"currently: val_docs {sum(map(len, val_docs))} chars, {len(val_docs)} docs")
+            print(f"tried to pop {ix} from train_doc_ixs with length {len(train_doc_ixs)}")
+            print(f"currently: val_doc_ixs {current_val_charlen} chars, {len(val_doc_ixs)} docs")
             raise e
+
+    train_docs = [docs[ix] for ix in train_doc_ixs]
+    val_docs = [docs[ix] for ix in val_doc_ixs]
 
     return train_docs, val_docs
 
@@ -127,18 +136,25 @@ def _exclude_nbar(docs, name):
 
 
 def dedup_join_save(include_corpus_extensions=False, exclude_nbar=False, val_frac=0.03):
-    with open("data/dash_post_dump_nost.txt", "r", encoding="utf-8") as f:
-        ds1 = f.read()
+    from experimental.corpus_thread_util import stream_read_docs
 
-    docs = {d for d in ds1.split(EOT) if len(d) > 0}
+
+    # with open("data/dash_post_dump_nost.txt", "r", encoding="utf-8") as f:
+    #     ds1 = f.read()
+
+    # docs = {d for d in ds1.split(EOT) if len(d) > 0}
+
+    docs = set(stream_read_docs("data/dash_post_dump_nost.txt"))
 
     if exclude_nbar:
         docs = _exclude_nbar(docs, "dash_post_dump_nost")
 
-    with open("data/dash_post_dump_frank.txt", "r", encoding="utf-8") as f:
-        ds2 = f.read()
+    # with open("data/dash_post_dump_frank.txt", "r", encoding="utf-8") as f:
+    #     ds2 = f.read()
+    #
+    # docs2 = {d for d in ds2.split(EOT) if len(d) > 0}
 
-    docs2 = {d for d in ds2.split(EOT) if len(d) > 0}
+    docs2 = set(stream_read_docs("data/dash_post_dump_frank.txt"))
 
     if exclude_nbar:
         docs2 = _exclude_nbar(docs2, "dash_post_dump_frank")
@@ -150,10 +166,13 @@ def dedup_join_save(include_corpus_extensions=False, exclude_nbar=False, val_fra
             if not fn.endswith(".txt"):
                 continue
             fp = "data/corpus_nwo_extensions/" + fn
-            with open(fp, "r", encoding="utf-8") as f:
-                ds_xtn = f.read()
 
-            docs_fp = {d for d in ds_xtn.split(EOT) if len(d) > 0}
+            # with open(fp, "r", encoding="utf-8") as f:
+            #     ds_xtn = f.read()
+
+            # docs_fp = {d for d in ds_xtn.split(EOT) if len(d) > 0}
+
+            docs_fp = set(stream_read_docs(fp))
 
             if exclude_nbar and "nostalgebraist" not in fn:
                 docs_fp = _exclude_nbar(docs_fp, fn)

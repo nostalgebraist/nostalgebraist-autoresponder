@@ -330,6 +330,33 @@ def show_trail(docs, trails, key):
         print('\n------\n')
 
 
+def stream_read_docs(fp, page_size=128, maxdocs=None):
+    def gen(file):
+        buffer = ''
+
+        done = False
+        n = 0
+        while not done:
+            new = f.read(page_size)
+            if len(new) < page_size:
+                done = True
+            buffer += new
+            segs = buffer.split(EOT)
+            buffer = segs[-1]
+            for s in segs[:-1]:
+                yield s
+                n += 1
+            if maxdocs and n>= maxdocs:
+                break
+        if buffer != '':
+            yield buffer
+
+    with open(fp, 'r', encoding='utf-8') as f:
+        docs = list(tqdm(gen(f), mininterval=1))
+
+    return docs
+
+
 def load_trails_from_docs(paths,
                           include_usernames=False,
                           exclude_malformed=True,
@@ -351,9 +378,10 @@ def load_trails_from_docs(paths,
 
     doc_groups = []
     for p in paths:
-        with open(p, "r", encoding="utf-8") as f:
-            ds = f.read()
-        g = [d for d in ds.split(EOT) if len(d) > 0]
+        # with open(p, "r", encoding="utf-8") as f:
+        #     ds = f.read()
+        # g = [d for d in ds.split(EOT) if len(d) > 0]
+        g = stream_read_docs(p)
         n_raw = len(g)
         print(f"read group from file {p}:\n\t{n_raw} raw docs\n")
 

@@ -85,3 +85,7 @@ def _load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):
 
 def load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):
     return no_init(partial(_load_gpt_j_split_ckpt, ckpt_dir=ckpt_dir, config=config))
+
+
+def load_gpt_j_split_ckpt_state_dict(ckpt_dir):
+    return SplitCheckpoint(ckpt_dir)

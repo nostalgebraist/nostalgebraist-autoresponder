@@ -131,10 +131,25 @@ class SideJudgmentModelInterface(MLModelInterface):
         )
 
 
+class CaptionerModelInterface(MLModelInterface):
+    def __init__(self):
+        self.name = 'captioner'
+        self.uses_bridge_cache = True
+
+    def caption_image(self, *args, repeat_until_done_signal=False, **kwargs):
+        return self.do(
+            "caption_image",
+            repeat_until_done_signal=repeat_until_done_signal,
+            *args,
+            **kwargs,
+        )
+
+
 generator_model = GeneratorModelInterface()
 selector_est = SideJudgmentModelInterface("selector")
 sentiment_est = SideJudgmentModelInterface("sentiment")
 autoreviewer_est = SideJudgmentModelInterface("autoreviewer")
+captioner = CaptionerModelInterface()
 
 
 def parse_continuation(continuation: str, verbose=True):

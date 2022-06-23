@@ -17,4 +17,5 @@ wandb
 smart_open[gcs]
 git+https://github.com/finetuneanon/transformers/@gpt-neo-localattention3-rp-b
 git+https://github.com/nostalgebraist/transformer-utils@main
+git+https://github.com/nostalgebraist/magma@nbar
 ngram==4.0.3

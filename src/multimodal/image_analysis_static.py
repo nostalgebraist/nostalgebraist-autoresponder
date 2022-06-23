@@ -196,6 +196,10 @@ def fill_url_based_captions(
         flags=re.DOTALL,
     )
 
+    if verbose:
+        print(f"fill_url_based_captions: got original {repr(s)}")
+        print(f"fill_url_based_captions: made replacement {repr(filled)}")
+
     return filled, matched[0], imtext_mapped[0], imtext_unmappable[0], url_replaced[0], url_unreplaceable[0]
 
 

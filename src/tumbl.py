@@ -61,6 +61,7 @@ from api_ml.ml_connector import (
     selection_proba_from_gpt,
     sentiment_logit_diffs_from_gpt,
     autoreview_proba_from_gpt,
+    caption_images_in_post_html,
 )
 
 from tumblr_to_text.classic.autoresponder_static import EOT, DEFAULT_CSC
@@ -208,6 +209,8 @@ ANTI_GUIDANCE = True
 ANTI_GUIDANCE_SCALE_OPTIONS = (0, 0, 1, 1, 1, 2, 2, 5, 10, 20)  # dynamic thresholding, 4stage, v2
 
 SCRAPE_FORMAT_V2 = True
+
+CAPTION_IMAGES_IN_MODEL_INPUT = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)

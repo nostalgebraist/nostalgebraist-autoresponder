@@ -1000,7 +1000,14 @@ def respond_to_reblogs_replies(
                 reply_blog_name=reblog_identifier.blog_name,
                 reply_body=loop_persistent_data.reply_metadata[reblog_identifier]["reply_note"]["reply_text"]
             )
-        prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(thread, blogName)
+        prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(
+            thread, blogName,
+            include_image_urls=CAPTION_IMAGES_IN_MODEL_INPUT,
+            include_image_urls_for_heads=False,
+        )
+
+        if CAPTION_IMAGES_IN_MODEL_INPUT:
+            prompt = caption_images_in_post_html(prompt)
 
         no_timestamp = True
 
@@ -2748,7 +2755,14 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 prompt, prompt_selector, prompt_autoreviewer = make_nwo_fic_override_prompts(thread,
                                                                                              use_definite_article=not V12_14)
             else:
-                prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(thread, blogName)
+                prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(
+                    thread, blogName,
+                    include_image_urls=CAPTION_IMAGES_IN_MODEL_INPUT,
+                    include_image_urls_for_heads=False,
+                )
+
+                if CAPTION_IMAGES_IN_MODEL_INPUT:
+                    prompt = caption_images_in_post_html(prompt)
 
             gpt2_output = answer_from_gpt(
                 prompt=prompt,

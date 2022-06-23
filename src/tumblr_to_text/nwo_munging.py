@@ -119,21 +119,29 @@ def get_normalized_ask_text(thread: TumblrThread):
     return ask_text
 
 
-def make_nwo_prompts(thread: TumblrThread, blog_name: str, debug=False, ml_prompt_format=True,
-                     head_timestamp: Optional[datetime] = None):
+def make_nwo_prompts(thread: TumblrThread,
+                    blog_name: str,
+                    debug=False,
+                    ml_prompt_format=True,
+                    include_image_urls=False,
+                    include_image_urls_for_heads=False,
+                    head_timestamp: Optional[datetime] = None):
     prompt = EOT + npf_thread_to_formatted_text(
-        sample_year_and_set_timestamp(thread), ml_prompt_format=ml_prompt_format
+        sample_year_and_set_timestamp(thread),
+        ml_prompt_format=ml_prompt_format,
+        include_image_urls=include_image_urls,
     )
 
     if head_timestamp:
         thread = set_timestamp(thread, head_timestamp)
 
     thread_selector = cut_to_n_most_recent_by_user(thread, blog_name, n_most_recent=2, keep_first=False)
-    prompt_selector = EOT + npf_thread_to_formatted_text(thread_selector, ml_prompt_format=ml_prompt_format)
+    prompt_selector = EOT + npf_thread_to_formatted_text(thread_selector, ml_prompt_format=ml_prompt_format,
+                                                         include_image_urls=include_image_urls_for_heads)
 
     thread_autoreviewer = cut_to_n_most_recent_by_user(thread, blog_name, n_most_recent=2)
-    prompt_autoreviewer = EOT + npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=ml_prompt_format)
-
+    prompt_autoreviewer = EOT + npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=ml_prompt_format,
+                                                             include_image_urls=include_image_urls_for_heads)
     if debug:
         print(f"prompt: {repr(prompt)}")
         print(f"prompt_selector: {repr(prompt_selector)}")

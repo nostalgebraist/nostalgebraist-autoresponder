@@ -67,16 +67,16 @@ def load_generator_model(
     device='cuda:0',
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
     retries=False,
-    use_captioner="captioner" in MODELS_SERVED,
-    captioner_path=ckpt_captioner,
+    use_captioner=False
+    captioner_path="",
 ):
     if use_captioner:
         sd = load_gpt_j_split_ckpt_state_dict(path)
 
-        magma_config_path = os.path.join(path, 'config.yml')
+        magma_config_path = os.path.join(captioner_path, 'config.yml')
 
         magma_wrapper = magma.Magma.from_split_checkpoint(
-            path,
+            captioner_path,
             magma_config_path,
             lm_path_or_state_dict=sd
         )

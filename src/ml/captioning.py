@@ -43,7 +43,6 @@ def caption_image(
         output = generate_cfg(
             model=magma_wrapper,
             embeddings=embeddings,
-            max_steps = 6,
             temperature=temperature,
             top_k=top_k,
             top_p=top_p,

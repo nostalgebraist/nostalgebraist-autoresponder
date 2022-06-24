@@ -6,7 +6,7 @@ import numpy as np
 from transformers import AutoTokenizer
 from transformer_utils.util.tfm_utils import get_local_path_from_huggingface_cdn
 
-from magma import Magma
+import magma import Magma
 
 from config.autoresponder_config import *
 from tumblr_to_text.classic.autoresponder_static_v8 import *
@@ -15,7 +15,7 @@ from ml.generator_model_torch import GeneratorModelTorch, GPT_NEO_DEFAULT_SAMPLI
 from classifier_heads.head_estimator import NostARHeadEstimator
 from ml.load_gptj import load_gpt_j_split_ckpt, load_gpt_j_split_ckpt_state_dict
 
-from ml.captioning import caption_image
+import ml.captioning
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
@@ -25,6 +25,11 @@ bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 bridge_service_port = bot_specific_constants.bridge_service_port
 BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 
+
+def caption_image(self, path_or_url, **kwargs):
+    return ml.captioning.caption_image(path_or_url=path_or_url, magma_wrapper=self, **kwargs)
+
+magma.Magma.caption_image = caption_image
 
 # TODO: move this over later
 drivedir = "/content/drive/MyDrive/gpt_neo/"
@@ -70,7 +75,7 @@ def load_generator_model(
 
         magma_config_path = os.path.join(path, 'config.yml')
 
-        magma_wrapper = Magma.from_split_checkpoint(
+        magma_wrapper = magma.Magma.from_split_checkpoint(
             path,
             magma_config_path,
             lm_path_or_state_dict=sd
@@ -226,6 +231,8 @@ def poll(
                 requested_model = sentiment_est
             elif data["model"] == "autoreviewer":
                 requested_model = autoreviewer_est
+            elif data["model"] == "captioner":
+                requested_model = magma_wrapper
             else:
                 raise ValueError(f"requested_model: {data.get('model')}")
 

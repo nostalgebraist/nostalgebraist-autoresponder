@@ -79,7 +79,8 @@ def load_generator_model(
             path=captioner_path,
             config_path=magma_config_path,
             lm_path_or_state_dict=sd,
-            gptj_init_fn=quick_init_gptj
+            gptj_init_fn=quick_init_gptj,
+            device='cuda:0'
         )
 
         magma_wrapper.detach_adapters()
@@ -177,7 +178,7 @@ generator_model, magma_wrapper = load_generator_model(
     device='cuda:0',
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
     use_captioner="captioner" in MODELS_SERVED,
-    captioner_path=ckpt_captioner,
+    captioner_path=os.path.abspath(ckpt_captioner),
 )
 
 if "selector" in MODELS_SERVED:

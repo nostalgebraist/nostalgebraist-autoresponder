@@ -1,5 +1,6 @@
 from PIL import Image
-from magma import Magma, ImageInput
+from magma import Magma
+from magma.image_input import ImageInput
 from magma.sampling import generate_cfg
 
 from util.error_handling import LogExceptionAndSkip

@@ -102,8 +102,8 @@ if using_sres3:
 pipeline = improved_diffusion.pipeline.SamplingPipeline(sampling_model_sres1, sampling_model_sres2)
 
 
-for sm in [sampling_model_sres1, sampling_model_sres1p5, sampling_model_sres2, sampling_model_sres3]:
-    sm.model = sm.model.cpu()
+# for sm in [sampling_model_sres1, sampling_model_sres1p5, sampling_model_sres2, sampling_model_sres3]:
+#     sm.model = sm.model.cpu()
 
 
 def poll(
@@ -134,7 +134,7 @@ def poll(
 
         t1 = time.time()
 
-        sampling_model_sres1.model.cuda();
+        # sampling_model_sres1.model.cuda();
 
         result = sampling_model_sres1.sample(
             text=text,
@@ -147,10 +147,10 @@ def poll(
             capt=capt,
         )
 
-        sampling_model_sres1.model.cpu();
+        # sampling_model_sres1.model.cpu();
 
         if using_sres1p5:
-            sampling_model_sres1p5.model.cuda();
+            # sampling_model_sres1p5.model.cuda();
 
             result = sampling_model_sres1p5.sample(
                 text=text,
@@ -165,9 +165,9 @@ def poll(
                 capt=capt,
             )
 
-            sampling_model_sres1p5.model.cpu();
+            # sampling_model_sres1p5.model.cpu();
 
-        sampling_model_sres2.model.cuda();
+        # sampling_model_sres2.model.cuda();
 
         result = sampling_model_sres2.sample(
             text=text if sampling_model_sres2.model.txt else None,
@@ -180,10 +180,10 @@ def poll(
             noise_cond_ts=100,
         )
 
-        sampling_model_sres2.model.cpu();
+        # sampling_model_sres2.model.cpu();
 
         if using_sres3:
-            sampling_model_sres3.model.cuda();
+            # sampling_model_sres3.model.cuda();
 
             result = sampling_model_sres3.sample(
                 text=None,
@@ -195,8 +195,8 @@ def poll(
                 noise_cond_ts=100,
             )
 
-            sampling_model_sres3.model.cpu();
-            
+            # sampling_model_sres3.model.cpu();
+
         im = Image.fromarray(result[0])
 
         delta_t = time.time() - t1

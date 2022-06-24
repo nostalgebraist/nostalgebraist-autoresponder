@@ -236,7 +236,7 @@ if V12_16:
     ckpt_select = "selector/v12_16/v1/"
     ckpt_sentiment = "sentiment/v12_15/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_16/v1/"
-    ckpt_captioner = "captioner/v12_16/v1/"
+    ckpt_captioner = "captioner/v12_16/v0/"
 elif V12_15:
     ckpt_select = "selector/v12_15/v6/"
     ckpt_sentiment = "sentiment/v12_15/v1/"

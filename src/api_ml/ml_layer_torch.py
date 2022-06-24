@@ -76,8 +76,8 @@ def load_generator_model(
         magma_config_path = os.path.join(captioner_path, 'config.yml')
 
         magma_wrapper = magma.Magma.from_split_checkpoint(
-            captioner_path,
-            magma_config_path,
+            path=captioner_path,
+            config_path=magma_config_path,
             lm_path_or_state_dict=sd
         )
 

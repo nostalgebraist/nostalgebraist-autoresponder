@@ -67,7 +67,7 @@ def load_generator_model(
     device='cuda:0',
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
     retries=False,
-    use_captioner=False
+    use_captioner=False,
     captioner_path="",
 ):
     if use_captioner:

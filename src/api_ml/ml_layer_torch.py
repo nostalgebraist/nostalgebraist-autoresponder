@@ -6,7 +6,7 @@ import numpy as np
 from transformers import AutoTokenizer
 from transformer_utils.util.tfm_utils import get_local_path_from_huggingface_cdn
 
-from magma import Magma
+import magma
 
 from config.autoresponder_config import *
 from tumblr_to_text.classic.autoresponder_static_v8 import *

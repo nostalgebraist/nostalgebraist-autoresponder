@@ -183,6 +183,7 @@ def find_text_images_and_sub_real_images(
     vprint(f"find_text_images_and_sub_real_images: uploaded {len(imtexts)} images")
 
     def _replace_with_figure(match):
+        caption = match.group(2)
         if caption is not None:
             caption = caption.strip(" ")
         imtext = match.group(4).rstrip("\n")

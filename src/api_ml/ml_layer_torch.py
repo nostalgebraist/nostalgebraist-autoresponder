@@ -13,7 +13,7 @@ from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 from ml.generator_model_torch import GeneratorModelTorch, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
 from classifier_heads.head_estimator import NostARHeadEstimator
-from ml.load_gptj import load_gpt_j_split_ckpt, load_gpt_j_split_ckpt_state_dict
+from ml.load_gptj import load_gpt_j_split_ckpt, load_gpt_j_split_ckpt_state_dict, quick_init_gptj
 
 import ml.captioning
 
@@ -78,7 +78,8 @@ def load_generator_model(
         magma_wrapper = magma.Magma.from_split_checkpoint(
             path=captioner_path,
             config_path=magma_config_path,
-            lm_path_or_state_dict=sd
+            lm_path_or_state_dict=sd,
+            gptj_init_fn=quick_init_gptj
         )
 
         magma_wrapper.detach_adapters()

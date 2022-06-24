@@ -891,11 +891,8 @@ def caption_image(url: str):
 
 
 def caption_images_in_post_html(text: str):
-    normed_to_url = {normalize_tumblr_image_url(url): url for url in urls}
-
     def _normed_url_to_replacement(normed_url):
-        url = normed_to_url[normed_url]
-        return caption_image(url)
+        return caption_image(normed_url)[0]['result']
 
     def _normed_imtext_to_url(imtext, verbose=False):
         raise ValueError(f"_normed_imtext_to_url called with {repr(imtext)}, full post {repr(text)}")
@@ -905,4 +902,4 @@ def caption_images_in_post_html(text: str):
         _normed_url_to_replacement,
         _normed_imtext_to_url,
         disable_url_norm=True,
-    )
+    )[0]

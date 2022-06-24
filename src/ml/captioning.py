@@ -49,6 +49,7 @@ def caption_image(
             top_p=top_p,
             max_steps=max_steps,
             gs=guidance_scale,
+            image_end=0    # TODO for gs
         )
 
         caption = output[0]

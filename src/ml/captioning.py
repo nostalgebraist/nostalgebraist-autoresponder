@@ -39,7 +39,7 @@ def caption_image(
     caption = None
 
     with LogExceptionAndSkip('trying to caption image'):
-        embeddings = model.preprocess_inputs(inputs)
+        embeddings = magma_wrapper.preprocess_inputs(inputs)
 
         output = generate_cfg(
             model=magma_wrapper,

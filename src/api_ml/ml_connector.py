@@ -887,7 +887,7 @@ def prob_delta_from_gpt(text: List[str], text_ref: List[str], token_str: str,
 
 
 def caption_image(url: str):
-    return CaptionerModelInterface.caption_image(url)
+    return captioner.caption_image(url)
 
 
 def caption_images_in_post_html(text: str):

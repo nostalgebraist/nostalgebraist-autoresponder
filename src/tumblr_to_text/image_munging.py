@@ -210,7 +210,7 @@ def find_text_images_and_sub_real_images(
             return ""
 
     text_subbed = re.sub(
-        imtext_regex,
+        imurl_imtext_regex,
         _replace_with_figure,
         text,
         flags=re.DOTALL,

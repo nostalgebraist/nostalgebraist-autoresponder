@@ -70,7 +70,7 @@ def extract_image_texts_and_urls_from_post_text(s):
     return entries
 
 
-def remove_image_urls_from_post_text(s, return_urls=False):
+def remove_image_urls_and_captions_from_post_text(s, return_urls=False):
     escaped_delim_ws = IMAGE_DELIMITER_WHITESPACED.encode('unicode_escape').decode()
     escaped_delim_url = IMAGE_URL_DELIMITER.encode('unicode_escape').decode()
 

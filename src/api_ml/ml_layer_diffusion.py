@@ -29,6 +29,7 @@ timestep_respacing_sres1 = '250'
 timestep_respacing_sres1p5 = '90,60,60,20,20'
 timestep_respacing_sres2 = '90,60,60,20,20'
 timestep_respacing_sres3 = '90,60,60,20,20'
+FORCE_CAPTS = False
 
 TRUNCATE_LENGTH = 380
 
@@ -121,6 +122,11 @@ def poll(
 
         text = data['prompt'][:TRUNCATE_LENGTH]
 
+        capt = data.get('capt')
+        if FORCE_CAPTS and capt is None:
+            print('using fallback capt')
+            capt = 'unknown'
+
         t1 = time.time()
 
         result = sampling_model_sres1.sample(
@@ -130,7 +136,8 @@ def poll(
             to_visible=False,
             clf_free_guidance=True,
             guidance_scale=data.get('guidance_scale', 1),
-            dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995)
+            dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
+            capt=capt,
         )
 
         if using_sres1p5:
@@ -143,6 +150,7 @@ def poll(
                 low_res=result,
                 guidance_scale=data.get('guidance_scale', 1),
                 noise_cond_ts=225,
+                capt=capt,
             )
 
         result = sampling_model_sres2.sample(

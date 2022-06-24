@@ -85,6 +85,9 @@ def load_generator_model(
 
         magma_wrapper.detach_adapters()
 
+        for k in magma_wrapper.adapter_map:
+            magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].cpu()
+
         transformers_model = magma_wrapper.lm
     else:
         transformers_model = load_gpt_j_split_ckpt(path)

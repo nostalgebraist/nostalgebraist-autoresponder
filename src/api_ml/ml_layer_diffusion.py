@@ -23,13 +23,14 @@ BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 
 
 # constants
-HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
+# HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
+HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-captions'
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 timestep_respacing_sres1 = '250'
 timestep_respacing_sres1p5 = '90,60,60,20,20'
 timestep_respacing_sres2 = '90,60,60,20,20'
 timestep_respacing_sres3 = '90,60,60,20,20'
-FORCE_CAPTS = False
+FORCE_CAPTS = True
 
 TRUNCATE_LENGTH = 380
 

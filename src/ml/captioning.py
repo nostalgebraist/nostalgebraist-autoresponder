@@ -34,6 +34,9 @@ def caption_image(
         '[Image description:',  # todo: precompute embeds for this
     ]
 
+    for k in magma_wrapper.adapter_map:
+        magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].cuda()
+
     magma_wrapper.add_adapters()
 
     caption = None
@@ -55,5 +58,8 @@ def caption_image(
         caption = output[0]
 
     magma_wrapper.detach_adapters()
+
+    for k in magma_wrapper.adapter_map:
+        magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].cpu()
 
     return caption

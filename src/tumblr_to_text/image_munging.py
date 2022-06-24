@@ -136,7 +136,7 @@ def find_text_images_and_sub_real_images(
         imtext_pos = match.start(4)
 
         imtexts.append(imtext)
-        imtext_positions.append(pos)
+        imtext_positions.append(imtext_pos)
         captions.append(caption)
 
         ims_checksum += 1

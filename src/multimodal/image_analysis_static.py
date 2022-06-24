@@ -100,6 +100,7 @@ def fill_url_based_captions(
     normed_imtext_to_url,
     on_unreplaceable_url='unknown',
     on_unmappable_imtext='unknown',
+    disable_url_norm=False,
     verbose=False,
 ):
     # TODO: DRY (vs image_munging.find_text_images_and_sub_real_images)
@@ -124,7 +125,7 @@ def fill_url_based_captions(
     url_unreplaceable = [0]
 
     def _replace_url(url):
-        normed_url = normalize_tumblr_image_url(url)
+        normed_url = url if disable_url_norm else normalize_tumblr_image_url(url)
 
         url_replacement = normed_url_to_replacement(normed_url)
 

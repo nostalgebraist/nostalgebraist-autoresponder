@@ -904,4 +904,5 @@ def caption_images_in_post_html(text: str):
         text,
         _normed_url_to_replacement,
         _normed_imtext_to_url,
+        disable_url_norm=True,
     )

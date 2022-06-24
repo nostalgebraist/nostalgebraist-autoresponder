@@ -83,11 +83,15 @@ def _load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):
     return model
 
 
-def quick_init_gptj(config=GPT_J_CONFIG):
+def _init_gptj(config=GPT_J_CONFIG):
     return GPTNeoForCausalLM.from_pretrained(
             pretrained_model_name_or_path=None,
             config=config,
     )
+
+
+def quick_init_gptj(config=GPT_J_CONFIG):
+    return no_init(partial(_init_gptj, config=config))
 
 
 def load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):

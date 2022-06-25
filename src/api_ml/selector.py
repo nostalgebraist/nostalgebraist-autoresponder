@@ -82,6 +82,10 @@ def parse_continuation(continuation: str, verbose=LOGGING_FLAGS["parse_continuat
         print(msg)
 
     tag_text, _, post = continuation.partition("\n")
+    if post.startswith('='):
+        # getting the capts MVP work to properly
+        print(f"prepending newline to post: {post}")
+        post = '\n' + post
     post = post.partition(EOT)[0]
 
     tags = []

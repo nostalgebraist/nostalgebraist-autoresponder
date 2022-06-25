@@ -1,6 +1,9 @@
+import gc
 import sys
 import time
 from io import BytesIO
+
+import torch
 from PIL import Image
 
 import requests
@@ -199,6 +202,9 @@ def poll(
             # sampling_model_sres3.model.cpu();
 
         im = Image.fromarray(result[0])
+
+        gc.collect()
+        torch.cuda.empty_cache()
 
         delta_t = time.time() - t1
         print(f"pipeline took {delta_t:.1f}s")

@@ -197,6 +197,7 @@ def find_text_images_and_sub_real_images(
             alt_text = imtext
             if caption is not None:
                 alt_text = "[Description] " + caption + " " + "[Text]" + imtext
+                alt_text = alt_text.replace("<", "").replace(">", "")  # w/o this, "<PERSON>" entirely vanishes
             return figure_format.format(
                 url=tumblr_image["url"],
                 h=tumblr_image["height"],

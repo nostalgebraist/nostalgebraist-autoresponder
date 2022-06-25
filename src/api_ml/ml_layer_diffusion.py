@@ -78,7 +78,8 @@ if using_sres1p5:
     sampling_model_sres1p5 = improved_diffusion.pipeline.SamplingModel.from_config(
         checkpoint_path=checkpoint_path_sres1p5,
         config_path=config_path_sres1p5,
-        timestep_respacing=timestep_respacing_sres1p5
+        timestep_respacing=timestep_respacing_sres1p5,
+        clipmod=sampling_model_sres1.clipmod
     )
 
 sampling_model_sres2 = improved_diffusion.pipeline.SamplingModel.from_config(

@@ -5,10 +5,10 @@ from transformers import LogitsProcessor, LogitsWarper
 class HotfixCaptionDelimiterLogitsProcessor(LogitsProcessor):
     def __init__(self,
                  good_ix: int,
-                 bad_ix: int,
+                 bad_ixs: list,
                  ):
         self.good_ix = good_ix
-        self.bad_ix = bad_ix
+        self.bad_ixs = bad_ixs
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
         seq_length = input_ids.shape[1]
@@ -17,8 +17,11 @@ class HotfixCaptionDelimiterLogitsProcessor(LogitsProcessor):
             return scores
 
         with torch.no_grad():
-            scores[:, self.good_ix] += scores[:, self.bad_ix]
-            scores[:, self.bad_ix] = -10000.
+            badmax = torch.max(scores[:, self.bad_ixs], dim=1).values
+            goodval = scores[:, self.good_ix]
+            scores[:, self.good_ix] = torch.where(goodval > badmax, goodval, badmax)
+            for bad_ix in self.bad_ixs:
+                scores[:, bad_ix] = -10000.
 
         return scores
 

@@ -84,7 +84,8 @@ def parse_continuation(continuation: str, verbose=LOGGING_FLAGS["parse_continuat
     tag_text, _, post = continuation.partition("\n")
     if post.startswith('='):
         # getting the capts MVP work to properly
-        print(f"prepending newline to post: {post}")
+        if verbose:
+            print(f"prepending newline to post: {repr(post)}")
         post = '\n' + post
     post = post.partition(EOT)[0]
 

@@ -234,7 +234,7 @@ do_review_coldstart = partial(
     do_coldstart, substring="Author: <b>", delta=REVIEW_COLDSTART_DELTA
 )
 do_image_coldstart = partial(
-    do_coldstart, substring=IMAGE_URL_DELIMITER, delta=IMAGE_COLDSTART_DELTA
+    do_coldstart, substring=IMAGE_COLDSTART_DELIMITER, delta=IMAGE_COLDSTART_DELTA
 )
 do_gif_coldstart = partial(
     do_coldstart, substring="[Animated GIF]", delta=GIF_COLDSTART_DELTA
@@ -337,7 +337,7 @@ def serve_selection(
 
     # diffusion coldstart
     if IMAGE_COLDSTART_USE_ARGMAX:
-        if any(IMAGE_URL_DELIMITER in c for c in retained_continuations):
+        if any(IMAGE_COLDSTART_DELIMITER in c for c in retained_continuations):
             strategy = "argmax"
             print("found an image, using argmax")
 

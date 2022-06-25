@@ -761,11 +761,13 @@ def answer_ask(
             tags = [t for t in tags if t != "computer generated image"]
             tags.append("computer generated image")
 
-            if regular_guidance_used:
+            if regular_guidance_used and anti_guidance_used and (guidance_scale != anti_guidance_scale):
                 tags.append(f"guidance scale {guidance_scale}")
-
-            if anti_guidance_used:
-                tags.append(f"anti guidance scale {anti_guidance_scale}")
+                tags.append(f"guidance scale {anti_guidance_scale} (textless images)")
+            elif regular_guidance_used:
+                tags.append(f"guidance scale {guidance_scale}")
+            elif anti_guidance_used:
+                tags.append(f"guidance scale {anti_guidance_scale}")
 
     if IMAGE_DELIMITER in answer:
         print("image delimiter still in post")

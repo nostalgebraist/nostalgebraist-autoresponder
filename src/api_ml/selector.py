@@ -420,7 +420,7 @@ def serve_selection(
     parsed["choice_ix"] = int(choice_ix)
     parsed["mood"] = mood
     parsed["all_continuations"] = continuations
-    all_parsed = [parse_continuation(c) for c in continuations]
+    all_parsed = [parse_continuation(c, verbose=False) for c in continuations]
     all_posts = [p["post"] for p in all_parsed]
     all_tags = [p["tags"] for p in all_parsed]
     parsed["all_posts"] = all_posts

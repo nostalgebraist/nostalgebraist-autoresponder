@@ -7,7 +7,7 @@ from config.autoresponder_config import *  # TODO: move elsewhere?
 from ml.sampling_params import SamplingParams, DEFAULT_SAMPLING_CONFIG
 
 from transformers import LogitsProcessorList
-from ml.sample_torch import BreakrunsLogitsProcessor, TypicalLogitsWarper
+from ml.sample_torch import BreakrunsLogitsProcessor, TypicalLogitsWarper, HotfixCaptionDelimiterLogitsProcessor
 
 from util.util import copy_and_update_config, collect_and_show
 
@@ -33,16 +33,24 @@ def override_disable_logits_processors(*args, **kwargs) -> LogitsProcessorList:
     return LogitsProcessorList()
 
 
-def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=False):
+def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=False,
+                                add_hotfix=True,
+                                hotfix_good_ix=50155,  # '======'
+                                hotfix_bad_ixs=[29335, 796, 50155]  # ' =====', ' ====', '======'
+                                ):
     def _override_get_breakruns(*args, **kwargs) -> LogitsProcessorList:
-        return LogitsProcessorList([
+        processors = [
             BreakrunsLogitsProcessor(
                 base_temperature=base_temperature,
                 tau=tau,
                 tokenizer=tokenizer,
                 debug=debug
             )
-        ])
+        ]
+        if add_hotfix:
+            hotfix = HotfixCaptionDelimiterLogitsProcessor(hotfix_good_ix, hotfix_bad_ixs)
+            processors = [hotfix] + processors
+        return LogitsProcessorList(processors)
     return _override_get_breakruns
 
 
@@ -80,7 +88,9 @@ class GeneratorModelTorch:
                 base_temperature=self.sampling_params.temperature,
                 tau=self.sampling_params.breakruns_tau,
                 tokenizer=self.tokenizer if BREAKRUNS_DEBUG else None,
-                debug=BREAKRUNS_DEBUG)
+                debug=BREAKRUNS_DEBUG,
+                add_hotfix=True
+            )
             self.transformers_model._get_logits_processor = breakruns_override
         elif self.sampling_params.typical_sampling:
             print(f'using typical sampling, mass={self.sampling_params.typical_sampling_mass}, min_tokens_to_keep={self.sampling_params.typical_sampling_min_tokens_to_keep}')

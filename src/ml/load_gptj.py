@@ -83,5 +83,17 @@ def _load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):
     return model
 
 
+def _init_gptj(config=GPT_J_CONFIG):
+    return GPTNeoForCausalLM(config=config)
+
+
+def quick_init_gptj(config=GPT_J_CONFIG):
+    return no_init(partial(_init_gptj, config=config))
+
+
 def load_gpt_j_split_ckpt(ckpt_dir, config=GPT_J_CONFIG):
     return no_init(partial(_load_gpt_j_split_ckpt, ckpt_dir=ckpt_dir, config=config))
+
+
+def load_gpt_j_split_ckpt_state_dict(ckpt_dir):
+    return SplitCheckpoint(ckpt_dir)

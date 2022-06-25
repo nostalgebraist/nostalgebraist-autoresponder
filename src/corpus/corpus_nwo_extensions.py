@@ -8,6 +8,8 @@ from functools import partial
 
 from tqdm.autonotebook import tqdm
 
+from util.times import fromtimestamp_pst
+
 from api_tumblr.client_pool import ClientPool
 from api_tumblr.paging import fetch_posts
 
@@ -27,7 +29,8 @@ def fetch(
     offset: int = 0,
     slow_scraping_ok=True,
     require_scrape_worthiness=True,
-    needs_private_client=False
+    needs_private_client=False,
+    no_end_date=False
 ):
     with open("data/corpus_winter_2020_max_scraped_ids.json", "r") as f:
         max_ids = json.load(f)
@@ -49,9 +52,13 @@ def fetch(
 
         min_ts_posix = min(pp["timestamp"] for pp in posts)
         min_ts = fromtimestamp_pst(min_ts_posix).isoformat()
-        print(f"loaded {len(posts)} raw posts, min ts {min_ts}")
+        max_id = max(pp['id'] for pp in posts)
+        print(f"loaded {len(posts)} raw posts, min ts {min_ts}, max id {max_id}")
 
-        before = min_ts_posix
+        if no_end_date:
+            stop_at_id = max_id
+        else:
+            before = min_ts_posix
 
     pool = ClientPool()
 
@@ -82,16 +89,21 @@ def fetch(
         pickle.dump(posts, f)
 
 
-def process(blog_name, scrape_format_v2=False):
+def process(blog_name, scrape_format_v2=False, no_end_date=False):
     processed_after_path = os.path.join("data/corpus_nwo_extensions/", f"processed_after_{blog_name}.json")
 
     processed_after = None
+    processed_before = None
 
     if os.path.exists(processed_after_path):
         with open(processed_after_path, "r") as f:
-            processed_after = json.load(f)
-        processed_after = processed_after["processed_after"]
+            meta = json.load(f)
+        processed_after = meta["processed_after"]
         processed_after_ts = fromtimestamp_pst(processed_after)
+
+        processed_before = meta.get("processed_before")
+        if processed_before:
+            processed_before_ts = fromtimestamp_pst(processed_before)
 
     raw_posts_path = os.path.join("data/corpus_nwo_extensions/", f"{blog_name}_raw_posts.pkl.gz")
 
@@ -100,11 +112,17 @@ def process(blog_name, scrape_format_v2=False):
 
     min_ts_posix = min(pp["timestamp"] for pp in posts)
     min_ts = fromtimestamp_pst(min_ts_posix).isoformat()
-    print(f"loaded {len(posts)} raw posts, min ts {min_ts}")
+    max_ts_posix = max(pp["timestamp"] for pp in posts)
+    max_ts = fromtimestamp_pst(max_ts_posix).isoformat()
+    print(f"loaded {len(posts)} raw posts, min ts {min_ts}, max ts {max_ts}")
 
-    if processed_after:
+    if processed_after and not no_end_date:
         posts = [pp for pp in posts if pp["timestamp"] < processed_after]
         print(f"subsetted to {len(posts)} posts before {processed_after_ts}")
+
+    if processed_before:
+        posts = [pp for pp in posts if pp["timestamp"] > processed_before]
+        print(f"subsetted to {len(posts)} posts after {processed_before_ts}")
 
     archive_path = os.path.join("data/corpus_nwo_extensions/", f"{blog_name}.txt")
 
@@ -117,7 +135,7 @@ def process(blog_name, scrape_format_v2=False):
     print()
 
     with open(processed_after_path, "w") as f:
-        json.dump({"processed_after": min_ts_posix}, f)
+        json.dump({"processed_after": min_ts_posix, "processed_before": max_ts_posix}, f)
 
 
 def main():
@@ -131,6 +149,7 @@ def main():
     parser.add_argument("--slow-scraping-off", action="store_true")
     parser.add_argument("--scrape-all", action="store_true")
     parser.add_argument("--scrape-format-v2", action="store_true")
+    parser.add_argument("--no-end-date", action="store_true")  # append future posts - sets before=None
     args = parser.parse_args()
 
     if not args.process_only:
@@ -140,10 +159,15 @@ def main():
             require_scrape_worthiness=not args.scrape_all,
             needs_private_client=args.needs_private_client,
             slow_scraping_ok=not args.slow_scraping_off,
+            no_end_date=args.no_end_date
         )
 
     if not args.fetch_only:
-        process(blog_name=args.blog_name, scrape_format_v2=args.scrape_format_v2)
+        process(
+            blog_name=args.blog_name,
+            scrape_format_v2=args.scrape_format_v2,
+            no_end_date=args.no_end_date
+        )
 
     if args.save_image_cache:
         multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()

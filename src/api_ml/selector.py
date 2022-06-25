@@ -6,7 +6,7 @@ from functools import partial
 import numpy as np
 from textwrap import wrap
 
-from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED
+from multimodal.image_analysis_static import IMAGE_URL_DELIMITER
 from tumblr_to_text.image_munging import mock_up_image_generation_tags_for_heads
 
 from config.autoresponder_config import LOGGING_FLAGS
@@ -82,6 +82,11 @@ def parse_continuation(continuation: str, verbose=LOGGING_FLAGS["parse_continuat
         print(msg)
 
     tag_text, _, post = continuation.partition("\n")
+    if post.startswith('='):
+        # getting the capts MVP work to properly
+        if verbose:
+            print(f"prepending newline to post: {repr(post)}")
+        post = '\n' + post
     post = post.partition(EOT)[0]
 
     tags = []
@@ -226,7 +231,7 @@ do_review_coldstart = partial(
     do_coldstart, substring="Author: <b>", delta=REVIEW_COLDSTART_DELTA
 )
 do_image_coldstart = partial(
-    do_coldstart, substring=IMAGE_DELIMITER_WHITESPACED, delta=IMAGE_COLDSTART_DELTA
+    do_coldstart, substring=IMAGE_URL_DELIMITER, delta=IMAGE_COLDSTART_DELTA
 )
 do_gif_coldstart = partial(
     do_coldstart, substring="[Animated GIF]", delta=GIF_COLDSTART_DELTA
@@ -329,7 +334,7 @@ def serve_selection(
 
     # diffusion coldstart
     if IMAGE_COLDSTART_USE_ARGMAX:
-        if any(IMAGE_DELIMITER_WHITESPACED in c for c in retained_continuations):
+        if any(IMAGE_URL_DELIMITER in c for c in retained_continuations):
             strategy = "argmax"
             print("found an image, using argmax")
 
@@ -416,7 +421,7 @@ def serve_selection(
     parsed["choice_ix"] = int(choice_ix)
     parsed["mood"] = mood
     parsed["all_continuations"] = continuations
-    all_parsed = [parse_continuation(c) for c in continuations]
+    all_parsed = [parse_continuation(c, verbose=False) for c in continuations]
     all_posts = [p["post"] for p in all_parsed]
     all_tags = [p["tags"] for p in all_parsed]
     parsed["all_posts"] = all_posts

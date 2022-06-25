@@ -1,6 +1,9 @@
+import gc
 import sys
 import time
 from io import BytesIO
+
+import torch
 from PIL import Image
 
 import requests
@@ -23,12 +26,14 @@ BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 
 
 # constants
-HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
+# HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
+HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-captions'
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 timestep_respacing_sres1 = '250'
 timestep_respacing_sres1p5 = '90,60,60,20,20'
 timestep_respacing_sres2 = '90,60,60,20,20'
 timestep_respacing_sres3 = '90,60,60,20,20'
+FORCE_CAPTS = True
 
 TRUNCATE_LENGTH = 380
 
@@ -76,7 +81,8 @@ if using_sres1p5:
     sampling_model_sres1p5 = improved_diffusion.pipeline.SamplingModel.from_config(
         checkpoint_path=checkpoint_path_sres1p5,
         config_path=config_path_sres1p5,
-        timestep_respacing=timestep_respacing_sres1p5
+        timestep_respacing=timestep_respacing_sres1p5,
+        clipmod=sampling_model_sres1.model.clipmod
     )
 
 sampling_model_sres2 = improved_diffusion.pipeline.SamplingModel.from_config(
@@ -100,6 +106,10 @@ if using_sres3:
 pipeline = improved_diffusion.pipeline.SamplingPipeline(sampling_model_sres1, sampling_model_sres2)
 
 
+# for sm in [sampling_model_sres1, sampling_model_sres1p5, sampling_model_sres2, sampling_model_sres3]:
+#     sm.model = sm.model.cpu()
+
+
 def poll(
     dummy=False,
     ports=[
@@ -121,7 +131,14 @@ def poll(
 
         text = data['prompt'][:TRUNCATE_LENGTH]
 
+        capt = data.get('capt')
+        if FORCE_CAPTS and capt is None:
+            print('using fallback capt')
+            capt = 'unknown'
+
         t1 = time.time()
+
+        # sampling_model_sres1.model.cuda();
 
         result = sampling_model_sres1.sample(
             text=text,
@@ -130,10 +147,15 @@ def poll(
             to_visible=False,
             clf_free_guidance=True,
             guidance_scale=data.get('guidance_scale', 1),
-            dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995)
+            dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
+            capt=capt,
         )
 
+        # sampling_model_sres1.model.cpu();
+
         if using_sres1p5:
+            # sampling_model_sres1p5.model.cuda();
+
             result = sampling_model_sres1p5.sample(
                 text=text,
                 batch_size=1,
@@ -142,8 +164,14 @@ def poll(
                 from_visible=False,
                 low_res=result,
                 guidance_scale=data.get('guidance_scale', 1),
+                dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
                 noise_cond_ts=225,
+                capt=capt,
             )
+
+            # sampling_model_sres1p5.model.cpu();
+
+        # sampling_model_sres2.model.cuda();
 
         result = sampling_model_sres2.sample(
             text=text if sampling_model_sres2.model.txt else None,
@@ -156,7 +184,11 @@ def poll(
             noise_cond_ts=100,
         )
 
+        # sampling_model_sres2.model.cpu();
+
         if using_sres3:
+            # sampling_model_sres3.model.cuda();
+
             result = sampling_model_sres3.sample(
                 text=None,
                 batch_size=1,
@@ -166,7 +198,13 @@ def poll(
                 low_res=result,
                 noise_cond_ts=100,
             )
+
+            # sampling_model_sres3.model.cpu();
+
         im = Image.fromarray(result[0])
+
+        gc.collect()
+        torch.cuda.empty_cache()
 
         delta_t = time.time() - t1
         print(f"pipeline took {delta_t:.1f}s")

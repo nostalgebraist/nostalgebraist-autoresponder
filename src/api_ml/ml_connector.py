@@ -20,7 +20,7 @@ from api_ml.selector import serve_selection
 from api_ml import bridge_cache_singleton
 from api_ml.bridge_shared import get_bridge_service_url
 
-from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED
+from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED, normalize_tumblr_image_url, fill_url_based_captions
 from tumblr_to_text.image_munging import mock_up_image_generation_tags_for_heads
 
 from util.error_handling import LogExceptionAndSkip
@@ -131,10 +131,25 @@ class SideJudgmentModelInterface(MLModelInterface):
         )
 
 
+class CaptionerModelInterface(MLModelInterface):
+    def __init__(self):
+        self.name = 'captioner'
+        self.uses_bridge_cache = True
+
+    def caption_image(self, *args, repeat_until_done_signal=False, **kwargs):
+        return self.do(
+            "caption_image",
+            repeat_until_done_signal=repeat_until_done_signal,
+            *args,
+            **kwargs,
+        )
+
+
 generator_model = GeneratorModelInterface()
 selector_est = SideJudgmentModelInterface("selector")
 sentiment_est = SideJudgmentModelInterface("sentiment")
 autoreviewer_est = SideJudgmentModelInterface("autoreviewer")
+captioner = CaptionerModelInterface()
 
 
 def parse_continuation(continuation: str, verbose=True):
@@ -869,3 +884,22 @@ def prob_delta_from_gpt(text: List[str], text_ref: List[str], token_str: str,
     raw = generator_model.get_prob_delta_over_ref_multi(text=text, text_ref=text_ref, token_str=token_str,
                                                         forbidden_strings=forbidden_strings)
     return raw[0]["result"]
+
+
+def caption_image(url: str):
+    return captioner.caption_image(url)
+
+
+def caption_images_in_post_html(text: str):
+    def _normed_url_to_replacement(normed_url):
+        return caption_image(normed_url)[0]['result']
+
+    def _normed_imtext_to_url(imtext, verbose=False):
+        raise ValueError(f"_normed_imtext_to_url called with {repr(imtext)}, full post {repr(text)}")
+
+    return fill_url_based_captions(
+        text,
+        _normed_url_to_replacement,
+        _normed_imtext_to_url,
+        disable_url_norm=True,
+    )[0]

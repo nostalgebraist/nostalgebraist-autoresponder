@@ -61,6 +61,7 @@ from api_ml.ml_connector import (
     selection_proba_from_gpt,
     sentiment_logit_diffs_from_gpt,
     autoreview_proba_from_gpt,
+    caption_images_in_post_html,
 )
 
 from tumblr_to_text.classic.autoresponder_static import EOT, DEFAULT_CSC
@@ -199,15 +200,19 @@ IMAGE_CREATION_DIFFUSION = True
 # GUIDANCE_SCALE_OPTIONS = (0.5, 1, 1, 1, 1.5)  # static thresholding
 # GUIDANCE_SCALE_OPTIONS = (1, 2, 4, 4, 5, 5, 6, 6, 8)  # dynamic thresholding
 # GUIDANCE_SCALE_OPTIONS = (1, 2, 2, 2, 3, 3)  # dynamic thresholding, 4stage
-GUIDANCE_SCALE_OPTIONS = (0.5, 1, 1, 1, 1.5)  # dynamic thresholding, 4stage, v2
+# GUIDANCE_SCALE_OPTIONS = (0.5, 1, 1, 1, 1.5)  # dynamic thresholding, 4stage, v2
+GUIDANCE_SCALE_OPTIONS = (0.5, 1, 1, 2, 2, 3, 4)  # dynamic thresholding, 4stage, v2, capts
 
 ANTI_GUIDANCE = True
 # ANTI_GUIDANCE_SCALE_OPTIONS = (0, 1, 1, 5, 10,)  # static thresholding
 # ANTI_GUIDANCE_SCALE_OPTIONS = (0, 5, 5, 10, 10, 15, 15, 20)  # dynamic thresholding
 # ANTI_GUIDANCE_SCALE_OPTIONS = (0, 2, 2, 5, 5, 10, 15, 20)  # dynamic thresholding, 4stage
-ANTI_GUIDANCE_SCALE_OPTIONS = (0, 0, 1, 1, 1, 2, 2, 5, 10, 20)  # dynamic thresholding, 4stage, v2
+# ANTI_GUIDANCE_SCALE_OPTIONS = (0, 0, 1, 1, 1, 2, 2, 5, 10, 20)  # dynamic thresholding, 4stage, v2
+ANTI_GUIDANCE_SCALE_OPTIONS = (1, 2, 3, 3, 4, 4, 5, 6)  # dynamic thresholding, 4stage, v2, capts
 
 SCRAPE_FORMAT_V2 = True
+
+CAPTION_IMAGES_IN_MODEL_INPUT = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
@@ -997,7 +1002,14 @@ def respond_to_reblogs_replies(
                 reply_blog_name=reblog_identifier.blog_name,
                 reply_body=loop_persistent_data.reply_metadata[reblog_identifier]["reply_note"]["reply_text"]
             )
-        prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(thread, blogName)
+        prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(
+            thread, blogName,
+            include_image_urls=CAPTION_IMAGES_IN_MODEL_INPUT,
+            include_image_urls_for_heads=False,
+        )
+
+        if CAPTION_IMAGES_IN_MODEL_INPUT:
+            prompt = caption_images_in_post_html(prompt)
 
         no_timestamp = True
 
@@ -2745,7 +2757,14 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 prompt, prompt_selector, prompt_autoreviewer = make_nwo_fic_override_prompts(thread,
                                                                                              use_definite_article=not V12_14)
             else:
-                prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(thread, blogName)
+                prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(
+                    thread, blogName,
+                    include_image_urls=CAPTION_IMAGES_IN_MODEL_INPUT,
+                    include_image_urls_for_heads=False,
+                )
+
+                if CAPTION_IMAGES_IN_MODEL_INPUT:
+                    prompt = caption_images_in_post_html(prompt)
 
             gpt2_output = answer_from_gpt(
                 prompt=prompt,

@@ -5,7 +5,9 @@ from multimodal.image_analysis_static import (
     URL_PRESERVING_IMAGE_FORMATTER,
     IMAGE_DIR,
     IMAGE_DELIMITER,
-    IMAGE_DELIMITER_WHITESPACED
+    IMAGE_DELIMITER_WHITESPACED,
+    remove_image_urls_and_captions_from_post_text,
+    imurl_imtext_regex
 )
 
 from multimodal import image_analysis_singleton
@@ -119,22 +121,28 @@ def find_text_images_and_sub_real_images(
     figure_format = """<figure data-orig-height="{h}" data-orig-width="{w}"><img src="{url}" data-orig-height="{h}" data-orig-width="{w}" alt="{alt}"/></figure>"""
     imtexts = []
     imtext_positions = []
+    captions = []
     ims_checksum = 0
 
     for match in re.finditer(
-        imtext_regex,
+        imurl_imtext_regex,
         text,
         flags=re.DOTALL,
     ):
-        imtext = match.group(2).rstrip("\n")
-        pos = match.start(2)
+        caption = match.group(2)
+        if caption is not None:
+            caption = caption.strip(" ")
+        imtext = match.group(4).rstrip("\n")
+        imtext_pos = match.start(4)
 
         imtexts.append(imtext)
-        imtext_positions.append(pos)
+        imtext_positions.append(imtext_pos)
+        captions.append(caption)
 
         ims_checksum += 1
 
-    vprint(f"find_text_images_and_sub_real_images: found {len(imtexts)} imtexts")
+    ncapt = sum(c is not None for c in captions)
+    vprint(f"find_text_images_and_sub_real_images: found {len(imtexts)} imtexts, {ncapt} captions")
 
     if dryrun:
         return text, ims_checksum
@@ -143,10 +151,11 @@ def find_text_images_and_sub_real_images(
     keys = []
     regular_guidance_used = False
     anti_guidance_used = False
-    for imtext, pos in zip(imtexts, imtext_positions):
+    for imtext, pos, caption in zip(imtexts, imtext_positions, captions):
         prompt = imtext
         per_image_kwargs = {}
         per_image_kwargs.update(image_maker_kwargs)
+        per_image_kwargs['capt'] = caption
 
         generate_here = (len(imtext) > 0) or use_anti_guidance
 
@@ -154,7 +163,7 @@ def find_text_images_and_sub_real_images(
         anti_guidance_trigger = (len(imtext) == 0) or any(s == imtext.strip().lower() for s in anti_guidance_substrings)
 
         if use_anti_guidance and anti_guidance_trigger:
-            print(f'using anti guidance for imtext {repr(imtext)}')
+            print(f'using anti guidance for imtext {repr(imtext)}, {repr(caption)}')
 
             anti_guidance_used = True
             prompt = ''
@@ -165,7 +174,7 @@ def find_text_images_and_sub_real_images(
 
         if generate_here:
             images.append(image_maker(prompt, **per_image_kwargs))
-            keys.append((imtext, pos))
+            keys.append((imtext, pos, caption))
 
     imtexts_to_tumblr_images = upload_images_to_tumblr_urls(
         images, keys, client, blogname
@@ -174,28 +183,34 @@ def find_text_images_and_sub_real_images(
     vprint(f"find_text_images_and_sub_real_images: uploaded {len(imtexts)} images")
 
     def _replace_with_figure(match):
-        imtext = match.group(2).rstrip("\n")
-        pos = match.start(2)
-        key = (imtext, pos)
+        caption = match.group(2)
+        if caption is not None:
+            caption = caption.strip(" ")
+        imtext = match.group(4).rstrip("\n")
+        pos = match.start(4)
+        key = (imtext, pos, caption)
         if key in imtexts_to_tumblr_images:
             tumblr_image = imtexts_to_tumblr_images[key]
             vprint(
-                f"find_text_images_and_sub_real_images: subbing {repr(tumblr_image)} for {repr(imtext)} at {pos}"
+                f"find_text_images_and_sub_real_images: subbing {repr(tumblr_image)} for {repr(imtext)}, {repr(caption)} at {pos}"
             )
+            alt_text = imtext
+            if caption is not None:
+                alt_text = "[Description] " + caption + " " + "[Text]" + imtext
             return figure_format.format(
                 url=tumblr_image["url"],
                 h=tumblr_image["height"],
                 w=tumblr_image["width"],
-                alt=html.escape(imtext).replace("\n", "&#10;"),
+                alt=html.escape(alt_text).replace("\n", " [newline] "),
             )
         else:
             vprint(
-                f"find_text_images_and_sub_real_images: nothing to sub for {repr(imtext)} at {pos}"
+                f"find_text_images_and_sub_real_images: nothing to sub for {repr(imtext)}, {repr(caption)} at {pos}"
             )
             return ""
 
     text_subbed = re.sub(
-        imtext_regex,
+        imurl_imtext_regex,
         _replace_with_figure,
         text,
         flags=re.DOTALL,

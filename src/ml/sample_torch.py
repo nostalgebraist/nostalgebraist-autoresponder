@@ -2,6 +2,37 @@ import torch
 from transformers import LogitsProcessor, LogitsWarper
 
 
+class HotfixCaptionDelimiterLogitsProcessor(LogitsProcessor):
+    def __init__(self,
+                 good_ix: int,
+                 bad_ixs: list,
+                 device='cuda:0'
+                 ):
+        self.good_ix = good_ix
+        self.bad_ixs = bad_ixs
+        self.unk_pre_pair = torch.as_tensor([18604, 198]).to(device)
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        seq_length = input_ids.shape[1]
+
+        if seq_length < 1:
+            return scores
+
+        with torch.no_grad():
+            badmax = torch.max(scores[:, self.bad_ixs], dim=1).values
+            goodval = scores[:, self.good_ix]
+            scores[:, self.good_ix] = torch.where(goodval > badmax, goodval, badmax)
+            for bad_ix in self.bad_ixs:
+                scores[:, bad_ix] = -10000.
+
+        # capts - avoid unknown
+        # TODO: clean this up
+        if (seq_length > 1) and (input_ids[0, -2:] == self.unk_pre_pair.to(input_ids.device)).all():
+            scores[:, 34680] = -10000.  # 'unknown'
+
+        return scores
+
+
 class BreakrunsLogitsProcessor(LogitsProcessor):
     def __init__(self,
                  base_temperature: float,

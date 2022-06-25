@@ -6,12 +6,16 @@ import numpy as np
 from transformers import AutoTokenizer
 from transformer_utils.util.tfm_utils import get_local_path_from_huggingface_cdn
 
+import magma
+
 from config.autoresponder_config import *
 from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 from ml.generator_model_torch import GeneratorModelTorch, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
 from classifier_heads.head_estimator import NostARHeadEstimator
-from ml.load_gptj import load_gpt_j_split_ckpt
+from ml.load_gptj import load_gpt_j_split_ckpt, load_gpt_j_split_ckpt_state_dict, quick_init_gptj
+
+import ml.captioning
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
@@ -21,6 +25,11 @@ bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 bridge_service_port = bot_specific_constants.bridge_service_port
 BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 
+
+def caption_image(self, path_or_url, **kwargs):
+    return ml.captioning.caption_image(path_or_url=path_or_url, magma_wrapper=self, **kwargs)
+
+magma.Magma.caption_image = caption_image
 
 # TODO: move this over later
 drivedir = "/content/drive/MyDrive/gpt_neo/"
@@ -42,33 +51,6 @@ ORIG_POST_CHAR = CONTROL_SEG_CONFIG["ORIG_POST_CHAR_FORUMLIKE"]
 CLOSED_REQUESTS = {}
 
 
-def load_from_gdrive_with_gs_fallback(
-    load_fn, relative_path, gs_command, retries=False, **kwargs
-):
-    local_gdrive_path = os.path.join(drivedir, relative_path)
-    local_gs_path = os.path.join("/", relative_path)
-    print(f"local_gdrive_path: {local_gdrive_path}")
-    print(f"local_gs_path: {local_gs_path}")
-
-    os.makedirs(local_gs_path, exist_ok=True)
-
-    enclosing_dir_exists = os.path.exists(local_gs_path)
-    target_exists = len(os.listdir(local_gs_path)) > 0
-
-    print(f"local_gs: enclosing dir {local_gs_path} exists?: {enclosing_dir_exists}")
-    print(f"local_gs: enclosing {local_gs_path} non-empty?: {target_exists}")
-
-    if not target_exists:
-        try:
-            print(f"local_gdrive: trying to load from {local_gdrive_path}...")
-            return load_fn(path=local_gdrive_path, retries=False, **kwargs)
-        except (OSError, FileNotFoundError, KeyError):
-            print(f"local_gdrive failure, falling back to local_gs")
-            print(f"downlading from gs...")
-            subprocess.check_output(gs_command, shell=True)
-    return load_fn(path=local_gs_path, retries=retries, **kwargs)
-
-
 def load_tokenizer():
     tokenizer = AutoTokenizer.from_pretrained("gpt2", max_model_len=2048 if V11 else 1024)
     tokenizer.add_special_tokens({'pad_token': '<|padding|>'})
@@ -85,16 +67,41 @@ def load_generator_model(
     device='cuda:0',
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
     retries=False,
+    use_captioner=False,
+    captioner_path="",
 ):
-    transformers_model = load_gpt_j_split_ckpt(path)
+    if use_captioner:
+        sd = load_gpt_j_split_ckpt_state_dict(path)
 
-    return GeneratorModelTorch.load(
+        magma_config_path = os.path.join(captioner_path, 'config.yml')
+
+        magma_wrapper = magma.Magma.from_split_checkpoint(
+            path=captioner_path,
+            config_path=magma_config_path,
+            lm_path_or_state_dict=sd,
+            gptj_init_fn=quick_init_gptj,
+            device='cuda:0'
+        )
+
+        magma_wrapper.detach_adapters()
+
+        for k in magma_wrapper.adapter_map:
+            magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].cpu()
+
+        transformers_model = magma_wrapper.lm
+    else:
+        transformers_model = load_gpt_j_split_ckpt(path)
+        magma_wrapper = None
+
+    generator_model = GeneratorModelTorch.load(
         transformers_model=transformers_model,
         tokenizer=tokenizer,
         batch_size=batch_size,
         device=device,
         sampling_params=sampling_params,
     )
+
+    return generator_model, magma_wrapper
 
 
 def load_selector(path, base_model, tokenizer, retries=False, **kwargs):
@@ -141,7 +148,7 @@ if not os.path.exists(generator_path):
     subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
 
 # HEADS: download if necessary
-head_paths = [ckpt_select, ckpt_sentiment, ckpt_autoreviewer]
+head_paths = [ckpt_select, ckpt_sentiment, ckpt_autoreviewer, ckpt_captioner]
 needs_head_download = not all(os.path.exists(path) for path in head_paths)
 heads_tar_path = ""
 
@@ -160,16 +167,21 @@ if "sentiment" in MODELS_SERVED and not os.path.exists(ckpt_sentiment):
 if "autoreviewer" in MODELS_SERVED and not os.path.exists(ckpt_autoreviewer):
     subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_autoreviewer}", shell=True)
 
+if "captioner" in MODELS_SERVED and not os.path.exists(ckpt_captioner):
+    subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_captioner}", shell=True)
+
 if needs_head_download:
     subprocess.run(f"rm {heads_tar_path}", shell=True)
 
 # MODELS: load
-generator_model = load_generator_model(
+generator_model, magma_wrapper = load_generator_model(
     path=generator_path,
     tokenizer=tokenizer,
     batch_size=batch_size,
     device='cuda:0',
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
+    use_captioner="captioner" in MODELS_SERVED,
+    captioner_path=os.path.abspath(ckpt_captioner),
 )
 
 if "selector" in MODELS_SERVED:
@@ -224,6 +236,8 @@ def poll(
                 requested_model = sentiment_est
             elif data["model"] == "autoreviewer":
                 requested_model = autoreviewer_est
+            elif data["model"] == "captioner":
+                requested_model = magma_wrapper
             else:
                 raise ValueError(f"requested_model: {data.get('model')}")
 

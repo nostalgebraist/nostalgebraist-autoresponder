@@ -298,3 +298,13 @@ def prep_for_autoreviewer(doc: str, ts: datetime = now):
         doc, n=2
     )
     return doc
+
+
+def strip_post_identifier(doc):
+    lines = doc.split("\n")
+
+    last = lines[-1]
+    if last.startswith("bn "):
+        lines = lines[:-1]
+
+    return "\n".join(lines)

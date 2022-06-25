@@ -32,6 +32,7 @@ V12_12 = True
 V12_13 = True
 V12_14 = True
 V12_15 = True
+V12_16 = True  # captions + more data
 
 BUCKET_NAME = ""
 if not V12_7:
@@ -45,10 +46,16 @@ USE_AUTOREVIEWER = True
 
 LOGGING_FLAGS = {
     "side_judg_inputs": False,
-    "parse_continuation": False
+    "parse_continuation": True
 }
 
-if V12_15:
+if V12_16:
+    AUTOREVIEWER_CUTOFFS = {
+    # TODO
+        "accept_below": 0.108,  # v12_16/v1: predict true accept rate: ~22%, false accept rate ~6.7%
+        "reject_above": 0.706,  # v12_16/v1: predict true reject rate: ~29%, false reject rate ~3%
+    }
+elif V12_15:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.139,  # v12_15/v2: predict true accept rate: ~32%, false accept rate ~6.7%
         "reject_above": 0.614,  # v12_15/v2: predict true reject rate: ~33%, false reject rate ~3%
@@ -161,10 +168,13 @@ BATCHONE = True
 RANDOM_SAMPLING_PARAMS_ON_STARTUP = False
 
 HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
-HF_FILES_GZIPPED = True
+HF_FILES_GZIPPED = False
 model_path = None
 
-if V12_15:
+if V12_16:
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
+    model_name = "arj-x10-2616"
+elif V12_15:
     HF_FILES_GZIPPED = False
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
     model_name = "arj-x9-1390"
@@ -222,7 +232,14 @@ else:
 if not model_path:
     model_path = os.path.join("/", model_name)
 
-if V12_15:
+ckpt_captioner = None
+
+if V12_16:
+    ckpt_select = "selector/v12_16/v1/"
+    ckpt_sentiment = "sentiment/v12_16/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_16/v1/"
+    ckpt_captioner = "captioner/v12_16/v1/"
+elif V12_15:
     ckpt_select = "selector/v12_15/v6/"
     ckpt_sentiment = "sentiment/v12_15/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_15/v2/"
@@ -573,5 +590,8 @@ head_inference_batch_size = 8 if GPU_TYPE == "bigger" else 1
 head_load_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 
 MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
+
+if V12_16:
+    MODELS_SERVED.add("captioner")
 
 os.chdir(startdir)

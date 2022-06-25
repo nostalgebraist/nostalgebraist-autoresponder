@@ -36,7 +36,7 @@ def override_disable_logits_processors(*args, **kwargs) -> LogitsProcessorList:
 def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=False,
                                 add_hotfix=True,
                                 hotfix_good_ix=50155,  # '======'
-                                hotfix_bad_ixs=[29335, 796]  # ' =====', ' ===='
+                                hotfix_bad_ixs=[29335, 796, 50155]  # ' =====', ' ====', '======'
                                 ):
     def _override_get_breakruns(*args, **kwargs) -> LogitsProcessorList:
         processors = [

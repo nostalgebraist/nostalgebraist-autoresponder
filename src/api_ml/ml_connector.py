@@ -822,7 +822,7 @@ def old_bridge_call__textpost(
                 msg += ("--------" * 5 + "\n") * 2
                 print(msg)
 
-                with open('textpost-image-delimiter-attempts.txt,', 'a', encoding='utf-8') as f:
+                with open('textpost-image-delimiter-attempts.txt', 'a', encoding='utf-8') as f:
                     f.write(msg)
 
 

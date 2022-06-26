@@ -816,7 +816,7 @@ def old_bridge_call__textpost(
     with LogExceptionAndSkip("log image delimiter attempts from generator"):
         for c, p, ld in zip(continuations, response_data["selection_proba"], response_data["sentiment_logit_diffs"]):
             if "====" in c:
-                msg = f"\n--------Selection proba {p:.1%}, logit diff {ld} for: \n--------" + "\n"
+                msg = f"\n--------Selection proba {p:.1%}, logit diff {ld} for:--------" + "\n"
                 msg += "--------" * 5 + "\n"
                 msg += c + "\n"
                 msg += ("--------" * 5 + "\n") * 2

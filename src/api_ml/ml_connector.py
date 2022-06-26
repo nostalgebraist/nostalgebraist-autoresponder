@@ -809,17 +809,22 @@ def old_bridge_call__textpost(
     )
     response_data["selection_proba"] = [float(p) for p in selection_results]
 
-    # TODO: (cleanup) remove later
-    with LogExceptionAndSkip("log fic/review probs"):
-        for c, sd, p in zip(continuations, continuation_side_data, response_data["selection_proba"]):
-            if "Original fic" in sd.get("prompt_for_neural", "") or "Book review" in sd.get("prompt_for_neural", ""):
-                print(f"\n--------Selection proba {p:.1%} for: \n--------")
-                print(c[:4000])
-                print("--------")
-
     sentiment_inputs = pd.DataFrame({"selector_input": response_data["continuations"]})
     sentiment_results = predict_sentiment(sentiment_inputs)
     response_data["sentiment_logit_diffs"] = [float(p) for p in sentiment_results]
+
+    with LogExceptionAndSkip("log image delimiter attempts from generator"):
+        for c, p, ld in zip(continuations, response_data["selection_proba"], response_data["sentiment_logit_diffs"]):
+            if "====" in c:
+                msg = f"\n--------Selection proba {p:.1%}, logit diff {ld} for: \n--------" + "\n"
+                msg += "--------" * 5 + "\n"
+                msg += c + "\n"
+                msg += ("--------" * 5 + "\n") * 2
+                print(msg)
+
+                with open('textpost-image-delimiter-attempts.txt,', 'a', encoding='utf-8') as f:
+                    f.write(msg)
+
 
     autoreview_inputs = selector_inputs
 

@@ -31,9 +31,13 @@ from smart_open import open
 TRADE_QUALITY_FOR_SPEED = True
 
 logit_diff_sample_series = load_logit_diff_sample()
-EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
+# EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
+EXPECTED_REJECTION_MULT = 0.6
 
 TEXTPOST_N_CANDIDATES_TARGET = 10 if (not TRADE_QUALITY_FOR_SPEED) else 7
+
+# TODO: calcuate this precisely
+RETENTION_DISCOUNT = 0.4
 
 # TODO: set DEFAULT_CSC using autoresponder_config constants
 CONTROL_SEG_CONFIG = DEFAULT_CSC
@@ -753,7 +757,7 @@ def old_bridge_call__textpost(
     best_of = adjust_best_of(best_of, mood)
 
     if n_retention is not None:
-        best_of = max(1, best_of - n_retention)
+        best_of = max(1, best_of - int(round((RETENTION_DISCOUNT * n_retention))))
         print(f"with {n_retention} on stack, only need {best_of}")
 
     print(f"n_retention {n_retention}")

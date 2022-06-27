@@ -293,6 +293,7 @@ def serve_selection(
         continuations += sorted(retention_stack)
         if selection_proba is not None:
             (
+                retention_stack,
                 retention_stack_proba,
                 retention_stack_logit_diffs,
                 retention_stack_autoreview_proba,
@@ -394,7 +395,7 @@ def serve_selection(
         if continuation in retention_stack:
             retention_stack.remove(continuation)
 
-        retention_stack = apply_retention_cutoff(retention_stack)
+        retention_stack, retention_stack_logit_diffs = apply_retention_cutoff(retention_stack)
 
     parsed = parse_continuation(continuation)
     parsed["proba"] = float(chosen_proba)
@@ -437,7 +438,7 @@ def serve_selection(
             print(f"\t{k}")
         print("consider modifying selector.py to include them")
 
-    return parsed, retention_stack
+    return parsed, retention_stack, retention_stack_logit_diffs
 
 
 def get_retention_stack_judgments(retention_stack,
@@ -484,11 +485,11 @@ def get_retention_stack_judgments(retention_stack,
         autoreviewer_texts,
     )
 
-    return proba, logit_diffs, autoreview_proba
+    return base_texts, proba, logit_diffs, autoreview_proba
 
 
 def apply_retention_cutoff(retention_stack):
-    retention_stack_proba, _, _ = get_retention_stack_judgments(retention_stack)
+    retention_stack, retention_stack_proba, retention_stack_logit_diffs, _ = get_retention_stack_judgments(retention_stack)
 
     n_before_stack, n_before_proba = len(retention_stack), len(retention_stack_proba)
     retain = [p > RETENTION_CUTOFF for p in retention_stack_proba]
@@ -502,9 +503,11 @@ def apply_retention_cutoff(retention_stack):
 
     new_stack = [s for s, r in zip(sorted(retention_stack), retain) if r]
     new_proba = [p for p, r in zip(retention_stack_proba, retain) if r]
+    new_logit_diffs = [p for p, r in zip(retention_stack_logit_diffs, retain) if r]
 
     retention_stack = set(new_stack)
     retention_stack_proba = new_proba
+    retention_stack_logit_diffs = new_logit_diffs
 
     n_after_stack, n_after_proba = len(retention_stack), len(retention_stack_proba)
 
@@ -521,4 +524,4 @@ def apply_retention_cutoff(retention_stack):
     print(
         f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}"
     )
-    return retention_stack
+    return retention_stack, retention_stack_logit_diffs

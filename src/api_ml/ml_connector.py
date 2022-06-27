@@ -565,7 +565,7 @@ def answer_from_gpt(
     strategy = "eps_greedy"
     eps = 0.15
 
-    result, _ = serve_selection(
+    result, _, _ = serve_selection(
         data=result_generator,
         post_type="answer",
         mood=mood,
@@ -717,7 +717,7 @@ def text_post_from_gpt(loop_persistent_data,
     strategy = "eps_greedy"
     eps = 0.3
 
-    result, retention_stack = serve_selection(
+    result, retention_stack, retention_stack_logit_diffs = serve_selection(
         data=result_generator,
         post_type="textpost",
         mood=mood,
@@ -729,6 +729,7 @@ def text_post_from_gpt(loop_persistent_data,
     save_retention(retention_stack)
 
     loop_persistent_data.retention_stack = retention_stack
+    loop_persistent_data.retention_stack_logit_diffs = retention_stack_logit_diffs
 
     # for logging, add input fields that didn't make the round trip
     result["mood"] = mood_name
@@ -757,10 +758,12 @@ def old_bridge_call__textpost(
     best_of = adjust_best_of(best_of, mood)
 
     if n_retention is not None:
-        best_of = max(1, best_of - int(round((RETENTION_DISCOUNT * n_retention))))
-        print(f"with {n_retention} on stack, only need {best_of}")
-
-    print(f"n_retention {n_retention}")
+        n_retention_usable = sum(
+            mood['min_allowed_score'] < ld < mood['max_allowed_score']
+        for ld in retention_stack_logit_diffs
+        )
+        best_of = max(1, best_of - n_retention_usable)
+        print(f"with {n_retention} on stack, of which {n_retention_usable} are usable, only need {best_of}")
 
     # old serve_textpost
 

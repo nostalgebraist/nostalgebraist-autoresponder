@@ -834,6 +834,7 @@ class LoopPersistentData:
         requests_per_check_history_dash=[],
         apriori_requests_per_check=10,
         retention_stack: set = set(),
+        retention_stack_logit_diffs: list=[],
         slowdown_level: dict = BASE_SLOWDOWN_LEVEL,
         manual_ask_post_ids: set = set(),
     ):
@@ -850,6 +851,7 @@ class LoopPersistentData:
         self.requests_per_check_history_dash = requests_per_check_history_dash
         self.apriori_requests_per_check = apriori_requests_per_check
         self.retention_stack = retention_stack
+        self.retention_stack_logit_diffs = retention_stack_logit_diffs
         self.slowdown_level = slowdown_level
         self.manual_ask_post_ids = manual_ask_post_ids
 
@@ -3154,9 +3156,9 @@ def load_retention(path="data/retention_stack.jsonl"):
 
     retention_stack = set(retention_stack)
 
-    retention_stack = apply_retention_cutoff(retention_stack)
+    retention_stack, retention_stack_logit_diffs = apply_retention_cutoff(retention_stack)
 
-    return retention_stack
+    return retention_stack, retention_stack_logit_diffs
 
 
 def parse_args():
@@ -3180,6 +3182,7 @@ if __name__ == "__main__":
 
     loop_persistent_data = LoopPersistentData(
         retention_stack=retention_stack,
+        retention_stack_logit_diffs=retention_stack_logit_diffs,
     )
 
     # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")

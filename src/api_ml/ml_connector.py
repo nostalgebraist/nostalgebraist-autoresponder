@@ -31,8 +31,8 @@ from smart_open import open
 TRADE_QUALITY_FOR_SPEED = True
 
 logit_diff_sample_series = load_logit_diff_sample()
-# EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
-EXPECTED_REJECTION_MULT = 0.6
+EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
+EXPECTED_REJECTION_MULT_TEXTPOST = 0.6
 
 TEXTPOST_N_CANDIDATES_TARGET = 10 if (not TRADE_QUALITY_FOR_SPEED) else 7
 
@@ -511,7 +511,7 @@ def save_retention(retention_stack):
         json.dump(list(retention_stack), f, indent=1)
 
 
-def adjust_best_of(best_of, mood):
+def adjust_best_of(best_of, mood, is_textpost):
     expected_rejection_frac = estimate_expected_rejections(
         min_logit_diff=mood["min_allowed_score"],
         max_logit_diff=mood["max_allowed_score"],
@@ -522,8 +522,9 @@ def adjust_best_of(best_of, mood):
         int(np.round(best_of / (1 - expected_rejection_frac)))
         - best_of
     )
+    discount = EXPECTED_REJECTION_MULT_TEXTPOST if is_textpost else EXPECTED_REJECTION_MULT
     discounted_extra_best_of = int(
-        np.round(raw_extra_best_of * EXPECTED_REJECTION_MULT)
+        np.round(raw_extra_best_of * discount)
     )
 
     print(
@@ -603,7 +604,7 @@ def old_bridge_call__answer(
     if write_fic_override or write_review_override:
         best_of = 6 if not (TRADE_QUALITY_FOR_SPEED) else 4
 
-    best_of = adjust_best_of(best_of, mood)
+    best_of = adjust_best_of(best_of, mood, is_textpost=False)
 
     avoid_if_under = 10
     if write_fic_override:
@@ -754,7 +755,7 @@ def old_bridge_call__textpost(
     avoid_if_says_frank = False
 
     best_of = TEXTPOST_N_CANDIDATES_TARGET
-    best_of = adjust_best_of(best_of, mood)
+    best_of = adjust_best_of(best_of, mood, is_textpost=True)
 
     if n_retention is not None:
         best_of = max(1, best_of - int(round((RETENTION_DISCOUNT * n_retention))))

@@ -16,8 +16,10 @@ escaped_delim = IMAGE_DELIMITER.encode('unicode_escape').decode()
 escaped_delim_ws = IMAGE_DELIMITER_WHITESPACED.encode('unicode_escape').decode()
 escaped_delim_url = IMAGE_URL_DELIMITER.encode('unicode_escape').decode()
 
-imurl_imtext_regex = rf"({escaped_delim_url})?(?(1)(.+?))({escaped_delim_ws})(.+?)({escaped_delim}(?:\n|$))"
+imurl_imtext_regex_v1 = rf"({escaped_delim_url})?(?(1)(.+?))({escaped_delim_ws})(.+?)({escaped_delim}(?:\n|$))"
+imurl_imtext_regex_v2 = rf"({escaped_delim_url})?(?(1)(.+?))\n ?({escaped_delim})\n(.+?)({escaped_delim}(?:\n|$))"
 
+imurl_imtext_regex = imurl_imtext_regex_v2
 
 def PRE_V9_IMAGE_FORMATTER(image_text, *args, **kwargs):
     return "\n" + image_text + "\n"

@@ -17,7 +17,7 @@ escaped_delim_ws = IMAGE_DELIMITER_WHITESPACED.encode('unicode_escape').decode()
 escaped_delim_url = IMAGE_URL_DELIMITER.encode('unicode_escape').decode()
 
 imurl_imtext_regex_v1 = rf"({escaped_delim_url})?(?(1)(.+?))({escaped_delim_ws})(.+?)({escaped_delim}(?:\n|$))"
-imurl_imtext_regex_v2 = rf"({escaped_delim_url})?(?(1)(.+?))\n ?({escaped_delim})\n(.+?)({escaped_delim}(?:\n|$))"
+imurl_imtext_regex_v2 = rf"(\n?{escaped_delim_url})?(?(1)([^\n]+))(\n?\n ?{escaped_delim}\n)(.+?)({escaped_delim}(?:\n|$))"
 
 imurl_imtext_regex = imurl_imtext_regex_v2
 
@@ -39,6 +39,7 @@ def extract_image_texts_from_post_text(s):
 
 
 def extract_image_texts_and_urls_from_post_text(s):
+    """TODO: FIX!"""
     # TODO: DRY (vs image_munging.find_text_images_and_sub_real_images)
 
     # 5 groups:
@@ -166,26 +167,50 @@ def fill_url_based_captions(
         imtext = match.group(4).rstrip("\n")
         imtext_pos = match.start(4)
 
+        if verbose:
+            rg = '\n\t'.join(repr((i+1, g)) for i, g in enumerate(match.groups()))
+            print(f"fill_url_based_captions:\nraw groups:\n\t{rg}\n")
+            print(f"fill_url_based_captions:\nurl:   \t {repr(url)}\nimtext:\t {repr(imtext)}\n")
+
+        legacy = False
+        needs_prefix_newline = False
         if url is not None:
             """
             Case 1: new format.  Have url.
             """
-            url = url.strip(" ")
+            url = url.strip(" \n")
             url_replacement = _replace_url(url)
+            needs_prefix_newline = match.group(1).startswith('\n\n')
         else:
+            legacy = True
             """
-            Case 1: new format.  Only have imtext.
+            Case 2: old format.  Only have imtext.
             """
             normed_imtext = normalize_imtext_from_corpus(imtext)
 
             url = _map_imtext_to_url(imtext)
             url_replacement = _replace_url(url)
 
+            needs_prefix_newline = True
+
         full_repl = ""
 
+        if verbose:
+            print(f"fill_url_based_captions: needs_prefix_newline? {needs_prefix_newline}\n")
+
+        if needs_prefix_newline:
+            full_repl += "\n"
+
+        # if " " in match.group(3):
+        #     # converting from legacy format
+        #     full_repl
+
+        # full_repl += "\n" if legacy else ""
         full_repl += IMAGE_URL_DELIMITER             # group 1
         full_repl += url_replacement                 # group 2
-        full_repl += match.group(3)                      # group 3
+        # full_repl += match.group(3)
+        full_repl += IMAGE_DELIMITER_WHITESPACED
+        # full_repl += match.group(3)                      # group 3
         full_repl += match.group(4)                   # group 4
         full_repl += match.group(5)                 # group 5
 
@@ -199,9 +224,9 @@ def fill_url_based_captions(
         flags=re.DOTALL,
     )
 
-    if verbose:
-        print(f"fill_url_based_captions: got original {repr(s)}")
-        print(f"fill_url_based_captions: made replacement {repr(filled)}")
+    # if verbose:
+    #     print(f"fill_url_based_captions: got original {repr(s)}")
+    #     print(f"fill_url_based_captions: made replacement {repr(filled)}")
 
     return filled, matched[0], imtext_mapped[0], imtext_unmappable[0], url_replaced[0], url_unreplaceable[0]
 

@@ -188,13 +188,17 @@ def identify_h2_contaminated_docs(docs):
 
 def map_docs(docs, include_usernames=False, ignore_titles=False):
     trails = defaultdict(set)
+    parse_fail_doc_ixs = set()
 
     for i, doc in tqdm(enumerate(docs), total=len(docs)):
-        prefix = extract_prefix(doc, include_username=include_usernames, ignore_titles=ignore_titles)
+        try:
+            prefix = extract_prefix(doc, include_username=include_usernames, ignore_titles=ignore_titles)
+        except:
+            parse_fail_doc_ixs.add(i)
         prefix_hash = hashlib.md5(prefix.encode("utf-8")).hexdigest()
         trails[prefix_hash].add(i)
 
-    return trails
+    return trails, parse_fail_doc_ixs
 
 
 def map_docs_multiple_groups(*doc_groups, include_usernames=False):
@@ -210,8 +214,8 @@ def map_docs_multiple_groups(*doc_groups, include_usernames=False):
 
         doc_index_offset += len(g)
 
-    trails = map_docs(docs, include_usernames=include_usernames)
-    return docs, trails, doc_index_to_group_index
+    trails, parse_fail_doc_ixs = map_docs(docs, include_usernames=include_usernames)
+    return docs, trails, doc_index_to_group_index, parse_fail_doc_ixs
 
 
 def find_trails_crossing_groups(trails, doc_index_to_group_index):
@@ -344,8 +348,9 @@ def stream_read_docs(fp, page_size=128, maxdocs=None):
             segs = buffer.split(EOT)
             buffer = segs[-1]
             for s in segs[:-1]:
-                yield s
-                n += 1
+                if s != '':
+                    yield s
+                    n += 1
             if maxdocs and n>= maxdocs:
                 break
         if buffer != '':
@@ -524,13 +529,15 @@ def load_trails_from_docs(paths,
 
         print(f"\t[verifying code works:] n docs after h2 fix: {sum(len(g) for g in doc_groups)}\n")
 
-    docs, trails, doc_index_to_group_index = map_docs_multiple_groups(*doc_groups, include_usernames=include_usernames)
+    docs, trails, doc_index_to_group_index, parse_fail_doc_ixs = map_docs_multiple_groups(*doc_groups, include_usernames=include_usernames)
 
     nt = nontrivial_trails(trails)
 
     trail_stats(docs, trails, nt)
 
     extra_return_values = {}
+
+    extra_return_values['parse_fail_doc_ixs'] = parse_fail_doc_ixs
 
     if return_excluded_uids:
         extra_return_values['excluded_uids'] = excluded_uids

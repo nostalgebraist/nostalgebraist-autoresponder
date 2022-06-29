@@ -24,6 +24,9 @@ orig_poster_regex = DEFAULT_CSC["ORIG_POST_CHAR_NAMED"].format(user_name="([^ ]*
 
 def get_ccs_with_fixes(doc):
     extra_names = doc.split(" ")[1:2]
+    if len(extra_names) == 0:
+        print(f"failed on doc: {repr(doc)}")
+        raise IndexError
     if extra_names[0] == 'nostalgebraist-autoresponder':
         extra_names = []
 

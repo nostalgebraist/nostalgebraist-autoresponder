@@ -33,6 +33,7 @@ V12_13 = True
 V12_14 = True
 V12_15 = True
 V12_16 = True  # captions + more data
+V12_17 = True  # captions + legacy image data fixes
 
 BUCKET_NAME = ""
 if not V12_7:
@@ -49,9 +50,13 @@ LOGGING_FLAGS = {
     "parse_continuation": True
 }
 
-if V12_16:
+if V12_17:
     AUTOREVIEWER_CUTOFFS = {
-    # TODO
+        "accept_below": 0.000,  # v12_17/v1: predict true accept rate: ~XX%, false accept rate ~8.75%
+        "reject_above": 0.000,  # v12_17/v1: predict true reject rate: ~XX%, false reject rate ~3%
+    }
+elif V12_16:
+    AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.125,  # v12_16/v1: predict true accept rate: ~28%, false accept rate ~8.75%
         "reject_above": 0.706,  # v12_16/v1: predict true reject rate: ~29%, false reject rate ~3%
     }
@@ -171,7 +176,10 @@ HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
 HF_FILES_GZIPPED = False
 model_path = None
 
-if V12_16:
+if V12_17:
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
+    model_name = "arj-x10p1-2621"
+elif V12_16:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
     model_name = "arj-x10-2616"
 elif V12_15:
@@ -234,7 +242,12 @@ if not model_path:
 
 ckpt_captioner = None
 
-if V12_16:
+if V12_17:
+    ckpt_select = "selector/v12_17/v1/"
+    ckpt_sentiment = "sentiment/v12_17/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_17/v1/"
+    ckpt_captioner = "captioner/v12_17/v1/"
+elif V12_16:
     ckpt_select = "selector/v12_16/v1/"
     ckpt_sentiment = "sentiment/v12_16/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_16/v1/"

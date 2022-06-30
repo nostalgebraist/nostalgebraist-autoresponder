@@ -39,7 +39,6 @@ def extract_image_texts_from_post_text(s):
 
 
 def extract_image_texts_and_urls_from_post_text(s):
-    """TODO: FIX!"""
     # TODO: DRY (vs image_munging.find_text_images_and_sub_real_images)
 
     # 5 groups:

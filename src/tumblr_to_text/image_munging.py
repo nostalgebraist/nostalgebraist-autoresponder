@@ -118,7 +118,7 @@ def find_text_images_and_sub_real_images(
     escaped_delim = IMAGE_DELIMITER.encode('unicode_escape').decode()
     escaped_delim_ws = IMAGE_DELIMITER_WHITESPACED.encode('unicode_escape').decode()
     imtext_regex = rf"({escaped_delim_ws})(.+?)({escaped_delim}\n)"
-    figure_format = """<figure data-orig-height="{h}" data-orig-width="{w}"><img src="{url}" data-orig-height="{h}" data-orig-width="{w}" alt="{alt}"/></figure>"""
+    figure_format = """{prefix_newline}<figure data-orig-height="{h}" data-orig-width="{w}"><img src="{url}" data-orig-height="{h}" data-orig-width="{w}" alt="{alt}"/></figure>"""
     imtexts = []
     imtext_positions = []
     captions = []
@@ -188,6 +188,11 @@ def find_text_images_and_sub_real_images(
             caption = caption.strip(" ")
         imtext = match.group(4).rstrip("\n")
         pos = match.start(4)
+        if caption is None:
+            needs_prefix_newline.append(True)
+        else:
+            needs_prefix_newline.append(match.group(1).startswith('\n\n'))
+
         key = (imtext, pos, caption)
         if key in imtexts_to_tumblr_images:
             tumblr_image = imtexts_to_tumblr_images[key]
@@ -199,6 +204,7 @@ def find_text_images_and_sub_real_images(
                 alt_text = "[Description] " + caption + " " + "[Text]" + imtext
                 alt_text = alt_text.replace("<", "").replace(">", "")  # w/o this, "<PERSON>" entirely vanishes
             return figure_format.format(
+                prefix_newline='\n' if needs_prefix_newline else '',
                 url=tumblr_image["url"],
                 h=tumblr_image["height"],
                 w=tumblr_image["width"],

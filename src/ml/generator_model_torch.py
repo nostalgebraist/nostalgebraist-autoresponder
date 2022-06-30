@@ -89,7 +89,7 @@ class GeneratorModelTorch:
                 tau=self.sampling_params.breakruns_tau,
                 tokenizer=self.tokenizer if BREAKRUNS_DEBUG else None,
                 debug=BREAKRUNS_DEBUG,
-                add_hotfix=True
+                add_hotfix=False
             )
             self.transformers_model._get_logits_processor = breakruns_override
         elif self.sampling_params.typical_sampling:

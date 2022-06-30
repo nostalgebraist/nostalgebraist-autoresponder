@@ -189,9 +189,9 @@ def find_text_images_and_sub_real_images(
         imtext = match.group(4).rstrip("\n")
         pos = match.start(4)
         if caption is None:
-            needs_prefix_newline.append(True)
+            needs_prefix_newline = True
         else:
-            needs_prefix_newline.append(match.group(1).startswith('\n\n'))
+            needs_prefix_newline = match.group(1).startswith('\n\n')
 
         key = (imtext, pos, caption)
         if key in imtexts_to_tumblr_images:

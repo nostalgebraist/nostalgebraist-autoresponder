@@ -181,7 +181,7 @@ def poll(
             from_visible=False,
             low_res=result,
             guidance_scale=data.get('guidance_scale', 1),
-            noise_cond_ts=100,
+            noise_cond_ts=150,
         )
 
         # sampling_model_sres2.model.cpu();

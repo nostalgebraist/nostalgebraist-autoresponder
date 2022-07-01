@@ -163,6 +163,7 @@ def poll(
                 to_visible=False,
                 from_visible=False,
                 low_res=result,
+                clf_free_guidance=True,
                 guidance_scale=data.get('guidance_scale', 1),
                 dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
                 noise_cond_ts=225,
@@ -180,6 +181,7 @@ def poll(
             to_visible=not using_sres3,
             from_visible=False,
             low_res=result,
+            clf_free_guidance=True,
             guidance_scale=data.get('guidance_scale', 1),
             noise_cond_ts=150,
         )

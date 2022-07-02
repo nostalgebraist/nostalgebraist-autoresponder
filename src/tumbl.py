@@ -750,7 +750,7 @@ def answer_ask(
             verbose=True,
             use_diffusion=IMAGE_CREATION_DIFFUSION,
             guidance_scale=guidance_scale,
-            textless_guidance_scale=textless_guidance_scale
+            textless_guidance_scale=textless_guidance_scale,
             textful_guidance_scale=textful_guidance_scale,
         )
         if IMAGE_CREATION_TESTING and images_were_created:

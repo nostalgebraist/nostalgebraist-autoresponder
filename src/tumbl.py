@@ -754,9 +754,6 @@ def answer_ask(
             n_guidance_types = sum([regular_guidance_used, textless_guidance_used, textful_guidance_used])
 
             guidance_tags = []
-                f"guidance scale {guidance_scale}",
-                f"guidance scale {textless_guidance_scale} (textless images)"
-                f"guidance scale {textful_guidance_scale} (text-heavy images)"
 
             if regular_guidance_used:
                 guidance_tags.append(f"guidance scale {guidance_scale}")

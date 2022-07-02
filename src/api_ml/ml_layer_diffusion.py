@@ -151,6 +151,9 @@ def poll(
             capt=capt,
         )
 
+        gc.collect()
+        torch.cuda.empty_cache()
+
         # sampling_model_sres1.model.cpu();
 
         if using_sres1p5:
@@ -170,6 +173,9 @@ def poll(
                 capt=capt,
             )
 
+            gc.collect()
+            torch.cuda.empty_cache()
+
             # sampling_model_sres1p5.model.cpu();
 
         # sampling_model_sres2.model.cuda();
@@ -185,6 +191,9 @@ def poll(
             guidance_scale=data.get('guidance_scale', 1),
             noise_cond_ts=150,
         )
+
+        gc.collect()
+        torch.cuda.empty_cache()
 
         # sampling_model_sres2.model.cpu();
 

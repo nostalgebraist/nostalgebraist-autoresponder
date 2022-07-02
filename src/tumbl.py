@@ -602,15 +602,17 @@ def make_text_post(
 
         guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS)
         textless_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_NO_TEXT)
+        textful_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT)
         post, images_were_created, regular_guidance_used, textless_guidance_used, textful_guidance_used = \
         find_text_images_and_sub_real_images(
             post,
             client_pool.get_private_client(),
             blogname,
-            verbose=True, # IMAGE_CREATION_TESTING,
+            verbose=True,
             use_diffusion=IMAGE_CREATION_DIFFUSION,
             guidance_scale=guidance_scale,
             textless_guidance_scale=textless_guidance_scale,
+            textful_guidance_scale=textful_guidance_scale,
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state_reasons["must_be_draft"] = True
@@ -619,13 +621,21 @@ def make_text_post(
             tags = [t for t in tags if t != "computer generated image"]
             tags.append("computer generated image")
 
-            if regular_guidance_used and textless_guidance_used and (guidance_scale != textless_guidance_scale):
-                tags.append(f"guidance scale {guidance_scale}")
-                tags.append(f"guidance scale {textless_guidance_scale} (textless images)")
-            elif regular_guidance_used:
-                tags.append(f"guidance scale {guidance_scale}")
-            elif textless_guidance_used:
-                tags.append(f"guidance scale {textless_guidance_scale}")
+            n_guidance_types = sum([regular_guidance_used, textless_guidance_used, textful_guidance_used])
+
+            guidance_tags = []
+
+            if regular_guidance_used:
+                guidance_tags.append(f"guidance scale {guidance_scale}")
+            if textless_guidance_used:
+                guidance_tags.append(f"guidance scale {textless_guidance_scale} (textless images)")
+            if textful_guidance_used:
+                guidance_tags.append(f"guidance scale {textful_guidance_scale} (text-heavy images)")
+
+            if len(guidance_tags) == 1:
+                guidance_tags = [guidance_tags[0].partition(" (")[0]]
+
+            tags += guidance_tags
 
     if IMAGE_DELIMITER in post:
         print("image delimiter still in post")
@@ -731,15 +741,17 @@ def answer_ask(
 
         guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS)
         textless_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_NO_TEXT)
+        textful_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT)
         answer, images_were_created, regular_guidance_used, textless_guidance_used, textful_guidance_used = \
         find_text_images_and_sub_real_images(
             answer,
             client_pool.get_private_client(),
             blogname,
-            verbose=True, # IMAGE_CREATION_TESTING,
+            verbose=True,
             use_diffusion=IMAGE_CREATION_DIFFUSION,
             guidance_scale=guidance_scale,
             textless_guidance_scale=textless_guidance_scale
+            textful_guidance_scale=textful_guidance_scale,
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state = "draft"

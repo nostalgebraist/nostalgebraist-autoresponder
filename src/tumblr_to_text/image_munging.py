@@ -86,16 +86,15 @@ def find_text_images_and_sub_real_images(
     verbose=False,
     dryrun=False,
     use_diffusion=False,
-    guidance_scale=0.,
-    guidance_scale_sres=0.,
-    use_anti_guidance=False,
-    anti_guidance_scale=30,
+    guidance_scale=2,
+    textless_guidance_scale=4,
+    textful_guidance_scale=1,
     dynamic_threshold_p=0.995,
 ):
     print(f'using diffusion?: {use_diffusion}')
     if use_diffusion:
         image_maker = make_image_with_diffusion
-        image_maker_kwargs = {"guidance_scale": guidance_scale, "guidance_scale_sres": guidance_scale_sres,
+        image_maker_kwargs = {"guidance_scale": guidance_scale,
                               "dynamic_threshold_p": dynamic_threshold_p}
     else:
         image_maker = make_image_simple
@@ -150,31 +149,34 @@ def find_text_images_and_sub_real_images(
     images = []
     keys = []
     regular_guidance_used = False
-    anti_guidance_used = False
+    textless_guidance_used = False
+    textful_guidance_used = False
     for imtext, pos, caption in zip(imtexts, imtext_positions, captions):
         prompt = imtext
         per_image_kwargs = {}
         per_image_kwargs.update(image_maker_kwargs)
         per_image_kwargs['capt'] = caption
 
-        generate_here = (len(imtext) > 0) or use_anti_guidance
+        textless_guidance_substrings = ['[image]', '[animated gif]']
+        textless_guidance_trigger = (len(imtext) == 0) or any(s == imtext.strip().lower() for s in textless_guidance_substrings)
 
-        anti_guidance_substrings = ['[image]', '[animated gif]']
-        anti_guidance_trigger = (len(imtext) == 0) or any(s == imtext.strip().lower() for s in anti_guidance_substrings)
+        textful_guidance_trigger = len(imtext) >= 30
 
-        if use_anti_guidance and anti_guidance_trigger:
-            print(f'using anti guidance for imtext {repr(imtext)}, {repr(caption)}')
-
-            anti_guidance_used = True
+        if textless_guidance_trigger:
+            print(f"using textless guidance scale={textless_guidance_scale} for {repr(imtext)}, {repr(caption)}")
+            textless_guidance_used = True
             prompt = ''
-            per_image_kwargs['guidance_scale'] = anti_guidance_scale
-            per_image_kwargs['guidance_after_step_base'] = 10000  # disabled
-        elif generate_here:
+            per_image_kwargs['guidance_scale'] = textless_guidance_scale
+        elif textful_guidance_trigger:
+            print(f"using textful guidance scale={textful_guidance_scale} for {repr(imtext)}, {repr(caption)}")
+            textful_guidance_used = True
+            per_image_kwargs['guidance_scale'] = textful_guidance_scale
+        else:
+            print(f"using regular guidance scale={guidance_scale} for {repr(imtext)}, {repr(caption)}")
             regular_guidance_used = True
 
-        if generate_here:
-            images.append(image_maker(prompt, **per_image_kwargs))
-            keys.append((imtext, pos, caption))
+        images.append(image_maker(prompt, **per_image_kwargs))
+        keys.append((imtext, pos, caption))
 
     imtexts_to_tumblr_images = upload_images_to_tumblr_urls(
         images, keys, client, blogname
@@ -226,7 +228,7 @@ def find_text_images_and_sub_real_images(
     happened = len(imtexts_to_tumblr_images) > 0
     if not happened:
         text_subbed = orig_text  # ensure no munging for matching went through
-    return text_subbed, happened, regular_guidance_used, anti_guidance_used
+    return text_subbed, happened, regular_guidance_used, textless_guidance_used, textful_guidance_used
 
 
 def mock_up_image_generation_tags_for_heads(continuation: str, guidance_scale: float, debug=False) -> str:

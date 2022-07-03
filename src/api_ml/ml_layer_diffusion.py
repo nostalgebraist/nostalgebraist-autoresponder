@@ -151,8 +151,10 @@ def poll(
             capt=capt,
         )
 
-        gc.collect()
-        torch.cuda.empty_cache()
+        print('step1 done')
+        collect_and_show()
+        if show_memory:
+            show_gpu()
 
         # sampling_model_sres1.model.cpu();
 
@@ -173,8 +175,10 @@ def poll(
                 capt=capt,
             )
 
-            gc.collect()
-            torch.cuda.empty_cache()
+            print('step1p5 done')
+            collect_and_show()
+            if show_memory:
+                show_gpu()
 
             # sampling_model_sres1p5.model.cpu();
 
@@ -192,8 +196,10 @@ def poll(
             noise_cond_ts=150,
         )
 
-        gc.collect()
-        torch.cuda.empty_cache()
+        print('step2 done')
+        collect_and_show()
+        if show_memory:
+            show_gpu()
 
         # sampling_model_sres2.model.cpu();
 
@@ -214,8 +220,10 @@ def poll(
 
         im = Image.fromarray(result[0])
 
-        gc.collect()
-        torch.cuda.empty_cache()
+        print('step3 done')
+        collect_and_show()
+        if show_memory:
+            show_gpu()
 
         delta_t = time.time() - t1
         print(f"pipeline took {delta_t:.1f}s")

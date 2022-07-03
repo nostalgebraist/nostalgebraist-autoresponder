@@ -171,7 +171,7 @@ def poll(
                 clf_free_guidance=True,
                 guidance_scale=data.get('guidance_scale', 1),
                 dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
-                noise_cond_ts=225,
+                noise_cond_ts=325,
                 capt=capt,
             )
 

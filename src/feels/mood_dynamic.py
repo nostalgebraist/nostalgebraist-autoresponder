@@ -166,7 +166,7 @@ DETERMINER_MULTIPLIER_UPDATES = {
     pd.Timestamp("2022-06-30 16:05:00"): 0.1  / RESPONSE_SCALE_BASE,
 }
 
-MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP = {
+MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP_BASE = {
     "only_sad": 0.094,
     "only_non_happy": 0.37,
     "interp_only_non_happy__meh__0.50__0.50": 0.535,  # for dict lookup
@@ -177,11 +177,19 @@ MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP = {
     "only_happy": 0.99,
 }
 
-_ordered_cutoffs = sorted(MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP.values())
+_ordered_cutoffs = sorted(MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP_BASE.values())
 _ordered_cutoffs_moods = [
-    (c, [k for k, v in MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP.items() if v == c][0])
+    (c, [k for k, v in MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP_BASE.items() if v == c][0])
     for c in _ordered_cutoffs
 ]
+
+MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP = {k: v for k, v in MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP_BASE.items()}
+MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP.update(
+    {
+        "interp_only_non_happy__meh__0.50__0.50": 0.535,  # for dict lookup
+        "interp_meh__only_non_sad__0.50__0.50": 0.8,  # for dict lookup
+    }
+)
 
 GENERATED_TS_FIRST_STABLE = pd.Timestamp("2020-05-26 19:00:00")
 DUPLICATES_BUGFIX_START_TS = pd.Timestamp("2020-12-19 11:00:00")

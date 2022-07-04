@@ -11,6 +11,8 @@ from util.cloudsave import CLOUDSAVE_BUCKET
 
 DEFAULT_MOOD = "unrestricted"
 
+INTERPOLATE_IN_SENT_SPACE_DEFAULT = True  # ! testing, 7/4/22
+
 
 def logit_diff_to_pos_sent(x):
     return 1 / (1 + np.exp(-x))
@@ -58,7 +60,7 @@ def estimate_expected_rejections(
     ).mean()
 
 
-def get_mood_by_name(mood_name: str, interpolate_in_sent_space=False):
+def get_mood_by_name(mood_name: str, interpolate_in_sent_space=INTERPOLATE_IN_SENT_SPACE_DEFAULT):
     bound_names = {"no_lower_bound": 0.0, "no_upper_bound": 1.0}
 
     moods_original_flavor = {

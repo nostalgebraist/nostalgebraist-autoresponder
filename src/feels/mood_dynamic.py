@@ -169,10 +169,7 @@ DETERMINER_MULTIPLIER_UPDATES = {
 MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP_BASE = {
     "only_sad": 0.094,
     "only_non_happy": 0.37,
-    "interp_only_non_happy__meh__0.50__0.50": 0.535,  # for dict lookup
     "meh": 0.7,
-    "unrestricted": 0.7,
-    "interp_meh__only_non_sad__0.50__0.50": 0.8,  # for dict lookup
     "only_non_sad": 0.9,
     "only_happy": 0.99,
 }
@@ -188,6 +185,7 @@ MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP.update(
     {
         "interp_only_non_happy__meh__0.50__0.50": 0.535,  # for dict lookup
         "interp_meh__only_non_sad__0.50__0.50": 0.8,  # for dict lookup
+        "unrestricted": 0.7,
     }
 )
 

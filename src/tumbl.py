@@ -200,7 +200,7 @@ IMAGE_CREATION_DIFFUSION = True
 
 GUIDANCE_SCALE_OPTIONS = (1, 2, 2, 2, 2, 3)  # dynamic thresholding, 4stage, v2, capts
 GUIDANCE_SCALE_OPTIONS_NO_TEXT = (2, 2, 2, 3, 3, 4, 4, 5)  # dynamic thresholding, 4stage, v2, capts
-GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT = (0.5, 1, 1.5)  # dynamic thresholding, 4stage, v2, capts
+GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT = (1, 1.5)  # dynamic thresholding, 4stage, v2, capts
 
 SCRAPE_FORMAT_V2 = True
 

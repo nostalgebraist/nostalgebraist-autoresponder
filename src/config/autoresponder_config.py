@@ -46,8 +46,8 @@ if not V12_7:
 USE_AUTOREVIEWER = True
 
 LOGGING_FLAGS = {
-    "side_judg_inputs": False,
-    "parse_continuation": True
+    "side_judg_inputs": True,
+    "parse_continuation": False
 }
 
 if V12_17:

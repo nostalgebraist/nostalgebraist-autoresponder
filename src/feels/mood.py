@@ -154,7 +154,13 @@ def get_mood_by_name(mood_name: str, interpolate_in_sent_space=INTERPOLATE_IN_SE
 
 
 def random_mood_at_pst_datetime(dt: datetime, verbose=True):
-    if dt > datetime(2020, 5, 27, 9, 24, 43):
+    if dt >= datetime(2022, 7, 5, 0, 0, 0):
+        mood_options = [
+            "interp_only_non_happy__meh__0.50__0.50",
+            "meh",
+            "interp_meh__only_non_sad__0.50__0.50",
+        ]
+    elif dt > datetime(2020, 5, 27, 9, 24, 43):
         mood_options = [
             "only_non_happy",
             "meh",

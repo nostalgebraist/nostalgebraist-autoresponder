@@ -226,7 +226,9 @@ def poll(
             show_gpu()
 
         delta_t = time.time() - t1
+        print('--------------------')
         print(f"pipeline took {delta_t:.1f}s")
+        print('--------------------\n')
 
         with BytesIO() as output:
             im.save(output, "png")

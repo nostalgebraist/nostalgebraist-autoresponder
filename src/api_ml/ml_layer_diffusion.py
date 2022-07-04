@@ -240,10 +240,6 @@ def poll(
                 data=b
             )
 
-        collect_and_show()
-        if show_memory:
-            show_gpu()
-
 
 def loop_poll(
     period=1,

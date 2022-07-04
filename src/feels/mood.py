@@ -95,14 +95,14 @@ def get_mood_by_name(mood_name: str, interpolate_in_sent_space=False):
     }
 
     moods_logit_diff_version = {}
-    for k, v in moods_original_flavor.items():
-        moods_logit_diff_version[k] = v
+    for k in moods_original_flavor.keys():
+        moods_logit_diff_version[k] = {}
 
         moods_logit_diff_version[k]["min_allowed_score"] = pos_sent_to_logit_diff(
-            moods_logit_diff_version[k]["min_allowed_score"]
+            moods_original_flavor[k]["min_allowed_score"]
         )
         moods_logit_diff_version[k]["max_allowed_score"] = pos_sent_to_logit_diff(
-            moods_logit_diff_version[k]["max_allowed_score"]
+            moods_original_flavor[k]["max_allowed_score"]
         )
         moods_logit_diff_version[k]["score_fn"] = "logit_diff"
     moods = moods_logit_diff_version

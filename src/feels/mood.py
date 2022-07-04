@@ -58,7 +58,7 @@ def estimate_expected_rejections(
     ).mean()
 
 
-def get_mood_by_name(mood_name: str):
+def get_mood_by_name(mood_name: str, interpolate_in_sent_space=False):
     bound_names = {"no_lower_bound": 0.0, "no_upper_bound": 1.0}
 
     moods_original_flavor = {
@@ -116,8 +116,12 @@ def get_mood_by_name(mood_name: str):
     if mood_name.startswith("interp_"):
         segments = mood_name[len("interp_") :].split("__")
 
-        lower_mood = moods[segments[0]]
-        upper_mood = moods[segments[1]]
+        if interpolate_in_sent_space:
+            lower_mood = moods_original_flavor[segments[0]]
+            upper_mood = moods_original_flavor[segments[1]]
+        else:
+            lower_mood = moods[segments[0]]
+            upper_mood = moods[segments[1]]
         lower_frac = float(segments[2])
         upper_frac = float(segments[3])
 
@@ -128,6 +132,10 @@ def get_mood_by_name(mood_name: str):
         interp_max_allowed_score = (lower_frac * lower_mood["max_allowed_score"]) + (
             upper_frac * upper_mood["max_allowed_score"]
         )
+
+        if interpolate_in_sent_space:
+            interp_min_allowed_score = pos_sent_to_logit_diff(interp_min_allowed_score)
+            interp_max_allowed_score = pos_sent_to_logit_diff(interp_max_allowed_score)
 
         interp_mood = {
             "name": mood_name,

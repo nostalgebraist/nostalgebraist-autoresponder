@@ -903,6 +903,7 @@ def caption_image(url: str, **kwargs):
 def caption_images_in_post_html(text: str):
     def _normed_url_to_replacement(normed_url, imtext):
         guidance_scale = 0.5 if len(imtext) == 0 else 0.0
+        print(f"using guidance_scale {guidance_scale} to caption {repr(normed_url)} with imtext {repr(imtext)}")
         kwargs = dict(temperature=1, top_p=0.9, guidance_scale=guidance_scale)
         return caption_image(normed_url, **kwargs)[0]['result']
 

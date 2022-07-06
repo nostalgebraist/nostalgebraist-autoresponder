@@ -896,13 +896,15 @@ def prob_delta_from_gpt(text: List[str], text_ref: List[str], token_str: str,
     return raw[0]["result"]
 
 
-def caption_image(url: str):
-    return captioner.caption_image(url)
+def caption_image(url: str, **kwargs):
+    return captioner.caption_image(url, **kwargs)
 
 
 def caption_images_in_post_html(text: str):
-    def _normed_url_to_replacement(normed_url):
-        return caption_image(normed_url)[0]['result']
+    def _normed_url_to_replacement(normed_url, imtext):
+        guidance_scale = 0.5 if len(imtext) == 0 else 0.0
+        kwargs = dict(temperature=1, top_p=0.9, guidance_scale=guidance_scale)
+        return caption_image(normed_url, **kwargs)[0]['result']
 
     def _normed_imtext_to_url(imtext, verbose=False):
         raise ValueError(f"_normed_imtext_to_url called with {repr(imtext)}, full post {repr(text)}")

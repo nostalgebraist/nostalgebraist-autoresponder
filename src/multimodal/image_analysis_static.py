@@ -1,4 +1,4 @@
-import re
+import re, inspect
 
 IMAGE_DIR = "data/analysis_images/"
 
@@ -126,10 +126,15 @@ def fill_url_based_captions(
     url_replaced = [0]
     url_unreplaceable = [0]
 
-    def _replace_url(url):
+    url_replacer_uses_imtext = 'imtext' in inspect.getfullargspec(normed_url_to_replacement).args
+
+    def _replace_url(url, imtext):
         normed_url = url if disable_url_norm else normalize_tumblr_image_url(url)
 
-        url_replacement = normed_url_to_replacement(normed_url)
+        if url_replacer_uses_imtext:
+            url_replacement = normed_url_to_replacement(normed_url, imtext=imtext)
+        else:
+            url_replacement = normed_url_to_replacement(normed_url)
 
         if url_replacement is None:
             if isinstance(on_unreplaceable_url, str):
@@ -178,7 +183,7 @@ def fill_url_based_captions(
             Case 1: new format.  Have url.
             """
             url = url.strip(" \n")
-            url_replacement = _replace_url(url)
+            url_replacement = _replace_url(url, imtext)
             needs_prefix_newline = match.group(1).startswith('\n\n')
         else:
             legacy = True
@@ -188,7 +193,7 @@ def fill_url_based_captions(
             normed_imtext = normalize_imtext_from_corpus(imtext)
 
             url = _map_imtext_to_url(imtext)
-            url_replacement = _replace_url(url)
+            url_replacement = _replace_url(url, imtext)
 
             needs_prefix_newline = True
 

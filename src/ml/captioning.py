@@ -36,6 +36,7 @@ def caption_image(
     max_steps=30,
     guidance_scale=0,
     prompt='[Image description:',
+    longest_of=3,
 ):
     for k in magma_wrapper.adapter_map:
         magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].cuda()
@@ -43,29 +44,33 @@ def caption_image(
     magma_wrapper.add_adapters()
 
     caption = None
+    caption_options = []
 
     with LogExceptionAndSkip('trying to caption image'):
         with th.no_grad():
-            text_t = get_caption_prompt_tensor(prompt, magma_wrapper)
+            for _ in range(longest_of):
+                text_t = get_caption_prompt_tensor(prompt, magma_wrapper)
 
-            image_t = magma_wrapper.preprocess_inputs([ImageInput(path_or_url)])
+                image_t = magma_wrapper.preprocess_inputs([ImageInput(path_or_url)])
 
-            image_end = image_t.shape[1]
+                image_end = image_t.shape[1]
 
-            embeddings = th.cat([image_t, text_t], dim=1)
+                embeddings = th.cat([image_t, text_t], dim=1)
 
-            output = generate_cfg(
-                model=magma_wrapper,
-                embeddings=embeddings,
-                temperature=temperature,
-                top_k=top_k,
-                top_p=top_p,
-                max_steps=max_steps,
-                gs=guidance_scale,
-                image_end=image_end,
-            )
+                output = generate_cfg(
+                    model=magma_wrapper,
+                    embeddings=embeddings,
+                    temperature=temperature,
+                    top_k=top_k,
+                    top_p=top_p,
+                    max_steps=max_steps,
+                    gs=guidance_scale,
+                    image_end=image_end,
+                )
 
-            caption = output[0]
+                caption_options.append(output[0])
+
+            caption = sorted(caption_options, key=len)[-1]
 
     magma_wrapper.detach_adapters()
 

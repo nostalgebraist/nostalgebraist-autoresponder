@@ -7,7 +7,7 @@ from config.autoresponder_config import *  # TODO: move elsewhere?
 from ml.sampling_params import SamplingParams, DEFAULT_SAMPLING_CONFIG
 
 from transformers import LogitsProcessorList
-from ml.sample_torch import BreakrunsLogitsProcessor, TypicalLogitsWarper, HotfixCaptionDelimiterLogitsProcessor
+from ml.sample_torch import BreakrunsLogitsProcessor, TypicalLogitsWarper, AvoidUnkCaptionLogitsProcessor
 
 from util.util import copy_and_update_config, collect_and_show
 
@@ -34,9 +34,7 @@ def override_disable_logits_processors(*args, **kwargs) -> LogitsProcessorList:
 
 
 def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=False,
-                                add_hotfix=True,
-                                hotfix_good_ix=50155,  # '======'
-                                hotfix_bad_ixs=[29335, 796, 50155]  # ' =====', ' ====', '======'
+                                avoid_unk_caption=True,
                                 ):
     def _override_get_breakruns(*args, **kwargs) -> LogitsProcessorList:
         processors = [
@@ -47,9 +45,9 @@ def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=Fal
                 debug=debug
             )
         ]
-        if add_hotfix:
-            hotfix = HotfixCaptionDelimiterLogitsProcessor(hotfix_good_ix, hotfix_bad_ixs)
-            processors = [hotfix] + processors
+        if avoid_unk_caption:
+            avoider = AvoidUnkCaptionLogitsProcessor()
+            processors = [avoider] + processors
         return LogitsProcessorList(processors)
     return _override_get_breakruns
 

@@ -14,9 +14,6 @@ from api_tumblr.client_pool import ClientPool
 from api_tumblr.paging import fetch_posts
 
 from corpus.scrape_worthiness import is_scrape_worthy_when_archiving_blog
-from corpus.dash_archive import archive_to_corpus
-
-import multimodal.image_analysis_singleton
 
 import config.bot_config_singleton
 bot_specific_constants = config.bot_config_singleton.bot_specific_constants
@@ -30,7 +27,8 @@ def fetch(
     slow_scraping_ok=True,
     require_scrape_worthiness=True,
     needs_private_client=False,
-    no_end_date=False
+    no_end_date=False,
+    refresh=False,
 ):
     with open("data/corpus_winter_2020_max_scraped_ids.json", "r") as f:
         max_ids = json.load(f)
@@ -38,10 +36,14 @@ def fetch(
         print(f"blog_name {blog_name} not found!")
 
     stop_at_id = max_ids.get(blog_name, 0)
+    if refresh:
+        stop_at_id = 0
     print(f"using stop_at_id={stop_at_id}")
 
     os.makedirs("data/corpus_nwo_extensions/", exist_ok=True)
-    raw_posts_path = os.path.join("data/corpus_nwo_extensions/", f"{blog_name}_raw_posts.pkl.gz")
+
+    path_ident = f"{blog_name}__refresh" if refresh else blog_name
+    raw_posts_path = os.path.join("data/corpus_nwo_extensions/", f"{path_ident}_raw_posts.pkl.gz")
 
     posts = []
     before = None
@@ -59,6 +61,8 @@ def fetch(
             stop_at_id = max_id
         else:
             before = min_ts_posix
+
+    print(f"using before={before}, offset={offset}")
 
     pool = ClientPool()
 
@@ -89,8 +93,13 @@ def fetch(
         pickle.dump(posts, f)
 
 
-def process(blog_name, scrape_format_v2=False, no_end_date=False):
-    processed_after_path = os.path.join("data/corpus_nwo_extensions/", f"processed_after_{blog_name}.json")
+def process(blog_name, scrape_format_v2=False, no_end_date=False, refresh=False):
+    from corpus.dash_archive import archive_to_corpus
+
+    import multimodal.image_analysis_singleton
+
+    path_ident = f"{blog_name}__refresh" if refresh else blog_name
+    processed_after_path = os.path.join("data/corpus_nwo_extensions/", f"processed_after_{path_ident}.json")
 
     processed_after = None
     processed_before = None
@@ -105,7 +114,7 @@ def process(blog_name, scrape_format_v2=False, no_end_date=False):
         if processed_before:
             processed_before_ts = fromtimestamp_pst(processed_before)
 
-    raw_posts_path = os.path.join("data/corpus_nwo_extensions/", f"{blog_name}_raw_posts.pkl.gz")
+    raw_posts_path = os.path.join("data/corpus_nwo_extensions/", f"{path_ident}_raw_posts.pkl.gz")
 
     with open(raw_posts_path, "rb") as f:
         posts = pickle.load(f)
@@ -124,7 +133,7 @@ def process(blog_name, scrape_format_v2=False, no_end_date=False):
         posts = [pp for pp in posts if pp["timestamp"] > processed_before]
         print(f"subsetted to {len(posts)} posts after {processed_before_ts}")
 
-    archive_path = os.path.join("data/corpus_nwo_extensions/", f"{blog_name}.txt")
+    archive_path = os.path.join("data/corpus_nwo_extensions/", f"{path_ident}.txt")
 
     for pp in tqdm(posts, mininterval=0.3, smoothing=0):
         archive_to_corpus(pp, archive_path,
@@ -150,6 +159,7 @@ def main():
     parser.add_argument("--scrape-all", action="store_true")
     parser.add_argument("--scrape-format-v2", action="store_true")
     parser.add_argument("--no-end-date", action="store_true")  # append future posts - sets before=None
+    parser.add_argument("--refresh", action="store_true")
     args = parser.parse_args()
 
     if not args.process_only:
@@ -159,14 +169,16 @@ def main():
             require_scrape_worthiness=not args.scrape_all,
             needs_private_client=args.needs_private_client,
             slow_scraping_ok=not args.slow_scraping_off,
-            no_end_date=args.no_end_date
+            no_end_date=args.no_end_date,
+            refresh=args.refresh,
         )
 
     if not args.fetch_only:
         process(
             blog_name=args.blog_name,
             scrape_format_v2=args.scrape_format_v2,
-            no_end_date=args.no_end_date
+            no_end_date=args.no_end_date,
+            refresh=args.refresh,
         )
 
     if args.save_image_cache:

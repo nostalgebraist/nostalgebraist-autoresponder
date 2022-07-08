@@ -151,6 +151,11 @@ def poll(
             capt=capt,
         )
 
+        print('step1 done')
+        collect_and_show()
+        if show_memory:
+            show_gpu()
+
         # sampling_model_sres1.model.cpu();
 
         if using_sres1p5:
@@ -163,11 +168,17 @@ def poll(
                 to_visible=False,
                 from_visible=False,
                 low_res=result,
+                clf_free_guidance=True,
                 guidance_scale=data.get('guidance_scale', 1),
                 dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
-                noise_cond_ts=225,
+                noise_cond_ts=325,
                 capt=capt,
             )
+
+            print('step1p5 done')
+            collect_and_show()
+            if show_memory:
+                show_gpu()
 
             # sampling_model_sres1p5.model.cpu();
 
@@ -180,9 +191,15 @@ def poll(
             to_visible=not using_sres3,
             from_visible=False,
             low_res=result,
+            clf_free_guidance=True,
             guidance_scale=data.get('guidance_scale', 1),
-            noise_cond_ts=100,
+            noise_cond_ts=150,
         )
+
+        print('step2 done')
+        collect_and_show()
+        if show_memory:
+            show_gpu()
 
         # sampling_model_sres2.model.cpu();
 
@@ -203,11 +220,15 @@ def poll(
 
         im = Image.fromarray(result[0])
 
-        gc.collect()
-        torch.cuda.empty_cache()
+        print('step3 done')
+        collect_and_show()
+        if show_memory:
+            show_gpu()
 
         delta_t = time.time() - t1
+        print('--------------------')
         print(f"pipeline took {delta_t:.1f}s")
+        print('--------------------\n')
 
         with BytesIO() as output:
             im.save(output, "png")
@@ -218,10 +239,6 @@ def poll(
                 f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
                 data=b
             )
-
-        collect_and_show()
-        if show_memory:
-            show_gpu()
 
 
 def loop_poll(

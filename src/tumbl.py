@@ -197,18 +197,10 @@ FIC_TRIGGER_TESTING = False
 IMAGE_CREATION = True
 IMAGE_CREATION_TESTING = False
 IMAGE_CREATION_DIFFUSION = True
-# GUIDANCE_SCALE_OPTIONS = (0.5, 1, 1, 1, 1.5)  # static thresholding
-# GUIDANCE_SCALE_OPTIONS = (1, 2, 4, 4, 5, 5, 6, 6, 8)  # dynamic thresholding
-# GUIDANCE_SCALE_OPTIONS = (1, 2, 2, 2, 3, 3)  # dynamic thresholding, 4stage
-# GUIDANCE_SCALE_OPTIONS = (0.5, 1, 1, 1, 1.5)  # dynamic thresholding, 4stage, v2
-GUIDANCE_SCALE_OPTIONS = (1, 1, 1.5, 1.5, 2, 2, 2, 3, 4)  # dynamic thresholding, 4stage, v2, capts
 
-ANTI_GUIDANCE = True
-# ANTI_GUIDANCE_SCALE_OPTIONS = (0, 1, 1, 5, 10,)  # static thresholding
-# ANTI_GUIDANCE_SCALE_OPTIONS = (0, 5, 5, 10, 10, 15, 15, 20)  # dynamic thresholding
-# ANTI_GUIDANCE_SCALE_OPTIONS = (0, 2, 2, 5, 5, 10, 15, 20)  # dynamic thresholding, 4stage
-# ANTI_GUIDANCE_SCALE_OPTIONS = (0, 0, 1, 1, 1, 2, 2, 5, 10, 20)  # dynamic thresholding, 4stage, v2
-ANTI_GUIDANCE_SCALE_OPTIONS = (1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 6)  # dynamic thresholding, 4stage, v2, capts
+GUIDANCE_SCALE_OPTIONS = (1, 2, 2, 2, 2, 3)  # dynamic thresholding, 4stage, v2, capts
+GUIDANCE_SCALE_OPTIONS_NO_TEXT = (2, 2, 2, 3, 3, 4, 4, 5)  # dynamic thresholding, 4stage, v2, capts
+GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT = (1, 1.5)  # dynamic thresholding, 4stage, v2, capts
 
 SCRAPE_FORMAT_V2 = True
 
@@ -609,17 +601,18 @@ def make_text_post(
         presub_post = post
 
         guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS)
-        anti_guidance_scale = random.choice(ANTI_GUIDANCE_SCALE_OPTIONS)
-        post, images_were_created, regular_guidance_used, anti_guidance_used = find_text_images_and_sub_real_images(
+        textless_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_NO_TEXT)
+        textful_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT)
+        post, images_were_created, regular_guidance_used, textless_guidance_used, textful_guidance_used = \
+        find_text_images_and_sub_real_images(
             post,
             client_pool.get_private_client(),
             blogname,
-            verbose=True, # IMAGE_CREATION_TESTING,
+            verbose=True,
             use_diffusion=IMAGE_CREATION_DIFFUSION,
             guidance_scale=guidance_scale,
-            guidance_scale_sres=guidance_scale,
-            use_anti_guidance=ANTI_GUIDANCE,
-            anti_guidance_scale=anti_guidance_scale,
+            textless_guidance_scale=textless_guidance_scale,
+            textful_guidance_scale=textful_guidance_scale,
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state_reasons["must_be_draft"] = True
@@ -628,13 +621,21 @@ def make_text_post(
             tags = [t for t in tags if t != "computer generated image"]
             tags.append("computer generated image")
 
-            if regular_guidance_used and anti_guidance_used and (guidance_scale != anti_guidance_scale):
-                tags.append(f"guidance scale {guidance_scale}")
-                tags.append(f"guidance scale {anti_guidance_scale} (textless images)")
-            elif regular_guidance_used:
-                tags.append(f"guidance scale {guidance_scale}")
-            elif anti_guidance_used:
-                tags.append(f"guidance scale {anti_guidance_scale}")
+            n_guidance_types = sum([regular_guidance_used, textless_guidance_used, textful_guidance_used])
+
+            guidance_tags = []
+
+            if regular_guidance_used:
+                guidance_tags.append(f"guidance scale {guidance_scale}")
+            if textless_guidance_used:
+                guidance_tags.append(f"guidance scale {textless_guidance_scale} (textless images)")
+            if textful_guidance_used:
+                guidance_tags.append(f"guidance scale {textful_guidance_scale} (text-heavy images)")
+
+            if len(guidance_tags) == 1:
+                guidance_tags = [guidance_tags[0].partition(" (")[0]]
+
+            tags += guidance_tags
 
     if IMAGE_DELIMITER in post:
         print("image delimiter still in post")
@@ -739,17 +740,18 @@ def answer_ask(
         presub_answer = answer
 
         guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS)
-        anti_guidance_scale = random.choice(ANTI_GUIDANCE_SCALE_OPTIONS)
-        answer, images_were_created, regular_guidance_used, anti_guidance_used = find_text_images_and_sub_real_images(
+        textless_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_NO_TEXT)
+        textful_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT)
+        answer, images_were_created, regular_guidance_used, textless_guidance_used, textful_guidance_used = \
+        find_text_images_and_sub_real_images(
             answer,
             client_pool.get_private_client(),
             blogname,
-            verbose=True, # IMAGE_CREATION_TESTING,
+            verbose=True,
             use_diffusion=IMAGE_CREATION_DIFFUSION,
             guidance_scale=guidance_scale,
-            guidance_scale_sres=guidance_scale,
-            use_anti_guidance=ANTI_GUIDANCE,
-            anti_guidance_scale=anti_guidance_scale
+            textless_guidance_scale=textless_guidance_scale,
+            textful_guidance_scale=textful_guidance_scale,
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state = "draft"
@@ -761,13 +763,21 @@ def answer_ask(
             tags = [t for t in tags if t != "computer generated image"]
             tags.append("computer generated image")
 
-            if regular_guidance_used and anti_guidance_used and (guidance_scale != anti_guidance_scale):
-                tags.append(f"guidance scale {guidance_scale}")
-                tags.append(f"guidance scale {anti_guidance_scale} (textless images)")
-            elif regular_guidance_used:
-                tags.append(f"guidance scale {guidance_scale}")
-            elif anti_guidance_used:
-                tags.append(f"guidance scale {anti_guidance_scale}")
+            n_guidance_types = sum([regular_guidance_used, textless_guidance_used, textful_guidance_used])
+
+            guidance_tags = []
+
+            if regular_guidance_used:
+                guidance_tags.append(f"guidance scale {guidance_scale}")
+            if textless_guidance_used:
+                guidance_tags.append(f"guidance scale {textless_guidance_scale} (textless images)")
+            if textful_guidance_used:
+                guidance_tags.append(f"guidance scale {textful_guidance_scale} (text-heavy images)")
+
+            if len(guidance_tags) == 1:
+                guidance_tags = [guidance_tags[0].partition(" (")[0]]
+
+            tags += guidance_tags
 
     if IMAGE_DELIMITER in answer:
         print("image delimiter still in post")

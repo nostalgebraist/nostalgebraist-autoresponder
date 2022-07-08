@@ -11,6 +11,8 @@ from util.cloudsave import CLOUDSAVE_BUCKET
 
 DEFAULT_MOOD = "unrestricted"
 
+INTERPOLATE_IN_SENT_SPACE_DEFAULT = True  # ! testing, 7/4/22
+
 
 def logit_diff_to_pos_sent(x):
     return 1 / (1 + np.exp(-x))
@@ -58,7 +60,7 @@ def estimate_expected_rejections(
     ).mean()
 
 
-def get_mood_by_name(mood_name: str):
+def get_mood_by_name(mood_name: str, interpolate_in_sent_space=INTERPOLATE_IN_SENT_SPACE_DEFAULT):
     bound_names = {"no_lower_bound": 0.0, "no_upper_bound": 1.0}
 
     moods_original_flavor = {
@@ -95,14 +97,14 @@ def get_mood_by_name(mood_name: str):
     }
 
     moods_logit_diff_version = {}
-    for k, v in moods_original_flavor.items():
-        moods_logit_diff_version[k] = v
+    for k in moods_original_flavor.keys():
+        moods_logit_diff_version[k] = {}
 
         moods_logit_diff_version[k]["min_allowed_score"] = pos_sent_to_logit_diff(
-            moods_logit_diff_version[k]["min_allowed_score"]
+            moods_original_flavor[k]["min_allowed_score"]
         )
         moods_logit_diff_version[k]["max_allowed_score"] = pos_sent_to_logit_diff(
-            moods_logit_diff_version[k]["max_allowed_score"]
+            moods_original_flavor[k]["max_allowed_score"]
         )
         moods_logit_diff_version[k]["score_fn"] = "logit_diff"
     moods = moods_logit_diff_version
@@ -116,8 +118,12 @@ def get_mood_by_name(mood_name: str):
     if mood_name.startswith("interp_"):
         segments = mood_name[len("interp_") :].split("__")
 
-        lower_mood = moods[segments[0]]
-        upper_mood = moods[segments[1]]
+        if interpolate_in_sent_space:
+            lower_mood = moods_original_flavor[segments[0]]
+            upper_mood = moods_original_flavor[segments[1]]
+        else:
+            lower_mood = moods[segments[0]]
+            upper_mood = moods[segments[1]]
         lower_frac = float(segments[2])
         upper_frac = float(segments[3])
 
@@ -128,6 +134,10 @@ def get_mood_by_name(mood_name: str):
         interp_max_allowed_score = (lower_frac * lower_mood["max_allowed_score"]) + (
             upper_frac * upper_mood["max_allowed_score"]
         )
+
+        if interpolate_in_sent_space:
+            interp_min_allowed_score = pos_sent_to_logit_diff(interp_min_allowed_score)
+            interp_max_allowed_score = pos_sent_to_logit_diff(interp_max_allowed_score)
 
         interp_mood = {
             "name": mood_name,
@@ -144,7 +154,13 @@ def get_mood_by_name(mood_name: str):
 
 
 def random_mood_at_pst_datetime(dt: datetime, verbose=True):
-    if dt > datetime(2020, 5, 27, 9, 24, 43):
+    if dt >= datetime(2022, 7, 5, 0, 0, 0):
+        mood_options = [
+            "interp_only_non_happy__meh__0.50__0.50",
+            "meh",
+            "interp_meh__only_non_sad__0.50__0.50",
+        ]
+    elif dt > datetime(2020, 5, 27, 9, 24, 43):
         mood_options = [
             "only_non_happy",
             "meh",

@@ -21,9 +21,9 @@ def fetch_next_page(client, offset, limit=50, blog_name: str = bot_name, before=
         del kwargs["offset"]
     if page_number:
         kwargs["page_number"] = page_number
-    print(kwargs)
+
     response = client.posts(blog_name, **kwargs)
-    print(len(response["posts"]))
+
     posts = response["posts"]
     total_posts = response["total_posts"]
 

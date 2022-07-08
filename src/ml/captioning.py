@@ -36,7 +36,7 @@ def caption_image(
     max_steps=30,
     guidance_scale=0,
     prompt='[Image description:',
-    longest_of=3,
+    longest_of=1,
 ):
     for k in magma_wrapper.adapter_map:
         magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].cuda()

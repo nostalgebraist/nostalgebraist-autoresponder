@@ -35,9 +35,9 @@ def fetch_next_page(client, offset, limit=50, blog_name: str = bot_name, before=
     with LogExceptionAndSkip("get next page_number for /posts"):
         # next_offset = response["_links"]["next"]["query_params"]["offset"]
         next_page_number = response["_links"]["next"]["query_params"]["page_number"]
-    if next_offset is None:
+    if next_offset is None and offset is not None:
         next_offset = offset + len(posts)  # fallback
-    return posts, next_offset, total_posts, page_number
+    return posts, next_offset, total_posts, next_page_number
 
 
 def fetch_posts(pool: ClientPool,
@@ -73,14 +73,14 @@ def fetch_posts(pool: ClientPool,
 
     while True:
         client = client_getter()
-        page, next_offset, total_posts, next_page_number = fetch_next_page(client, offset=None, blog_name=blog_name, before=before, page_number=page_number)
+        page, next_offset, total_posts, page_number = fetch_next_page(client, offset=None, blog_name=blog_name, before=before, page_number=page_number)
 
         if not tqdm_bar:
             tqdm_bar = tqdm(total=total_posts)
             tqdm_bar.update(offset)
             tqdm_bar.set_postfix(cl=pool.client_name(client))
 
-        if (len(page) == 0) or (next_offset == offset):
+        if (len(page) == 0) or (page_number is None and (next_offset == offset)):
             print(f"stopping, empty page after {len(posts)} posts")
             return posts
 

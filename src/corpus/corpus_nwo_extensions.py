@@ -93,7 +93,8 @@ def fetch(
         pickle.dump(posts, f)
 
 
-def process(blog_name, scrape_format_v2=False, no_end_date=False, refresh=False):
+def process(blog_name, scrape_format_v2=False, no_end_date=False, refresh=False, n=None,
+            save_image_cache=False):
     from corpus.dash_archive import archive_to_corpus
 
     import multimodal.image_analysis_singleton
@@ -129,11 +130,17 @@ def process(blog_name, scrape_format_v2=False, no_end_date=False, refresh=False)
         posts = [pp for pp in posts if pp["timestamp"] < processed_after]
         print(f"subsetted to {len(posts)} posts before {processed_after_ts}")
 
-    if processed_before:
+    if processed_before and no_end_date:
         posts = [pp for pp in posts if pp["timestamp"] > processed_before]
         print(f"subsetted to {len(posts)} posts after {processed_before_ts}")
 
     archive_path = os.path.join("data/corpus_nwo_extensions/", f"{path_ident}.txt")
+
+    if n is not None:
+        posts = posts[:n]
+
+    min_ts_posix = min(pp["timestamp"] for pp in posts)
+    max_ts_posix = max(pp["timestamp"] for pp in posts)
 
     for pp in tqdm(posts, mininterval=0.3, smoothing=0):
         archive_to_corpus(pp, archive_path,
@@ -145,6 +152,9 @@ def process(blog_name, scrape_format_v2=False, no_end_date=False, refresh=False)
 
     with open(processed_after_path, "w") as f:
         json.dump({"processed_after": min_ts_posix, "processed_before": max_ts_posix}, f)
+
+    if save_image_cache:
+        multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()
 
 
 def main():
@@ -176,13 +186,12 @@ def main():
     if not args.fetch_only:
         process(
             blog_name=args.blog_name,
+            n=args.n,
             scrape_format_v2=args.scrape_format_v2,
             no_end_date=args.no_end_date,
             refresh=args.refresh,
+            save_image_cache=args.save_image_cache,
         )
-
-    if args.save_image_cache:
-        multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()
 
 
 if __name__ == "__main__":

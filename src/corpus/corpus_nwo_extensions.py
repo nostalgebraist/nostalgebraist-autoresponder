@@ -94,7 +94,8 @@ def fetch(
 
 
 def process(blog_name, scrape_format_v2=False, no_end_date=False, refresh=False, n=None,
-            save_image_cache=False):
+            save_image_cache=False,
+            skip_all_commentless_reblogs=False,):
     from corpus.dash_archive import archive_to_corpus
 
     import multimodal.image_analysis_singleton
@@ -146,6 +147,7 @@ def process(blog_name, scrape_format_v2=False, no_end_date=False, refresh=False,
         archive_to_corpus(pp, archive_path,
                           include_image_urls=scrape_format_v2,
                           include_post_identifier=scrape_format_v2,
+                          skip_all_commentless_reblogs=skip_all_commentless_reblogs,
                           )
 
     print()
@@ -170,6 +172,7 @@ def main():
     parser.add_argument("--scrape-format-v2", action="store_true")
     parser.add_argument("--no-end-date", action="store_true")  # append future posts - sets before=None
     parser.add_argument("--refresh", action="store_true")
+    parser.add_argument("--skip-commentless-reblogs", action="store_true")
     args = parser.parse_args()
 
     if not args.process_only:
@@ -191,6 +194,7 @@ def main():
             no_end_date=args.no_end_date,
             refresh=args.refresh,
             save_image_cache=args.save_image_cache,
+            skip_all_commentless_reblogs=args.skip_commentless_reblogs
         )
 
 

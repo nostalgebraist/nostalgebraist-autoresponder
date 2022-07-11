@@ -380,6 +380,7 @@ def load_trails_from_docs(paths,
                           return_excluded_uids=False,
                           return_slimmed=False,
                           doc_preprocessor=strip_post_identifier,
+                          exclude_nost_paths=set(),
                           ):
 
     using_uid_map = uid_to_metadata is not None
@@ -400,6 +401,12 @@ def load_trails_from_docs(paths,
             g = [doc_preprocessor(d) for d in g]
         n_raw = len(g)
         print(f"read group from file {p}:\n\t{n_raw} raw docs\n")
+
+        if p in exclude_nost_paths:
+            g = [d for d in g if 'nostalgebraist' not in d]
+            delta = n_raw - len(g)
+            n_raw = len(g)
+            print(f"excluded {delta} nost docs from file {p}:\n\t{n_raw} docs left\n")
 
         if using_uid_map:
             g_doc_to_uid = {}

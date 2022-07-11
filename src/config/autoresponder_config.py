@@ -34,6 +34,7 @@ V12_14 = True
 V12_15 = True
 V12_16 = True  # captions + more data
 V12_17 = True  # captions + legacy image data fixes
+V12_18 = True  # captions + more legacy image data fixes
 
 BUCKET_NAME = ""
 if not V12_7:
@@ -42,7 +43,6 @@ if not V12_7:
     bot_specific_constants = config.bot_config_singleton.bot_specific_constants
     BUCKET_NAME = bot_specific_constants.BUCKET_NAME
 
-
 USE_AUTOREVIEWER = True
 
 LOGGING_FLAGS = {
@@ -50,7 +50,12 @@ LOGGING_FLAGS = {
     "parse_continuation": False
 }
 
-if V12_17:
+if V12_18:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.000,  # v12_18/v1: predict true accept rate: ~XX%, false accept rate ~8.75%
+        "reject_above": 0.000,  # v12_18/v1: predict true reject rate: ~XX%, false reject rate ~3%
+    }
+elif V12_17:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.116,  # v12_17/v1: predict true accept rate: ~30%, false accept rate ~8.75%
         "reject_above": 0.606,  # v12_17/v1: predict true reject rate: ~29%, false reject rate ~3%
@@ -176,7 +181,10 @@ HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
 HF_FILES_GZIPPED = False
 model_path = None
 
-if V12_17:
+if V12_18:
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
+    model_name = "arj-x10p2-2454"
+elif V12_17:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
     model_name = "arj-x10p1-2621"
 elif V12_16:
@@ -242,7 +250,12 @@ if not model_path:
 
 ckpt_captioner = None
 
-if V12_17:
+if V12_18:
+    ckpt_select = "selector/v12_18/v1/"
+    ckpt_sentiment = "sentiment/v12_18/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_18/v1/"
+    ckpt_captioner = "captioner/v12_18/v1/"
+elif V12_17:
     ckpt_select = "selector/v12_17/v1/"
     ckpt_sentiment = "sentiment/v12_17/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_17/v1/"

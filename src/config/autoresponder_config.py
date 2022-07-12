@@ -263,7 +263,7 @@ elif V12_17:
     ckpt_select = "selector/v12_17/v1/"
     ckpt_sentiment = "sentiment/v12_17/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_17/v1/"
-    ckpt_captioner = "captioner/v12_17/v1/"
+    ckpt_captioner = "captioner/v12_17/v0/"
 elif V12_16:
     ckpt_select = "selector/v12_16/v1/"
     ckpt_sentiment = "sentiment/v12_16/v1/"

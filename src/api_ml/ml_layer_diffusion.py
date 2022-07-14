@@ -120,6 +120,8 @@ def poll(
     ],
     show_memory=True,
 ):
+    did_generation = False
+
     for port, route in zip(ports, routes):
         r = requests.get(
             f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
@@ -128,6 +130,8 @@ def poll(
         data = r.json()
         if data is None or len(data) == 0:
             continue
+
+        did_generation = True
 
         text = data['prompt'][:TRUNCATE_LENGTH]
 
@@ -239,6 +243,7 @@ def poll(
                 f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
                 data=b
             )
+    return did_generation
 
 
 def loop_poll(
@@ -261,7 +266,9 @@ def loop_poll(
         return False
 
     while not _should_stop(loop_counter):
-        poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
+        did_generation = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
+        if did_generation:
+            collect_and_show()
         time.sleep(period)
         loop_counter += 1
 

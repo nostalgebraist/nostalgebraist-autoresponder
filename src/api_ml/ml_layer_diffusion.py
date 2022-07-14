@@ -72,7 +72,8 @@ using_sres3 = os.path.exists(checkpoint_path_sres3) and os.path.exists(config_pa
 sampling_model_sres1 = improved_diffusion.pipeline.SamplingModel.from_config(
     checkpoint_path=checkpoint_path_sres1,
     config_path=config_path_sres1,
-    timestep_respacing=timestep_respacing_sres1
+    timestep_respacing=timestep_respacing_sres1,
+    silu_impl='torch',
 )
 
 sampling_model_sres1p5 = None
@@ -82,13 +83,15 @@ if using_sres1p5:
         checkpoint_path=checkpoint_path_sres1p5,
         config_path=config_path_sres1p5,
         timestep_respacing=timestep_respacing_sres1p5,
-        clipmod=sampling_model_sres1.model.clipmod
+        clipmod=sampling_model_sres1.model.clipmod,
+        silu_impl='torch',
     )
 
 sampling_model_sres2 = improved_diffusion.pipeline.SamplingModel.from_config(
     checkpoint_path=checkpoint_path_sres2,
     config_path=config_path_sres2,
-    timestep_respacing=timestep_respacing_sres2
+    timestep_respacing=timestep_respacing_sres2,
+    silu_impl='torch',
 )
 sampling_model_sres2.model.image_size = 256
 
@@ -98,7 +101,8 @@ if using_sres3:
     sampling_model_sres3 = improved_diffusion.pipeline.SamplingModel.from_config(
         checkpoint_path=checkpoint_path_sres3,
         config_path=config_path_sres3,
-        timestep_respacing=timestep_respacing_sres3
+        timestep_respacing=timestep_respacing_sres3,
+        silu_impl='torch',
     )
     sampling_model_sres3.model.image_size = 512
 

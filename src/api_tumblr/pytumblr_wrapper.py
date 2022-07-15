@@ -76,7 +76,7 @@ class RateLimitClient(pytumblr.TumblrRestClient):
             tagstr = ','.join(kwargs['tags'])
             kwargs = {k: v for k, v in kwargs.items() if k != 'tags'}
             kwargs['tags'] = tagstr
-        return super().edit_post(blogname, kwargs)
+        return super().edit_post(blogname, **kwargs)
 
     @staticmethod
     def is_consumption_endpoint(url: str) -> bool:

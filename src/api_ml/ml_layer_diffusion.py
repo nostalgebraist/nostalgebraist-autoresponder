@@ -106,8 +106,10 @@ if using_sres3:
     )
     sampling_model_sres3.model.image_size = 512
 
+sampling_model_sres3.model.convert_to_fp16()
 
-pipeline = improved_diffusion.pipeline.SamplingPipeline(sampling_model_sres1, sampling_model_sres2)
+
+# pipeline = improved_diffusion.pipeline.SamplingPipeline(sampling_model_sres1, sampling_model_sres2)
 
 
 # for sm in [sampling_model_sres1, sampling_model_sres1p5, sampling_model_sres2, sampling_model_sres3]:

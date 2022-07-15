@@ -77,6 +77,8 @@ class RateLimitClient(pytumblr.TumblrRestClient):
             kwargs = {k: v for k, v in kwargs.items() if k != 'tags'}
             if len(tags) == 0:
                 kwargs['tags'] = ''
+            else:
+                kwargs['tags'] = tags
         return super().edit_post(blogname, **kwargs)
 
     @staticmethod

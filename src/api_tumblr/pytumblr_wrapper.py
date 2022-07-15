@@ -72,8 +72,11 @@ class RateLimitClient(pytumblr.TumblrRestClient):
 
     def edit_post(self, blogname, **kwargs):
         # fix for https://www.tumblr.com/blog/view/nostalgebraist/689815753127559168
-        if 'tags' in kwargs and not isinstance(kwargs['tags'], str) and len(kwargs['tags']) == 0:
+        if 'tags' in kwargs and not isinstance(kwargs['tags'], str):
+            tags = kwargs['tags']
             kwargs = {k: v for k, v in kwargs.items() if k != 'tags'}
+            if len(tags) == 0:
+                kwargs['tags'] = ''
         return super().edit_post(blogname, **kwargs)
 
     @staticmethod

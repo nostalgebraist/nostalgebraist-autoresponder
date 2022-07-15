@@ -70,6 +70,14 @@ class RateLimitClient(pytumblr.TumblrRestClient):
 
         self.using_npf_consumption = using_npf_consumption
 
+    def edit_post(self, blogname, **kwargs):
+        # fix for https://www.tumblr.com/blog/view/nostalgebraist/689815753127559168
+        if 'tags' in kwargs and not isinstance(kwargs['tags'], str):
+            tagstr = ','.join(kwargs['tags'])
+            kwargs = {k: v for k, v in kwargs.items() if k != 'tags'}
+            kwargs['tags'] = tagstr
+        return super().edit_post(blogname, kwargs)
+
     @staticmethod
     def is_consumption_endpoint(url: str) -> bool:
         # TODO: maybe this should just be /posts and /dashboard?

@@ -115,7 +115,7 @@ DETERMINER_CENTER_UPDATES = {
     pd.Timestamp("2022-06-25 11:40:00"): 0.2,
     pd.Timestamp("2022-06-30 15:10:00"): 0.1,
     pd.Timestamp("2022-06-30 16:05:00"): 0.,
-    pd.Timestamp("2022-07-14 00:05:00"): 0.1
+    pd.Timestamp("2022-07-14 00:05:00"): 0.1,
     pd.Timestamp("2022-07-15 19:50:00"): 0.,
 }
 DETERMINER_MULTIPLIER_UPDATES = {

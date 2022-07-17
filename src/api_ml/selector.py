@@ -2,6 +2,7 @@
 Helper functions for selecting one "best" output from GPT-2 from a list of such outputs.
 """
 from functools import partial
+from datetime import datetime
 
 import numpy as np
 from textwrap import wrap
@@ -12,7 +13,6 @@ from tumblr_to_text.image_munging import mock_up_image_generation_tags_for_heads
 from config.autoresponder_config import LOGGING_FLAGS
 from tumblr_to_text.classic.autoresponder_static import EOT
 from feels.mood import logit_diff_to_allen_schema
-from util.times import now_pst
 
 
 RESULT_STACK = {}
@@ -452,7 +452,7 @@ def get_retention_stack_judgments(retention_stack,
     from tumblr_to_text.nwo_munging import make_nwo_textpost_prompts
 
     if timestamp is None:
-        timestamp = now_pst()
+        timestamp = datetime.now()
 
     if len(retention_stack) == 0:
         proba, logit_diffs, autoreview_proba = [], [], []
@@ -462,7 +462,7 @@ def get_retention_stack_judgments(retention_stack,
 
     prompts, prompts_selector, prompts_autoreviewer, _ = make_nwo_textpost_prompts(
         blog_name=blog_name,
-        timestamp=now_pst()
+        timestamp=timestamp,
     )
 
     base_texts_for_selector_and_autoreviewer = [

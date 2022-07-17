@@ -1008,7 +1008,7 @@ def respond_to_reblogs_replies(
         )
 
         thread = TumblrThread.from_payload(post_payload)
-        thread = add_empty_reblog(thread, blog_name=blogName, timestamp=now_pst())
+        thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
 
         if is_reply:
             thread = insert_reply_before_final_post(
@@ -1498,7 +1498,7 @@ def batch_judge_dash_posts(post_payloads, response_cache):
     for pp in tqdm(payloads_to_judge):
         thread = TumblrThread.from_payload(pp)
 
-        thread = add_empty_reblog(thread, blog_name=blogName, timestamp=now_pst())
+        thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
         _, prompt_selector, _ = make_nwo_prompts(thread, blogName)
 
         prompts_selector.append(prompt_selector)

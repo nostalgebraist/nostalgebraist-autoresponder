@@ -71,7 +71,8 @@ from tumblr_to_text.classic.munging_shared import get_body, \
 from tumblr_to_text.nwo import npf_thread_to_formatted_text
 from tumblr_to_text.nwo_munging import format_and_normalize_post_html, \
     make_nwo_prompts, make_nwo_textpost_prompts, make_nwo_fic_override_prompts, \
-    add_empty_reblog, get_normalized_ask_text, insert_reply_before_final_post, cut_to_n_most_recent_by_user
+    add_empty_reblog, get_normalized_ask_text, insert_reply_before_final_post, cut_to_n_most_recent_by_user, \
+    set_timestamp
 
 from persistence import traceability_singleton
 from multimodal import image_analysis_singleton
@@ -2767,6 +2768,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     )
 
             thread = TumblrThread.from_payload(post_payload)
+            thread = set_timestamp(thread, datetime.now())
             if write_fic_override:
                 prompt, prompt_selector, prompt_autoreviewer = make_nwo_fic_override_prompts(thread,
                                                                                              use_definite_article=not V12_14)

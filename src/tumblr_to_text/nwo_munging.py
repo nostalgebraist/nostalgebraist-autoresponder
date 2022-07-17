@@ -7,8 +7,6 @@ from tumblr_to_text.classic.autoresponder_static import DEFAULT_CSC, EOT
 from tumblr_to_text.classic.autoresponder_static_v8 import construct_fic_override_v2
 from tumblr_to_text.nwo import npf_thread_to_formatted_text, format_and_normalize_post_html
 
-from util.times import fromtimestamp_pst
-
 
 def sample_year_and_set(timestamp: datetime):
     ts = None
@@ -29,7 +27,7 @@ def set_timestamp(thread: TumblrThread, timestamp: datetime) -> TumblrThread:
 
 
 def sample_year_and_set_timestamp(thread: TumblrThread) -> TumblrThread:
-    timestamp = fromtimestamp_pst(thread.timestamp)
+    timestamp = datetime.fromtimestamp(thread.timestamp)
 
     timestamp = sample_year_and_set(timestamp)
 

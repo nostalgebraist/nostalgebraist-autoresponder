@@ -1,14 +1,15 @@
+from datetime import datetime
+
 from api_tumblr.tumblr_parsing import TumblrThread
 from tumblr_to_text.nwo import npf_thread_to_formatted_text, expand_asks
 from tumblr_to_text.nwo_munging import add_empty_reblog
 
 from api_ml.ml_connector import prob_delta_from_gpt
-from util.times import now_pst
 
 
 def construct_prob_delta_prompts(thread: TumblrThread, needs_empty_reblog=True):
     if needs_empty_reblog:
-        thread = add_empty_reblog(thread, 'DUMMYUSER', now_pst())
+        thread = add_empty_reblog(thread, 'DUMMYUSER', datetime.now())
 
     prompt = npf_thread_to_formatted_text(thread, prob_delta_format=True)
 

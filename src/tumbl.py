@@ -310,9 +310,10 @@ def next_queued_post_time():
             time.sleep(2 ** tries)
             tries += 1
 
-    next_queued_dt = fromtimestamp_pst(next_queued_ts)
+    next_queued_dt = datetime.fromtimestamp(next_queued_ts)
+    next_queued_dt_pst = fromtimestamp_pst(next_queued_ts)
 
-    print(f"inferred next_queued_dt {next_queued_dt}")
+    print(f"inferred next_queued_dt_pst {next_queued_dt_pst}")
     return next_queued_dt
 
 

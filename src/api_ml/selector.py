@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 from textwrap import wrap
 
-from multimodal.image_analysis_static import IMAGE_URL_DELIMITER
+from multimodal.image_analysis_static import IMAGE_URL_DELIMITER, extract_image_texts_and_urls_from_post_text
 from tumblr_to_text.image_munging import mock_up_image_generation_tags_for_heads
 
 from config.autoresponder_config import LOGGING_FLAGS
@@ -27,6 +27,7 @@ IMAGE_COLDSTART_USE_ARGMAX = False
 GIF_COLDSTART = False
 QUOTES_COLDSTART = False
 DREAMS_COLDSTART = False
+GUIDELINES_COLDSTART = True
 
 FIC_COLDSTART_DELTA = 0.05
 REVIEW_COLDSTART_DELTA = 0.05
@@ -34,6 +35,7 @@ IMAGE_COLDSTART_DELTA = 0.1  # !
 GIF_COLDSTART_DELTA = -0.2 -(IMAGE_COLDSTART * IMAGE_COLDSTART_DELTA)
 QUOTES_COLDSTART_DELTA = -0.25
 DREAMS_COLDSTART_DELTA = 0.15
+GUIDELINES_COLDSTART_DELTA = -0.25
 
 # getting the capts MVP work to properly
 IMAGE_COLDSTART_DELIMITER = IMAGE_URL_DELIMITER.lstrip('\n')
@@ -216,15 +218,39 @@ def sentiment_screen(
     )
 
 
-def do_coldstart(continuations, selection_proba, substring, delta):
+def do_coldstart(continuations, selection_proba, substring, delta, custom_filter=None):
     selection_proba_ = []
     for c, p in zip(continuations, selection_proba):
-        if substring in c:
+        is_match = False
+        if custom_filter is not None:
+            is_match, substring = custom_filter(c)
+        else:
+            is_match = substring in c
+        if is_match:
             print(f"coldstarting [substring {repr(substring)}] {repr(c)}: {p:.6f} -> {delta + p:.6f}")
             selection_proba_.append(delta + p)
         else:
             selection_proba_.append(p)
     return selection_proba_
+
+
+def match_guidelines(c):
+    c = c.replace("\n", " ").lower()
+    is_match, substring = False, 'match_guidelines||'
+
+    if IMAGE_COLDSTART_DELIMITER in c:
+        try:
+            entries = extract_image_texts_and_urls_from_post_text(c)
+        except Exception as exc:
+            print(f"parse fail: {repr(c)}, {repr(exc)}")
+            entries = []
+
+        for e in entries:
+            for opt in ['violating', 'community guid', 'been removed']:
+                if opt in repr(e):  # silly but robust hack (wrt None values)
+                    is_match = True
+                    substring += opt + "|"
+    return is_match, substring
 
 
 do_fic_coldstart = partial(
@@ -245,6 +271,13 @@ do_quotes_coldstart = partial(
 do_dreams_coldstart = partial(
     do_coldstart, substring="#dreams", delta=DREAMS_COLDSTART_DELTA
 )
+do_dreams_coldstart = partial(
+    do_coldstart, substring="#dreams", delta=DREAMS_COLDSTART_DELTA
+)
+do_guidelines_coldstart = partial(
+    do_coldstart, substring="", custom_filter=match_guidelines, delta=GUIDELINES_COLDSTART_DELTA
+)
+
 
 
 def do_all_coldstarts(continuations, selection_proba):
@@ -265,6 +298,9 @@ def do_all_coldstarts(continuations, selection_proba):
 
     if DREAMS_COLDSTART:
         selection_proba = do_dreams_coldstart(continuations, selection_proba)
+
+    if GUIDELINES_COLDSTART:
+        selection_proba = do_guidelines_coldstart(continuations, selection_proba)
 
     return selection_proba
 

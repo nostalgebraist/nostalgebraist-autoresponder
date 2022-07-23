@@ -614,7 +614,7 @@ def make_text_post(
             use_diffusion=IMAGE_CREATION_DIFFUSION,
             guidance_scale=guidance_scale,
             textless_guidance_scale=textless_guidance_scale,
-            textful_guidance_scale=textful_guidance_scale,
+            text_guidance_scale=text_guidance_scale,
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state_reasons["must_be_draft"] = True
@@ -743,7 +743,7 @@ def answer_ask(
 
         guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS)
         textless_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_NO_TEXT)
-        textful_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT)
+        text_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_TEXT_GUIDANCE)
         answer, images_were_created, regular_guidance_used, textless_guidance_used, textful_guidance_used = \
         find_text_images_and_sub_real_images(
             answer,
@@ -753,7 +753,7 @@ def answer_ask(
             use_diffusion=IMAGE_CREATION_DIFFUSION,
             guidance_scale=guidance_scale,
             textless_guidance_scale=textless_guidance_scale,
-            textful_guidance_scale=textful_guidance_scale,
+            text_guidance_scale=text_guidance_scale,
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state = "draft"

@@ -152,7 +152,8 @@ def poll(
             n_samples=1,
             to_visible=False,
             clf_free_guidance=True,
-            guidance_scale=data.get('guidance_scale', 1),
+            guidance_scale=data.get('guidance_scale', 3),
+            guidance_scale_txt=data.get('guidance_scale_txt', 1),
             dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
             capt=capt,
         )
@@ -175,7 +176,8 @@ def poll(
                 from_visible=False,
                 low_res=result,
                 clf_free_guidance=True,
-                guidance_scale=data.get('guidance_scale', 1),
+                guidance_scale=data.get('guidance_scale', 3),
+                guidance_scale_txt=data.get('guidance_scale_txt', 1),
                 dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
                 noise_cond_ts=225,
                 capt=capt,
@@ -198,7 +200,7 @@ def poll(
             from_visible=False,
             low_res=result,
             clf_free_guidance=True,
-            guidance_scale=data.get('guidance_scale', 1),
+            guidance_scale=data.get('guidance_scale_txt', 1),
             noise_cond_ts=150,
         )
 

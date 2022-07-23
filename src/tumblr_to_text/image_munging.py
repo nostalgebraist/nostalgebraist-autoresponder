@@ -89,13 +89,17 @@ def find_text_images_and_sub_real_images(
     guidance_scale=2,
     textless_guidance_scale=4,
     textful_guidance_scale=1,
+    text_guidance_scale=1,
     dynamic_threshold_p=0.995,
 ):
     print(f'using diffusion?: {use_diffusion}')
     if use_diffusion:
         image_maker = make_image_with_diffusion
-        image_maker_kwargs = {"guidance_scale": guidance_scale,
-                              "dynamic_threshold_p": dynamic_threshold_p}
+        image_maker_kwargs = {
+            "guidance_scale": guidance_scale,
+            "guidance_scale_txt": text_guidance_scale,
+            "dynamic_threshold_p": dynamic_threshold_p
+        }
     else:
         image_maker = make_image_simple
         image_maker_kwargs = {}
@@ -160,20 +164,16 @@ def find_text_images_and_sub_real_images(
         textless_guidance_substrings = ['[image]', '[animated gif]']
         textless_guidance_trigger = (len(imtext) == 0) or any(s == imtext.strip().lower() for s in textless_guidance_substrings)
 
-        textful_guidance_trigger = max(len(line) for line in imtext.split("\n")) >= 30
-
         if textless_guidance_trigger:
             print(f"using textless guidance scale={textless_guidance_scale} for {repr(imtext)}, {repr(caption)}")
             textless_guidance_used = True
             prompt = ''
             per_image_kwargs['guidance_scale'] = textless_guidance_scale
-        elif textful_guidance_trigger:
-            print(f"using textful guidance scale={textful_guidance_scale} for {repr(imtext)}, {repr(caption)}")
-            textful_guidance_used = True
-            per_image_kwargs['guidance_scale'] = textful_guidance_scale
         else:
             print(f"using regular guidance scale={guidance_scale} for {repr(imtext)}, {repr(caption)}")
             regular_guidance_used = True
+
+        print(f"Using text_guidance_scale={text_guidance_scale}")
 
         images.append(image_maker(prompt, **per_image_kwargs))
         keys.append((imtext, pos, caption))

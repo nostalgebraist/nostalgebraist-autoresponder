@@ -171,6 +171,10 @@ def find_text_images_and_sub_real_images(
             textless_guidance_used = True
             prompt = ''
             per_image_kwargs['guidance_scale'] = textless_guidance_scale
+        elif textful_guidance_trigger:
+            print(f"using textful guidance scale={textful_guidance_scale} for {repr(imtext)}, {repr(caption)}")
+            textful_guidance_used = True
+            per_image_kwargs['guidance_scale'] = textful_guidance_scale
         else:
             print(f"using regular guidance scale={guidance_scale} for {repr(imtext)}, {repr(caption)}")
             regular_guidance_used = True

@@ -97,7 +97,7 @@ def find_text_images_and_sub_real_images(
         image_maker = make_image_with_diffusion
         image_maker_kwargs = {
             "guidance_scale": guidance_scale,
-            "guidance_scale_txt": text_guidance_scale,
+            "guidance_scale_txt": text_guidance_scale if text_guidance_scale is not None else guidance_scale,
             "dynamic_threshold_p": dynamic_threshold_p
         }
     else:
@@ -163,6 +163,8 @@ def find_text_images_and_sub_real_images(
 
         textless_guidance_substrings = ['[image]', '[animated gif]']
         textless_guidance_trigger = (len(imtext) == 0) or any(s == imtext.strip().lower() for s in textless_guidance_substrings)
+
+        textful_guidance_trigger = (text_guidance_scale is None) and (max(len(line) for line in imtext.split("\n")) >= 30)
 
         if textless_guidance_trigger:
             print(f"using textless guidance scale={textless_guidance_scale} for {repr(imtext)}, {repr(caption)}")

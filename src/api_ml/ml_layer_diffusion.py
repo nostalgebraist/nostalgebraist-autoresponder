@@ -2,6 +2,7 @@ import gc
 import sys
 import time
 from io import BytesIO
+from pprint import pprint
 
 import torch
 from PIL import Image
@@ -133,6 +134,8 @@ def poll(
         if data is None or len(data) == 0:
             continue
 
+        pprint(data)
+
         did_generation = True
 
         text = data['prompt'][:TRUNCATE_LENGTH]
@@ -200,7 +203,7 @@ def poll(
             from_visible=False,
             low_res=result,
             clf_free_guidance=True,
-            guidance_scale=data.get('guidance_scale_txt', 1),
+            guidance_scale=data.get('text_guidance_scale_256', 1),
             noise_cond_ts=150,
         )
 

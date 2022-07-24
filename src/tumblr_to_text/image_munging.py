@@ -90,6 +90,7 @@ def find_text_images_and_sub_real_images(
     textless_guidance_scale=4,
     textful_guidance_scale=1,
     text_guidance_scale=1,
+    text_guidance_scale_256=None,
     dynamic_threshold_p=0.995,
 ):
     print(f'using diffusion?: {use_diffusion}')
@@ -98,6 +99,7 @@ def find_text_images_and_sub_real_images(
         image_maker_kwargs = {
             "guidance_scale": guidance_scale,
             "guidance_scale_txt": text_guidance_scale if text_guidance_scale is not None else guidance_scale,
+            "guidance_scale_txt_256": text_guidance_scale_256 if text_guidance_scale_256 is not None else guidance_scale,
             "dynamic_threshold_p": dynamic_threshold_p
         }
     else:

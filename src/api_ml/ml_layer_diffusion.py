@@ -2,6 +2,7 @@ import gc
 import sys
 import time
 from io import BytesIO
+from pprint import pprint
 
 import torch
 from PIL import Image
@@ -132,6 +133,8 @@ def poll(
         data = r.json()
         if data is None or len(data) == 0:
             continue
+
+        pprint(data)
 
         did_generation = True
 

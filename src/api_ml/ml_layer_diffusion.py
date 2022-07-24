@@ -149,14 +149,20 @@ def poll(
 
         # sampling_model_sres1.model.cuda();
 
+        guidance_scale = data['guidance_scale']
+        guidance_scale_txt = data.get('guidance_scale_txt')
+        if guidance_scale_txt is None:
+            guidance_scale_txt = guidance_scale
+        pprint(dict(guidance_scale=guidance_scale, guidance_scale_txt=guidance_scale_txt))
+
         result = sampling_model_sres1.sample(
             text=text,
             batch_size=1,
             n_samples=1,
             to_visible=False,
             clf_free_guidance=True,
-            guidance_scale=data.get('guidance_scale', 3),
-            guidance_scale_txt=data.get('guidance_scale_txt', 1),
+            guidance_scale=guidance_scale,
+            guidance_scale_txt=guidance_scale_txt,
             dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
             capt=capt,
         )
@@ -179,8 +185,8 @@ def poll(
                 from_visible=False,
                 low_res=result,
                 clf_free_guidance=True,
-                guidance_scale=data.get('guidance_scale', 3),
-                guidance_scale_txt=data.get('guidance_scale_txt', 1),
+                guidance_scale=guidance_scale,
+                guidance_scale_txt=guidance_scale_txt,
                 dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
                 noise_cond_ts=225,
                 capt=capt,
@@ -203,7 +209,7 @@ def poll(
             from_visible=False,
             low_res=result,
             clf_free_guidance=True,
-            guidance_scale=data.get('guidance_scale_txt', 1),
+            guidance_scale=guidance_scale_txt,
             noise_cond_ts=150,
         )
 

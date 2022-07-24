@@ -206,7 +206,7 @@ def poll(
             low_res=result,
             clf_free_guidance=True,
             guidance_scale=data.get('guidance_scale_txt', 1),
-            noise_cond_ts=150,
+            noise_cond_ts=200 if text_guidance_only_256 else 150,
         )
 
         print('step2 done')

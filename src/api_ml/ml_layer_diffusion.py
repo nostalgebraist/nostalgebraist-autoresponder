@@ -149,6 +149,8 @@ def poll(
 
         # sampling_model_sres1.model.cuda();
 
+        text_guidance_only_256 = data.get('text_guidance_only_256', False)
+
         result = sampling_model_sres1.sample(
             text=text,
             batch_size=1,
@@ -156,7 +158,7 @@ def poll(
             to_visible=False,
             clf_free_guidance=True,
             guidance_scale=data.get('guidance_scale', 3),
-            guidance_scale_txt=data.get('guidance_scale_txt', 1),
+            guidance_scale_txt=0. if text_guidance_only_256 else data.get('guidance_scale_txt', 1),
             dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
             capt=capt,
         )
@@ -180,7 +182,7 @@ def poll(
                 low_res=result,
                 clf_free_guidance=True,
                 guidance_scale=data.get('guidance_scale', 3),
-                guidance_scale_txt=data.get('guidance_scale_txt', 1),
+                guidance_scale_txt=0. if text_guidance_only_256 else data.get('guidance_scale_txt', 1),
                 dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
                 noise_cond_ts=225,
                 capt=capt,
@@ -203,7 +205,7 @@ def poll(
             from_visible=False,
             low_res=result,
             clf_free_guidance=True,
-            guidance_scale=data.get('text_guidance_scale_256', 1),
+            guidance_scale=data.get('guidance_scale_txt', 1),
             noise_cond_ts=150,
         )
 

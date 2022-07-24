@@ -206,14 +206,12 @@ if USE_SEPARATE_TXT_GUIDANCE:
     GUIDANCE_SCALE_OPTIONS = (2, 2, 3, 3, 3, 4, 4)
     GUIDANCE_SCALE_OPTIONS_NO_TEXT = (2, 2, 3, 3, 3, 4, 4, 5, 5)
     GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT = GUIDANCE_SCALE_OPTIONS
-    GUIDANCE_SCALE_OPTIONS_TEXT_GUIDANCE = (1,)
-    GUIDANCE_SCALE_OPTIONS_256 = (3,) if GUIDE_TEXT_ONLY_256 else (None,)
+    GUIDANCE_SCALE_OPTIONS_TEXT_GUIDANCE = (3,) if GUIDE_TEXT_ONLY_256 else (1,)
 else:
     GUIDANCE_SCALE_OPTIONS = (1, 2, 2, 2, 2, 3)  # dynamic thresholding, 4stage, v2, capts
     GUIDANCE_SCALE_OPTIONS_NO_TEXT = (2, 2, 2, 3, 3, 4, 4, 5)  # dynamic thresholding, 4stage, v2, capts
     GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT = (1, 1.5)  # dynamic thresholding, 4stage, v2, capts
     GUIDANCE_SCALE_OPTIONS_TEXT_GUIDANCE = (None,)
-    GUIDANCE_SCALE_OPTIONS_256 = (None,)
 
 SCRAPE_FORMAT_V2 = True
 
@@ -618,7 +616,6 @@ def make_text_post(
         textless_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_NO_TEXT)
         textful_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT)
         text_guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS_TEXT_GUIDANCE)
-        text_guidance_scale_256 = random.choice(GUIDANCE_SCALE_OPTIONS_256)
         post, images_were_created, regular_guidance_used, textless_guidance_used, textful_guidance_used = \
         find_text_images_and_sub_real_images(
             post,
@@ -630,7 +627,7 @@ def make_text_post(
             textless_guidance_scale=textless_guidance_scale,
             textful_guidance_scale=textful_guidance_scale,
             text_guidance_scale=text_guidance_scale,
-            text_guidance_scale_256=text_guidance_scale_256,
+            text_guidance_only_256=GUIDE_TEXT_ONLY_256,
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state_reasons["must_be_draft"] = True
@@ -772,6 +769,7 @@ def answer_ask(
             textless_guidance_scale=textless_guidance_scale,
             textful_guidance_scale=textful_guidance_scale,
             text_guidance_scale=text_guidance_scale,
+            text_guidance_only_256=GUIDE_TEXT_ONLY_256,
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state = "draft"

@@ -28,6 +28,7 @@ GIF_COLDSTART = False
 QUOTES_COLDSTART = False
 DREAMS_COLDSTART = False
 GUIDELINES_COLDSTART = True
+PSEUDO_TEXT_COLDSTART = True
 
 FIC_COLDSTART_DELTA = 0.05
 REVIEW_COLDSTART_DELTA = 0.05
@@ -36,6 +37,7 @@ GIF_COLDSTART_DELTA = -0.2 -(IMAGE_COLDSTART * IMAGE_COLDSTART_DELTA)
 QUOTES_COLDSTART_DELTA = -0.25
 DREAMS_COLDSTART_DELTA = 0.15
 GUIDELINES_COLDSTART_DELTA = -0.25
+PSEUDO_TEXT_COLDSTART_DELTA = -0.25
 
 # getting the capts MVP work to properly
 IMAGE_COLDSTART_DELIMITER = IMAGE_URL_DELIMITER.lstrip('\n')
@@ -253,6 +255,27 @@ def match_guidelines(c):
     return is_match, substring
 
 
+def match_pseudo_text(c):
+    # TODO: DRY
+    c = c.replace("\n", " ").lower()
+    is_match, substring = False, 'match_pseudo_text||'
+
+    if IMAGE_COLDSTART_DELIMITER in c:
+        try:
+            entries = extract_image_texts_and_urls_from_post_text(c)
+        except Exception as exc:
+            print(f"parse fail: {repr(c)}, {repr(exc)}")
+            entries = []
+
+        for e in entries:
+            caption = e.get('url', '')
+            text = e.get('imtext', '')
+            if '`' in caption and text == '':
+                match = True
+                substring += repr(e)
+    return is_match, substring
+
+
 do_fic_coldstart = partial(
     do_coldstart, substring="#original fiction", delta=FIC_COLDSTART_DELTA
 )
@@ -277,7 +300,9 @@ do_dreams_coldstart = partial(
 do_guidelines_coldstart = partial(
     do_coldstart, substring="", custom_filter=match_guidelines, delta=GUIDELINES_COLDSTART_DELTA
 )
-
+do_pseudo_text_coldstart = partial(
+    do_coldstart, substring="", custom_filter=match_pseudo_text, delta=PSEUDO_TEXT_COLDSTART_DELTA
+)
 
 
 def do_all_coldstarts(continuations, selection_proba):
@@ -301,6 +326,9 @@ def do_all_coldstarts(continuations, selection_proba):
 
     if GUIDELINES_COLDSTART:
         selection_proba = do_guidelines_coldstart(continuations, selection_proba)
+
+    if PSEUDO_TEXT_COLDSTART:
+        selection_proba = do_pseudo_text_coldstart(continuations, selection_proba)
 
     return selection_proba
 

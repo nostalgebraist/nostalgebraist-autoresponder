@@ -10,10 +10,6 @@ from multimodal.image_analysis_static import (
     imurl_imtext_regex
 )
 
-from multimodal import image_analysis_singleton
-
-image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
-
 from multimodal.text_segmentation import make_image_simple
 
 from api_ml.diffusion_connector import make_image_with_diffusion
@@ -28,6 +24,10 @@ def find_images_and_sub_text(
     verbose=False,
     skip=False
 ):
+    from multimodal import image_analysis_singleton
+
+    image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
+
     image_formatter = V9_IMAGE_FORMATTER
     if include_urls:
         image_formatter = URL_PRESERVING_IMAGE_FORMATTER

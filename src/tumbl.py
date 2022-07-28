@@ -3234,3 +3234,5 @@ if __name__ == "__main__":
             print("hit an error, waiting for a little while...")
             time.sleep(sleep_time(multiplier=5))
             send_alldone()
+        print('done')
+        break

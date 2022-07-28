@@ -237,7 +237,6 @@ def do_coldstart(continuations, selection_proba, substring, delta, custom_filter
 
 
 def match_guidelines(c):
-    c = c.replace("\n", " ").lower()
     is_match, substring = False, 'match_guidelines||'
 
     if IMAGE_COLDSTART_DELIMITER in c:
@@ -249,7 +248,7 @@ def match_guidelines(c):
 
         for e in entries:
             for opt in ['violating', 'community guid', 'been removed']:
-                if opt in repr(e):  # silly but robust hack (wrt None values)
+                if opt in repr(e).lower():  # silly but robust hack (wrt None values)
                     is_match = True
                     substring += opt + "|"
     return is_match, substring
@@ -257,7 +256,6 @@ def match_guidelines(c):
 
 def match_pseudo_text(c):
     # TODO: DRY
-    c = c.replace("\n", " ").lower()
     is_match, substring = False, 'match_pseudo_text||'
 
     if IMAGE_COLDSTART_DELIMITER in c:
@@ -271,7 +269,7 @@ def match_pseudo_text(c):
             caption = e.get('url', '')
             text = e.get('imtext', '')
             if '`' in caption and text == '':
-                match = True
+                is_match = True
                 substring += repr(e)
     return is_match, substring
 

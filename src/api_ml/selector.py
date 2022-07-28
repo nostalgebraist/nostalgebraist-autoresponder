@@ -266,8 +266,8 @@ def match_pseudo_text(c):
             entries = []
 
         for e in entries:
-            caption = e.get('url', '')
-            text = e.get('imtext', '')
+            caption = e.get('url') or ''
+            text = e.get('imtext') or ''
             if '`' in caption and text == '':
                 is_match = True
                 substring += repr(e)

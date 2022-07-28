@@ -3225,8 +3225,10 @@ if __name__ == "__main__":
             loop_persistent_data, response_cache = mainloop(
                 loop_persistent_data, response_cache
             )
-            time.sleep(sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale']))
             send_alldone()
+            print('done')
+            break
+            time.sleep(sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale']))
             # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")
             # pr_main.dump_stats(f"profiling_data/main/{_pr_name}")
             # pr_main.enable()
@@ -3234,5 +3236,3 @@ if __name__ == "__main__":
             print("hit an error, waiting for a little while...")
             time.sleep(sleep_time(multiplier=5))
             send_alldone()
-        print('done')
-        break

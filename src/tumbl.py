@@ -2293,12 +2293,17 @@ def do_reblog_reply_handling(
         print(f"unhandled reblogs:")
         for item in reblogs_to_handle:
             print(f"\t{item}")
+            rc.mark_handled(item)
 
     print(f"{len(replies_to_handle)} unhandled replies")
     if len(replies_to_handle) > 0:
         print(f"unhandled replies:")
         for item in replies_to_handle:
             print(f"\t{item}")
+            rc.mark_reply_handled(item)
+
+    reblogs_to_handle = []
+    replies_to_handle = set()
 
     reblog_reply_timestamps = {
         r: loop_persistent_data.timestamps[r] for r in reblogs_to_handle

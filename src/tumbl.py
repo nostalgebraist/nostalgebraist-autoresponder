@@ -851,7 +851,7 @@ class LoopPersistentData:
         reply_metadata={},
         timestamps={},
         reblog_keys={},
-        n_posts_to_check_base=100,
+        n_posts_to_check_base=50,
         n_posts_to_check_dash=200,
         n_notifications_to_check=200,
         offset_=0,
@@ -2293,14 +2293,14 @@ def do_reblog_reply_handling(
         print(f"unhandled reblogs:")
         for item in reblogs_to_handle:
             print(f"\t{item}")
-            rc.mark_handled(item)
+            response_cache.mark_handled(item)
 
     print(f"{len(replies_to_handle)} unhandled replies")
     if len(replies_to_handle) > 0:
         print(f"unhandled replies:")
         for item in replies_to_handle:
             print(f"\t{item}")
-            rc.mark_reply_handled(item)
+            response_cache.mark_reply_handled(item)
 
     reblogs_to_handle = []
     replies_to_handle = set()

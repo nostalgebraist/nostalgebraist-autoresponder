@@ -281,7 +281,7 @@ def halloween_format_post_specifier(post_spec: dict):
     return formatted_post_spec
 
 
-def calculate_sleep_time(verbose=True, multiplier=1):
+def calculate_sleep_time(verbose=False, multiplier=1):
     now = now_pst()
     is_peak_hours = (now.hour >= PEAK_HOURS_START) and (now.hour < PEAK_HOURS_END)
     result = SLEEP_TIME if is_peak_hours else SLEEP_TIME_OFFPEAK
@@ -3223,12 +3223,12 @@ if __name__ == "__main__":
             loop_persistent_data, response_cache = mainloop(
                 loop_persistent_data, response_cache
             )
-            time.sleep(calculate_sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale']))
+            time.sleep(calculate_sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale']), verbose=True)
             send_alldone()
             # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")
             # pr_main.dump_stats(f"profiling_data/main/{_pr_name}")
             # pr_main.enable()
         except KeyError:
             print("hit an error, waiting for a little while...")
-            time.sleep(calculate_sleep_time(multiplier=5))
+            time.sleep(calculate_sleep_time(multiplier=5, verbose=True))
             send_alldone()

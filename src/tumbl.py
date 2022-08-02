@@ -3223,7 +3223,7 @@ if __name__ == "__main__":
             loop_persistent_data, response_cache = mainloop(
                 loop_persistent_data, response_cache
             )
-            time.sleep(calculate_sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale']), verbose=True)
+            time.sleep(calculate_sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale'], verbose=True))
             send_alldone()
             # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")
             # pr_main.dump_stats(f"profiling_data/main/{_pr_name}")

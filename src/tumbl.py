@@ -125,7 +125,6 @@ profane_strings = bot_specific_constants.profane_strings
 hardstop_strings_review = bot_specific_constants.hardstop_strings_review
 hardstop_strings_reject = bot_specific_constants.hardstop_strings_reject
 LIMITED_USERS = bot_specific_constants.LIMITED_USERS
-LIMITED_USERS_PROBS = bot_specific_constants.LIMITED_USERS_PROBS(EFFECTIVE_SLEEP_TIME)
 LIMITED_SUBSTRINGS = bot_specific_constants.LIMITED_SUBSTRINGS
 SCREENED_USERS = bot_specific_constants.SCREENED_USERS
 NO_SCRAPE_USERS = bot_specific_constants.NO_SCRAPE_USERS
@@ -226,13 +225,15 @@ ACCEPT_COMMAND = "a"
 GLOBAL_TESTING_FLAG = False
 
 
-def roll_for_limited_users(name, text=""):
+def roll_for_limited_users(name, sleep_time, text=""):
     def text_screener(s):
         return any([subs in s.lower() for subs in LIMITED_SUBSTRINGS])
 
     if (name not in LIMITED_USERS) and not text_screener(text):
         return True
     roll = np.random.rand()
+
+    LIMITED_USERS_PROBS = bot_specific_constants.LIMITED_USERS_PROBS(sleep_time)
 
     name_prob = LIMITED_USERS_PROBS.get(name, 1)
     text_prob = (
@@ -1042,7 +1043,8 @@ def respond_to_reblogs_replies(
 
         no_timestamp = True
 
-        if not roll_for_limited_users(reblog_identifier.blog_name, text=prompt):
+        sleep_time = sleep_time(loop_persistent_data.slowdown_level['SLEEP_TIME_scale'])
+        if not roll_for_limited_users(reblog_identifier.blog_name, text=prompt, sleep_time=sleep_time):
             continue
 
         print(f"\n\t--> using question:\n---------\n{prompt}\n---------\n")
@@ -2635,10 +2637,11 @@ def do_ask_handling(loop_persistent_data, response_cache):
             )
             submissions.remove(r)
 
+    sleep_time = sleep_time(loop_persistent_data.slowdown_level['SLEEP_TIME_scale'])
     submissions = [
         post_payload
         for post_payload in submissions
-        if roll_for_limited_users(post_payload["asking_name"], text=post_payload["question"])
+        if roll_for_limited_users(post_payload["asking_name"], text=post_payload["question"], sleep_time=sleep_time)
     ]
 
     max_posts_per_step_with_slowdown = max_posts_per_step(loop_persistent_data.slowdown_level)

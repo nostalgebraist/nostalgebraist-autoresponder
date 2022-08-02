@@ -281,7 +281,7 @@ def halloween_format_post_specifier(post_spec: dict):
     return formatted_post_spec
 
 
-def sleep_time(verbose=True, multiplier=1):
+def calculate_sleep_time(verbose=True, multiplier=1):
     now = now_pst()
     is_peak_hours = (now.hour >= PEAK_HOURS_START) and (now.hour < PEAK_HOURS_END)
     result = SLEEP_TIME if is_peak_hours else SLEEP_TIME_OFFPEAK
@@ -1043,7 +1043,7 @@ def respond_to_reblogs_replies(
 
         no_timestamp = True
 
-        sleep_time = sleep_time(loop_persistent_data.slowdown_level['SLEEP_TIME_scale'])
+        sleep_time = calculate_sleep_time(loop_persistent_data.slowdown_level['SLEEP_TIME_scale'])
         if not roll_for_limited_users(reblog_identifier.blog_name, text=prompt, sleep_time=sleep_time):
             continue
 
@@ -2637,7 +2637,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
             )
             submissions.remove(r)
 
-    sleep_time = sleep_time(loop_persistent_data.slowdown_level['SLEEP_TIME_scale'])
+    sleep_time = calculate_sleep_time(loop_persistent_data.slowdown_level['SLEEP_TIME_scale'])
     submissions = [
         post_payload
         for post_payload in submissions
@@ -3223,12 +3223,12 @@ if __name__ == "__main__":
             loop_persistent_data, response_cache = mainloop(
                 loop_persistent_data, response_cache
             )
-            time.sleep(sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale']))
+            time.sleep(calculate_sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale']))
             send_alldone()
             # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")
             # pr_main.dump_stats(f"profiling_data/main/{_pr_name}")
             # pr_main.enable()
         except KeyError:
             print("hit an error, waiting for a little while...")
-            time.sleep(sleep_time(multiplier=5))
+            time.sleep(calculate_sleep_time(multiplier=5))
             send_alldone()

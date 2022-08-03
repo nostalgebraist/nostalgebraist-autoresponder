@@ -281,7 +281,7 @@ def halloween_format_post_specifier(post_spec: dict):
     return formatted_post_spec
 
 
-def calculate_sleep_time(verbose=False, multiplier=1):
+def calculate_sleep_time(multiplier=1, verbose=False):
     now = now_pst()
     is_peak_hours = (now.hour >= PEAK_HOURS_START) and (now.hour < PEAK_HOURS_END)
     result = SLEEP_TIME if is_peak_hours else SLEEP_TIME_OFFPEAK

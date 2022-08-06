@@ -2604,6 +2604,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
         ask_ruleout_too_short = len(words) < ask_min_words and not post_payload["question"].startswith("<p>!")
         ask_ruleout_no_text = not any(blt == 'text' for blt in block_types)
+        ask_ruleout_too_many_images = sum(blt == 'image' for blt in block_types) > 3
 
         if post_payload['id'] in loop_persistent_data.manual_ask_post_ids:
             print(f"Skipping rule-outs for manually answered question from {repr(post_payload['asking_name'])}: {repr(post_payload['question'][:1000])}")
@@ -2612,6 +2613,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
             print(f"Ignoring short question from {repr(post_payload['asking_name'])}: {repr(post_payload['question'][:1000])}")
         elif ask_ruleout_no_text:
             print(f"Ignoring no-text ask from {repr(post_payload['asking_name'])} with block types: {repr(block_types)}, question {repr(post_payload['question'][:1000])}")
+        elif ask_ruleout_too_many_images:
+            print(f"Ignoring many-image ask from {repr(post_payload['asking_name'])} with block types: {repr(block_types)}, question {repr(post_payload['question'][:1000])}")
         else:
             submissions_.append(post_payload)
     submissions = submissions_

@@ -68,7 +68,7 @@ from tumblr_to_text.classic.autoresponder_static import EOT, DEFAULT_CSC
 from tumblr_to_text.classic.munging_shared import get_body, \
     format_post_for_api, IMAGE_DELIMITER, VERBOSE_LOGS
 
-from tumblr_to_text.nwo import npf_thread_to_formatted_text
+from tumblr_to_text.nwo import npf_thread_to_formatted_text, expand_asks
 from tumblr_to_text.nwo_munging import format_and_normalize_post_html, \
     make_nwo_prompts, make_nwo_textpost_prompts, make_nwo_fic_override_prompts, \
     add_empty_reblog, get_normalized_ask_text, insert_reply_before_final_post, cut_to_n_most_recent_by_user, \
@@ -962,7 +962,8 @@ def prioritize_reblogs_replies(
             costs[ident] = api_fail_cost
         thread = TumblrThread.from_payload(post_payload)
 
-        thread_length = len(thread.posts)
+        _, posts_with_ask = expand_asks(thread)
+        thread_length = len(posts_with_ask)
 
         if is_reply:
             user_text = loop_persistent_data.reply_metadata[ident]["reply_note"]["reply_text"]

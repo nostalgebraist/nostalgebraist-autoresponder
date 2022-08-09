@@ -232,7 +232,7 @@ def poll(
                 to_visible=True,
                 from_visible=False,
                 low_res=result,
-                noise_cond_ts=175,
+                noise_cond_ts=75,
             )
 
             # sampling_model_sres3.model.cpu();

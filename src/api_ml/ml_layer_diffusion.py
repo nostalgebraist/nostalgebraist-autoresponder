@@ -201,7 +201,8 @@ def poll(
 
         # sampling_model_sres2.model.cuda();
 
-        guidance_scale_step2 = 0 if text == "" else guidance_scale_txt
+        # guidance_scale_step2 = 0 if text == "" else guidance_scale_txt
+        guidance_scale_step2 = 0
 
         result = sampling_model_sres2.sample(
             text=text if sampling_model_sres2.model.txt else None,

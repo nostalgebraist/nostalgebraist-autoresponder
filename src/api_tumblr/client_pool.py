@@ -150,6 +150,6 @@ class ClientPool:
         vprint(f"requests_per_cycle: {requests_per_cycle:.4f} (vs requests_per_check {requests_per_check:.4})")
 
         # we'll check only a fraction `checkprob` of the cycles, to support up to `requests_needed_to_check`
-        checkprob = requests_per_cycle / requests_per_check
+        checkprob = requests_per_cycle / max(requests_per_check, 1)
 
         return checkprob

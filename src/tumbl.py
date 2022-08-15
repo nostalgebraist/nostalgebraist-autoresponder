@@ -3145,6 +3145,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             )
         else:
             print("skipping dash check this time")
+            loop_persistent_data.requests_per_check_history_dash.append(0)
 
         ### do another asks check
         loop_persistent_data, response_cache = _mainloop_asks_block(

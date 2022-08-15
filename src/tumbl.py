@@ -215,6 +215,8 @@ SCRAPE_FORMAT_V2 = True
 
 CAPTION_IMAGES_IN_MODEL_INPUT = True
 
+SAMPLE_YEAR_FOR_GENERATOR = False
+
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
 scraped_usernames = set(scraped_usernames)
@@ -1037,6 +1039,7 @@ def respond_to_reblogs_replies(
             thread, blogName,
             include_image_urls=CAPTION_IMAGES_IN_MODEL_INPUT,
             include_image_urls_for_heads=False,
+            sample_year_for_generator=SAMPLE_YEAR_FOR_GENERATOR,
         )
 
         if CAPTION_IMAGES_IN_MODEL_INPUT:
@@ -2796,6 +2799,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     thread, blogName,
                     include_image_urls=CAPTION_IMAGES_IN_MODEL_INPUT,
                     include_image_urls_for_heads=False,
+                    sample_year_for_generator=SAMPLE_YEAR_FOR_GENERATOR,
                 )
 
                 if CAPTION_IMAGES_IN_MODEL_INPUT:
@@ -2894,6 +2898,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
             prompts, prompts_selector, prompts_autoreviewer, prompts_probs = make_nwo_textpost_prompts(
                 blog_name=blogName,
                 timestamp=timestamp,
+                sample_year_for_generator=SAMPLE_YEAR_FOR_GENERATOR,
             )
 
             gpt2_output, loop_persistent_data = text_post_from_gpt(loop_persistent_data=loop_persistent_data,

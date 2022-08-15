@@ -123,9 +123,15 @@ def make_nwo_prompts(thread: TumblrThread,
                     ml_prompt_format=True,
                     include_image_urls=False,
                     include_image_urls_for_heads=False,
+                    sample_year_for_generator=True,
                     head_timestamp: Optional[datetime] = None):
+    thread_generator = thread
+
+    if sample_year_for_generator:
+        thread_generator = sample_year_and_set_timestamp(thread_generator)
+
     prompt = EOT + npf_thread_to_formatted_text(
-        sample_year_and_set_timestamp(thread),
+        thread_generator,
         ml_prompt_format=ml_prompt_format,
         include_image_urls=include_image_urls,
     )
@@ -168,7 +174,7 @@ def make_nwo_fic_override_prompts(thread: TumblrThread,
     return prompt, prompt_selector, prompt_autoreviewer
 
 
-def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_CSC, debug=False):
+def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_CSC, sample_year_for_generator=True, debug=False):
     prompts, prompts_selector, prompts_autoreviewer = [], {}, {}
     probs = []
 
@@ -177,7 +183,11 @@ def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_C
     fake_post = fake_tumblr_post(blog_name=blog_name, text_blocks=[], tags=[])
 
     timestamp_posix = int(timestamp.timestamp())
-    timestamp_sampled_posix = int(sample_year_and_set(timestamp).timestamp())
+
+    timestamp_sampled_posix = timestamp_posix
+ 
+    if sample_year_for_generator:
+        timestamp_sampled_posix = int(sample_year_and_set(timestamp).timestamp())
 
     fake_thread_real_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_posix)
     fake_thread_sampled_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_sampled_posix)

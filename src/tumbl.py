@@ -215,7 +215,7 @@ SCRAPE_FORMAT_V2 = True
 
 CAPTION_IMAGES_IN_MODEL_INPUT = True
 
-SAMPLE_YEAR_FOR_GENERATOR = False
+SAMPLE_YEAR_FOR_GENERATOR = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)

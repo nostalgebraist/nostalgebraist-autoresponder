@@ -7,7 +7,7 @@ from functools import partial
 from tqdm.auto import tqdm as tqdm_base
 tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
 
-from tumblr_to_text.classic.autoresponder_static import EOT
+from tumblr_to_text.classic.autoresponder_static import EOT, REVIEW_CHAR_FORUMLIKE_V10_1
 from experimental.corpus_text_hacks import extract_time_from_forumlike_doc, get_ccs_with_fixes, strip_post_identifier
 from experimental.corpus_slimmers import slim_forumlike_doc
 
@@ -369,6 +369,13 @@ def stream_write_docs(fp, docs, mode="w"):
             f.write(line)
 
 
+def exclude_nost_check(doc, keep_nost_reviews=True):
+    okay = 'nostalgebraist' not in doc
+    if keep_nost_reviews:
+        okay = okay or doc.startswith(REVIEW_CHAR_FORUMLIKE_V10_1)
+    return okay
+
+
 def load_trails_from_docs(paths,
                           include_usernames=False,
                           exclude_malformed=True,
@@ -381,12 +388,13 @@ def load_trails_from_docs(paths,
                           return_slimmed=False,
                           doc_preprocessor=strip_post_identifier,
                           exclude_nost_paths=set(),
+                          keep_nost_reviews=True,
                           ):
-
     using_uid_map = uid_to_metadata is not None
     doc_to_uid = {}
     excluded_uids = set()
     slimmed = {}
+    excluded_nost_docs = defaultdict(list)
 
     if isinstance(paths, str):
         paths = [paths]
@@ -403,7 +411,15 @@ def load_trails_from_docs(paths,
         print(f"read group from file {p}:\n\t{n_raw} raw docs\n")
 
         if p in exclude_nost_paths:
-            g = [d for d in g if 'nostalgebraist' not in d]
+            g_ = []
+            for _ in range(len(g)):
+                d = g.pop(0)
+                if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews):
+                    g_.append(d)
+                else:
+                    excluded_nost_docs[p].append(d)
+            g = g_
+            # g = [d for d in g if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews)]
             delta = n_raw - len(g)
             n_raw = len(g)
             print(f"excluded {delta} nost docs from file {p}:\n\t{n_raw} docs left\n")
@@ -545,6 +561,7 @@ def load_trails_from_docs(paths,
     extra_return_values = {}
 
     extra_return_values['parse_fail_doc_ixs'] = parse_fail_doc_ixs
+    extra_return_values['excluded_nost_docs'] = excluded_nost_docs
 
     if return_excluded_uids:
         extra_return_values['excluded_uids'] = excluded_uids

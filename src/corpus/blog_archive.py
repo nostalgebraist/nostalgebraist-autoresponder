@@ -161,7 +161,12 @@ def main():
     parser.add_argument("--save-image-cache", action="store_true")
     parser.add_argument("--fetch-only", action="store_true")
     parser.add_argument("--process-only", action="store_true")
+    parser.add_argument("--aux-image-cache-path", type=str, default=None)
     args = parser.parse_args()
+
+    if args.aux_image_cache_path is not None:
+        aux_image_cache = ImageAnalysisCache.load(args.aux_image_cache_path)
+        multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.aux_image_cache = aux_image_cache
 
     lines = fetch_and_process(blog_name=args.blog_name, n=args.n, offset=args.offset,
                               include_unused_types=args.include_unused_types,

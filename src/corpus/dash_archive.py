@@ -21,7 +21,8 @@ NO_SCRAPE_USERS = bot_specific_constants.NO_SCRAPE_USERS
 
 def handle_no_commentary_and_populate_tags(thread: TumblrThread,
                                            client_pool: Optional[ClientPool] = None,
-                                           allow_posts_with_unrecoverable_tags=True):
+                                           allow_posts_with_unrecoverable_tags=True,
+                                           skip_all_commentless_reblogs=False):
     # import inside b/c it loads image cache
     from tumblr_to_text.nwo_munging import pop_reblog_without_commentary, set_tags
 
@@ -30,6 +31,10 @@ def handle_no_commentary_and_populate_tags(thread: TumblrThread,
     final_post = thread.posts[-1]
     if len(thread.posts) > 1 and len(final_post.content.blocks) == 0:
         # reblog w/o comment
+        if skip_all_commentless_reblogs:
+            skip = True
+            return thread, skip
+
         thread = pop_reblog_without_commentary(thread)
         final_post = thread.posts[-1]
 
@@ -59,6 +64,7 @@ def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[C
                       include_image_urls=False,
                       include_post_identifier=False,
                       skip_image_analysis=False,
+                      skip_all_commentless_reblogs=False,
                       ):
     # import inside b/c it loads image cache
     from tumblr_to_text.nwo import npf_thread_to_formatted_text
@@ -68,7 +74,9 @@ def archive_to_corpus(post_payload, path, separator=EOT, client_pool: Optional[C
 
         if not read_without_write:
             thread, skip = handle_no_commentary_and_populate_tags(
-                thread, client_pool, allow_posts_with_unrecoverable_tags
+                thread, client_pool,
+                allow_posts_with_unrecoverable_tags=allow_posts_with_unrecoverable_tags,
+                skip_all_commentless_reblogs=skip_all_commentless_reblogs
             )
             if skip:
                 return

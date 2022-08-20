@@ -417,7 +417,7 @@ def format_extracted_text(image_text, url, image_formatter=V9_IMAGE_FORMATTER, v
 
 
 class ImageAnalysisCache:
-    def __init__(self, path="image_analysis_cache.pkl", cache=None, hash_to_url=None):
+    def __init__(self, path="image_analysis_cache.pkl", cache=None, hash_to_url=None, aux_cache_obj=None):
         self.path = path
         self.cache = cache
         self.hash_to_url = hash_to_url
@@ -427,6 +427,8 @@ class ImageAnalysisCache:
 
         if self.hash_to_url is None:
             self.hash_to_url = dict()
+
+        self.aux_cache_obj = aux_cache_obj
 
     @staticmethod
     def _get_text_from_cache_entry(entry, deduplicate=True):
@@ -529,6 +531,11 @@ class ImageAnalysisCache:
             cached_text = """This image was not analyzed with the STR model. This text is a placeholder."""
             formatted_text = format_extracted_text(cached_text, url, image_formatter=image_formatter, verbose=verbose)
             return formatted_text
+
+        if self.aux_cache_obj is not None:
+            in_aux = (url in self.aux_cache_obj.cache) or (url in self.aux_cache_obj.hash_to_url.values())
+            if in_aux:
+                return self.aux_cache_obj.extract_and_format_text_from_url(url, image_formatter=image_formatter, verbose=verbose)
 
         # TODO: integrate downsizing
         if url not in self.cache:

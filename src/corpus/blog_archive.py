@@ -44,6 +44,8 @@ def construct_head_training_texts(thread: TumblrThread, base_head_timestamp: dat
     _, text_selector, text_autoreviewer = make_nwo_prompts(thread,
                                                            head_timestamp=head_timestamp,
                                                            blog_name=blog_name,
+                                                           include_image_urls=True,
+                                                           include_image_urls_for_heads=True,
                                                            ml_prompt_format=False)
     return text_selector, text_autoreviewer
 

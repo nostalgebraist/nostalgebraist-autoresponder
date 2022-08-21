@@ -15,6 +15,8 @@ from tumblr_to_text.nwo_munging import make_nwo_prompts
 from api_tumblr.client_pool import ClientPool
 from api_tumblr.paging import fetch_posts
 
+from multimodal.image_analysis import ImageAnalysisCache
+
 import multimodal.image_analysis_singleton
 
 import config.bot_config_singleton

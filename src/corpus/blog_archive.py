@@ -2,9 +2,10 @@
 import json
 import argparse
 import random
+import pickle
 from typing import Optional
 from datetime import datetime
-import pickle
+from functools import partial
 
 from tqdm.autonotebook import tqdm
 
@@ -38,7 +39,7 @@ def roll_head_timestamp(base_head_timestamp: datetime, actual_timestamp: datetim
 
 
 # TODO: better handling of fic override
-def construct_head_training_texts(thread: TumblrThread, base_head_timestamp: datetime, blog_name: str = bot_name):
+def construct_head_training_texts(thread: TumblrThread, base_head_timestamp: datetime, blog_name: str = bot_name, caption_fn=None):
     head_timestamp = roll_head_timestamp(base_head_timestamp=base_head_timestamp,
                                          actual_timestamp=fromtimestamp_pst(thread.timestamp))
     _, text_selector, text_autoreviewer = make_nwo_prompts(thread,
@@ -47,6 +48,9 @@ def construct_head_training_texts(thread: TumblrThread, base_head_timestamp: dat
                                                            include_image_urls=True,
                                                            include_image_urls_for_heads=True,
                                                            ml_prompt_format=False)
+    if caption_fn is not None:
+        text_selector = caption_fn(text_selector)
+        text_autoreviewer = caption_fn(text_autoreviewer)
     return text_selector, text_autoreviewer
 
 
@@ -76,8 +80,13 @@ def determine_post_type(thread: TumblrThread, blog_name: str = bot_name):
     return "reblog_dash"
 
 
-def post_to_line_entry(post_payload: dict, base_head_timestamp: datetime,
-                       blog_name: str = bot_name, include_unused_types=False):
+def post_to_line_entry(
+    post_payload: dict,
+    base_head_timestamp: datetime,
+    blog_name: str = bot_name,
+    include_unused_types=False,
+    caption_fn=None,
+):
     thread = TumblrThread.from_payload(post_payload)
 
     post_type = determine_post_type(thread, blog_name)
@@ -86,7 +95,9 @@ def post_to_line_entry(post_payload: dict, base_head_timestamp: datetime,
         text_full, text_selector, text_autoreviewer = "", "", ""
     else:
         text_full = npf_thread_to_formatted_text(thread)
-        text_selector, text_autoreviewer = construct_head_training_texts(thread, base_head_timestamp, blog_name)
+        text_selector, text_autoreviewer = construct_head_training_texts(
+            thread, base_head_timestamp, blog_name, caption_fn=caption_fn
+        )
 
     return {
         "id": post_payload["id"],
@@ -105,7 +116,8 @@ def fetch_and_process(blog_name: str = bot_name,
                       offset : int = 0,
                       include_unused_types=False,
                       fetch_only=False,
-                      process_only=False):
+                      process_only=False,
+                      write_captions=False,):
     with open("data/head_training_data_raw_posts.pkl.gz", "rb") as f:
         posts = pickle.load(f)
 
@@ -136,10 +148,16 @@ def fetch_and_process(blog_name: str = bot_name,
 
     base_head_timestamp = now_pst()
 
+    caption_fn = None
+    if write_captions:
+        from api_ml.ml_connector import caption_images_in_post_html
+        caption_fn = partial(caption_images_in_post_html, verbose=False)
+
     lines_new = [post_to_line_entry(pp,
                                     base_head_timestamp,
                                     blog_name=blog_name,
-                                    include_unused_types=include_unused_types)
+                                    include_unused_types=include_unused_types,
+                                    caption_fn=caption_fn)
                  for pp in tqdm(new_posts, mininterval=0.3, smoothing=0)]
     lines.extend(lines_new)
     return lines
@@ -166,6 +184,7 @@ def main():
     parser.add_argument("--fetch-only", action="store_true")
     parser.add_argument("--process-only", action="store_true")
     parser.add_argument("--aux-image-cache-path", type=str, default=None)
+    parser.add_argument("--write-captions", action="store_true")
     args = parser.parse_args()
 
     if args.aux_image_cache_path is not None:
@@ -174,7 +193,8 @@ def main():
 
     lines = fetch_and_process(blog_name=args.blog_name, n=args.n, offset=args.offset,
                               include_unused_types=args.include_unused_types,
-                              fetch_only=args.fetch_only, process_only=args.process_only)
+                              fetch_only=args.fetch_only, process_only=args.process_only,
+                              write_captions=args.write_captions)
     if args.save_image_cache:
         multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()
 

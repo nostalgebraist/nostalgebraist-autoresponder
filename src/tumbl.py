@@ -214,6 +214,7 @@ else:
 SCRAPE_FORMAT_V2 = True
 
 CAPTION_IMAGES_IN_MODEL_INPUT = True
+CAPTION_IMAGES_IN_HEAD_INPUT = True
 
 SAMPLE_YEAR_FOR_GENERATOR = True
 
@@ -1038,12 +1039,22 @@ def respond_to_reblogs_replies(
         prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(
             thread, blogName,
             include_image_urls=CAPTION_IMAGES_IN_MODEL_INPUT,
-            include_image_urls_for_heads=False,
+            include_image_urls_for_heads=CAPTION_IMAGES_IN_HEAD_INPUT,
             sample_year_for_generator=SAMPLE_YEAR_FOR_GENERATOR,
         )
 
         if CAPTION_IMAGES_IN_MODEL_INPUT:
             prompt = caption_images_in_post_html(prompt)
+
+        if CAPTION_IMAGES_IN_HEAD_INPUT:
+            # debug
+            print(f"prompt_selector before:\n{repr(prompt_selector)}\n")
+            prompt_selector = caption_images_in_post_html(prompt_selector)
+            print(f"prompt_selector after:\n{repr(prompt_selector)}\n")
+
+            print(f"prompt_autoreviewer before:\n{repr(prompt_autoreviewer)}\n")
+            prompt_autoreviewer = caption_images_in_post_html(prompt_autoreviewer)
+            print(f"prompt_autoreviewer after:\n{repr(prompt_autoreviewer)}\n")
 
         no_timestamp = True
 
@@ -2798,12 +2809,22 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(
                     thread, blogName,
                     include_image_urls=CAPTION_IMAGES_IN_MODEL_INPUT,
-                    include_image_urls_for_heads=False,
+                    include_image_urls_for_heads=CAPTION_IMAGES_IN_HEAD_INPUT,
                     sample_year_for_generator=SAMPLE_YEAR_FOR_GENERATOR,
                 )
 
                 if CAPTION_IMAGES_IN_MODEL_INPUT:
                     prompt = caption_images_in_post_html(prompt)
+
+                if CAPTION_IMAGES_IN_HEAD_INPUT:
+                    # debug
+                    print(f"prompt_selector before:\n{repr(prompt_selector)}\n")
+                    prompt_selector = caption_images_in_post_html(prompt_selector)
+                    print(f"prompt_selector after:\n{repr(prompt_selector)}\n")
+
+                    print(f"prompt_autoreviewer before:\n{repr(prompt_autoreviewer)}\n")
+                    prompt_autoreviewer = caption_images_in_post_html(prompt_autoreviewer)
+                    print(f"prompt_autoreviewer after:\n{repr(prompt_autoreviewer)}\n")
 
             gpt2_output = answer_from_gpt(
                 prompt=prompt,

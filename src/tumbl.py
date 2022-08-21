@@ -1047,14 +1047,8 @@ def respond_to_reblogs_replies(
             prompt = caption_images_in_post_html(prompt)
 
         if CAPTION_IMAGES_IN_HEAD_INPUT:
-            # debug
-            print(f"prompt_selector before:\n{repr(prompt_selector)}\n")
             prompt_selector = caption_images_in_post_html(prompt_selector)
-            print(f"prompt_selector after:\n{repr(prompt_selector)}\n")
-
-            print(f"prompt_autoreviewer before:\n{repr(prompt_autoreviewer)}\n")
             prompt_autoreviewer = caption_images_in_post_html(prompt_autoreviewer)
-            print(f"prompt_autoreviewer after:\n{repr(prompt_autoreviewer)}\n")
 
         no_timestamp = True
 
@@ -1529,7 +1523,12 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         thread = TumblrThread.from_payload(pp)
 
         thread = add_empty_reblog(thread, blog_name=blogName, timestamp=datetime.now())
-        _, prompt_selector, _ = make_nwo_prompts(thread, blogName)
+        _, prompt_selector, _ = make_nwo_prompts(
+            thread, blogName,
+            include_image_urls_for_heads=CAPTION_IMAGES_IN_HEAD_INPUT,
+        )
+        if CAPTION_IMAGES_IN_HEAD_INPUT:
+            prompt_selector = caption_images_in_post_html(prompt_selector)
 
         prompts_selector.append(prompt_selector)
 
@@ -2817,14 +2816,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     prompt = caption_images_in_post_html(prompt)
 
                 if CAPTION_IMAGES_IN_HEAD_INPUT:
-                    # debug
-                    print(f"prompt_selector before:\n{repr(prompt_selector)}\n")
                     prompt_selector = caption_images_in_post_html(prompt_selector)
-                    print(f"prompt_selector after:\n{repr(prompt_selector)}\n")
-
-                    print(f"prompt_autoreviewer before:\n{repr(prompt_autoreviewer)}\n")
                     prompt_autoreviewer = caption_images_in_post_html(prompt_autoreviewer)
-                    print(f"prompt_autoreviewer after:\n{repr(prompt_autoreviewer)}\n")
 
             gpt2_output = answer_from_gpt(
                 prompt=prompt,

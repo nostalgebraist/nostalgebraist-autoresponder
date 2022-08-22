@@ -94,7 +94,9 @@ def post_to_line_entry(
     if post_type in UNUSED_TYPES and not include_unused_types:
         text_full, text_selector, text_autoreviewer = "", "", ""
     else:
-        text_full = npf_thread_to_formatted_text(thread)
+        text_full = npf_thread_to_formatted_text(thread, include_image_urls=True)
+        if caption_fn is not None:
+            text_full = caption_fn(text_full)
         text_selector, text_autoreviewer = construct_head_training_texts(
             thread, base_head_timestamp, blog_name, caption_fn=caption_fn
         )
@@ -131,6 +133,9 @@ def fetch_and_process(blog_name: str = bot_name,
 
     if process_only:
         new_posts = [pp for pp in posts if pp["id"] > max_processed_id]
+        new_posts = sorted(new_posts, key=lambda pp: pp["id"])[:n]
+        min_new_id, max_new_id = min(pp["id"] for pp in new_posts), max(pp["id"] for pp in new_posts)
+        print(f"processing {len(new_posts)} new posts, min id {min_new_id}, max id {max_new_id}")
     else:
         pool = ClientPool()
 

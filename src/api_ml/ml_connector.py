@@ -26,6 +26,8 @@ from tumblr_to_text.image_munging import mock_up_image_generation_tags_for_heads
 from util.error_handling import LogExceptionAndSkip
 from util.cloudsave import CLOUDSAVE_BUCKET
 
+from corpus.capt_archive import archive_caption
+
 from smart_open import open
 
 TRADE_QUALITY_FOR_SPEED = True
@@ -902,12 +904,16 @@ def caption_image(url: str, **kwargs):
     return captioner.caption_image(url, **kwargs)
 
 
-def caption_images_in_post_html(text: str):
+def caption_images_in_post_html(text: str, write_to_archive=True):
     def _normed_url_to_replacement(normed_url, imtext):
+        # note: normed_url is just a url here since disable_url_norm=True below
         guidance_scale = 0.5 if len(imtext) == 0 else 0.0
         print(f"using guidance_scale {guidance_scale} to caption {repr(normed_url)} with imtext {repr(imtext)}")
         kwargs = dict(temperature=1, top_p=0.9, guidance_scale=guidance_scale)
-        return caption_image(normed_url, **kwargs)[0]['result']
+        capt = caption_image(normed_url, **kwargs)[0]['result']
+        if write_to_archive:
+            archive_caption(normed_url, capt)
+        return capt
 
     def _normed_imtext_to_url(imtext, verbose=False):
         raise ValueError(f"_normed_imtext_to_url called with {repr(imtext)}, full post {repr(text)}")

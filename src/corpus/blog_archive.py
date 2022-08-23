@@ -38,6 +38,17 @@ def roll_head_timestamp(base_head_timestamp: datetime, actual_timestamp: datetim
     return actual_timestamp.replace(year=year, month=month, day=2)
 
 
+def sub_prompt_timestamp(base_head_timestamp, actual_timestamp, prompt):
+    before, sep, seg = prompt.rpartition("\n\n Written ")
+    timeseg, sep2, after = seg.partition(" | ")
+
+    head_ts = roll_head_timestamp(
+        base_head_timestamp=base_head_timestamp, actual_timestamp=actual_timestamp
+    )
+
+    return before + sep + head_ts.strftime("%-I %p %B %Y") + sep2 + after
+
+
 # TODO: better handling of fic override
 def construct_head_training_texts(thread: TumblrThread, base_head_timestamp: datetime, blog_name: str = bot_name, caption_fn=None):
     head_timestamp = roll_head_timestamp(base_head_timestamp=base_head_timestamp,
@@ -168,6 +179,20 @@ def fetch_and_process(blog_name: str = bot_name,
     return lines
 
 
+def reroll_head_timestamps():
+    lines = load()
+
+    base_head_timestamp = now_pst()
+
+    for row in lines:
+        actual_timestamp = fromtimestamp_pst(row["timestamp_posix"])
+        for key in ['text_selector', 'text_autoreviewer']:
+            subbed = sub_prompt_timestamp(base_head_timestamp, actual_timestamp, row[key])
+            row[key] = subbed
+
+    return lines
+
+
 def save(lines, path="data/head_training_data.json"):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(lines, f, indent=1)
@@ -190,18 +215,24 @@ def main():
     parser.add_argument("--process-only", action="store_true")
     parser.add_argument("--aux-image-cache-path", type=str, default=None)
     parser.add_argument("--write-captions", action="store_true")
+    parser.add_argument("--reroll-head-timestamps", action="store_true")
     args = parser.parse_args()
 
-    if args.aux_image_cache_path is not None:
-        aux_image_cache = ImageAnalysisCache.load(args.aux_image_cache_path)
-        multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.aux_image_cache = aux_image_cache
+    args = parser.parse_args()
 
-    lines = fetch_and_process(blog_name=args.blog_name, n=args.n, offset=args.offset,
-                              include_unused_types=args.include_unused_types,
-                              fetch_only=args.fetch_only, process_only=args.process_only,
-                              write_captions=args.write_captions)
-    if args.save_image_cache:
-        multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()
+    if args.reroll_head_timestamps:
+        lines = reroll_head_timestamps()
+    else:
+        if args.aux_image_cache_path is not None:
+            aux_image_cache = ImageAnalysisCache.load(args.aux_image_cache_path)
+            multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.aux_image_cache = aux_image_cache
+
+        lines = fetch_and_process(blog_name=args.blog_name, n=args.n, offset=args.offset,
+                                  include_unused_types=args.include_unused_types,
+                                  fetch_only=args.fetch_only, process_only=args.process_only,
+                                  write_captions=args.write_captions)
+        if args.save_image_cache:
+            multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()
 
     if not args.fetch_only:
         save(lines)

@@ -5,20 +5,9 @@ from collections import defaultdict, Counter
 from tqdm.auto import tqdm
 
 from persistence import traceability
-from corpus.blog_archive import roll_head_timestamp
+from corpus.blog_archive import sub_prompt_timestamp
 from api_tumblr.client_pool import ClientPool
 from util.times import now_pst, fromtimestamp_pst
-
-
-def sub_prompt_timestamp(base_head_timestamp, actual_timestamp, prompt_autoreviewer):
-    before, sep, seg = prompt_autoreviewer.rpartition("\n\n Written ")
-    timeseg, sep2, after = seg.partition(" | ")
-
-    head_ts = roll_head_timestamp(
-        base_head_timestamp=base_head_timestamp, actual_timestamp=actual_timestamp
-    )
-
-    return before + sep + head_ts.strftime("%-I %p %B %Y") + sep2 + after
 
 
 def main():

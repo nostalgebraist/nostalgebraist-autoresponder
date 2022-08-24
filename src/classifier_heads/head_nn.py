@@ -198,7 +198,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
     def forward(
         self,
         hidden_states,
-        input_ids_with_pads,
+        input_ids_with_pads=None,
         attention_mask=None,
         head_mask=None,
         output_attentions=False,

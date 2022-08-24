@@ -316,7 +316,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             self.scaler_.scale(loss).backward()
 
-            self.scaler_.unscale_(optimizer)
+            self.scaler_.unscale_(self.opt_)
 
             grad_norm = torch.nn.utils.clip_grad_norm_(self.model_.parameters(),
                                                        max_norm=self.grad_clip_)

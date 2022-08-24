@@ -430,7 +430,7 @@ class NostARHead(nn.Module):
             print(f"calling classic init for {repr(module)} with gain {self.params.init_gain:.2f}")
             module.classic_init(gain=self.params.init_gain)
         elif isinstance(module, (nn.Linear,)) and any(
-            [module is b.attn.proj_out or module is b.mlp.c_proj for b in self.blocks]
+            [module is b.attn.out_proj or module is b.mlp.c_proj for b in self.blocks]
         ):
             print(
                 f"initialized {repr(module)} with gain {self.params.init_gain_blocks:.2f}"

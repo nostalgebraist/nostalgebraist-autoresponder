@@ -219,9 +219,9 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         key = self.k_proj(hidden_states)
         value = self.v_proj(hidden_states)
 
-        query = self._split_heads(query, self.n_head, self.head_dim)
-        key = self._split_heads(key, self.n_head, self.head_dim)
-        value = self._split_heads(value, self.n_head, self.head_dim)
+        query = self._split_heads(query, self.n_head, self.head_dim, self.rotary)
+        key = self._split_heads(key, self.n_head, self.head_dim, self.rotary)
+        value = self._split_heads(value, self.n_head, self.head_dim, False)
 
         if self.rotary:
             seq_len = key.shape[1]

@@ -325,12 +325,12 @@ NostARHeadArchitectureParams = NamedTuple(
 
 def validate_arch_params(params: NostARHeadArchitectureParams):
     if not isinstance(params.n_head, int):
-        if len(params["n_head"]) != len(params["layer_nums"]):
+        if len(params.n_head) != len(params.layer_nums):
             msg = "n_head and layer_nums must be equal length, got "
-            msg += f"n_head={params['n_head']}, layer_nums={params['layer_nums']}"
+            msg += f"n_head={params.n_head}, layer_nums={params.layer_nums}"
             raise ValueError(msg)
 
-    if params.n_blocks > 0 and len(params["layer_nums"]) > 1:
+    if params.n_blocks > 0 and len(params.layer_nums) > 1:
         raise ValueError('blocks only supported with one base layer')
 
 

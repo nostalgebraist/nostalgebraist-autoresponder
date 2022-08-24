@@ -207,6 +207,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             self.model_,
             self.opt_params
         )
+        print(self.opt_)
 
         self.sched_ = get_nost_ar_head_scheduler(
             self.opt_,

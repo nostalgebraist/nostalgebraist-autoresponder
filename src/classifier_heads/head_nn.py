@@ -450,8 +450,8 @@ class NostARHead(nn.Module):
                 NostARHeadBlock(
                     attn_params=attn_params,
                     mlp_params=mlp_params,
-                    init_gain=init_gain_blocks_out,
-                    gain_scale=gain_scale_blocks_out,
+                    init_gain=self.params.init_gain_blocks_out,
+                    gain_scale=self.params.gain_scale_blocks_out,
                 )
                 for _ in range(self.n_blocks)
             ]

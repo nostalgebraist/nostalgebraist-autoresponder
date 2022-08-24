@@ -296,23 +296,26 @@ class NostARHeadMLP(nn.Module):
 class NostARHeadBlock(nn.Module):
     def __init__(
         self, attn_params, mlp_params,
-        # init_gain, gain_scale
+        init_gain, gain_scale, use_out_gain
     ):
         super().__init__()
         self.attn = NostARHeadAttention(pool_to_vector=False, **attn_params)
         self.mlp = NostARHeadMLP(**mlp_params)
 
-        # self.gain_scale = gain_scale
-        # self.attn_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
-        # self.mlp_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
-        #
-        # print(f"initial gains: {self.attn_gain}, {self.mlp_gain}")
+        self.gain_scale = gain_scale
+        self.use_out_gain = use_out_gain
+
+        if use_out_gain:
+            self.attn_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
+            self.mlp_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
 
     def forward(self, hidden_states):
-        # hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(hidden_states)[0]
-        # hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(hidden_states)
-        hidden_states = hidden_states +  self.attn(hidden_states)[0]
-        hidden_states = hidden_states + self.mlp(hidden_states)
+        if self.use_out_gain:
+            hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(hidden_states)[0]
+            hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(hidden_states)
+        else:
+            hidden_states = hidden_states +  self.attn(hidden_states)[0]
+            hidden_states = hidden_states + self.mlp(hidden_states)
         return hidden_states
 
 
@@ -336,8 +339,9 @@ NostARHeadArchitectureParams = NamedTuple(
     rotary_blocks=bool,
     rotary_dim_blocks=int,
     init_gain_blocks=float,
-    # init_gain_blocks_out=float,
-    # gain_scale_blocks_out=float,
+    use_block_out_gain=bool,
+    init_gain_blocks_out=float,
+    gain_scale_blocks_out=float,
 )
 
 
@@ -471,8 +475,9 @@ class NostARHead(nn.Module):
                 NostARHeadBlock(
                     attn_params=attn_params,
                     mlp_params=mlp_params,
-                    # init_gain=self.params.init_gain_blocks_out,
-                    # gain_scale=self.params.gain_scale_blocks_out,
+                    use_out_gain=self.params.use_block_out_gain,
+                    init_gain=self.params.init_gain_blocks_out,
+                    gain_scale=self.params.gain_scale_blocks_out,
                 )
                 for _ in range(self.n_blocks)
             ]

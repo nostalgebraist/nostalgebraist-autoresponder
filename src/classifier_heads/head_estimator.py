@@ -149,10 +149,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.target_cols_ = None
 
         self.lr_ = None
-        self.opt_decay_ = None
-        self.opt_no_decay_ = None
-        self.sched_decay_ = None
-        self.sched_no_decay_ = None
+        self.opt_ = None
+        self.sched_ = None
         self.scaler_ = None
         self.grad_clip_ = None
 
@@ -205,19 +203,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         # opt stuff
         print("creating opt")
-        self.opt_decay_, self.opt_no_decay_ = get_nost_ar_head_optimizers(
+        self.opt_ = get_nost_ar_head_optimizers(
             self.model_,
             self.opt_params
         )
 
-        self.sched_decay_ = get_nost_ar_head_scheduler(
-            self.opt_decay_,
-            self.opt_params,
-            len(X),
-        )
-
-        self.sched_no_decay_ = get_nost_ar_head_scheduler(
-            self.opt_no_decay_,
+        self.sched_ = get_nost_ar_head_scheduler(
+            self.opt_,
             self.opt_params,
             len(X),
         )
@@ -324,18 +316,17 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             self.scaler_.scale(loss).backward()
 
+            self.scaler_.unscale_(optimizer)
+
             grad_norm = torch.nn.utils.clip_grad_norm_(self.model_.parameters(),
                                                        max_norm=self.grad_clip_)
 
-            self.scaler_.step(self.opt_decay_)
-            self.scaler_.step(self.opt_no_decay_)
+            self.scaler_.step(self.opt_)
             self.scaler_.update()
 
-            self.opt_decay_.zero_grad()
-            self.opt_no_decay_.zero_grad()
+            self.opt_.zero_grad()
 
-            self.sched_decay_.step()
-            self.sched_no_decay_.step()
+            self.sched_.step()
 
             loss_float = None
             cur_lr = None
@@ -343,7 +334,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 loss_float = loss.detach().item()
                 all_losses.append(loss_float)
 
-                cur_lr = self.sched_decay_.state_dict()['_last_lr'][0]
+                cur_lr = self.sched_.state_dict()['_last_lr'][0]
 
                 grad_norm_float = grad_norm.item()
 
@@ -692,8 +683,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
     def cleanup(self):
         print("cleanup: deleting state")
         to_delete = list(self.model_.parameters())
-        to_delete += list(self.opt_decay_.state)
-        to_delete += list(self.opt_no_decay_.state)
+        to_delete += list(self.opt_.state)
         for p in to_delete:
             del p
         gc.collect()

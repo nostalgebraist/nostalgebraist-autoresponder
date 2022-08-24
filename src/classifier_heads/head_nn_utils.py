@@ -73,20 +73,25 @@ def get_nost_ar_head_optimizers(
             print(f"assigning '{name}' to decay_vars")
             decay_vars.append(param)
 
-    opt_decay = torch.optim.AdamW(
-        params=decay_vars,
+    param_groups = [
+        {"params": non_decay_vars, "weight_decay", 0.0},
+        {"params": decay_vars}
+    ]
+
+    opt = torch.optim.AdamW(
+        params=param_groups,
         lr=opt_params.base_lr,
         weight_decay=opt_params.weight_decay,
         betas=(opt_params.adam_beta1, opt_params.adam_beta2),
     )
 
-    opt_no_decay = torch.optim.Adam(
-        params=non_decay_vars,
-        lr=opt_params.base_lr,
-        betas=(opt_params.adam_beta1, opt_params.adam_beta2),
-    )
+    # opt_no_decay = torch.optim.Adam(
+    #     params=non_decay_vars,
+    #     lr=opt_params.base_lr,
+    #     betas=(opt_params.adam_beta1, opt_params.adam_beta2),
+    # )
 
-    return opt_decay, opt_no_decay
+    return opt
 
 
 def get_nost_ar_head_scheduler(

@@ -296,10 +296,12 @@ class NostARHeadMLP(nn.Module):
 class NostARHeadBlock(nn.Module):
     def __init__(
         self, attn_params, mlp_params,
+        embed_dim,
         init_gain, gain_scale, use_out_gain
     ):
         super().__init__()
         self.attn = NostARHeadAttention(pool_to_vector=False, **attn_params)
+        self.ln_2 = nn.LayerNorm(embed_dim, eps=1e-5)
         self.mlp = NostARHeadMLP(**mlp_params)
 
         self.gain_scale = gain_scale
@@ -312,10 +314,10 @@ class NostARHeadBlock(nn.Module):
     def forward(self, hidden_states):
         if self.use_out_gain:
             hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(hidden_states)[0]
-            hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(hidden_states)
+            hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(self.ln_2(hidden_states))
         else:
             hidden_states = hidden_states +  self.attn(hidden_states)[0]
-            hidden_states = hidden_states + self.mlp(hidden_states)
+            hidden_states = hidden_states + self.mlp(self.ln_2(hidden_states))
         return hidden_states
 
 
@@ -478,6 +480,7 @@ class NostARHead(nn.Module):
                     use_out_gain=self.params.use_block_out_gain,
                     init_gain=self.params.init_gain_blocks_out,
                     gain_scale=self.params.gain_scale_blocks_out,
+                    embed_dim=self.params.embed_dim,
                 )
                 for _ in range(self.n_blocks)
             ]

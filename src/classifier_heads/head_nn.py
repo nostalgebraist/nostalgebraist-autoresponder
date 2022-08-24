@@ -294,20 +294,25 @@ class NostARHeadMLP(nn.Module):
 
 
 class NostARHeadBlock(nn.Module):
-    def __init__(self, attn_params, mlp_params, init_gain, gain_scale):
+    def __init__(
+        self, attn_params, mlp_params,
+        # init_gain, gain_scale
+    ):
         super().__init__()
         self.attn = NostARHeadAttention(pool_to_vector=False, **attn_params)
         self.mlp = NostARHeadMLP(**mlp_params)
 
-        self.gain_scale = gain_scale
-        self.attn_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
-        self.mlp_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
-
-        print(f"initial gains: {self.attn_gain}, {self.mlp_gain}")
+        # self.gain_scale = gain_scale
+        # self.attn_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
+        # self.mlp_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
+        #
+        # print(f"initial gains: {self.attn_gain}, {self.mlp_gain}")
 
     def forward(self, hidden_states):
-        hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(hidden_states)[0]
-        hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(hidden_states)
+        # hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(hidden_states)[0]
+        # hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(hidden_states)
+        hidden_states = hidden_states +  self.attn(hidden_states)[0]
+        hidden_states = hidden_states + self.mlp(hidden_states)
         return hidden_states
 
 
@@ -330,8 +335,9 @@ NostARHeadArchitectureParams = NamedTuple(
     qkv_dim_final=Optional[int],
     rotary_blocks=bool,
     rotary_dim_blocks=int,
-    init_gain_blocks_out=float,
-    gain_scale_blocks_out=float,
+    init_gain_blocks=float,
+    # init_gain_blocks_out=float,
+    # gain_scale_blocks_out=float,
 )
 
 
@@ -416,9 +422,20 @@ class NostARHead(nn.Module):
             print(
                 f"initialized logit_head with gain {self.params.init_gain_logit_head:.2f}"
             )
-        elif isinstance(module, NostARHeadAttention) and self.params.classic_behavior_attn_init:
+
+        elif any([module is m for m in self.attns]) and self.params.classic_behavior_attn_init:
             print(f"calling classic init for {repr(module)} with gain {self.params.init_gain:.2f}")
             module.classic_init(gain=self.params.init_gain)
+        elif isinstance(module, NostARHeadAttention) and self.params.classic_behavior_attn_init:
+            print(f"calling classic init for {repr(module)} with gain {self.params.init_gain_blocks:.2f}")
+            module.classic_init(gain=self.params.init_gain_blocks)
+        elif isinstance(module, (nn.Linear,)) and any([module is m for b in self.blocks for m in b.mlp.modules()]):
+            print(
+                f"initialized {repr(module)} with gain {self.params.init_gain_blocks:.2f}"
+            )
+            torch.nn.init.orthogonal_(module.weight, gain=self.params.init_gain_blocks)
+            if module.bias is not None:
+                module.bias.data.zero_()
         elif isinstance(module, (nn.Linear,)):
             print(
                 f"initialized {repr(module)} with gain {self.params.init_gain:.2f}"
@@ -452,8 +469,8 @@ class NostARHead(nn.Module):
                 NostARHeadBlock(
                     attn_params=attn_params,
                     mlp_params=mlp_params,
-                    init_gain=self.params.init_gain_blocks_out,
-                    gain_scale=self.params.gain_scale_blocks_out,
+                    # init_gain=self.params.init_gain_blocks_out,
+                    # gain_scale=self.params.gain_scale_blocks_out,
                 )
                 for _ in range(self.n_blocks)
             ]

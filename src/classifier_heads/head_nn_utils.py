@@ -65,17 +65,31 @@ def get_nost_ar_head_optimizers(
     non_decay_vars = []
     decay_vars = []
 
+    non_decay_vars_blocks = []
+    decay_vars_blocks = []
+
     for name, param in model.named_parameters():
         if "ln.weight" in name or "logit_head.bias" in name:
-            print(f"assigning '{name}' to non_decay_vars")
-            non_decay_vars.append(param)
+            if 'block' in name:
+                print(f"assigning '{name}' to non_decay_vars_blocks")
+                non_decay_vars_blocks.append(param)
+            else:
+                print(f"assigning '{name}' to non_decay_vars")
+                non_decay_vars.append(param)
         else:
-            print(f"assigning '{name}' to decay_vars")
-            decay_vars.append(param)
+            if 'block' in name:
+                print(f"assigning '{name}' to decay_vars_blocks")
+                decay_vars_blocks.append(param)
+            else:
+                print(f"assigning '{name}' to decay_vars")
+                decay_vars.append(param)
 
     param_groups = [
         {"params": non_decay_vars, "weight_decay": 0.0},
-        {"params": decay_vars}
+        {"params": decay_vars},
+        {"params": non_decay_vars_blocks, "lr": opt_params.block_lr, "weight_decay": 0.0},
+        {"params": decay_vars_blocks, "lr": opt_params.block_lr},
+
     ]
 
     opt = torch.optim.AdamW(

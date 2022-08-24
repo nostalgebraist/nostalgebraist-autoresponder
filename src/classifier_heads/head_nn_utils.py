@@ -74,7 +74,7 @@ def get_nost_ar_head_optimizers(
             decay_vars.append(param)
 
     param_groups = [
-        {"params": non_decay_vars, "weight_decay", 0.0},
+        {"params": non_decay_vars, "weight_decay": 0.0},
         {"params": decay_vars}
     ]
 

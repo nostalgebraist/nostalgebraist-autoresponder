@@ -306,8 +306,8 @@ class NostARHeadBlock(nn.Module):
         print(f"initial gains: {self.attn_gain}, {self.mlp_gain}")
 
     def forward(self, hidden_states):
-        hidden_states = hidden_states + (self.gain_scale * self.attn_gain.exp()) * self.attn(hidden_states)[0]
-        hidden_states = hidden_states + (self.gain_scale * self.mlp_gain.exp()) * self.mlp(hidden_states)
+        hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(hidden_states)[0]
+        hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(hidden_states)
         return hidden_states
 
 

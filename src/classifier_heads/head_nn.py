@@ -408,7 +408,7 @@ class NostARHead(nn.Module):
             print(
                 f"initialized logit_head with gain {self.params.init_gain_logit_head:.2f}"
             )
-        elif any([module is m for m in self.attns]) and self.params.classic_behavior_attn_init:
+        elif isinstance(module, NostARHeadAttention) and self.params.classic_behavior_attn_init:
             print(f"calling classic init for {repr(module)} with gain {self.params.init_gain:.2f}")
             module.classic_init(gain=self.params.init_gain)
         elif isinstance(module, (nn.Linear,)):

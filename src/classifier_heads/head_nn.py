@@ -1,5 +1,5 @@
 import weakref
-from typing import Union, List, NamedTuple
+from typing import Union, List, NamedTuple, Optional
 from functools import partial
 
 import numpy as np
@@ -12,8 +12,8 @@ from transformers.activations import ACT2FN
 from transformers.models.gpt2.tokenization_gpt2_fast import GPT2TokenizerFast
 from transformers.models.gpt2.tokenization_gpt2 import GPT2Tokenizer
 from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
-from stable_library_code.transformers.gpt2.configuration_gpt2 import GPT2Config
 
+from stable_library_code.transformers.gpt2.configuration_gpt2 import GPT2Config
 from stable_library_code.transformers.gpt2.modeling_gpt2 import GPT2LMHeadModel
 from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import (
     GPTNeoAttentionMixin,
@@ -126,6 +126,8 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         layer_norm_epsilon=1e-5,
         proj_ratio: float = 1.,
         use_proj=True,
+        pool_to_vector=True,
+        qkv_dim=None,
     ):
         super().__init__()
 
@@ -138,30 +140,35 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         )
         self.register_buffer("masked_bias", torch.tensor(-1e9))
 
+        self.pool_to_vector = pool_to_vector
+        self.qkv_dim = None or self.embed_dim
+
         self.n_head = n_head
         self.attn_dropout = nn.Dropout(attn_dropout)
         self.res_dropout = nn.Dropout(res_dropout)
 
         self.embed_dim = base_model_config.hidden_size
-        self.head_dim = self.embed_dim // self.n_head
-        self.proj_dim = int(proj_ratio * self.embed_dim)
-        if self.head_dim * self.n_head != self.embed_dim:
+        self.head_dim = self.qkv_dim // self.n_head
+        self.proj_dim = int(proj_ratio * self.qkv_dim)
+        if self.head_dim * self.n_head != self.qkv_dim:
             raise ValueError(
                 f"embed_dim must be divisible by n_head (got `embed_dim`: {self.embed_dim} and `n_head`: {self.n_head})."
             )
 
         self.ln = nn.LayerNorm(self.embed_dim, eps=layer_norm_epsilon)
 
-        self.k_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
-        self.v_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
-        self.q_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=True)  # vs bias=False in GPTNeo -nost
-        self.use_proj = use_proj
+        self.k_proj = nn.Linear(self.embed_dim, self.qkv_dim, bias=True)  # vs bias=False in GPTNeo -nost
+        self.v_proj = nn.Linear(self.embed_dim, self.qkv_dim, bias=True)  # vs bias=False in GPTNeo -nost
+        self.q_proj = nn.Linear(self.embed_dim, self.qkv_dim, bias=True)  # vs bias=False in GPTNeo -nost
+
+        self.use_proj = use_proj or (self.embed_dim != self.qkv_dim)
+
         if self.use_proj:
-            self.out_proj = nn.Linear(self.embed_dim, self.proj_dim, bias=True)
+            self.out_proj = nn.Linear(self.qkv_dim, self.proj_dim, bias=True)
 
     def classic_init(self, gain=1.):
         with torch.no_grad():
-            qkv_weight = torch.empty(self.embed_dim, 3 * self.embed_dim, requires_grad=False)
+            qkv_weight = torch.empty(self.embed_dim, 3 * self.qkv_dim, requires_grad=False)
             torch.nn.init.orthogonal_(qkv_weight, gain=gain)
 
             q_weight, k_weight, v_weight = torch.split(qkv_weight, self.embed_dim, dim=-1)
@@ -185,11 +192,15 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
                                          device=self.ln.weight.device)
         hidden_states = self.ln(hidden_states)
 
-        hidden_state_at_last_token = select_at_last_token(
-            hidden_states, input_ids_with_pads.to(self.ln.weight.device)
-        ).unsqueeze(-2)
+        if self.pool_to_vector:
+            hidden_state_at_last_token = select_at_last_token(
+                hidden_states, input_ids_with_pads.to(self.ln.weight.device)
+            ).unsqueeze(-2)
 
-        query = self.q_proj(hidden_state_at_last_token)
+            query = self.q_proj(hidden_state_at_last_token)
+        else:
+            query = self.q_proj(hidden_states)
+
         key = self.k_proj(hidden_states)
         value = self.v_proj(hidden_states)
 
@@ -218,7 +229,8 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
             attn_output = self.out_proj(attn_output)
         attn_output = self.res_dropout(attn_output)
 
-        attn_output = attn_output.squeeze(-2)
+        if self.pool_to_vector:
+            attn_output = attn_output.squeeze(-2)
 
         outputs = (attn_output,)
         if output_attentions:
@@ -245,6 +257,18 @@ class NostARHeadMLP(nn.Module):
         return hidden_states
 
 
+class NostARHeadBlock(nn.Module):
+    def __init__(self, attn_params, mlp_params):
+        super().__init__()
+        self.attn = NostARHeadAttention(pool_to_vector=False, **attn_params)
+        self.mlp = NostARHeadMLP(**mlp_params)
+
+    def forward(self, hidden_states):
+        hidden_states = hidden_states + self.attn(hidden_states)
+        hidden_states = hidden_states + self.mlp(hidden_states)
+        return hidden_states
+
+
 NostARHeadArchitectureParams = NamedTuple(
     "NostARHeadArchitectureParams",
     layer_nums=List[int],
@@ -256,6 +280,12 @@ NostARHeadArchitectureParams = NamedTuple(
     init_gain_logit_head=float,
     classic_behavior_attn_init=bool,
     proj_ratio=Union[int, float],
+    use_final_mlp=bool,
+    n_blocks=int,
+    mlp_ratio_blocks=Union[int, float],
+    n_head_blocks=int,
+    qkv_dim_blocks=Optional[int],
+    qkv_dim_final=Optional[int],
 )
 
 
@@ -265,6 +295,9 @@ def validate_arch_params(params: NostARHeadArchitectureParams):
             msg = "n_head and layer_nums must be equal length, got "
             msg += f"n_head={params['n_head']}, layer_nums={params['layer_nums']}"
             raise ValueError(msg)
+
+    if params.n_blocks > 0 and len(params["layer_nums"]) > 1:
+        raise ValueError('blocks only supported with one base layer')
 
 
 class NostARHead(nn.Module):
@@ -280,6 +313,9 @@ class NostARHead(nn.Module):
         validate_arch_params(params)
 
         super().__init__()
+
+        if partial_forward_type != 'tfu':
+            raise ValueError(partial_forward_type)
 
         self._base_model = weakref.ref(base_model)
         self._tokenizer = weakref.ref(tokenizer)
@@ -306,6 +342,10 @@ class NostARHead(nn.Module):
     @property
     def layer_nums(self):
         return self.params.layer_nums
+
+    @property
+    def n_blocks(self):
+        return self.params.n_blocks
 
     @property
     def layer_names(self):
@@ -344,6 +384,32 @@ class NostARHead(nn.Module):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
 
+    def _setup_blocks(self):
+        attn_params = dict(
+            n_head=self.params.n_head_blocks,
+            qkv_dim=self.params.qkv_dim_blocks,
+            attn_dropout=self.params.attn_dropout,
+            res_dropout=self.params.res_dropout,
+            proj_ratio=self.params.proj_ratio,
+            use_proj=True,
+        )
+        mlp_params = dict(
+            input_size=self.base_model.config.hidden_size,
+            intermediate_size=int(self.base_model.config.hidden_size * self.params.mlp_ratio_blocks)
+            res_dropout=self.params.res_dropout,
+        )
+        self.blocks = nn.ModuleList(
+            [
+                NostARHeadBlock(
+                    attn_params=attn_params,
+                    mlp_params=mlp_params,
+                )
+                for _ in range(self.n_blocks)
+            ]
+        )
+
+        self.layer_names_to_blocks = {self.layer_names[0]: self.blocks}
+
     def _setup_attns(self):
         self.attns = nn.ModuleList(
             [
@@ -370,19 +436,21 @@ class NostARHead(nn.Module):
         for param in self.base_model.parameters():
             param.requires_grad = False
 
-        if self.partial_forward_type == "tfu":
-            add_partial_forward_hooks(self.base_model.transformer, output_names=self.layer_names)
+        add_partial_forward_hooks(self.base_model.transformer, output_names=self.layer_names)
+
+        self._setup_blocks()
 
         self._setup_attns()
 
         mlp_input_size = len(self.layer_nums) * int(self.params.proj_ratio * self.base_model.config.hidden_size)
         mlp_intermediate_size = int(mlp_input_size * self.params.mlp_ratio)
 
-        self.mlp = NostARHeadMLP(
-            input_size=mlp_input_size,
-            intermediate_size=mlp_intermediate_size,
-            res_dropout=self.params.res_dropout,
-        )
+        if self.params.use_final_mlp:
+            self.mlp = NostARHeadMLP(
+                input_size=mlp_input_size,
+                intermediate_size=mlp_intermediate_size,
+                res_dropout=self.params.res_dropout,
+            )
 
         self.logit_head = nn.Linear(mlp_input_size, 2)
 
@@ -395,36 +463,27 @@ class NostARHead(nn.Module):
         output_attentions=False,
     ):
         with torch.no_grad():
-            if self.partial_forward_type == "tfu":
-                extracted_activations = partial_forward(
-                    model=self.base_model.transformer,
-                    output_names=self.layer_names,
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                    use_cache=False
-                )
-            elif self.partial_forward_type == "ref":
-                extracted_activations = ref_partial_forward(
-                    model=self.base_model.transformer,
-                    layer_nums=self.layer_nums,
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                )
+            extracted_activations = partial_forward(
+                model=self.base_model.transformer,
+                output_names=self.layer_names,
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                use_cache=False
+            )
 
-        if self.partial_forward_type == "tfu":
-            attn_outs = [
-                attn(extracted_activations[name], input_ids_with_pads)[0]
-                for name, attn in self.layer_names_to_attns.items()
-            ]
-        elif self.partial_forward_type == "ref":
-            attn_outs = [
-                attn(extracted_activations[lnum], input_ids_with_pads)[0]
-                for lnum, attn in self.layer_nums_to_attns.items()
-            ]
+        for block in self.blocks:
+            name = self.layer_names[0]
+            extracted_activations[name] = block(extracted_activations[name])
+
+        attn_outs = [
+            attn(extracted_activations[name], input_ids_with_pads)[0]
+            for name, attn in self.layer_names_to_attns.items()
+        ]
 
         hidden_state = torch.cat(attn_outs, dim=-1)
 
-        hidden_state = hidden_state + self.mlp(hidden_state)
+        if self.params.use_final_mlp:
+            hidden_state = hidden_state + self.mlp(hidden_state)
 
         logits = self.logit_head(hidden_state)
 

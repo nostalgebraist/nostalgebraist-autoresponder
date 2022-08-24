@@ -457,7 +457,8 @@ class NostARHead(nn.Module):
                     attn_dropout=self.params.attn_dropout,
                     res_dropout=self.params.res_dropout,
                     proj_ratio=self.params.proj_ratio,
-                    use_proj=self.use_proj
+                    use_proj=self.use_proj,
+                    qkv_dim=self.params.qkv_dim_final,
                 )
                 for nh in self.n_head
             ]

@@ -420,6 +420,7 @@ class NostARHead(nn.Module):
 
     def _setup_blocks(self):
         attn_params = dict(
+            base_model_config=self.base_model.config,
             n_head=self.params.n_head_blocks,
             qkv_dim=self.params.qkv_dim_blocks,
             attn_dropout=self.params.attn_dropout,

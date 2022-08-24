@@ -300,8 +300,10 @@ class NostARHeadBlock(nn.Module):
         self.mlp = NostARHeadMLP(**mlp_params)
 
         self.gain_scale = gain_scale
-        self.attn_gain = torch.nn.Parameter(np.log(init_gain) / gain_scale * torch.ones(1))
-        self.mlp_gain = torch.nn.Parameter(np.log(init_gain) / gain_scale * torch.ones(1))
+        self.attn_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
+        self.mlp_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
+
+        print(f"initial gains: {self.attn_gain}, {self.mlp_gain}")
 
     def forward(self, hidden_states):
         hidden_states = hidden_states + (self.gain_scale * self.attn_gain.exp()) * self.attn(hidden_states)[0]

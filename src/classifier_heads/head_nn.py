@@ -145,7 +145,6 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         self.register_buffer("masked_bias", torch.tensor(-1e9))
 
         self.pool_to_vector = pool_to_vector
-        self.qkv_dim = None or self.embed_dim
 
         self.n_head = n_head
         self.attn_dropout = nn.Dropout(attn_dropout)
@@ -158,6 +157,8 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
             raise ValueError(
                 f"embed_dim must be divisible by n_head (got `embed_dim`: {self.embed_dim} and `n_head`: {self.n_head})."
             )
+
+        self.qkv_dim = None or self.embed_dim
 
         self.ln = nn.LayerNorm(self.embed_dim, eps=layer_norm_epsilon)
 

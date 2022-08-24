@@ -342,6 +342,11 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             del logits
             del batch_data
 
+            attn_gain, mlp_gain = None, None
+            if len(self.model_.blocks) > 0:
+                attn_gain = self.model_.blocks[0].attn_gain.exp().item() / self.model_.blocks[0].gain_scale
+                mlp_gain = self.model_.blocks[0].mlp_gain.exp().item() / self.model_.blocks[0].gain_scale
+
             if self.show_running_loss:
                 if running_loss is None:
                     if step_ix > 3:
@@ -360,12 +365,17 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                         f'train/ntok': batch_max_tokens,
                         f'train/lr': cur_lr,
                         f'train/grad_norm': grad_norm_float,
+                        f'train/attn_gain': attn_gain,
+                        f'train/mlp_gain': mlp_gain,
                     }
                 )
 
             max_tokens_so_far = max(max_tokens_so_far, batch_max_tokens)
             extra_postfixes["ntok"] = batch_max_tokens
             extra_postfixes["ntok_max"] = max_tokens_so_far
+
+            extra_postfixes["attn_gain"] = attn_gain
+            extra_postfixes["mlp_gain"] = mlp_gain
 
             step_iter.set_postfix(
                 loss=loss_float,

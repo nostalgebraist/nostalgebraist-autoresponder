@@ -294,17 +294,18 @@ class NostARHeadMLP(nn.Module):
 
 
 class NostARHeadBlock(nn.Module):
-    def __init__(self, attn_params, mlp_params, init_gain):
+    def __init__(self, attn_params, mlp_params, init_gain, gain_scale):
         super().__init__()
         self.attn = NostARHeadAttention(pool_to_vector=False, **attn_params)
         self.mlp = NostARHeadMLP(**mlp_params)
 
-        self.attn_gain = torch.nn.Parameter(init_gain * torch.ones(1))
-        self.mlp_gain = torch.nn.Parameter(init_gain * torch.ones(1))
+        self.gain_scale = gain_scale
+        self.attn_gain = torch.nn.Parameter(np.log(init_gain) / gain_scale * torch.ones(1))
+        self.mlp_gain = torch.nn.Parameter(np.log(init_gain) / gain_scale * torch.ones(1))
 
     def forward(self, hidden_states):
-        hidden_states = hidden_states + self.attn_gain * self.attn(hidden_states)[0]
-        hidden_states = hidden_states + self.mlp_gain * self.mlp(hidden_states)
+        hidden_states = hidden_states + (self.gain_scale * self.attn_gain.exp()) * self.attn(hidden_states)[0]
+        hidden_states = hidden_states + (self.gain_scale * self.mlp_gain.exp()) * self.mlp(hidden_states)
         return hidden_states
 
 
@@ -327,7 +328,8 @@ NostARHeadArchitectureParams = NamedTuple(
     qkv_dim_final=Optional[int],
     rotary_blocks=bool,
     rotary_dim_blocks=int,
-    init_gain_blocks_out=float
+    init_gain_blocks_out=float,
+    gain_scale_blocks_out=float,
 )
 
 
@@ -448,7 +450,8 @@ class NostARHead(nn.Module):
                 NostARHeadBlock(
                     attn_params=attn_params,
                     mlp_params=mlp_params,
-                    init_gain=init_gain_blocks_out
+                    init_gain=init_gain_blocks_out,
+                    gain_scale=gain_scale_blocks_out,
                 )
                 for _ in range(self.n_blocks)
             ]

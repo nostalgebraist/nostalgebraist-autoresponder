@@ -431,7 +431,7 @@ class NostARHead(nn.Module):
         )
         mlp_params = dict(
             input_size=self.base_model.config.hidden_size,
-            intermediate_size=int(self.base_model.config.hidden_size * self.params.mlp_ratio_blocks)
+            intermediate_size=int(self.base_model.config.hidden_size * self.params.mlp_ratio_blocks),
             res_dropout=self.params.res_dropout,
         )
         self.blocks = nn.ModuleList(

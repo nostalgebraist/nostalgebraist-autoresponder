@@ -343,7 +343,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             del batch_data
 
             attn_gain, mlp_gain = None, None
-            if len(self.model_.blocks) > 0 and self.model_.params.use_out_gain:
+            if len(self.model_.blocks) > 0 and self.model_.params.use_block_out_gain:
                 attn_gain = (self.model_.blocks[0].attn_gain * self.model_.blocks[0].gain_scale).exp().item()
                 mlp_gain = (self.model_.blocks[0].mlp_gain * self.model_.blocks[0].gain_scale).exp().item()
 

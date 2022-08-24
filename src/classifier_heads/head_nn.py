@@ -529,4 +529,6 @@ class NostARHead(nn.Module):
 
         logits = self.logit_head(hidden_state)
 
+        logits = logits.float()
+
         return logits

@@ -480,7 +480,7 @@ class NostARHead(nn.Module):
                     use_out_gain=self.params.use_block_out_gain,
                     init_gain=self.params.init_gain_blocks_out,
                     gain_scale=self.params.gain_scale_blocks_out,
-                    embed_dim=self.params.embed_dim,
+                    embed_dim=self.base_model.config.hidden_size,
                 )
                 for _ in range(self.n_blocks)
             ]

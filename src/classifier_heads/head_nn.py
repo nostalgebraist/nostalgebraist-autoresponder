@@ -21,6 +21,8 @@ from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import (
 )
 from stable_library_code.transformers.gpt_neo.partial_forward import partial_forward as ref_partial_forward
 
+from transformers.models.gpt_neo.modeling_gpt_neo import fixed_pos_embedding, apply_rotary_pos_emb
+
 from transformer_utils.partial_forward import partial_forward, add_partial_forward_hooks
 
 GPT2TokenizerType = Union[GPT2Tokenizer, GPT2TokenizerFast]
@@ -128,6 +130,8 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         use_proj=True,
         pool_to_vector=True,
         qkv_dim=None,
+        rotary=False,
+        rotary_dim=64,
     ):
         super().__init__()
 
@@ -165,6 +169,13 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
         if self.use_proj:
             self.out_proj = nn.Linear(self.qkv_dim, self.proj_dim, bias=True)
+
+        self.rotary = rotary
+        self.rotary_dim = rotary_dim
+        if self.rotary:
+            sin, cos = fixed_pos_embedding(dim=self.rotary_dim, seq_len=max_positions)
+            self.register_buffer("sin", sin)
+            self.register_buffer("cos", cos)
 
     def classic_init(self, gain=1.):
         with torch.no_grad():
@@ -207,6 +218,27 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         query = self._split_heads(query, self.n_head, self.head_dim)
         key = self._split_heads(key, self.n_head, self.head_dim)
         value = self._split_heads(value, self.n_head, self.head_dim)
+
+        if self.rotary:
+            seq_len = key.shape[1]
+            offset = 0
+            if self.rotary_dim < self.head_dim:
+                k_rot = key[:, :, :, :self.rotary_dim]
+                k_pass = key[:, :, :, self.rotary_dim:]
+
+                q_rot = query[:, :, :, :self.rotary_dim]
+                q_pass = query[:, :, :, self.rotary_dim:]
+
+                k_rot = apply_rotary_pos_emb(k_rot, (self.sin, self.cos), offset=offset).to(k_rot.dtype)
+                q_rot = apply_rotary_pos_emb(q_rot, (self.sin, self.cos), offset=offset).to(q_rot.dtype)
+
+                key = torch.cat([k_rot, k_pass], dim=-1)
+                query = torch.cat([q_rot, q_pass], dim=-1)
+            else:
+                key = apply_rotary_pos_emb(key, (self.sin, self.cos), offset=offset).to(key.dtype)
+                query = apply_rotary_pos_emb(query, (self.sin, self.cos), offset=offset).to(query.dtype)
+            key = key.permute(0, 2, 1, 3)
+            query = query.permute(0, 2, 1, 3)
 
         query_length, key_length = query.size(-2), key.size(-2)
         causal_mask = self.bias[
@@ -286,6 +318,8 @@ NostARHeadArchitectureParams = NamedTuple(
     n_head_blocks=int,
     qkv_dim_blocks=Optional[int],
     qkv_dim_final=Optional[int],
+    rotary_blocks=bool,
+    rotary_dim_blocks=int,
 )
 
 
@@ -392,6 +426,8 @@ class NostARHead(nn.Module):
             res_dropout=self.params.res_dropout,
             proj_ratio=self.params.proj_ratio,
             use_proj=True,
+            rotary=self.params.rotary_blocks,
+            rotary_dim=self.params.rotary_dim_blocks,
         )
         mlp_params = dict(
             input_size=self.base_model.config.hidden_size,

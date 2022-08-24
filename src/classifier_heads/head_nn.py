@@ -336,7 +336,6 @@ NostARHeadArchitectureParams = NamedTuple(
     rotary_blocks=bool,
     rotary_dim_blocks=int,
     init_gain_blocks=float,
-    block_lr=float,
     # init_gain_blocks_out=float,
     # gain_scale_blocks_out=float,
 )

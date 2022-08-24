@@ -16,7 +16,8 @@ NostARHeadOptimizerParams = NamedTuple(
     warmup_ratio=float,
     adam_beta1=float,
     adam_beta2=float,
-    classic_behavior_lr_sched=bool
+    classic_behavior_lr_sched=bool,
+    block_lr=float,
 )
 
 

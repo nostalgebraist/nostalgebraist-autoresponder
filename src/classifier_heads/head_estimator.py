@@ -344,8 +344,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             attn_gain, mlp_gain = None, None
             if len(self.model_.blocks) > 0:
-                attn_gain = self.model_.blocks[0].attn_gain.exp().item() / self.model_.blocks[0].gain_scale
-                mlp_gain = self.model_.blocks[0].mlp_gain.exp().item() / self.model_.blocks[0].gain_scale
+                attn_gain = self.model_.blocks[0].attn_gain.exp().item() * self.model_.blocks[0].gain_scale
+                mlp_gain = self.model_.blocks[0].mlp_gain.exp().item() * self.model_.blocks[0].gain_scale
 
             if self.show_running_loss:
                 if running_loss is None:

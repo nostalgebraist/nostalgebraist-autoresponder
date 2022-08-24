@@ -300,7 +300,7 @@ class NostARHeadBlock(nn.Module):
         self.mlp = NostARHeadMLP(**mlp_params)
 
     def forward(self, hidden_states):
-        hidden_states = hidden_states + self.attn(hidden_states)
+        hidden_states = hidden_states + self.attn(hidden_states)[0]
         hidden_states = hidden_states + self.mlp(hidden_states)
         return hidden_states
 

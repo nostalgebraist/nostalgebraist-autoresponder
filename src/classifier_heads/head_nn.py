@@ -138,7 +138,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         max_positions = base_model_config.max_position_embeddings
         self.register_buffer(
             "bias",
-            torch.tril(
+            torch.ones(
                 torch.ones((max_positions, max_positions), dtype=torch.uint8)
             ).view(1, 1, max_positions, max_positions),
         )

@@ -20,7 +20,7 @@ HARDSTOP_SLOWDOWN_LEVEL = {
 }
 
 
-HARDSTOP_AT_N_REMAINING = 1
+HARDSTOP_AT_N_REMAINING = 5
 
 
 def post_limit_reset_ts(now=None):

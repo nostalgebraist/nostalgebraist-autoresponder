@@ -41,7 +41,7 @@ class BotSpecificConstants:
         LIMITED_SUBSTRINGS: Dict[str, float] = dict(),
         SCREENED_USERS: Set[str] = set(),
         NO_SCRAPE_USERS: Set[str] = set(),
-        AGGRESSIVE_PRIORITIZATION: bool,
+        AGGRESSIVE_PRIORITIZATION: bool = False,
     ):
         # TODO: standardize case in names
         self.blogName = blogName

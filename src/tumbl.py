@@ -2617,7 +2617,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
         words = [w for w in word_source.split(" ") if len(w) > 0]
         block_types = [bl.get('type') for bl in post_payload['content']]
 
-        too_short_cutoff = ask_min_words + (3 if AGGRESSIVE_PRIORITIZATION else 0)
+        too_short_cutoff = ask_min_words + (2 if AGGRESSIVE_PRIORITIZATION else 0)
 
         ask_ruleout_too_short = len(words) < too_short_cutoff and not post_payload["question"].startswith("<p>!")
         ask_ruleout_no_text = not any(blt == 'text' for blt in block_types)

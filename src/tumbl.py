@@ -129,6 +129,7 @@ LIMITED_SUBSTRINGS = bot_specific_constants.LIMITED_SUBSTRINGS
 SCREENED_USERS = bot_specific_constants.SCREENED_USERS
 NO_SCRAPE_USERS = bot_specific_constants.NO_SCRAPE_USERS
 ask_min_words = bot_specific_constants.ask_min_words
+AGGRESSIVE_PRIORITIZATION = bot_specific_constants.AGGRESSIVE_PRIORITIZATION
 LIMITED_SUBSTRING_FAKE_USERNAME = "!,!,limitedsubs"
 
 client_pool = ClientPool()
@@ -158,8 +159,10 @@ REVIEW_COMMAND = "!review"
 REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
+AGGRESSIVE_PRIORITIZATION = True
+
 MAX_POSTS_PER_STEP = 5
-STOP_ABOVE_COST = 9
+STOP_ABOVE_COST = 6 if AGGRESSIVE_PRIORITIZATION else 9
 
 DASH_REBLOG_PROB_DELT_CUTOFF = 0.002 # 0.0025
 DASH_REBLOG_PROB_DELT_NOISE = 0.003 # 0.002
@@ -2614,7 +2617,9 @@ def do_ask_handling(loop_persistent_data, response_cache):
         words = [w for w in word_source.split(" ") if len(w) > 0]
         block_types = [bl.get('type') for bl in post_payload['content']]
 
-        ask_ruleout_too_short = len(words) < ask_min_words and not post_payload["question"].startswith("<p>!")
+        too_short_cutoff = ask_min_words + (3 if AGGRESSIVE_PRIORITIZATION else 0)
+
+        ask_ruleout_too_short = len(words) < too_short_cutoff and not post_payload["question"].startswith("<p>!")
         ask_ruleout_no_text = not any(blt == 'text' for blt in block_types)
         ask_ruleout_too_many_images = sum(blt == 'image' for blt in block_types) > 3
 

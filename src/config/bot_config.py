@@ -41,6 +41,7 @@ class BotSpecificConstants:
         LIMITED_SUBSTRINGS: Dict[str, float] = dict(),
         SCREENED_USERS: Set[str] = set(),
         NO_SCRAPE_USERS: Set[str] = set(),
+        AGGRESSIVE_PRIORITIZATION: bool,
     ):
         # TODO: standardize case in names
         self.blogName = blogName
@@ -130,6 +131,8 @@ class BotSpecificConstants:
         self.NO_SCRAPE_USERS = NO_SCRAPE_USERS
 
         self.ask_min_words = ask_min_words
+
+        self.AGGRESSIVE_PRIORITIZATION = AGGRESSIVE_PRIORITIZATION
 
     @staticmethod
     def load(path: str = "config.json") -> "BotSpecificConstants":

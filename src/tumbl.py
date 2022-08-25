@@ -3179,10 +3179,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         ### do rts
         response_cache = do_rts(response_cache)
 
-        # inform us about drafts
-        drafts = client_pool.get_private_client().drafts(blogName)["posts"]
-        print(f"{len(drafts)} waiting for review")
-
         ### do queue check
         loop_persistent_data, response_cache = do_queue_handling(
             loop_persistent_data, response_cache

@@ -2679,7 +2679,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
             )
     submissions = kept
 
-    for post_payload in submissions[::-1]:
+    for ix, post_payload in enumerate(submissions[::-1]):
+        print(f'\nhandling ask {ix+1}/{len(submissions)}')
         if post_payload.get("summary", "") == FOLLOW_COMMAND:
             with LogExceptionAndSkip("follow"):
                 response_cache.follow(post_payload["asking_name"], client_pool.get_dashboard_client())

@@ -617,7 +617,9 @@ def make_text_post(
     )
     state_reasons["reject_action"] = reject_action
 
-    if IMAGE_CREATION and not state_reasons["ml_rejected"]:  # don't waste time making images if post was rejected
+    if IMAGE_CREATION and not (
+        state_reasons["ml_rejected"] or state_reasons["do_not_post"]  # don't waste time making images if post was rejected
+    ):
         presub_post = post
 
         guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS)

@@ -679,21 +679,22 @@ def make_text_post(
     tags = strip_avoid_listed_strings_from_tags(tags)
 
     # finalize state
+    delete_after_posting = False
     state_reasons["should_publish"] = state_reasons["should_publish"] and (not state_reasons["must_be_draft"])
     publ_state = "queue" if to_queue else "published"
     state = publ_state if state_reasons["should_publish"] else "draft"
-    if state_reasons["ml_rejected"]:
+    if state_reasons["ml_rejected"] or state_reasons["do_not_post"]:
         if reject_action == "rts":
             tags.append("rts")
         elif reject_action == "do_not_post":
-            state_reasons["do_not_post"] = True
+            delete_after_posting = True
 
     kwargs = {"state": state, "body": post}
     if len(tags) > 0:
         kwargs["tags"] = tags
 
     api_response = client_pool.get_private_client().create_text(blogname, **kwargs)
-    if state_reasons["do_not_post"]:
+    if delete_after_posting:
         client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
 
     if log_data is not None:
@@ -817,13 +818,14 @@ def answer_ask(
         state_reasons["must_be_draft"] = True
 
     # finalize state
+    delete_after_posting = False
     state_reasons["should_publish"] = state_reasons["should_publish"] and (not state_reasons["must_be_draft"])
     state = "published" if state_reasons["should_publish"] else "draft"
-    if state_reasons["ml_rejected"]:
+    if state_reasons["ml_rejected"] or state_reasons["do_not_post"]:
         if reject_action == "rts":
             tags.append("rts")
         elif reject_action == "do_not_post":
-            state_reasons["do_not_post"] = True
+            delete_after_posting = True
 
     # Take a list of tags and make them acceptable for upload
     tags = ",".join(tags)
@@ -842,7 +844,7 @@ def answer_ask(
         data = {"id": ask_id, "answer": answer, "tags": tags, "state": state}
 
     api_response = client_pool.get_private_client().send_api_request("post", url, data, valid_options)
-    if state_reasons["do_not_post"]:
+    if delete_after_posting:
         client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
     if log_data is not None:
         log_data["requested__state"] = state

@@ -2667,8 +2667,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
     ]
 
     max_posts_per_step_with_slowdown = max_posts_per_step(loop_persistent_data.slowdown_level)
-    kept = submissions[-max_posts_per_step_with_slowdown:]
-    excluded = submissions[:-max_posts_per_step_with_slowdown]
+    kept = submissions[::-1][:max_posts_per_step_with_slowdown]
+    excluded = submissions[::-1][max_posts_per_step_with_slowdown:]
     if len(excluded) > 0:
         print(
             f"saving {len(excluded)} of {len(submissions)} for later with MAX_POSTS_PER_STEP={max_posts_per_step_with_slowdown}"

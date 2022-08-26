@@ -990,7 +990,7 @@ def prioritize_reblogs_replies(
             (thread_length_cost, thread_length, "thread_length"),
             (word_cost, min(word_count, word_cost_first_n_words), "min(word_count, word_cost_first_n_words)"),
             (short_cost, (word_count < short_under_n_words), "word_count < short_under_n_words"),
-            (empty_cost, (word_count == 0), "word_count == 0")
+            (empty_cost, (word_count <= 1), "word_count <= 1")
         ]:
             cost += item[0] * item[1]
             vprint(f"\tcost now {cost:.1f} | added {item[0] * item[1]:.1f} with {item[2]}={item[1]}")

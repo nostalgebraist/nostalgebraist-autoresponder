@@ -15,12 +15,12 @@ SLOWDOWN_LEVELS = [
 ]
 
 HARDSTOP_SLOWDOWN_LEVEL = {
-    "name": "hardstop", "rate_ratio_thresh": 1000, "n_remaining_thresh": 0, "SLEEP_TIME_scale": 1,
+    "name": "hardstop", "rate_ratio_thresh": 1000, "n_remaining_thresh": 0, "SLEEP_TIME_scale": 10,
     "MAX_POSTS_PER_STEP_scale": 0
 }
 
 
-HARDSTOP_AT_N_REMAINING = 5
+HARDSTOP_AT_N_REMAINING = 1
 
 
 def post_limit_reset_ts(now=None):

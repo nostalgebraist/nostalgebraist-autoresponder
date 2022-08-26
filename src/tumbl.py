@@ -3166,10 +3166,10 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             print("skipping dash check this time")
             loop_persistent_data.requests_per_check_history_dash.append(0)
 
-        ### do another asks check
-        loop_persistent_data, response_cache = _mainloop_asks_block(
-            loop_persistent_data, response_cache, save_after=False
-        )
+    ### do another asks check
+    loop_persistent_data, response_cache = _mainloop_asks_block(
+        loop_persistent_data, response_cache, save_after=False
+    )
 
     relevant_ratelimit_data = client_pool.get_private_client().get_ratelimit_data()
     if relevant_ratelimit_data["effective_remaining"] > 0:

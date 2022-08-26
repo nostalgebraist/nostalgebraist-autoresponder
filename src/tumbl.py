@@ -298,7 +298,9 @@ def calculate_sleep_time(multiplier=1, verbose=False):
 
 
 def max_posts_per_step(slowdown_level):
-    return int(MAX_POSTS_PER_STEP * slowdown_level['MAX_POSTS_PER_STEP_scale'])
+    n = int(MAX_POSTS_PER_STEP * slowdown_level['MAX_POSTS_PER_STEP_scale'])
+    print(f"max_posts_per_step: {n} given slowdown level {slowdown_level['name']}")
+    return n
 
 
 def next_queued_post_time():

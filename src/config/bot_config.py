@@ -23,6 +23,8 @@ class BotSpecificConstants:
         BRIDGE_SERVICE_REMOTE_HOST: str,
         BUCKET_NAME: str,
         ask_min_words: int,
+        STOP_ABOVE_COST: int,
+        reblog_reply_window_nposts: int,
         NO_REBLOG_IDS: Set[int] = set(),
         DEF_REBLOG_IDS: Set[int] = set(),
         FORCE_TRAIL_HACK_IDS: Set[int] = set(),
@@ -41,7 +43,6 @@ class BotSpecificConstants:
         LIMITED_SUBSTRINGS: Dict[str, float] = dict(),
         SCREENED_USERS: Set[str] = set(),
         NO_SCRAPE_USERS: Set[str] = set(),
-        AGGRESSIVE_PRIORITIZATION: bool = False,
     ):
         # TODO: standardize case in names
         self.blogName = blogName
@@ -132,7 +133,9 @@ class BotSpecificConstants:
 
         self.ask_min_words = ask_min_words
 
-        self.AGGRESSIVE_PRIORITIZATION = AGGRESSIVE_PRIORITIZATION
+        self.STOP_ABOVE_COST = STOP_ABOVE_COST
+
+        self.reblog_reply_window_nposts = reblog_reply_window_nposts
 
     @staticmethod
     def load(path: str = "config.json") -> "BotSpecificConstants":

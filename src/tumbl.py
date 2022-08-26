@@ -129,7 +129,8 @@ LIMITED_SUBSTRINGS = bot_specific_constants.LIMITED_SUBSTRINGS
 SCREENED_USERS = bot_specific_constants.SCREENED_USERS
 NO_SCRAPE_USERS = bot_specific_constants.NO_SCRAPE_USERS
 ask_min_words = bot_specific_constants.ask_min_words
-AGGRESSIVE_PRIORITIZATION = bot_specific_constants.AGGRESSIVE_PRIORITIZATION
+reblog_reply_window_nposts = bot_specific_constants.reblog_reply_window_nposts
+STOP_ABOVE_COST = bot_specific_constants.STOP_ABOVE_COST
 LIMITED_SUBSTRING_FAKE_USERNAME = "!,!,limitedsubs"
 
 client_pool = ClientPool()
@@ -160,7 +161,6 @@ REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
 MAX_POSTS_PER_STEP = 5
-STOP_ABOVE_COST = 6 if AGGRESSIVE_PRIORITIZATION else 9
 
 DASH_REBLOG_PROB_DELT_CUTOFF = 0.002 # 0.0025
 DASH_REBLOG_PROB_DELT_NOISE = 0.003 # 0.002
@@ -2231,7 +2231,7 @@ def do_reblog_reply_handling(
             statically_worthy_posts, response_cache
         )
     else:
-        statically_worthy_posts = posts  # posts[:n_posts_to_check]
+        statically_worthy_posts = sorted(posts, key=lambda pp: pp["id"])[-reblog_reply_window_nposts:]
 
     ### loop through posts
     for post_ix, post in enumerate(tqdm(statically_worthy_posts)):
@@ -2621,9 +2621,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
         words = [w for w in word_source.split(" ") if len(w) > 0]
         block_types = [bl.get('type') for bl in post_payload['content']]
 
-        too_short_cutoff = ask_min_words + (2 if AGGRESSIVE_PRIORITIZATION else 0)
-
-        ask_ruleout_too_short = len(words) < too_short_cutoff and not post_payload["question"].startswith("<p>!")
+        ask_ruleout_too_short = len(words) < ask_min_words and not post_payload["question"].startswith("<p>!")
         ask_ruleout_no_text = not any(blt == 'text' for blt in block_types)
         ask_ruleout_too_many_images = sum(blt == 'image' for blt in block_types) > 3
 

@@ -3145,6 +3145,8 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         loop_persistent_data, response_cache = _mainloop_asks_block(
             loop_persistent_data, response_cache
         )
+        response_cache.save()
+        image_analysis_cache.save()
 
     ### do reblog/reply check
     if n_posts_to_check > 0:

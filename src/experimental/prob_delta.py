@@ -7,11 +7,14 @@ from tumblr_to_text.nwo_munging import add_empty_reblog
 from api_ml.ml_connector import prob_delta_from_gpt
 
 
-def construct_prob_delta_prompts(thread: TumblrThread, needs_empty_reblog=True):
+def construct_prob_delta_prompts(thread: TumblrThread, needs_empty_reblog=True, skip_asking_name=False):
     if needs_empty_reblog:
         thread = add_empty_reblog(thread, 'DUMMYUSER', datetime.now())
 
     prompt = npf_thread_to_formatted_text(thread, prob_delta_format=True)
+
+    if skip_asking_name:
+        _, _, prompt = prompt.partition('asked')
 
     prompt_ref = prompt.splitlines()[-1]
 

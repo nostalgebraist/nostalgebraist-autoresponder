@@ -3138,6 +3138,14 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                     image_analysis_cache.save()
         return loop_persistent_data, response_cache
 
+    # debug
+    relevant_ratelimit_data = client_pool.get_private_client().get_ratelimit_data()
+    if relevant_ratelimit_data["effective_remaining"] > 0:
+        ### do asks check
+        loop_persistent_data, response_cache = _mainloop_asks_block(
+            loop_persistent_data, response_cache
+        )
+
     ### do reblog/reply check
     if n_posts_to_check > 0:
         # reblogs, replies

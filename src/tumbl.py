@@ -86,8 +86,9 @@ from api_tumblr.tumblr_parsing import TumblrThread
 from util.error_handling import LogExceptionAndSkip
 
 from corpus.dash_archive import archive_to_corpus
+from corpus.prob_delt_archive import archive_prob_delt
 
-from experimental.prob_delta import get_prob_delta_for_payloads
+from experimental.prob_delta import get_prob_delta_for_payloads, construct_prob_delta_prompts
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
@@ -218,6 +219,8 @@ CAPTION_IMAGES_IN_MODEL_INPUT = True
 CAPTION_IMAGES_IN_HEAD_INPUT = True
 
 SAMPLE_YEAR_FOR_GENERATOR = True
+
+ARCHIVE_ASK_PROB_DELT = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
@@ -2678,6 +2681,17 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 f"\t saving {r['asking_name']}, question={r['question']} for later..."
             )
     submissions = kept
+
+    if ARCHIVE_ASK_PROB_DELT:
+        non_command_asks = [pp for pp in submissions if not pp.get("summary", "").startswith("!")]
+        pd_kwargs = dict(needs_empty_reblog=False, skip_asking_name=True)
+        prob_delts = get_prob_delta_for_payloads(non_command_asks, blogName, **pd_kwargs)
+
+        for pp, pd in zip(non_command_asks, prob_delts):
+            kind = 'ask'
+            user = pp['asking_name']
+            substring, _, _ = construct_prob_delta_prompts(TumblrThread.from_payload(pp), **pd_kwargs)
+            archive_prob_delt(kind=kind, user=user, substring=substring, prob_delt=pd)
 
     for ix, post_payload in enumerate(submissions[::-1]):
         print(f'\nhandling ask {ix+1}/{len(submissions)}')

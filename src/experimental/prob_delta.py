@@ -19,6 +19,8 @@ def construct_prob_delta_prompts(thread: TumblrThread, needs_empty_reblog=True, 
     prompt_ref = prompt.splitlines()[-1]
 
     _, posts = expand_asks(thread)
+    if skip_asking_name:
+        posts = posts[1:]
     forbidden_strings = [" " + post.blog_name for post in posts[:-1]]
 
     return prompt, prompt_ref, forbidden_strings

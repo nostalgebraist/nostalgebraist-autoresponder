@@ -88,7 +88,7 @@ from util.error_handling import LogExceptionAndSkip
 from corpus.dash_archive import archive_to_corpus
 from corpus.prob_delt_archive import archive_prob_delt
 
-from experimental.prob_delta import get_prob_delta_for_payloads, construct_prob_delta_prompts
+from experimental.prob_delta import get_prob_delta_for_payloads, construct_prob_delta_prompts_for_ask
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
@@ -1541,7 +1541,7 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         prompts_selector.append(prompt_selector)
 
     if len(payloads_to_judge) > 0:
-        prob_delts = get_prob_delta_for_payloads(payloads_to_judge, blogName)
+        prob_delts = get_prob_delta_for_payloads(payloads_to_judge, blogName, is_ask=False)
         probs = selection_proba_from_gpt(prompts_selector)
         sentiments = sentiment_logit_diffs_from_gpt(prompts_selector)
         autoreview_probs = autoreview_proba_from_gpt(prompts_selector)
@@ -2684,13 +2684,13 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
     if ARCHIVE_ASK_PROB_DELT:
         non_command_asks = [pp for pp in submissions if not pp.get("summary", "").startswith("!")]
-        pd_kwargs = dict(needs_empty_reblog=False, skip_asking_name=True)
-        prob_delts = get_prob_delta_for_payloads(non_command_asks, blogName, **pd_kwargs)
+        pd_kwargs = dict(skip_asking_name=True)
+        prob_delts = get_prob_delta_for_payloads(non_command_asks, blogName, is_ask=True, **pd_kwargs)
 
         for pp, pd in zip(non_command_asks, prob_delts):
             kind = 'ask'
             user = pp['asking_name']
-            substring, _, _ = construct_prob_delta_prompts(TumblrThread.from_payload(pp), **pd_kwargs)
+            substring, _, _ = construct_prob_delta_prompts_for_ask(TumblrThread.from_payload(pp), **pd_kwargs)
             archive_prob_delt(kind=kind, user=user, substring=substring, prob_delt=pd)
 
     for ix, post_payload in enumerate(submissions[::-1]):

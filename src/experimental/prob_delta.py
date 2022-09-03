@@ -7,35 +7,79 @@ from tumblr_to_text.nwo_munging import add_empty_reblog
 from api_ml.ml_connector import prob_delta_from_gpt
 
 
-def construct_prob_delta_prompts(thread: TumblrThread, needs_empty_reblog=True, skip_asking_name=False):
-    if needs_empty_reblog:
-        thread = add_empty_reblog(thread, 'DUMMYUSER', datetime.now())
+def construct_prob_delta_prompts_for_post(
+    thread: TumblrThread,
+    cut_to_last_and_skip_username=False,  # like ask username skipping, but for full posts
+):
+    if cut_to_last_and_skip_username:
+        # cut to last
+        _, posts = expand_asks(thread)
+        thread = TumblrThread(posts=posts[:-1], timestamp=thread.timestamp)
+
+    thread = add_empty_reblog(thread, 'DUMMYUSER', datetime.now())
 
     prompt = npf_thread_to_formatted_text(thread, prob_delta_format=True)
 
-    if skip_asking_name:
-        _, _, prompt = prompt.partition('asked')
+    if cut_to_last_and_skip_username:
+        # TODO: maybe put this on the NPF -> text side? not sure which is better
+
+        _, _, prompt = prompt.split("#1")
+        firstline, sep, rest = prompt.partition("\n")
+        firstline = firstline.split(" ")[-1]
+        prompt = firstline + sep + rest
 
     prompt_ref = prompt.splitlines()[-1]
 
-    _, posts = expand_asks(thread)
-    if skip_asking_name:
-        posts = posts[1:]
     forbidden_strings = [" " + post.blog_name for post in posts[:-1]]
 
     return prompt, prompt_ref, forbidden_strings
 
 
-def get_prob_delta_for_payloads(post_payloads: list, blog_name: str, needs_empty_reblog=True, skip_asking_name=False):
+def construct_prob_delta_prompts_for_ask(
+    thread: TumblrThread,
+    skip_asking_name=True,
+):
+    prompt = npf_thread_to_formatted_text(thread, prob_delta_format=True)
+
+    if skip_asking_name:
+        _, seg, suffix = prompt.partition(' asked')
+        prompt = seg + suffix
+
+    prompt_ref = prompt.splitlines()[-1]
+
+    _, posts = expand_asks(thread)
+
+    if skip_asking_name:
+        posts = posts[1:]  # ok to predict asking name if it's not in the prompt
+
+    forbidden_strings = [" " + post.blog_name for post in posts[:-1]]
+
+    return prompt, prompt_ref, forbidden_strings
+
+
+def get_prob_delta_for_payloads(
+    post_payloads: list,
+    blog_name: str,
+    is_ask: bool,
+    skip_asking_name=True,
+    cut_to_last_and_skip_username=False,
+):
     token_str = " " + blog_name
     kwargs = {"text": [], "text_ref": [], "token_str": token_str, "forbidden_strings": []}
 
     for pp in post_payloads:
         thread = TumblrThread.from_payload(pp)
 
-        text, text_ref, forbidden_strings = construct_prob_delta_prompts(thread,
-                                                                         needs_empty_reblog=needs_empty_reblog,
-                                                                         skip_asking_name=skip_asking_name)
+        if is_ask:
+            text, text_ref, forbidden_strings = construct_prob_delta_prompts_for_ask(
+                thread,
+                skip_asking_name=skip_asking_name,
+            )
+        else:
+            text, text_ref, forbidden_strings = construct_prob_delta_prompts_for_post(
+                thread,
+                cut_to_last_and_skip_username=cut_to_last_and_skip_username,
+            )
         kwargs["text"].append(text)
         kwargs["text_ref"].append(text_ref)
         kwargs["forbidden_strings"].append(forbidden_strings)

@@ -23,9 +23,9 @@ def construct_prob_delta_prompts_for_post(
     if cut_to_last_and_skip_username:
         # TODO: maybe put this on the NPF -> text side? not sure which is better
 
-        _, _, prompt = prompt.split("#1")
+        _, _, prompt = prompt.partition("#1")
         firstline, sep, rest = prompt.partition("\n")
-        firstline = firstline.split(" ")[-1]
+        firstline = " " + firstline.split(" ")[-1]
         prompt = firstline + sep + rest
 
     prompt_ref = prompt.splitlines()[-1]

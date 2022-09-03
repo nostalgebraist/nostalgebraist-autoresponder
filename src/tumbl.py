@@ -221,6 +221,7 @@ CAPTION_IMAGES_IN_HEAD_INPUT = True
 SAMPLE_YEAR_FOR_GENERATOR = True
 
 ARCHIVE_ASK_PROB_DELT = True
+ARCHIVE_DASH_PROB_DELT = False  # TODO: implement
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)

@@ -14,7 +14,7 @@ def construct_prob_delta_prompts_for_post(
     if cut_to_last_and_skip_username:
         # cut to last
         _, posts = expand_asks(thread)
-        thread = TumblrThread(posts=posts[:-1], timestamp=thread.timestamp)
+        thread = TumblrThread(posts=posts[-1:], timestamp=thread.timestamp)
 
     thread = add_empty_reblog(thread, 'DUMMYUSER', datetime.now())
 

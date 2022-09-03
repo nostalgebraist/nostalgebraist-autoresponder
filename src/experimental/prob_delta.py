@@ -11,19 +11,18 @@ def construct_prob_delta_prompts_for_post(
     thread: TumblrThread,
     cut_to_last_and_skip_username=False,  # like ask username skipping, but for full posts
 ):
-    if cut_to_last_and_skip_username:
-        # cut to last
-        _, posts = expand_asks(thread)
-        thread = TumblrThread(posts=posts[-1:], timestamp=thread.timestamp)
+    # cut to last
+    _, posts = expand_asks(thread)
+    nposts = len(posts)
 
     thread = add_empty_reblog(thread, 'DUMMYUSER', datetime.now())
 
     prompt = npf_thread_to_formatted_text(thread, prob_delta_format=True)
 
     if cut_to_last_and_skip_username:
+        # cut to last
         # TODO: maybe put this on the NPF -> text side? not sure which is better
-
-        _, _, prompt = prompt.partition("#1")
+        _, _, prompt = prompt.partition(f"#{nposts}")
         firstline, sep, rest = prompt.partition("\n")
         firstline = " " + firstline.split(" ")[-1]
         prompt = firstline + sep + rest

@@ -221,7 +221,7 @@ CAPTION_IMAGES_IN_HEAD_INPUT = True
 SAMPLE_YEAR_FOR_GENERATOR = True
 
 ARCHIVE_ASK_PROB_DELT = True
-ARCHIVE_DASH_PROB_DELT = False  # TODO: implement
+ARCHIVE_DASH_PROB_DELT = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
@@ -1542,7 +1542,9 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         prompts_selector.append(prompt_selector)
 
     if len(payloads_to_judge) > 0:
-        prob_delts = get_prob_delta_for_payloads(payloads_to_judge, blogName, is_ask=False)
+        pd_kwargs = dict(cut_to_last_and_skip_username=False)
+
+        prob_delts = get_prob_delta_for_payloads(payloads_to_judge, blogName, is_ask=False, **pd_kwargs)
         probs = selection_proba_from_gpt(prompts_selector)
         sentiments = sentiment_logit_diffs_from_gpt(prompts_selector)
         autoreview_probs = autoreview_proba_from_gpt(prompts_selector)
@@ -1550,8 +1552,8 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         delta = time.time() - t1
         print(f"got {len(payloads_to_judge)} judgments in {delta:.2f}s")
 
-        for pi, text, prob, sentiment, autoreview_prob, prob_delt in zip(
-            post_identifiers, prompts_selector, probs, sentiments, autoreview_probs, prob_delts
+        for pi, pp, text, prob, sentiment, autoreview_prob, prob_delt in zip(
+            post_identifiers, post_payloads, prompts_selector, probs, sentiments, autoreview_probs, prob_delts
         ):
             entry = {
                 "text": text,
@@ -1561,6 +1563,13 @@ def batch_judge_dash_posts(post_payloads, response_cache):
                 "prob_delt": prob_delt
             }
             response_cache.mark_dash_post_judgments(pi, entry)
+
+            if ARCHIVE_DASH_PROB_DELT:
+                kind = 'dash_full'
+                user = pp['blog_name']
+                substring, _, _ = construct_prob_delta_prompts_for_ask(TumblrThread.from_payload(pp), **pd_kwargs)
+                substring, _, _ = construct_prob_delta_prompts_for_post(TumblrThread.from_payload(pp), **pd_kwargs)
+                archive_prob_delt(kind=kind, user=user, substring=substring, prob_delt=pd)
     return response_cache
 
 

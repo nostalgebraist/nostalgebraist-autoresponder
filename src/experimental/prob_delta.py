@@ -32,6 +32,9 @@ def construct_prob_delta_prompts_for_post(
 
     _, posts = expand_asks(thread)
 
+    if cut_to_last_and_skip_username:
+        posts = posts[1:]  # ok to predict name if it's not in the prompt
+
     forbidden_strings = [" " + post.blog_name for post in posts[:-1]]
 
     return prompt, prompt_ref, forbidden_strings

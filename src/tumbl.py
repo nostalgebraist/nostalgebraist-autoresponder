@@ -88,7 +88,8 @@ from util.error_handling import LogExceptionAndSkip
 from corpus.dash_archive import archive_to_corpus
 from corpus.prob_delt_archive import archive_prob_delt
 
-from experimental.prob_delta import get_prob_delta_for_payloads, construct_prob_delta_prompts_for_ask
+from experimental.prob_delta import get_prob_delta_for_payloads, \
+    construct_prob_delta_prompts_for_ask, construct_prob_delta_prompts_for_post
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
@@ -1576,12 +1577,12 @@ def batch_judge_dash_posts(post_payloads, response_cache):
                 kind = 'dash_full'
                 user = pp['blog_name']
                 post_id = pi.id_
-                substring, _, _ = construct_prob_delta_prompts_for_ask(TumblrThread.from_payload(pp), **pd_kwargs)
+                substring, _, _ = construct_prob_delta_prompts_for_post(TumblrThread.from_payload(pp), **pd_kwargs)
                 archive_prob_delt(kind=kind, user=user, substring=substring, post_id=post_id, prob_delt=prob_delt)
 
                 if ARCHIVE_MASKED_DASH_PROB_DELT:
                     kind = 'dash_masked'
-                    substring, _, _ = construct_prob_delta_prompts_for_ask(TumblrThread.from_payload(pp), **pd_kwargs)
+                    substring, _, _ = construct_prob_delta_prompts_for_post(TumblrThread.from_payload(pp), **pd_kwargs)
                     archive_prob_delt(kind=kind, user=user, substring=substring, post_id=post_id, prob_delt=prob_delt_masked)
     return response_cache
 

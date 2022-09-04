@@ -1582,7 +1582,7 @@ def batch_judge_dash_posts(post_payloads, response_cache):
 
                 if ARCHIVE_MASKED_DASH_PROB_DELT:
                     kind = 'dash_masked'
-                    substring, _, _ = construct_prob_delta_prompts_for_post(TumblrThread.from_payload(pp), **pd_kwargs)
+                    substring, _, _ = construct_prob_delta_prompts_for_post(TumblrThread.from_payload(pp), **pd_kwargs_masked)
                     archive_prob_delt(kind=kind, user=user, substring=substring, post_id=post_id, prob_delt=prob_delt_masked)
     return response_cache
 

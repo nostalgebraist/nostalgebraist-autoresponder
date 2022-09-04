@@ -223,7 +223,7 @@ SAMPLE_YEAR_FOR_GENERATOR = True
 
 ARCHIVE_ASK_PROB_DELT = True
 ARCHIVE_DASH_PROB_DELT = True
-ARCHIVE_MASKED_DASH_PROB_DELT = False
+ARCHIVE_MASKED_DASH_PROB_DELT = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)

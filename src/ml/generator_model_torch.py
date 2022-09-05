@@ -135,7 +135,7 @@ class GeneratorModelTorch:
                     self.max_feed_size, max_length_per_feed + prompt_end_ix
                 )
             else:
-                max_length_for_transformers_call = min(self.max_feed_size, self.max_continue_tokens)
+                max_length_for_transformers_call = min(self.max_feed_size, self.max_continue_tokens + prompt_end_ix)
 
             out = self.transformers_model.generate(
                 input_ids=input_ids_th,

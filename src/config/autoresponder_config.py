@@ -441,8 +441,6 @@ def _gpu_type():
 
 GPU_TYPE = _gpu_type()
 
-batch_size = 1
-
 max_ctx_fits_on_gpu = 1020
 
 # sets max context size, for long prompts we want to cut off to allow bot to write at least this many tokens
@@ -630,6 +628,7 @@ if V11 and (GPU_TYPE == "small"):
 if V12 and (GPU_TYPE == "small"):
     GPT_NEO_MAX_LENGTH = 1536
 
+batch_size = 4 if GPU_TYPE == "bigger" else 1
 head_inference_batch_size = 8 if GPU_TYPE == "bigger" else 1
 head_load_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 

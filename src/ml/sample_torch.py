@@ -29,12 +29,19 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
                  debug=True,
                  tokenizer=None
                  ):
-        self.breakruns_counter = None
-        self.last_logits = None
         self.base_temperature = base_temperature
         self.tau = tau
         self.debug = debug
         self.tokenizer = tokenizer
+
+        self.breakruns_counter = None
+        self.last_logits = None
+        self.last_length = None
+
+    def _reset(self):
+        self._dprint("BREAKRUNS: _reset")
+        self.breakruns_counter = None
+        self.last_logits = None
 
     def _dprint(self, msg, fillers={}, **kwargs):
         if self.debug:
@@ -45,6 +52,11 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
         if seq_length < 1:
             self._dprint("BREAKRUNS: empty sequence, no op")
             return scores
+
+        if self.last_length is None or self.last_length > input_ids.shape[1]:
+            # new sequence
+            self._reset()
+        self.last_length = input_ids.shape[1]
 
         if self.breakruns_counter is None:
             self._dprint("BREAKRUNS: init counter")
@@ -62,16 +74,16 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
         self.breakruns_counter = was_top * (self.breakruns_counter + 1)
 
         if self.debug:
-            sampled_str = repr(self.tokenizer.decode(input_ids[:, -1].item()))
-            actual_top_str = repr(self.tokenizer.decode([self.last_logits.argmax(dim=1).item()]))
-            print(f"was_top?: {was_top} | sampled {sampled_str} actual_top {actual_top_str} | self.breakruns_counter: {self.breakruns_counter}")
+            sampled_str = repr(self.tokenizer.decode(input_ids[0, -1].item()))
+            actual_top_str = repr(self.tokenizer.decode([self.last_logits.argmax(dim=1)[0].item()]))
+            print(f"was_top?: {was_top[0]} | sampled {sampled_str} actual_top {actual_top_str} | self.breakruns_counter: {self.breakruns_counter}")
 
         eff_temperature = self.base_temperature + (self.breakruns_counter * self.tau)
         self._dprint("eff_temperature: {et}", fillers={"et": eff_temperature})
 
         self.last_logits = scores
 
-        return scores / eff_temperature
+        return scores / eff_temperature[:, None].expand_as(scores)
 
 
 # taken from https://github.com/cimeister/typical-sampling/blob/typical-pr/src/transformers/generation_logits_process.py

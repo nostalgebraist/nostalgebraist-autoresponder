@@ -156,12 +156,6 @@ class GeneratorModelTorch:
                 nonpads = [t for t in extras if t != self.tokenizer.pad_token_id]
                 continuations_tokens[i].extend(nonpads)
 
-                # construct next prompt
-                next_prompt_tokens = continuations_tokens[i][-max_context_size:]
-                next_prompt = self.tokenizer.decode(next_prompt_tokens)
-                next_prompts.append(next_prompt)
-                print(f"next_prompt_tokens: {len(next_prompt_tokens)}")
-
                 # is this one done?
                 final_token = nonpads[-1]
                 more_needed = final_token != self.tokenizer.eos_token_id
@@ -179,6 +173,13 @@ class GeneratorModelTorch:
                 print(
                     f"\tmore_permitted={more_permitted} <-- n_continuations_tokens={n_continuations_tokens}, len(continuations_tokens[i])={len(continuations_tokens[i])}, n_orig_prompt_tokens={n_orig_prompt_tokens}"
                 )
+
+                if not this_done:
+                    # construct next prompt
+                    next_prompt_tokens = continuations_tokens[i][-max_context_size:]
+                    next_prompt = self.tokenizer.decode(next_prompt_tokens)
+                    print(f"next_prompt_tokens: {len(next_prompt_tokens)}")
+                    next_prompts.append(next_prompt)
 
             del out
             del input_ids_th

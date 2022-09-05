@@ -71,12 +71,16 @@ class GeneratorModelTorch:
         batch_size,
         device="cuda:0",
         sampling_params: SamplingParams = GPT_NEO_DEFAULT_SAMPLING_PARAMS,
+        max_continue_tokens = MAX_CONTINUE_TOKENS,
+        max_feed_size = GPT_NEO_MAX_LENGTH
     ):
         self.transformers_model = transformers_model
         self.tokenizer = tokenizer
         self.batch_size = batch_size
         self.device = device
         self.sampling_params = sampling_params
+        self.max_continue_tokens = max_continue_tokens
+        self.max_feed_size = max_feed_size
 
         self.transformers_model = self.transformers_model.to(device)
 
@@ -104,7 +108,7 @@ class GeneratorModelTorch:
         return self.write(prompt=prompt, verbose=verbose)
 
     def write(self, prompt: str, verbose=False, max_length_per_feed=None):
-        max_context_size = GPT_NEO_MAX_LENGTH - required_continuation_room
+        max_context_size = self.max_feed_size - required_continuation_room
 
         batch_pr = [prompt for _ in range(self.batch_size)]
         batch_pr_tokens = self.tokenizer(
@@ -128,10 +132,10 @@ class GeneratorModelTorch:
 
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(
-                    GPT_NEO_MAX_LENGTH, max_length_per_feed + prompt_end_ix
+                    self.max_feed_size, max_length_per_feed + prompt_end_ix
                 )
             else:
-                max_length_for_transformers_call = GPT_NEO_MAX_LENGTH
+                max_length_for_transformers_call = self.max_feed_size
 
             out = self.transformers_model.generate(
                 input_ids=input_ids_th,
@@ -165,7 +169,7 @@ class GeneratorModelTorch:
                 n_continuations_tokens = (
                     len(continuations_tokens[i]) - n_orig_prompt_tokens
                 )
-                more_permitted = n_continuations_tokens < MAX_CONTINUE_TOKENS
+                more_permitted = n_continuations_tokens < self.max_continue_tokens
 
                 this_done = (not more_needed) or (not more_permitted)
                 dones.append(this_done)

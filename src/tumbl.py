@@ -223,7 +223,7 @@ SAMPLE_YEAR_FOR_GENERATOR = True
 
 ARCHIVE_ASK_PROB_DELT = True
 ARCHIVE_DASH_PROB_DELT = True
-ARCHIVE_MASKED_DASH_PROB_DELT = True
+USE_MASKED_DASK_PROB_DELT = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
@@ -1546,15 +1546,12 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         prompts_selector.append(prompt_selector)
 
     if len(payloads_to_judge) > 0:
-        pd_kwargs = dict(cut_to_last_and_skip_username=False)
+        pd_kwargs_full = dict(cut_to_last_and_skip_username=False)
         pd_kwargs_masked = dict(cut_to_last_and_skip_username=True)
 
-        prob_delts = get_prob_delta_for_payloads(payloads_to_judge, blogName, is_ask=False, **pd_kwargs)
+        prob_delts = get_prob_delta_for_payloads(payloads_to_judge, blogName, is_ask=False, **pd_kwargs_full)
 
-        if ARCHIVE_MASKED_DASH_PROB_DELT:
-            prob_delts_masked = get_prob_delta_for_payloads(payloads_to_judge, blogName, is_ask=False, **pd_kwargs_masked)
-        else:
-            prob_delts_masked = [None for _ in prob_delts]
+        prob_delts_masked = get_prob_delta_for_payloads(payloads_to_judge, blogName, is_ask=False, **pd_kwargs_masked)
 
         probs = selection_proba_from_gpt(prompts_selector)
         sentiments = sentiment_logit_diffs_from_gpt(prompts_selector)
@@ -1563,9 +1560,10 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         delta = time.time() - t1
         print(f"got {len(payloads_to_judge)} judgments in {delta:.2f}s")
 
-        for pi, pp, text, prob, sentiment, autoreview_prob, prob_delt, prob_delt_masked in zip(
+        for pi, pp, text, prob, sentiment, autoreview_prob, prob_delt_full, prob_delt_masked in zip(
             post_identifiers, post_payloads, prompts_selector, probs, sentiments, autoreview_probs, prob_delts, prob_delts_masked
         ):
+            prob_delt = prob_delt_masked if USE_MASKED_DASK_PROB_DELT else prob_delt_full
             entry = {
                 "text": text,
                 "prob": prob,
@@ -1579,13 +1577,12 @@ def batch_judge_dash_posts(post_payloads, response_cache):
                 kind = 'dash_full'
                 user = pp['blog_name']
                 post_id = pi.id_
-                substring, _, _ = construct_prob_delta_prompts_for_post(TumblrThread.from_payload(pp), **pd_kwargs)
-                archive_prob_delt(kind=kind, user=user, substring=substring, post_id=post_id, prob_delt=prob_delt)
+                substring, _, _ = construct_prob_delta_prompts_for_post(TumblrThread.from_payload(pp), **pd_kwargs_full)
+                archive_prob_delt(kind=kind, user=user, substring=substring, post_id=post_id, prob_delt=prob_delt_full)
 
-                if ARCHIVE_MASKED_DASH_PROB_DELT:
-                    kind = 'dash_masked'
-                    substring, _, _ = construct_prob_delta_prompts_for_post(TumblrThread.from_payload(pp), **pd_kwargs_masked)
-                    archive_prob_delt(kind=kind, user=user, substring=substring, post_id=post_id, prob_delt=prob_delt_masked)
+                kind = 'dash_masked'
+                substring, _, _ = construct_prob_delta_prompts_for_post(TumblrThread.from_payload(pp), **pd_kwargs_masked)
+                archive_prob_delt(kind=kind, user=user, substring=substring, post_id=post_id, prob_delt=prob_delt_masked)
     return response_cache
 
 

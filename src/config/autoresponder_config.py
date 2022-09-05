@@ -628,7 +628,7 @@ if V11 and (GPU_TYPE == "small"):
 if V12 and (GPU_TYPE == "small"):
     GPT_NEO_MAX_LENGTH = 1536
 
-max_feed_size = 256
+max_feed_size = 2048
 
 batch_size = 4 if GPU_TYPE == "bigger" else 1
 head_inference_batch_size = 8 if GPU_TYPE == "bigger" else 1

@@ -614,7 +614,7 @@ if SENTIMENT_VIA_GENERATOR_LONGLENGTH:
 
 # TODO: collapse these w/ "regular" T, top_p, etc
 # (wow this file needs cleanup badly...)
-GPT_NEO_T = 1.
+GPT_NEO_T = 0.95
 GPT_NEO_TOP_P = 0.95
 GPT_NEO_TOP_K = 0
 GPT_NEO_MAX_LENGTH = 2048 if V11 else 1024

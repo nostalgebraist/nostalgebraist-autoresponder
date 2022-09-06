@@ -104,7 +104,7 @@ class GeneratorModelTorch:
             self.transformers_model._get_logits_warper = typical_sampling_override
 
     def write_random_prompt(self, prompts: list, probs: list, verbose=False):
-        prompt = np.random.choice(prompts, size=(self.batch_size,), p=np.array(probs) / sum(probs))
+        prompt = np.random.choice(prompts, size=(self.batch_size,), p=np.array(probs) / sum(probs)).tolist()
         return self.write(prompt=prompt, verbose=verbose)
 
     def write(self, prompt: Union[str, List[str]], verbose=False, max_length_per_feed=None):

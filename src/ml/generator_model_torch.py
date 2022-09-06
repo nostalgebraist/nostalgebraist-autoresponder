@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List
 
 import numpy as np
 import torch
@@ -104,15 +104,13 @@ class GeneratorModelTorch:
             self.transformers_model._get_logits_warper = typical_sampling_override
 
     def write_random_prompt(self, prompts: list, probs: list, verbose=False):
-        prompt = np.random.choice(prompts, size=(self.batch_size,), p=np.array(probs) / sum(probs)).tolist()
+        prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))
         return self.write(prompt=prompt, verbose=verbose)
 
-    def write(self, prompt: Union[str, List[str]], verbose=False, max_length_per_feed=None):
+    def write(self, prompt: str, verbose=False, max_length_per_feed=None):
         max_context_size = self.max_feed_size - required_continuation_room
 
-        batch_pr = prompt
-        if isinstance(batch_pr, str):
-            batch_pr = [batch_pr for _ in range(self.batch_size)]
+        batch_pr = [prompt for _ in range(self.batch_size)]
         batch_pr_tokens = self.tokenizer(
             batch_pr,
         )["input_ids"]

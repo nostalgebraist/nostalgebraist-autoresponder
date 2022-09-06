@@ -467,7 +467,7 @@ else:
 BREAKRUNS = True
 BREAKRUNS_TAU = 0.035  # "canon" value is 0.02
 BREAKRUNS_DECAY = 0.0
-BREAKRUNS_DEBUG = True
+BREAKRUNS_DEBUG = False
 
 temperature = 0.95
 top_k = 0

@@ -17,6 +17,8 @@ GPT_NEO_DEFAULT_SAMPLING_PARAMS = copy_and_update_config(
     temperature=GPT_NEO_T,
     top_p=GPT_NEO_TOP_P,
     top_k=GPT_NEO_TOP_K,
+    avoid_unk_caption=AVOID_UNK_CAPTION,
+    breakruns_off_within_images=BREAKRUNS_OFF_WITHIN_IMAGES,
 )
 
 
@@ -34,6 +36,8 @@ def override_disable_logits_processors(*args, **kwargs) -> LogitsProcessorList:
 
 
 def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=False,
+                                disable_trigger=None,
+                                enable_trigger=None,
                                 avoid_unk_caption=True,
                                 ):
     def _override_get_breakruns(*args, **kwargs) -> LogitsProcessorList:
@@ -42,7 +46,9 @@ def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=Fal
                 base_temperature=base_temperature,
                 tau=tau,
                 tokenizer=tokenizer,
-                debug=debug
+                debug=debug,
+                disable_trigger=disable_trigger,
+                enable_trigger=enable_trigger,
             )
         ]
         if avoid_unk_caption:
@@ -85,13 +91,24 @@ class GeneratorModelTorch:
         self.transformers_model = self.transformers_model.to(device)
 
         if self.sampling_params.breakruns:
-            print(f'using breakruns, base T={self.sampling_params.temperature}, tau={self.sampling_params.breakruns_tau}')
+            disable_trigger, enable_trigger = None, None
+            if self.sampling_params.BREAKRUNS_OFF_WITHIN_IMAGES:
+                disable_trigger = (1421, 18604, 198, 1421, 18604, 198,)
+                enable_trigger = (1421, 18604, 198,)
+
+            msg = f'using breakruns, base T={self.sampling_params.temperature}, tau={self.sampling_params.breakruns_tau}'
+            msg += f', avoid_unk_caption={self.sampling_params.AVOID_UNK_CAPTION}'
+            msg += f', disable_trigger={disable_trigger}, enable_trigger={enable_trigger}'
+
+            print(msg)
             breakruns_override = make_override_get_breakruns(
                 base_temperature=self.sampling_params.temperature,
                 tau=self.sampling_params.breakruns_tau,
                 tokenizer=self.tokenizer if BREAKRUNS_DEBUG else None,
                 debug=BREAKRUNS_DEBUG,
-                avoid_unk_caption=True
+                avoid_unk_caption=self.sampling_params.AVOID_UNK_CAPTION,
+                disable_trigger=disable_trigger,
+                enable_trigger=enable_trigger,
             )
             self.transformers_model._get_logits_processor = breakruns_override
         elif self.sampling_params.typical_sampling:

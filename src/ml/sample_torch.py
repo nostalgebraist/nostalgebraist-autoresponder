@@ -24,22 +24,31 @@ class AvoidUnkCaptionLogitsProcessor(LogitsProcessor):
 
 class BreakrunsLogitsProcessor(LogitsProcessor):
     def __init__(self,
-                 base_temperature: float,
-                 tau: float,
-                 debug=True,
-                 tokenizer=None
-                 ):
+                base_temperature: float,
+                tau: float,
+                debug=True,
+                tokenizer=None,
+                first_count=0,
+                disable_trigger = None,
+                enable_trigger = None,
+                device='cuda:0',
+                ):
         self.base_temperature = base_temperature
         self.tau = tau
         self.debug = debug
         self.tokenizer = tokenizer
+        self.first_count = first_count
+        self.disable_trigger = None if disable_trigger is None else torch.as_tensor(disable_trigger).to(device)
+        self.enable_trigger = None if enable_trigger is None else torch.as_tensor(enable_trigger).to(device)
 
+        self.enabled = None
         self.breakruns_counter = None
         self.last_logits = None
         self.last_length = None
 
     def _reset(self):
         self._dprint("BREAKRUNS: _reset")
+        self.enabled = None
         self.breakruns_counter = None
         self.last_logits = None
 
@@ -58,9 +67,13 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
             self._reset()
         self.last_length = input_ids.shape[1]
 
+        if self.enabled is None:
+            self._dprint("BREAKRUNS: init enabled")
+            self.enabled = torch.ones((input_ids.shape[0],), device=input_ids.device)
+
         if self.breakruns_counter is None:
-            self._dprint("BREAKRUNS: init counter")
-            self.breakruns_counter = torch.zeros((), device=input_ids.device)
+            self.breakruns_counter = self.first_count * torch.ones((), device=input_ids.device)
+            self._dprint(f"BREAKRUNS: init counter {self.breakruns_counter}")
 
         if self.last_logits is None:
             self._dprint("BREAKRUNS: init logits, no op")
@@ -68,15 +81,28 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
 
             return scores
 
+        if (self.disable_trigger is not None) and (self.enable_trigger is not None):
+            with torch.no_grad():
+                prev_enabled = self.enabled
+
+                disable_flip = (input_ids[:, -self.disable_trigger.shape[0]:] == self.disable_trigger.to(input_ids.device)).all(dim=1)
+                enable_flip = (input_ids[:, -self.enable_trigger.shape[0]:] == self.enable_trigger.to(input_ids.device)).all(dim=1)
+
+                self.enabled = torch.logical_or(enable_flip, self.enabled)
+                self.enabled = torch.logical_and(~disable_flip, self.enabled)
+
+                if self.debug and (self.enabled != prev_enabled).any().item():
+                    self._dprint(f"BREAKRUNS: enabled {prev_enabled} -> {self.enabled}")
+
         # check if last was top
         was_top = (input_ids[:, -1] == self.last_logits.argmax(dim=1)).to(torch.long)
 
-        self.breakruns_counter = was_top * (self.breakruns_counter + 1)
+        self.breakruns_counter = was_top * self.enabled * (self.breakruns_counter + 1)
 
         if self.debug:
             sampled_str = repr(self.tokenizer.decode(input_ids[0, -1].item()))
             actual_top_str = repr(self.tokenizer.decode([self.last_logits.argmax(dim=1)[0].item()]))
-            print(f"was_top?: {was_top[0]} | sampled {sampled_str} actual_top {actual_top_str} | self.breakruns_counter: {self.breakruns_counter}")
+            print(f"enabled {self.enabled[0]} | was_top?: {was_top[0]} | sampled {sampled_str} actual_top {actual_top_str} | self.breakruns_counter: {self.breakruns_counter}")
 
         eff_temperature = self.base_temperature + (self.breakruns_counter * self.tau)
         self._dprint("eff_temperature: {et}", fillers={"et": eff_temperature})
@@ -84,7 +110,6 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
         self.last_logits = scores
 
         return scores / eff_temperature[:, None].expand_as(scores)
-
 
 # taken from https://github.com/cimeister/typical-sampling/blob/typical-pr/src/transformers/generation_logits_process.py
 # implements method from https://arxiv.org/abs/2202.00666

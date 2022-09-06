@@ -467,7 +467,7 @@ else:
 BREAKRUNS = True
 BREAKRUNS_TAU = 0.035  # "canon" value is 0.02
 BREAKRUNS_DECAY = 0.0
-BREAKRUNS_DEBUG = False
+BREAKRUNS_DEBUG = True
 
 temperature = 0.95
 top_k = 0
@@ -618,6 +618,9 @@ GPT_NEO_T = 1.
 GPT_NEO_TOP_P = 0.95
 GPT_NEO_TOP_K = 0
 GPT_NEO_MAX_LENGTH = 2048 if V11 else 1024
+
+AVOID_UNK_CAPTION = True
+BREAKRUNS_OFF_WITHIN_IMAGES = True
 
 if V11 and (GPU_TYPE == "small"):
     # TODO: figure out if this OOM happened due to something in transformers 4.6.0

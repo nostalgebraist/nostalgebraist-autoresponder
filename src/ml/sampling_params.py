@@ -29,6 +29,8 @@ SamplingParams = NamedTuple(
     typical_sampling=bool,
     typical_sampling_mass=float,
     typical_sampling_min_tokens_to_keep=int,
+    avoid_unk_caption=bool,
+    breakruns_off_within_images=bool,
 )
 
 
@@ -64,6 +66,8 @@ DEFAULT_SAMPLING_CONFIG = SamplingConfig(
         typical_sampling=TYPICAL_SAMPLING,
         typical_sampling_mass=TYPICAL_SAMPLING_MASS,
         typical_sampling_min_tokens_to_keep=TYPICAL_SAMPLING_MIN_TOKENS_TO_KEEP,
+        avoid_unk_caption=False,
+        breakruns_off_within_images=False,
     ),
     params=SamplingParams(
         temperature=temperature,
@@ -78,7 +82,9 @@ DEFAULT_SAMPLING_CONFIG = SamplingConfig(
         breakruns_decay=BREAKRUNS_DECAY,
         typical_sampling=TYPICAL_SAMPLING,
         typical_sampling_mass=TYPICAL_SAMPLING_MASS,
-        typical_sampling_min_tokens_to_keep=TYPICAL_SAMPLING_MIN_TOKENS_TO_KEEP
+        typical_sampling_min_tokens_to_keep=TYPICAL_SAMPLING_MIN_TOKENS_TO_KEEP,
+        avoid_unk_caption=False,
+        breakruns_off_within_images=False,
     ),
     disable_prints=True,
     first_step_length=first_step_length,

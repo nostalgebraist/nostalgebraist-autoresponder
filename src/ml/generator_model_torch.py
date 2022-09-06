@@ -97,7 +97,7 @@ class GeneratorModelTorch:
                 enable_trigger = (1421, 18604, 198,)
 
             msg = f'using breakruns, base T={self.sampling_params.temperature}, tau={self.sampling_params.breakruns_tau}'
-            msg += f', avoid_unk_caption={self.sampling_params.AVOID_UNK_CAPTION}'
+            msg += f', avoid_unk_caption={self.sampling_params.avoid_unk_caption}'
             msg += f', disable_trigger={disable_trigger}, enable_trigger={enable_trigger}'
 
             print(msg)
@@ -106,7 +106,7 @@ class GeneratorModelTorch:
                 tau=self.sampling_params.breakruns_tau,
                 tokenizer=self.tokenizer if BREAKRUNS_DEBUG else None,
                 debug=BREAKRUNS_DEBUG,
-                avoid_unk_caption=self.sampling_params.AVOID_UNK_CAPTION,
+                avoid_unk_caption=self.sampling_params.avoid_unk_caption,
                 disable_trigger=disable_trigger,
                 enable_trigger=enable_trigger,
             )

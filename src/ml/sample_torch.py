@@ -16,8 +16,9 @@ class AvoidUnkCaptionLogitsProcessor(LogitsProcessor):
             return scores
 
         with torch.no_grad():
-            if (input_ids[0, -self.prefix_length:] == self.unk_prefix.to(input_ids.device)).all():
-                scores[:, 34680] = -10000.  # 'unknown'
+            for i in range(len(input_ids)):
+                if (input_ids[i, -self.prefix_length:] == self.unk_prefix.to(input_ids.device)).all():
+                    scores[i, 34680] = -10000.  # 'unknown'
 
         return scores
 

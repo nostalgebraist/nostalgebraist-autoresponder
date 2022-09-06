@@ -92,7 +92,7 @@ class GeneratorModelTorch:
 
         if self.sampling_params.breakruns:
             disable_trigger, enable_trigger = None, None
-            if self.sampling_params.BREAKRUNS_OFF_WITHIN_IMAGES:
+            if self.sampling_params.breakruns_off_within_images:
                 disable_trigger = (1421, 18604, 198, 1421, 18604, 198,)
                 enable_trigger = (1421, 18604, 198,)
 

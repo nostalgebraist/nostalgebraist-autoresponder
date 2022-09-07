@@ -2691,7 +2691,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
     ]
 
     max_posts_per_step_with_slowdown = max_posts_per_step(loop_persistent_data.slowdown_level)
-    kept = submissions[::-1][:max_posts_per_step_with_slowdown]
+    kept = submissions[::-1][:max_posts_per_step_with_slowdown][]
     excluded = submissions[::-1][max_posts_per_step_with_slowdown:]
     if len(excluded) > 0:
         print(
@@ -2714,7 +2714,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
             substring, _, _ = construct_prob_delta_prompts_for_ask(TumblrThread.from_payload(pp), **pd_kwargs)
             archive_prob_delt(kind=kind, user=user, substring=substring, prob_delt=pd)
 
-    for ix, post_payload in enumerate(submissions[::-1]):
+    for ix, post_payload in enumerate(submissions):
         print(f'\nhandling ask {ix+1}/{len(submissions)}')
         if post_payload.get("summary", "") == FOLLOW_COMMAND:
             with LogExceptionAndSkip("follow"):

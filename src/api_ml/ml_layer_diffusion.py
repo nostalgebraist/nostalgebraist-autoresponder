@@ -36,8 +36,8 @@ USE_PLMS = True
 if USE_PLMS:
     timestep_respacing_sres1 = '100'
     timestep_respacing_sres1p5 = '100'
-    timestep_respacing_sres2 = '100'
-    timestep_respacing_sres3 = '100'
+    timestep_respacing_sres2 = '90,60,60,20,20'
+    timestep_respacing_sres3 = '90,60,60,20,20'
 else:
     timestep_respacing_sres1 = '250'
     timestep_respacing_sres1p5 = '90,60,60,20,20'
@@ -226,7 +226,7 @@ def poll(
             guidance_scale=guidance_scale_step2,
             noise_cond_ts=150,
             dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
-            use_plms=USE_PLMS,
+            # use_plms=USE_PLMS,
         )
 
         print('step2 done')
@@ -248,7 +248,7 @@ def poll(
                 low_res=result,
                 noise_cond_ts=75,
                 dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
-                use_plms=USE_PLMS,
+                # use_plms=USE_PLMS,
             )
 
             # sampling_model_sres3.model.cpu();

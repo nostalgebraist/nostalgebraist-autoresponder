@@ -31,7 +31,7 @@ BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-captions'
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 
-USE_PLMS = True
+USE_PLMS = False
 
 if USE_PLMS:
     timestep_respacing_sres1 = '100'

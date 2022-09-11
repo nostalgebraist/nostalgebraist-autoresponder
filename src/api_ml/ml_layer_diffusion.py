@@ -36,8 +36,8 @@ USE_PLMS = True
 if USE_PLMS:
     timestep_respacing_sres1 = 'ddim50'
     timestep_respacing_sres1p5 = 'ddim50'
-    timestep_respacing_sres2 = 'ddim100'
-    timestep_respacing_sres3 = 'ddim100'
+    timestep_respacing_sres2 = 'ddim50'
+    timestep_respacing_sres3 = 'ddim50'
 else:
     timestep_respacing_sres1 = '250'
     timestep_respacing_sres1p5 = '90,60,60,20,20'

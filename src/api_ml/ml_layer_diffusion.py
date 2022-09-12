@@ -121,6 +121,10 @@ if using_sres3:
 # for sm in [sampling_model_sres1, sampling_model_sres1p5, sampling_model_sres2, sampling_model_sres3]:
 #     sm.model = sm.model.cpu()
 
+if USE_PLMS:
+    sampling_model_sres1.set_timestep_respacing(timestep_respacing_sres1, double_mesh_first_n=3)
+    sampling_model_sres1p5.set_timestep_respacing(timestep_respacing_sres1p5, double_mesh_first_n=3)
+
 
 def poll(
     dummy=False,

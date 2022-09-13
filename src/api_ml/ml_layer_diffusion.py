@@ -228,7 +228,7 @@ def poll(
             low_res=result,
             clf_free_guidance=True,
             guidance_scale=guidance_scale_step2,
-            noise_cond_ts=50,
+            noise_cond_ts=150,
             # dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
             # use_plms=USE_PLMS,
         )
@@ -250,7 +250,7 @@ def poll(
                 to_visible=True,
                 from_visible=True,
                 low_res=result,
-                noise_cond_ts=50,
+                noise_cond_ts=75,
                 # dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
                 # use_plms=USE_PLMS,
             )

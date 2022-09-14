@@ -32,15 +32,10 @@ HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 
 
-use_plms_step1 = True
-use_plms_step1p5 = False
-use_plms_step2 = False
-use_plms_step3 = False
-
-timestep_respacing_sres1 = 'ddim50' if use_plms_step1 else '250'
-timestep_respacing_sres1p5 = 'ddim50' if use_plms_step1p5 else '90,60,60,20,20'
-timestep_respacing_sres2 = 'ddim50' if use_plms_step2 else '90,60,60,20,20'
-timestep_respacing_sres3 = 'ddim50' if use_plms_step3 else '90,60,60,20,20'
+timestep_respacing_sres1 = 'ddim50'
+timestep_respacing_sres1p5 = 'ddim50'
+timestep_respacing_sres2 = 'ddim27'
+timestep_respacing_sres3 = 'ddim27'
 FORCE_CAPTS = True
 
 TRUNCATE_LENGTH = 380
@@ -119,17 +114,13 @@ if using_sres3:
 # for sm in [sampling_model_sres1, sampling_model_sres1p5, sampling_model_sres2, sampling_model_sres3]:
 #     sm.model = sm.model.cpu()
 
-if use_plms_step1:
-    sampling_model_sres1.set_timestep_respacing(timestep_respacing_sres1, double_mesh_first_n=3)
+sampling_model_sres1.set_timestep_respacing(timestep_respacing_sres1, double_mesh_first_n=3)
 
-if use_plms_step1p5:
-    sampling_model_sres1p5.set_timestep_respacing(timestep_respacing_sres1p5, double_mesh_first_n=3)
+sampling_model_sres1p5.set_timestep_respacing(timestep_respacing_sres1p5, double_mesh_first_n=3)
 
-if use_plms_step2:
-    sampling_model_sres2.set_timestep_respacing(timestep_respacing_sres2, double_mesh_first_n=3)
+sampling_model_sres2.set_timestep_respacing(timestep_respacing_sres2, double_mesh_first_n=0)
 
-if use_plms_step3:
-    sampling_model_sres3.set_timestep_respacing(timestep_respacing_sres3, double_mesh_first_n=3)
+sampling_model_sres3.set_timestep_respacing(timestep_respacing_sres3, double_mesh_first_n=0)
 
 
 def poll(
@@ -183,7 +174,7 @@ def poll(
             guidance_scale=guidance_scale,
             guidance_scale_txt=guidance_scale_txt,
             dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
-            use_plms=use_plms_step1,
+            use_plms=True,
             capt=capt,
         )
 
@@ -209,7 +200,7 @@ def poll(
                 guidance_scale_txt=guidance_scale_txt,
                 dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
                 noise_cond_ts=225,
-                use_plms=use_plms_step1p5,
+                use_plms=True,
                 capt=capt,
             )
 
@@ -235,7 +226,8 @@ def poll(
             clf_free_guidance=True,
             guidance_scale=guidance_scale_step2,
             noise_cond_ts=150,
-            use_plms=use_plms_step2,
+            use_ddim=True,
+            ddim_eta=0.5,
         )
 
         print('step2 done')
@@ -256,7 +248,8 @@ def poll(
                 from_visible=True,
                 low_res=result,
                 noise_cond_ts=75,
-                use_plms=use_plms_step3,
+                use_ddim=True,
+                ddim_eta=0.5,
             )
 
             # sampling_model_sres3.model.cpu();

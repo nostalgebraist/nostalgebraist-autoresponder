@@ -27,7 +27,12 @@ BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 
 
 def caption_image(self, path_or_url, **kwargs):
-    return ml.captioning.caption_image(path_or_url=path_or_url, magma_wrapper=self, **kwargs)
+    return ml.captioning.caption_image(
+        path_or_url=path_or_url,
+        magma_wrapper=self,
+        adapters_device=captioning_adapters_device,
+        **kwargs
+    )
 
 magma.Magma.caption_image = caption_image
 
@@ -86,7 +91,7 @@ def load_generator_model(
         magma_wrapper.detach_adapters()
 
         for k in magma_wrapper.adapter_map:
-            magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].cpu()
+            magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].to(device=captioning_adapters_device)
 
         transformers_model = magma_wrapper.lm
     else:

@@ -636,6 +636,7 @@ max_feed_size = 2048
 batch_size = 2 if GPU_TYPE == "bigger" else 1
 head_inference_batch_size = 8 if GPU_TYPE == "bigger" else 1
 head_load_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
+captioning_adapters_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 
 MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
 

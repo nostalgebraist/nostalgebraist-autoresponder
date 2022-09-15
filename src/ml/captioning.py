@@ -37,6 +37,7 @@ def caption_image(
     guidance_scale=0,
     prompt='[Image description:',
     longest_of=1,
+    adapters_device='cpu',
 ):
     for k in magma_wrapper.adapter_map:
         magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].cuda()
@@ -75,6 +76,6 @@ def caption_image(
     magma_wrapper.detach_adapters()
 
     for k in magma_wrapper.adapter_map:
-        magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].cpu()
+        magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].to(device=adapters_device)
 
     return caption

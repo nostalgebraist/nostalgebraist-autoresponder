@@ -2,7 +2,7 @@ from datetime import datetime
 
 from api_tumblr.tumblr_parsing import TumblrThread
 from tumblr_to_text.nwo import npf_thread_to_formatted_text, expand_asks
-from tumblr_to_text.nwo_munging import add_empty_reblog
+from tumblr_to_text.nwo_munging import add_empty_reblog, pop_reblog_without_commentary
 
 from api_ml.ml_connector import prob_delta_from_gpt
 
@@ -10,8 +10,11 @@ from api_ml.ml_connector import prob_delta_from_gpt
 def construct_prob_delta_prompts_for_post(
     thread: TumblrThread,
     cut_to_last_and_skip_username=False,  # like ask username skipping, but for full posts
+    exclude_reblog_without_commentary=True,  # makes cut_to_last_and_skip_username less flaky
 ):
-    # cut to last
+    if exclude_reblog_without_commentary:
+        thread = pop_reblog_without_commentary(thread)
+
     _, posts = expand_asks(thread)
     nposts = len(posts)
 

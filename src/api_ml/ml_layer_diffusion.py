@@ -32,7 +32,7 @@ HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 
 
-timestep_respacing_sres1 = 'ddim50'
+timestep_respacing_sres1 = 'ddim100'
 timestep_respacing_sres1p5 = 'ddim50'
 timestep_respacing_sres2 = 'ddim27'
 timestep_respacing_sres3 = 'ddim27'

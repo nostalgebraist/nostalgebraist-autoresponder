@@ -57,8 +57,9 @@ def polldiffusion():
     global RESULT_DIFFUSION
 
     if request.method == "POST":
-        RESULT_DIFFUSION = request.data
-        PROMPT_DIFFUSION = None
+        if request.json["id"] == PROMPT_DIFFUSION["id"]:
+            RESULT_DIFFUSION = request.data
+            PROMPT_DIFFUSION = None
         return jsonify({})
     elif request.method == "GET":
         return jsonify(PROMPT_DIFFUSION)

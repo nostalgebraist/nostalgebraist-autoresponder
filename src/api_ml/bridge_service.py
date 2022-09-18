@@ -51,18 +51,22 @@ def requestml():
     return jsonify({})
 
 
-@app.route("/polldiffusion", methods=["GET", "POST"])
+@app.route("/polldiffusion", methods=["GET"])
 def polldiffusion():
+    global PROMPT_DIFFUSION
+
+    return jsonify(PROMPT_DIFFUSION)
+
+
+@app.route("/polldiffusion/<bridge_id>", methods=["POST"])
+def polldiffusion_id(bridge_id):
     global PROMPT_DIFFUSION
     global RESULT_DIFFUSION
 
-    if request.method == "POST":
-        if request.json["id"] == PROMPT_DIFFUSION["id"]:
-            RESULT_DIFFUSION = request.data
-            PROMPT_DIFFUSION = None
-        return jsonify({})
-    elif request.method == "GET":
-        return jsonify(PROMPT_DIFFUSION)
+    if bridge_id == PROMPT_DIFFUSION["id"]:
+        RESULT_DIFFUSION = request.data
+        PROMPT_DIFFUSION = None
+    return jsonify({})
 
 
 @app.route("/requestdiffusion", methods=["POST"])

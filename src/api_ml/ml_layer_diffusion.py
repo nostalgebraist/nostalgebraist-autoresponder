@@ -272,9 +272,8 @@ def poll(
 
         if not dummy:
             requests.post(
-                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
+                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}/{data['id']}",
                 data=b,
-                json={"id": data.get("id")}
             )
     return did_generation
 

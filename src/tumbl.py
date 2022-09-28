@@ -1440,10 +1440,8 @@ def is_statically_reblog_worthy_on_dash(
     if '.gif' in p_body:
         scrape_worthy = False
 
-    if n_img > 3:
+    if n_img > 2:
         scrape_worthy = False
-    elif n_img > 2:
-        image_scrape_only = True
 
     if n_img > 0:
         roll = random.random()
@@ -1453,7 +1451,7 @@ def is_statically_reblog_worthy_on_dash(
     if not has_comment:
         roll = random.random()
         if roll > 0.667:
-            image_scrape_only = True
+            scrape_worthy = False
 
     if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):
         if get_images_from_no_scrape_users:

@@ -576,7 +576,7 @@ def augment_screener_output_with_autoreviewer(
                     print(f"draft_autoreviewer rejects post: autoreview_proba {autoreview_proba:.1%} > cutoff {cut_reject:.1%}")
                     should_publish = False
                     ml_rejected = True
-                elif autoreview_prob > cut_flag:
+                elif autoreview_proba > cut_flag:
                     print(f"draft_autoreviewer flags post: flag cutoff {cut_flag:.1%} < autoreview_proba {autoreview_proba:.1%} <= reject cutoff {cut_reject:.1%} ")
                 else:
                     print(f"draft_autoreviewer: autoreview_proba {autoreview_proba:.1%} <= cutoff {min(cut_flag, cut_reject):.1%}")

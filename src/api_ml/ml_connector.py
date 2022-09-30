@@ -261,7 +261,7 @@ def basic_n_continuations(
     poll_interval_secs = 5
 
     while len(continuations) < N:
-        if len(continuations) >= N - 2:
+        if len(continuations) >= N - 4:
             if not almostdone_sent:
                 requests.post(bridge_service_url + "/almostdone", json={"id": bridge_id})
                 almostdone_sent = True

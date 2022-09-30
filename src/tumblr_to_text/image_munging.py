@@ -80,6 +80,8 @@ def upload_images_to_tumblr_urls(images, keys, client, blogname):
 
 
 def prep_caption_for_model(caption):
+    if caption is None:
+        return "unknown"
     return " " + caption.lstrip(" ")
 
 

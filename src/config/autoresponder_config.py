@@ -630,7 +630,7 @@ if V11 and (GPU_TYPE == "small"):
     GPT_NEO_MAX_LENGTH = 1900
 
 if V12 and (GPU_TYPE == "small"):
-    GPT_NEO_MAX_LENGTH = 1536
+    GPT_NEO_MAX_LENGTH = 1200
 
 max_feed_size = GPT_NEO_MAX_LENGTH
 

@@ -87,6 +87,7 @@ class GeneratorModelTorch:
         self.sampling_params = sampling_params
         self.max_continue_tokens = max_continue_tokens
         self.max_feed_size = max_feed_size
+        self.max_context_size = self.max_feed_size - required_continuation_room
 
         self.transformers_model = self.transformers_model.to(device)
 
@@ -125,14 +126,12 @@ class GeneratorModelTorch:
         return self.write(prompt=prompt, verbose=verbose)
 
     def write(self, prompt: str, verbose=False, max_length_per_feed=None):
-        max_context_size = self.max_feed_size - required_continuation_room
-
         batch_pr = [prompt for _ in range(self.batch_size)]
         batch_pr_tokens = self.tokenizer(
             batch_pr,
         )["input_ids"]
 
-        batch_pr_tokens = [toks[-max_context_size:] for toks in batch_pr_tokens]
+        batch_pr_tokens = [toks[-self.max_context_size:] for toks in batch_pr_tokens]
 
         continuations_tokens = batch_pr_tokens
         n_orig_prompt_tokens = len(continuations_tokens[0])
@@ -145,7 +144,7 @@ class GeneratorModelTorch:
                 input_ids = self.tokenizer(
                     batch_pr,
                 )["input_ids"]
-            input_ids = [toks[-max_context_size:] for toks in input_ids]
+            input_ids = [toks[-self.max_context_size:] for toks in input_ids]
             prompt_end_ix = len(input_ids[0])
 
             input_ids_th = torch.as_tensor(input_ids).to(self.device)
@@ -196,7 +195,7 @@ class GeneratorModelTorch:
 
                 if not this_done:
                     # construct next prompt
-                    next_prompt_tokens = continuations_tokens[i][-max_context_size:]
+                    next_prompt_tokens = continuations_tokens[i][-self.max_context_size:]
                     print(f"next_prompt_tokens: {len(next_prompt_tokens)}")
                     input_ids.append(next_prompt_tokens)
 
@@ -233,7 +232,7 @@ class GeneratorModelTorch:
 
     def get_next_logits(self, text: str, to_numpy=True):
         input_ids = self.tokenizer([text])["input_ids"]
-        input_ids = [input_ids[0][-self.max_feed_size:]]
+        input_ids = [input_ids[0][-self.max_context_size:]]
         input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
         with torch.no_grad():

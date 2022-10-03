@@ -143,7 +143,7 @@ class GeneratorModelTorch:
             use_cache=True,
         ).past_key_values
 
-        for ix in range(max_len_no_cache, full_len-1):
+        for ix in range(self.max_feed_size_no_cache, full_len-1):
             presents = self.transformers_model(
                 input_ids=input_ids[:, ix:ix+1],
                 past_key_values=presents,

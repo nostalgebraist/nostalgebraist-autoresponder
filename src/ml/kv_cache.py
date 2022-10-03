@@ -102,10 +102,10 @@ def kv_buffer_gpt_neo_selfattn_forward(
 
     if self.seqlen is not None:
         slice_scatter(self.bufk, key, offset=self.seqlen)
-        key = self.bufk[:, :, :seqlen+1, :]
+        key = self.bufk[:, :, :self.seqlen+1, :]
 
         slice_scatter(self.bufv, value, offset=self.seqlen)
-        value = self.bufv[:, :, :seqlen+1, :]
+        value = self.bufv[:, :, :self.seqlen+1, :]
     elif layer_past is not None:
         past_key = layer_past[0]
         past_value = layer_past[1]

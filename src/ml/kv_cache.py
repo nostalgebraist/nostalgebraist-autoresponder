@@ -126,6 +126,9 @@ def kv_buffer_gpt_neo_selfattn_forward(
     else:
         present = None
 
+    print(query.shape)
+    print(key.shape)
+
     query_length, key_length = query.size(-2), key.size(-2)
     causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length]
 

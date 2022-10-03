@@ -113,12 +113,13 @@ def kv_buffer_gpt_neo_selfattn_forward(
 def setup_kv_buffer(
     model,  # magma wrapper -- TODO: work with ordinary HF model
     batch_size,
+    max_sequence_length,
 ):
     model.add_adapters()
 
     if not hasattr(model.transformer[0].attn.module.attention, 'bufk'):
         model.detach_adapters()
-        make_kv_cache_hook(batch_size, generator_model.max_feed_size_with_cache)(model)
+        make_kv_cache_hook(batch_size, max_sequence_length)(model)
         model.add_adapters()
 
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.forward = kv_buffer_gpt_neo_selfattn_forward

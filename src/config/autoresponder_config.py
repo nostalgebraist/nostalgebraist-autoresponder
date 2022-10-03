@@ -626,6 +626,7 @@ AVOID_UNK_CAPTION = True
 BREAKRUNS_OFF_WITHIN_IMAGES = True
 
 if V12 and (GPU_TYPE == "small"):
+    max_feed_size_with_cache = 1700
     max_feed_size_no_cache = 1300
 
 batch_size = 2 if GPU_TYPE == "bigger" else 1

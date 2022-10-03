@@ -96,7 +96,7 @@ def load_generator_model(
             magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].to(device=captioning_adapters_device)
 
         if use_kv_buffer:
-            setup_kv_buffer(magma_wrapper, batch_size=batch_size)
+            setup_kv_buffer(magma_wrapper, batch_size=batch_size, max_sequence_length=max_feed_size_with_cache)
 
         transformers_model = magma_wrapper.lm
     else:

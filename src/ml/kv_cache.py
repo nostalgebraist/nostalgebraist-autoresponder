@@ -45,6 +45,11 @@ def set_past(
     slice_scatter(self.bufk, past_key)
     slice_scatter(self.bufv, past_value)
 
+def clear_past(
+    self,
+):
+    self.seqlen = None
+
 def shift_past(
     self,
     offset,
@@ -164,6 +169,7 @@ def setup_kv_buffer(
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.forward = kv_buffer_gpt_neo_selfattn_forward
 
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.set_past = set_past
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.clear_past = clear_past
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.shift_past = shift_past
 
     model.detach_adapters()

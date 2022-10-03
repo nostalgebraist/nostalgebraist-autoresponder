@@ -132,6 +132,10 @@ class GeneratorModelTorch:
         for block, layer_past in zip(self.transformers_model.transformer.h, past_key_values):
             block.attn.attention.set_past(layer_past)
 
+    def clear_past(self):
+        for block in self.transformers_model.transformer.h:
+            block.attn.attention.clear_past()
+
     def shift_past(self, offset):
         for block in self.transformers_model.transformer.h:
             block.attn.attention.shift_past(offset)
@@ -148,6 +152,8 @@ class GeneratorModelTorch:
 
         input_ids_no_cache = input_ids[:, :self.max_feed_size_no_cache]
 
+        self.clear_past()
+
         presents = self.transformers_model(
             input_ids=input_ids_no_cache,
             use_cache=True,
@@ -161,6 +167,8 @@ class GeneratorModelTorch:
             ).past_key_values
 
         print(f"Done computing kv cache for length {full_len}")
+
+        self.set_past(presents)
 
         return input_ids, presents
 
@@ -195,7 +203,6 @@ class GeneratorModelTorch:
 
             # TODO: retrieve from `generate` somehow
             input_ids_th, past = self.compute_kv_cache(input_ids_th)
-            self.set_past(past)
 
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(
@@ -290,7 +297,6 @@ class GeneratorModelTorch:
         input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
         input_ids_th, past = self.compute_kv_cache(input_ids_th)
-        self.set_past(past)
 
         logits = self.transformers_model(
             input_ids_th[:, -1:],

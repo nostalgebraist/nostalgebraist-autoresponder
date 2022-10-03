@@ -128,13 +128,21 @@ class GeneratorModelTorch:
     def max_context_size(self):
         return self.max_feed_size_with_cache - self.required_continuation_room
 
+    def set_past(self, past_key_values):
+        for block, layer_past in zip(self.transformers_model.transformer.h, past_key_values):
+            block.attn.attention.set_past(layer_past)
+
+    def shift_past(self, offset):
+        for block in self.transformers_model.transformer.h:
+            block.attn.attention.shift_past(offset)
+
     @torch.no_grad()
     def compute_kv_cache(self, input_ids):
         input_ids = input_ids[:, -self.max_feed_size_with_cache:]
 
         full_len = input_ids.shape[1]
-        if full_len <= self.max_feed_size_no_cache:
-            return input_ids, None
+        # if full_len <= self.max_feed_size_no_cache:
+        #     return input_ids, None
 
         print(f"Computing kv cache for length {full_len}")
 
@@ -187,6 +195,7 @@ class GeneratorModelTorch:
 
             # TODO: retrieve from `generate` somehow
             input_ids_th, past = self.compute_kv_cache(input_ids_th)
+            self.set_past(past)
 
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(
@@ -198,12 +207,12 @@ class GeneratorModelTorch:
             out = self.transformers_model.generate(
                 input_ids=input_ids_th,
                 do_sample=True,
-                use_cache=True,
+                # use_cache=True,
                 top_p=self.sampling_params.top_p,
                 temperature=1 if self.sampling_params.breakruns else self.sampling_params.temperature,
                 max_length=max_length_for_transformers_call,
                 pad_token_id=self.tokenizer.pad_token_id,
-                past=past,
+                # past=past,
             )
             hardcore_collect_and_show()
 
@@ -235,6 +244,10 @@ class GeneratorModelTorch:
 
                 if not this_done:
                     # construct next prompt
+                    offset = len(continuations_tokens[i]) - self.max_context_size
+                    if offset > 0:
+                        self.shift_past(offset)
+                    
                     next_prompt_tokens = continuations_tokens[i][-self.max_context_size:]
                     print(f"next_prompt_tokens: {len(next_prompt_tokens)}")
                     input_ids.append(next_prompt_tokens)
@@ -277,10 +290,11 @@ class GeneratorModelTorch:
         input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
         input_ids_th, past = self.compute_kv_cache(input_ids_th)
+        self.set_past(past)
 
         logits = self.transformers_model(
             input_ids_th[:, -1:],
-            past_key_values=past
+            # past_key_values=past
         )['logits'][0, -1, :]
 
         if to_numpy:

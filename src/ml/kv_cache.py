@@ -23,6 +23,7 @@ def make_kv_cache_hook(bs, maxlen):
                 torch.zeros(shp, device=model.device, dtype=torch.float16),
                 persistent=False
             )
+            l.attn.attention.seqlen = None
         return model
     return hook
 
@@ -31,6 +32,30 @@ def slice_scatter(a, b, offset=0):
     ix = torch.arange(offset, offset+b.shape[2], device=a.device)[None, None, :, None].expand_as(b)
     a.scatter_(dim=2, src=b, index=ix)
 
+def set_past(
+    self,
+    layer_past,
+):
+    past_key = layer_past[0]
+    past_value = layer_past[1]
+
+    seqlen = past_key.shape[2]
+    self.seqlen = seqlen
+
+    slice_scatter(self.bufk, past_key)
+    slice_scatter(self.bufv, past_value)
+
+def shift_past(
+    self,
+    offset,
+):
+    if self.seqlen is None:
+        raise ValueError
+
+    self.seqlen -= offset
+
+    self.bufk = self.bufk.roll(-offset, 2)
+    self.bufv = self.bufv.roll(-offset, 2)
 
 def kv_buffer_gpt_neo_selfattn_forward(
     self,
@@ -52,7 +77,9 @@ def kv_buffer_gpt_neo_selfattn_forward(
     if self.rotary:
         seq_len = key.shape[1]
         offset = 0
-        if layer_past is not None:
+        if self.seqlen is not None:
+            seq_len += self.seqlen
+        elif layer_past is not None:
             offset = layer_past[0].shape[-2]
             seq_len += offset
         if self.rotary_dim < self.head_dim:
@@ -73,7 +100,13 @@ def kv_buffer_gpt_neo_selfattn_forward(
         key = key.permute(0, 2, 1, 3)
         query = query.permute(0, 2, 1, 3)
 
-    if layer_past is not None:
+    if self.seqlen is not None:
+        slice_scatter(self.bufk, key, offset=self.seqlen)
+        key = self.bufk[:, :, :seqlen+1, :]
+
+        slice_scatter(self.bufv, value, offset=self.seqlen)
+        value = self.bufv[:, :, :seqlen+1, :]
+    elif layer_past is not None:
         past_key = layer_past[0]
         past_value = layer_past[1]
 
@@ -108,6 +141,9 @@ def kv_buffer_gpt_neo_selfattn_forward(
     if output_attentions:
         outputs += (attn_weights,)
 
+    if self.seqlen is not None:
+        self.seqlen += 1
+
     return outputs
 
 def setup_kv_buffer(
@@ -123,5 +159,8 @@ def setup_kv_buffer(
         model.add_adapters()
 
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.forward = kv_buffer_gpt_neo_selfattn_forward
+
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.set_past = set_past
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.shift_past = shift_past
 
     model.detach_adapters()

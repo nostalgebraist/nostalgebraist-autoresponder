@@ -279,7 +279,7 @@ def poll(
                 "BREAKRUNS": BREAKRUNS,
                 "BREAKRUNS_TAU": BREAKRUNS_TAU,
                 "BREAKRUNS_DECAY": BREAKRUNS_DECAY,
-                "length": max_feed_size_with_cache,
+                "length": generator_model.max_feed_size_with_cache,
                 "T": GPT_NEO_T,
                 "p": GPT_NEO_TOP_P,
                 "chop_lowest": chop_lowest,

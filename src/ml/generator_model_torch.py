@@ -136,6 +136,8 @@ class GeneratorModelTorch:
         if full_len <= self.max_feed_size_no_cache:
             return input_ids, None
 
+        print(f"Computing kv cache for length {full_len}")
+
         input_ids_no_cache = input_ids[:, :self.max_feed_size_no_cache]
 
         presents = self.transformers_model(
@@ -149,6 +151,8 @@ class GeneratorModelTorch:
                 past_key_values=presents,
                 use_cache=True,
             ).past_key_values
+
+        print(f"Done computing kv cache for length {full_len}")
 
         return input_ids, presents
 

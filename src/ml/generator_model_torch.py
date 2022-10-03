@@ -207,12 +207,12 @@ class GeneratorModelTorch:
             out = self.transformers_model.generate(
                 input_ids=input_ids_th,
                 do_sample=True,
-                # use_cache=True,
+                use_cache=True,
                 top_p=self.sampling_params.top_p,
                 temperature=1 if self.sampling_params.breakruns else self.sampling_params.temperature,
                 max_length=max_length_for_transformers_call,
                 pad_token_id=self.tokenizer.pad_token_id,
-                # past=past,
+                past=past,
             )
             hardcore_collect_and_show()
 
@@ -247,7 +247,7 @@ class GeneratorModelTorch:
                     offset = len(continuations_tokens[i]) - self.max_context_size
                     if offset > 0:
                         self.shift_past(offset)
-                    
+
                     next_prompt_tokens = continuations_tokens[i][-self.max_context_size:]
                     print(f"next_prompt_tokens: {len(next_prompt_tokens)}")
                     input_ids.append(next_prompt_tokens)
@@ -294,7 +294,7 @@ class GeneratorModelTorch:
 
         logits = self.transformers_model(
             input_ids_th[:, -1:],
-            # past_key_values=past
+            past_key_values=past
         )['logits'][0, -1, :]
 
         if to_numpy:

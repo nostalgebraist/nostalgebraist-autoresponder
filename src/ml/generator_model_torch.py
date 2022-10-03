@@ -154,10 +154,16 @@ class GeneratorModelTorch:
 
         self.clear_past()
 
-        presents = self.transformers_model(
-            input_ids=input_ids_no_cache,
-            use_cache=True,
-        ).past_key_values
+        if full_len <= self.max_feed_size_no_cache:
+            presents = self.transformers_model(
+                input_ids=input_ids_no_cache[:, :-1],
+                use_cache=True,
+            ).past_key_values
+        else:
+            presents = self.transformers_model(
+                input_ids=input_ids_no_cache,
+                use_cache=True,
+            ).past_key_values
 
         for ix in range(self.max_feed_size_no_cache, full_len-1):
             presents = self.transformers_model(
@@ -190,6 +196,7 @@ class GeneratorModelTorch:
         done = False
 
         input_ids = None
+        past_set = False
 
         while not done:
             if input_ids is None:
@@ -201,8 +208,9 @@ class GeneratorModelTorch:
 
             input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
-            # TODO: retrieve from `generate` somehow
-            input_ids_th, past = self.compute_kv_cache(input_ids_th)
+            if not past_set:
+                input_ids_th, past = self.compute_kv_cache(input_ids_th)
+                past_set = True
 
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(

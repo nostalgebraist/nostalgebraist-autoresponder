@@ -270,6 +270,7 @@ class GeneratorModelTorch:
             return tokenizer.decode([t])
         return [tokenizer.decode([tok]) for tok in t]
 
+    @torch.no_grad()
     def get_next_logits(self, text: str, to_numpy=True):
         input_ids = self.tokenizer([text])["input_ids"]
         input_ids = [input_ids[0][-self.max_context_size:]]
@@ -277,8 +278,10 @@ class GeneratorModelTorch:
 
         input_ids_th, past = self.compute_kv_cache(input_ids_th)
 
-        with torch.no_grad():
-            logits = self.transformers_model(input_ids_th, past_key_values=past)['logits'][0, -1, :]
+        logits = self.transformers_model(
+            input_ids_th[:, -1:],
+            past_key_values=past
+        )['logits'][0, -1, :]
 
         if to_numpy:
             logits = logits.cpu().numpy()

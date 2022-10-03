@@ -78,7 +78,9 @@ class GeneratorModelTorch:
         device="cuda:0",
         sampling_params: SamplingParams = GPT_NEO_DEFAULT_SAMPLING_PARAMS,
         max_continue_tokens = MAX_CONTINUE_TOKENS,
-        max_feed_size = max_feed_size
+        max_feed_size_with_cache = max_feed_size_with_cache,
+        max_feed_size_no_cache = max_feed_size_no_cache,
+        required_continuation_room = required_continuation_room,
     ):
         self.transformers_model = transformers_model
         self.tokenizer = tokenizer
@@ -86,8 +88,9 @@ class GeneratorModelTorch:
         self.device = device
         self.sampling_params = sampling_params
         self.max_continue_tokens = max_continue_tokens
-        self.max_feed_size = max_feed_size
-        self.max_context_size = self.max_feed_size - required_continuation_room
+        self.max_feed_size_with_cache = max_feed_size_with_cache
+        self.max_feed_size_no_cache = max_feed_size_no_cache
+        self.required_continuation_room = required_continuation_room
 
         self.transformers_model = self.transformers_model.to(device)
 
@@ -121,10 +124,39 @@ class GeneratorModelTorch:
             self.transformers_model._get_logits_processor = override_disable_logits_processors
             self.transformers_model._get_logits_warper = typical_sampling_override
 
+    @property
+    def max_context_size(self):
+        return self.max_feed_size_with_cache - self.required_continuation_room
+
+    @torch.no_grad()
+    def compute_kv_cache(self, input_ids):
+        input_ids = input_ids[:, -self.max_feed_size_with_cache:]
+
+        full_len = input_ids.shape[1]
+        if full_len <= self.max_feed_size_no_cache:
+            return input_ids, None
+
+        input_ids_no_cache = input_ids[:, :self.max_feed_size_no_cache]
+
+        presents = self.transformers_model(
+            input_ids=input_ids_no_cache,
+            use_cache=True,
+        ).past_key_values
+
+        for ix in range(max_len_no_cache, full_len-1):
+            presents = self.transformers_model(
+                input_ids=input_ids[:, ix:ix+1],
+                past_key_values=presents,
+                use_cache=True,
+            ).past_key_values
+
+        return input_ids, presents
+
     def write_random_prompt(self, prompts: list, probs: list, verbose=False):
         prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))
         return self.write(prompt=prompt, verbose=verbose)
 
+    @torch.no_grad()
     def write(self, prompt: str, verbose=False, max_length_per_feed=None):
         batch_pr = [prompt for _ in range(self.batch_size)]
         batch_pr_tokens = self.tokenizer(
@@ -149,12 +181,15 @@ class GeneratorModelTorch:
 
             input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
+            # TODO: retrieve from `generate` somehow
+            input_ids_th, past = self.compute_kv_cache(input_ids_th)
+
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(
-                    self.max_feed_size, max_length_per_feed + prompt_end_ix
+                    self.max_feed_size_with_cache, max_length_per_feed + prompt_end_ix
                 )
             else:
-                max_length_for_transformers_call = min(self.max_feed_size, self.max_continue_tokens + prompt_end_ix)
+                max_length_for_transformers_call = min(self.max_feed_size_with_cache, self.max_continue_tokens + prompt_end_ix)
 
             out = self.transformers_model.generate(
                 input_ids=input_ids_th,
@@ -164,6 +199,7 @@ class GeneratorModelTorch:
                 temperature=1 if self.sampling_params.breakruns else self.sampling_params.temperature,
                 max_length=max_length_for_transformers_call,
                 pad_token_id=self.tokenizer.pad_token_id,
+                past=past,
             )
             hardcore_collect_and_show()
 
@@ -235,8 +271,10 @@ class GeneratorModelTorch:
         input_ids = [input_ids[0][-self.max_context_size:]]
         input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
+        input_ids_th, past = self.compute_kv_cache(input_ids_th)
+
         with torch.no_grad():
-            logits = self.transformers_model(input_ids_th)['logits'][0, -1, :]
+            logits = self.transformers_model(input_ids_th, past_key_values=past)['logits'][0, -1, :]
 
         if to_numpy:
             logits = logits.cpu().numpy()

@@ -618,21 +618,15 @@ if SENTIMENT_VIA_GENERATOR_LONGLENGTH:
 GPT_NEO_T = 1.0
 GPT_NEO_TOP_P = 0.95
 GPT_NEO_TOP_K = 0
-GPT_NEO_MAX_LENGTH = 2048 if V11 else 1024
+
+max_feed_size_with_cache = 2048 if V11 else 1024
+max_feed_size_no_cache = max_feed_size_with_cache
 
 AVOID_UNK_CAPTION = True
 BREAKRUNS_OFF_WITHIN_IMAGES = True
 
-if V11 and (GPU_TYPE == "small"):
-    # TODO: figure out if this OOM happened due to something in transformers 4.6.0
-    #
-    # https://github.com/huggingface/transformers/compare/v4.5.1...v4.6.0
-    GPT_NEO_MAX_LENGTH = 1900
-
 if V12 and (GPU_TYPE == "small"):
-    GPT_NEO_MAX_LENGTH = 1600
-
-max_feed_size = GPT_NEO_MAX_LENGTH
+    max_feed_size_no_cache = 1300
 
 batch_size = 2 if GPU_TYPE == "bigger" else 1
 head_inference_batch_size = 8 if GPU_TYPE == "bigger" else 1

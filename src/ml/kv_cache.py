@@ -54,8 +54,8 @@ def set_past(self, layer_past):
     seqlen = past_value.shape[2]
     self.seqlen = seqlen
 
-    # slice_scatter_1(self.bufk, past_key)
-    # slice_scatter_2(self.bufv, past_value)
+    slice_scatter_1(self.bufk, past_key)
+    slice_scatter_2(self.bufv, past_value)
 
 def clear_past(self):
     self.seqlen = None
@@ -66,7 +66,7 @@ def shift_past(self, offset):
 
     self.seqlen -= offset
 
-    self.bufk = self.bufk.roll(-offset, 2)
+    self.bufk = self.bufk.roll(-offset, 1)
     self.bufv = self.bufv.roll(-offset, 2)
 
 def kv_buffer_gpt_neo_selfattn_forward(

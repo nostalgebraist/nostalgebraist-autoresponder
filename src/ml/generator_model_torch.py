@@ -168,11 +168,13 @@ class GeneratorModelTorch:
                 input_ids=input_ids_no_cache[:, :-1],
                 use_cache=True,
             ).past_key_values
+            self.set_past(presents)
         else:
             presents = self.transformers_model(
                 input_ids=input_ids_no_cache,
                 use_cache=True,
             ).past_key_values
+            self.set_past(presents)
 
         for ix in range(self.max_feed_size_no_cache, full_len-1):
             presents = self.transformers_model(
@@ -182,8 +184,6 @@ class GeneratorModelTorch:
             ).past_key_values
 
         print(f"Done computing kv cache for length {full_len}")
-
-        self.set_past(presents)
 
         return input_ids, presents
 

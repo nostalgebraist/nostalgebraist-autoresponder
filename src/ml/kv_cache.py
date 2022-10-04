@@ -39,7 +39,11 @@ def make_kv_cache_hook(bs, maxlen):
     return hook
 
 
-def slice_scatter(a, b, offset=0):
+def slice_scatter_1(a, b, offset=0):
+    ix = torch.arange(offset, offset+b.shape[1], device=a.device)[None, :, None, None].expand_as(b)
+    a.scatter_(dim=1, src=b, index=ix)
+
+def slice_scatter_2(a, b, offset=0):
     ix = torch.arange(offset, offset+b.shape[2], device=a.device)[None, None, :, None].expand_as(b)
     a.scatter_(dim=2, src=b, index=ix)
 
@@ -47,11 +51,11 @@ def set_past(self, layer_past):
     past_key = layer_past[0]
     past_value = layer_past[1]
 
-    seqlen = past_key.shape[2]
+    seqlen = past_value.shape[2]
     self.seqlen = seqlen
 
-    slice_scatter(self.bufk, past_key)
-    slice_scatter(self.bufv, past_value)
+    slice_scatter_1(self.bufk, past_key)
+    slice_scatter_2(self.bufv, past_value)
 
 def clear_past(self):
     self.seqlen = None
@@ -83,25 +87,25 @@ def kv_buffer_gpt_neo_selfattn_forward(
     value = self._split_heads(value, self.num_heads, self.head_dim, False)
 
     if self.seqlen is not None:
-        slice_scatter(self.bufk, key, offset=self.seqlen)
-        key = self.bufk[:, :, :self.seqlen+1, :]
+        slice_scatter_1(self.bufk, key, offset=self.seqlen)
+        key = self.bufk[:, :self.seqlen+1, :, :]
 
-        slice_scatter(self.bufv, value, offset=self.seqlen)
+        slice_scatter_2(self.bufv, value, offset=self.seqlen)
         value = self.bufv[:, :, :self.seqlen+1, :]
     elif layer_past is not None:
         past_key = layer_past[0]
         past_value = layer_past[1]
 
-        seqlen = past_key.shape[2]
+        seqlen = past_value.shape[2]
 
-        slice_scatter(self.bufk, key, offset=seqlen)
-        key = self.bufk[:, :, :seqlen+1, :]
+        slice_scatter_1(self.bufk, key, offset=seqlen)
+        key = self.bufk[:, :seqlen+1, :, :]
 
-        slice_scatter(self.bufv, value, offset=seqlen)
+        slice_scatter_2(self.bufv, value, offset=seqlen)
         value = self.bufv[:, :, :seqlen+1, :]
     elif use_cache:
-        slice_scatter(self.bufk, key)
-        slice_scatter(self.bufv, value)
+        slice_scatter_1(self.bufk, key)
+        slice_scatter_2(self.bufv, value)
 
     if use_cache is True:
         present = (key, value)
@@ -114,7 +118,7 @@ def kv_buffer_gpt_neo_selfattn_forward(
             offset_q = self.seqlen
         elif layer_past is not None:
             offset_q = layer_past[0].shape[-2]
-        offset_k = 0 if prerot else offset_q
+        offset_k = 0
         if self.rotary_dim < self.head_dim:
             k_rot = key[:, :, :, :self.rotary_dim]
             k_pass = key[:, :, :, self.rotary_dim:]

@@ -280,6 +280,8 @@ class GeneratorModelTorch:
 
             done = all(dones)
 
+        self.clear_past()
+
         continuations_ = [
             self.tokenizer.decode(o[n_orig_prompt_tokens:])
             for o in continuations_tokens

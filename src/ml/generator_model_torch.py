@@ -321,6 +321,8 @@ class GeneratorModelTorch:
             past_key_values=past
         )['logits'][0, -1, :]
 
+        self.clear_past()
+
         if to_numpy:
             logits = logits.cpu().numpy()
 

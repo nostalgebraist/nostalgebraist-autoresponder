@@ -204,6 +204,7 @@ if "sentiment" in MODELS_SERVED:
 
 if "autoreviewer" in MODELS_SERVED:
     autoreviewer_est = load_selector(ckpt_autoreviewer, base_model=generator_model.transformers_model, tokenizer=tokenizer)
+    autoreviewer_est.length = length_autoreview
 
 DEPRECATED_KWARGS = {"mirotarg"}
 

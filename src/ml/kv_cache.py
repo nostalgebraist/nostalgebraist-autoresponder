@@ -32,10 +32,7 @@ def slice_scatter(a, b, offset=0):
     ix = torch.arange(offset, offset+b.shape[2], device=a.device)[None, None, :, None].expand_as(b)
     a.scatter_(dim=2, src=b, index=ix)
 
-def set_past(
-    self,
-    layer_past,
-):
+def set_past(self, layer_past):
     past_key = layer_past[0]
     past_value = layer_past[1]
 
@@ -45,15 +42,10 @@ def set_past(
     slice_scatter(self.bufk, past_key)
     slice_scatter(self.bufv, past_value)
 
-def clear_past(
-    self,
-):
+def clear_past(self):
     self.seqlen = None
 
-def shift_past(
-    self,
-    offset,
-):
+def shift_past(self, offset):
     if self.seqlen is None:
         raise ValueError
 
@@ -130,9 +122,6 @@ def kv_buffer_gpt_neo_selfattn_forward(
         present = (key, value)
     else:
         present = None
-
-    print(query.shape)
-    print(key.shape)
 
     query_length, key_length = query.size(-2), key.size(-2)
     causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length]

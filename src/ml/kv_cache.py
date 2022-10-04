@@ -54,8 +54,8 @@ def set_past(self, layer_past):
     seqlen = past_value.shape[2]
     self.seqlen = seqlen
 
-    slice_scatter_1(self.bufk, past_key)
-    slice_scatter_2(self.bufv, past_value)
+    # slice_scatter_1(self.bufk, past_key)
+    # slice_scatter_2(self.bufv, past_value)
 
 def clear_past(self):
     self.seqlen = None

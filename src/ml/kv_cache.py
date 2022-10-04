@@ -75,10 +75,10 @@ def kv_buffer_gpt_neo_selfattn_forward(
         seq_len = key.shape[1]
         offset = 0
         if self.seqlen is not None:
-            seq_len += self.seqlen
+            offset = self.seqlen
         elif layer_past is not None:
             offset = layer_past[0].shape[-2]
-            seq_len += offset
+        seq_len += offset
         if self.rotary_dim < self.head_dim:
             k_rot = key[:, :, :, :self.rotary_dim]
             k_pass = key[:, :, :, self.rotary_dim:]

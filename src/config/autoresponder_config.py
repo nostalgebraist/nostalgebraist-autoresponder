@@ -605,14 +605,6 @@ else:
     first_step_chop_lowest = chop_lowest
     first_step_chop_highest = chop_highest
 
-max_ctx_fits_on_gpu = 2048 if V11 else 1024
-
-if SELECT_VIA_GENERATOR_LONGLENGTH:
-    length_select = max_ctx_fits_on_gpu
-
-if SENTIMENT_VIA_GENERATOR_LONGLENGTH:
-    length_sentiment = max_ctx_fits_on_gpu
-
 # TODO: collapse these w/ "regular" T, top_p, etc
 # (wow this file needs cleanup badly...)
 GPT_NEO_T = 1.0
@@ -626,8 +618,12 @@ AVOID_UNK_CAPTION = True
 BREAKRUNS_OFF_WITHIN_IMAGES = True
 
 if V12 and (GPU_TYPE == "small"):
-    max_feed_size_with_cache = 1700
+    max_feed_size_with_cache = 1600
     max_feed_size_no_cache = 1300
+
+length_select = max_feed_size_with_cache
+length_sentiment = max_feed_size_with_cache
+length_autoreview = max_feed_size_with_cache
 
 batch_size = 2 if GPU_TYPE == "bigger" else 1
 head_inference_batch_size = 8 if GPU_TYPE == "bigger" else 1

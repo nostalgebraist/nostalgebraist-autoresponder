@@ -10,17 +10,28 @@ def make_kv_cache_hook(bs, maxlen):
     def hook(model):
         print(f'kv cache hook called with bs={bs}, maxlen={maxlen}')
         for l in model.transformer:
-            shp = [bs, model.lm.config.num_heads, maxlen, model.lm.config.hidden_size // model.lm.config.num_heads]
+            shp_k = [
+                bs,
+                maxlen,
+                model.lm.config.num_heads,
+                model.lm.config.hidden_size // model.lm.config.num_heads
+            ]
+            shp_v = [
+                bs,
+                model.lm.config.num_heads,
+                maxlen,
+                model.lm.config.hidden_size // model.lm.config.num_heads
+            ]
             if hasattr(l.attn.attention, 'bufk'):
                 continue
             l.attn.attention.register_buffer(
                 f"bufk",
-                torch.zeros(shp, device=model.device, dtype=torch.float16),
+                torch.zeros(shp_k, device=model.device, dtype=torch.float16),
                 persistent=False
             )
             l.attn.attention.register_buffer(
                 f"bufv",
-                torch.zeros(shp, device=model.device, dtype=torch.float16),
+                torch.zeros(shp_v, device=model.device, dtype=torch.float16),
                 persistent=False
             )
             l.attn.attention.seqlen = None
@@ -71,32 +82,6 @@ def kv_buffer_gpt_neo_selfattn_forward(
     key = self._split_heads(key, self.num_heads, self.head_dim, self.rotary)
     value = self._split_heads(value, self.num_heads, self.head_dim, False)
 
-    if self.rotary:
-        seq_len = key.shape[1]
-        offset = 0
-        if self.seqlen is not None:
-            offset = self.seqlen
-        elif layer_past is not None:
-            offset = layer_past[0].shape[-2]
-        seq_len += offset
-        if self.rotary_dim < self.head_dim:
-            k_rot = key[:, :, :, :self.rotary_dim]
-            k_pass = key[:, :, :, self.rotary_dim:]
-
-            q_rot = query[:, :, :, :self.rotary_dim]
-            q_pass = query[:, :, :, self.rotary_dim:]
-
-            k_rot = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(k_rot, (self.sin, self.cos), offset=offset).to(k_rot.dtype)
-            q_rot = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(q_rot, (self.sin, self.cos), offset=offset).to(q_rot.dtype)
-
-            key = torch.cat([k_rot, k_pass], dim=-1)
-            query = torch.cat([q_rot, q_pass], dim=-1)
-        elif self.rotary:
-            key = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(key, (self.sin, self.cos), offset=offset).to(key.dtype)
-            query = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(query, (self.sin, self.cos), offset=offset).to(query.dtype)
-        key = key.permute(0, 2, 1, 3)
-        query = query.permute(0, 2, 1, 3)
-
     if self.seqlen is not None:
         slice_scatter(self.bufk, key, offset=self.seqlen)
         key = self.bufk[:, :, :self.seqlen+1, :]
@@ -122,6 +107,31 @@ def kv_buffer_gpt_neo_selfattn_forward(
         present = (key, value)
     else:
         present = None
+
+    if self.rotary:
+        offset_q = 0
+        if self.seqlen is not None:
+            offset_q = self.seqlen
+        elif layer_past is not None:
+            offset_q = layer_past[0].shape[-2]
+        offset_k = 0 if prerot else offset_q
+        if self.rotary_dim < self.head_dim:
+            k_rot = key[:, :, :, :self.rotary_dim]
+            k_pass = key[:, :, :, self.rotary_dim:]
+
+            q_rot = query[:, :, :, :self.rotary_dim]
+            q_pass = query[:, :, :, self.rotary_dim:]
+
+            k_rot = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(k_rot, (self.sin, self.cos), offset=offset_k).to(k_rot.dtype)
+            q_rot = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(q_rot, (self.sin, self.cos), offset=offset_q).to(q_rot.dtype)
+
+            key = torch.cat([k_rot, k_pass], dim=-1)
+            query = torch.cat([q_rot, q_pass], dim=-1)
+        elif self.rotary:
+            key = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(key, (self.sin, self.cos), offset=offset).to(key.dtype)
+            query = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(query, (self.sin, self.cos), offset=offset).to(query.dtype)
+        key = key.permute(0, 2, 1, 3)
+        query = query.permute(0, 2, 1, 3)
 
     query_length, key_length = query.size(-2), key.size(-2)
     causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length]

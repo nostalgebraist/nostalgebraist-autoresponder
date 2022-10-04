@@ -140,6 +140,15 @@ class GeneratorModelTorch:
         for block in self.transformers_model.transformer.h:
             block.attn.attention.shift_past(offset)
 
+    def collect_past(self):
+        past = []
+        for block in self.transformers_model.transformer.h:
+            pk = block.attn.attention.bufk[:, :, :block.attn.attention.seqlen, :]
+            pv = block.attn.attention.bufv[:, :, :block.attn.attention.seqlen, :]
+            layer_past = (pk, pv)
+            past.append(layer_past)
+        return tuple(past)
+
     @torch.no_grad()
     def compute_kv_cache(self, input_ids):
         input_ids = input_ids[:, -self.max_feed_size_with_cache:]
@@ -196,7 +205,7 @@ class GeneratorModelTorch:
         done = False
 
         input_ids = None
-        past_set = False
+        past = None
 
         while not done:
             if input_ids is None:
@@ -208,9 +217,8 @@ class GeneratorModelTorch:
 
             input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
-            if not past_set:
+            if past is None:
                 input_ids_th, past = self.compute_kv_cache(input_ids_th)
-                past_set = True
 
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(
@@ -259,9 +267,8 @@ class GeneratorModelTorch:
 
                 if not this_done:
                     # construct next prompt
-                    offset = len(continuations_tokens[i]) - self.max_context_size
-                    if offset > 0:
-                        self.shift_past(offset)
+                    self.shift_past(self.required_continuation_room)
+                    past = self.collect_past()
 
                     next_prompt_tokens = continuations_tokens[i][-self.max_context_size:]
                     print(f"next_prompt_tokens: {len(next_prompt_tokens)}")
@@ -293,6 +300,7 @@ class GeneratorModelTorch:
                 "miro_traces": miro_traces,
             },
         }
+
     def tok2str(t):
         if isinstance(t, int):
             return tokenizer.decode([t])

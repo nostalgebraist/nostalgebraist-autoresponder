@@ -129,25 +129,16 @@ class GeneratorModelTorch:
         return self.max_feed_size_with_cache - self.required_continuation_room
 
     def set_past(self, past_key_values):
-        for block, layer_past in zip(self.transformers_model.transformer.h, past_key_values):
-            block.attn.attention.set_past(layer_past)
+        self.transformers_model.set_past(past_key_values)
 
     def clear_past(self):
-        for block in self.transformers_model.transformer.h:
-            block.attn.attention.clear_past()
+        self.transformers_model.clear_past()
 
     def shift_past(self, offset):
-        for block in self.transformers_model.transformer.h:
-            block.attn.attention.shift_past(offset)
+        self.transformers_model.shift_past(offset)
 
     def collect_past(self):
-        past = []
-        for block in self.transformers_model.transformer.h:
-            pk = block.attn.attention.bufk[:, :, :block.attn.attention.seqlen, :]
-            pv = block.attn.attention.bufv[:, :, :block.attn.attention.seqlen, :]
-            layer_past = (pk, pv)
-            past.append(layer_past)
-        return tuple(past)
+        return self.transformers_model.collect_past()
 
     @torch.no_grad()
     def compute_kv_cache(self, input_ids):

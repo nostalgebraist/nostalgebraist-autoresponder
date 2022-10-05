@@ -69,6 +69,27 @@ def shift_past(self, offset):
     self.bufk = self.bufk.roll(-offset, 1)
     self.bufv = self.bufv.roll(-offset, 2)
 
+def model__set_past(self, past_key_values):
+    for block, layer_past in zip(self.transformer.h, past_key_values):
+        block.attn.attention.set_past(layer_past)
+
+def model__clear_past(self):
+    for block in self.transformer.h:
+        block.attn.attention.clear_past()
+
+def model__shift_past(self, offset):
+    for block in self.transformer.h:
+        block.attn.attention.shift_past(offset)
+
+def model__collect_past(self):
+    past = []
+    for block in self.transformer.h:
+        pk = block.attn.attention.bufk[:, :, :block.attn.attention.seqlen, :]
+        pv = block.attn.attention.bufv[:, :, :block.attn.attention.seqlen, :]
+        layer_past = (pk, pv)
+        past.append(layer_past)
+    return tuple(past)
+
 def kv_buffer_gpt_neo_selfattn_forward(
     self,
     hidden_states,
@@ -174,5 +195,10 @@ def setup_kv_buffer(
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.set_past = set_past
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.clear_past = clear_past
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.shift_past = shift_past
+
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.set_past = model__set_past
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.clear_past = model__clear_past
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.shift_past = model__shift_past
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.collect_past = model__collect_past
 
     model.detach_adapters()

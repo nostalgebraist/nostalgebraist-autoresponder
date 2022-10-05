@@ -230,4 +230,6 @@ def setup_kv_buffer(
 
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.using_kv_buffer = model__using_kv_buffer
 
+        model.use_kv_buffer()
+
     model.detach_adapters()

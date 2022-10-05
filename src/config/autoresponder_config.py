@@ -613,6 +613,7 @@ GPT_NEO_TOP_K = 0
 
 max_feed_size_with_cache = 2048 if V11 else 1024
 max_feed_size_no_cache = max_feed_size_with_cache
+USE_KV_BUFFER = False
 
 AVOID_UNK_CAPTION = True
 BREAKRUNS_OFF_WITHIN_IMAGES = True
@@ -620,6 +621,7 @@ BREAKRUNS_OFF_WITHIN_IMAGES = True
 if V12 and (GPU_TYPE == "small"):
     max_feed_size_with_cache = 1600
     max_feed_size_no_cache = 1300
+    USE_KV_BUFFER = True
 
 length_select = max_feed_size_with_cache
 length_sentiment = max_feed_size_with_cache

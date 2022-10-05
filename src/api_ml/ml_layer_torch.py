@@ -192,6 +192,7 @@ generator_model, magma_wrapper = load_generator_model(
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
     use_captioner="captioner" in MODELS_SERVED,
     captioner_path=os.path.abspath(ckpt_captioner),
+    use_kv_buffer=USE_KV_BUFFER,
 )
 
 if "selector" in MODELS_SERVED:

@@ -211,10 +211,6 @@ def setup_kv_buffer(
     model.add_adapters()
 
     if not hasattr(model.transformer[0].attn.module.attention, 'bufk'):
-        model.detach_adapters()
-        make_kv_cache_hook(batch_size, max_sequence_length)(model)
-        model.add_adapters()
-
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.forward = kv_buffer_gpt_neo_selfattn_forward
 
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.set_past = set_past
@@ -230,6 +226,9 @@ def setup_kv_buffer(
 
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.using_kv_buffer = model__using_kv_buffer
 
-        model.use_kv_buffer()
+        model.detach_adapters()
+        make_kv_cache_hook(batch_size, max_sequence_length)(model)
+        model.lm.use_kv_buffer()
+        model.add_adapters()
 
     model.detach_adapters()

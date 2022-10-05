@@ -140,6 +140,9 @@ class GeneratorModelTorch:
     def collect_past(self):
         return self.transformers_model.collect_past()
 
+    def use_kv_buffer(self, enabled=True):
+        self.transformers_model.use_kv_buffer(enabled=enabled)
+
     @torch.no_grad()
     def compute_kv_cache(self, input_ids):
         input_ids = input_ids[:, -self.max_feed_size_with_cache:]

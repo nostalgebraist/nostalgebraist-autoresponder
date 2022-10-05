@@ -128,22 +128,49 @@ class GeneratorModelTorch:
     def max_context_size(self):
         return self.max_feed_size_with_cache - self.required_continuation_room
 
+    def set_past(self, past_key_values):
+        self.transformers_model.set_past(past_key_values)
+
+    def clear_past(self):
+        self.transformers_model.clear_past()
+
+    def shift_past(self, offset):
+        self.transformers_model.shift_past(offset)
+
+    def collect_past(self):
+        return self.transformers_model.collect_past()
+
+    def use_kv_buffer(self, enabled=True):
+        self.transformers_model.use_kv_buffer(enabled=enabled)
+
+    @property
+    def using_kv_buffer(self):
+        return self.transformers_model.using_kv_buffer
+
     @torch.no_grad()
     def compute_kv_cache(self, input_ids):
         input_ids = input_ids[:, -self.max_feed_size_with_cache:]
 
         full_len = input_ids.shape[1]
-        if full_len <= self.max_feed_size_no_cache:
-            return input_ids, None
 
         print(f"Computing kv cache for length {full_len}")
 
         input_ids_no_cache = input_ids[:, :self.max_feed_size_no_cache]
 
-        presents = self.transformers_model(
-            input_ids=input_ids_no_cache,
-            use_cache=True,
-        ).past_key_values
+        self.clear_past()
+
+        if full_len <= self.max_feed_size_no_cache:
+            presents = self.transformers_model(
+                input_ids=input_ids_no_cache[:, :-1],
+                use_cache=True,
+            ).past_key_values
+            self.set_past(presents)
+        else:
+            presents = self.transformers_model(
+                input_ids=input_ids_no_cache,
+                use_cache=True,
+            ).past_key_values
+            self.set_past(presents)
 
         for ix in range(self.max_feed_size_no_cache, full_len-1):
             presents = self.transformers_model(
@@ -174,6 +201,7 @@ class GeneratorModelTorch:
         done = False
 
         input_ids = None
+        past = None
 
         while not done:
             if input_ids is None:
@@ -185,8 +213,8 @@ class GeneratorModelTorch:
 
             input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
-            # TODO: retrieve from `generate` somehow
-            input_ids_th, past = self.compute_kv_cache(input_ids_th)
+            if self.using_kv_buffer and past is None:
+                input_ids_th, past = self.compute_kv_cache(input_ids_th)
 
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(
@@ -235,6 +263,10 @@ class GeneratorModelTorch:
 
                 if not this_done:
                     # construct next prompt
+                    if self.using_kv_buffer:
+                        self.shift_past(self.required_continuation_room)
+                        past = self.collect_past()
+
                     next_prompt_tokens = continuations_tokens[i][-self.max_context_size:]
                     print(f"next_prompt_tokens: {len(next_prompt_tokens)}")
                     input_ids.append(next_prompt_tokens)
@@ -244,6 +276,9 @@ class GeneratorModelTorch:
             hardcore_collect_and_show()
 
             done = all(dones)
+
+        if self.using_kv_buffer:
+            self.clear_past()
 
         continuations_ = [
             self.tokenizer.decode(o[n_orig_prompt_tokens:])
@@ -265,6 +300,7 @@ class GeneratorModelTorch:
                 "miro_traces": miro_traces,
             },
         }
+
     def tok2str(t):
         if isinstance(t, int):
             return tokenizer.decode([t])
@@ -276,12 +312,18 @@ class GeneratorModelTorch:
         input_ids = [input_ids[0][-self.max_context_size:]]
         input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
-        input_ids_th, past = self.compute_kv_cache(input_ids_th)
+        past = None
+        if self.using_kv_buffer:
+            input_ids_th, past = self.compute_kv_cache(input_ids_th)
+            input_ids_th = input_ids_th[:, -1:]
 
         logits = self.transformers_model(
-            input_ids_th[:, -1:],
+            input_ids_th,
             past_key_values=past
         )['logits'][0, -1, :]
+
+        if self.using_kv_buffer:
+            self.clear_past()
 
         if to_numpy:
             logits = logits.cpu().numpy()

@@ -10,27 +10,95 @@ def make_kv_cache_hook(bs, maxlen):
     def hook(model):
         print(f'kv cache hook called with bs={bs}, maxlen={maxlen}')
         for l in model.transformer:
-            shp = [bs, model.lm.config.num_heads, maxlen, model.lm.config.hidden_size // model.lm.config.num_heads]
+            shp_k = [
+                bs,
+                maxlen,
+                model.lm.config.num_heads,
+                model.lm.config.hidden_size // model.lm.config.num_heads
+            ]
+            shp_v = [
+                bs,
+                model.lm.config.num_heads,
+                maxlen,
+                model.lm.config.hidden_size // model.lm.config.num_heads
+            ]
             if hasattr(l.attn.attention, 'bufk'):
                 continue
             l.attn.attention.register_buffer(
                 f"bufk",
-                torch.zeros(shp, device=model.device, dtype=torch.float16),
+                torch.zeros(shp_k, device=model.device, dtype=torch.float16),
                 persistent=False
             )
             l.attn.attention.register_buffer(
                 f"bufv",
-                torch.zeros(shp, device=model.device, dtype=torch.float16),
+                torch.zeros(shp_v, device=model.device, dtype=torch.float16),
                 persistent=False
             )
+            l.attn.attention.seqlen = None
         return model
     return hook
 
 
-def slice_scatter(a, b, offset=0):
+def slice_scatter_1(a, b, offset=0):
+    ix = torch.arange(offset, offset+b.shape[1], device=a.device)[None, :, None, None].expand_as(b)
+    a.scatter_(dim=1, src=b, index=ix)
+
+def slice_scatter_2(a, b, offset=0):
     ix = torch.arange(offset, offset+b.shape[2], device=a.device)[None, None, :, None].expand_as(b)
     a.scatter_(dim=2, src=b, index=ix)
 
+def set_past(self, layer_past):
+    past_key = layer_past[0]
+    past_value = layer_past[1]
+
+    seqlen = past_value.shape[2]
+    self.seqlen = seqlen
+
+    slice_scatter_1(self.bufk, past_key)
+    slice_scatter_2(self.bufv, past_value)
+
+def clear_past(self):
+    self.seqlen = None
+
+def shift_past(self, offset):
+    if self.seqlen is None:
+        raise ValueError
+
+    self.seqlen -= offset
+
+    self.bufk = self.bufk.roll(-offset, 1)
+    self.bufv = self.bufv.roll(-offset, 2)
+
+def model__set_past(self, past_key_values):
+    for block, layer_past in zip(self.transformer.h, past_key_values):
+        block.attn.attention.set_past(layer_past)
+
+def model__clear_past(self):
+    for block in self.transformer.h:
+        block.attn.attention.clear_past()
+
+def model__shift_past(self, offset):
+    for block in self.transformer.h:
+        block.attn.attention.shift_past(offset)
+
+def model__collect_past(self):
+    past = []
+    for block in self.transformer.h:
+        pk = block.attn.attention.bufk[:, :, :block.attn.attention.seqlen, :]
+        pv = block.attn.attention.bufv[:, :, :block.attn.attention.seqlen, :]
+        layer_past = (pk, pv)
+        past.append(layer_past)
+    return tuple(past)
+
+def model__use_kv_buffer(self, enabled=True):
+    for block in self.transformer.h:
+        block.attn.attention.use_kv_buffer = enabled
+        if not enabled:
+            block.attn.attention.seqlen = None
+
+@property
+def model__using_kv_buffer(self):
+    return getattr(self.transformer.h[0].attn.attention, 'use_kv_buffer', False)
 
 def kv_buffer_gpt_neo_selfattn_forward(
     self,
@@ -41,6 +109,8 @@ def kv_buffer_gpt_neo_selfattn_forward(
     use_cache=False,
     output_attentions=False,
 ):
+    use_kv_buffer = getattr(self, 'use_kv_buffer', False)
+
     query = self.q_proj(hidden_states)
     key = self.k_proj(hidden_states)
     value = self.v_proj(hidden_states)
@@ -49,12 +119,40 @@ def kv_buffer_gpt_neo_selfattn_forward(
     key = self._split_heads(key, self.num_heads, self.head_dim, self.rotary)
     value = self._split_heads(value, self.num_heads, self.head_dim, False)
 
+    if use_kv_buffer:
+        if self.seqlen is not None:
+            slice_scatter_1(self.bufk, key, offset=self.seqlen)
+            key = self.bufk[:, :self.seqlen+1, :, :]
+
+            slice_scatter_2(self.bufv, value, offset=self.seqlen)
+            value = self.bufv[:, :, :self.seqlen+1, :]
+        elif layer_past is not None:
+            past_key = layer_past[0]
+            past_value = layer_past[1]
+
+            seqlen = past_value.shape[2]
+
+            slice_scatter_1(self.bufk, key, offset=seqlen)
+            key = self.bufk[:, :seqlen+1, :, :]
+
+            slice_scatter_2(self.bufv, value, offset=seqlen)
+            value = self.bufv[:, :, :seqlen+1, :]
+        elif use_cache:
+            slice_scatter_1(self.bufk, key)
+            slice_scatter_2(self.bufv, value)
+
+        if use_cache is True:
+            present = (key, value)
+        else:
+            present = None
+
     if self.rotary:
-        seq_len = key.shape[1]
-        offset = 0
-        if layer_past is not None:
-            offset = layer_past[0].shape[-2]
-            seq_len += offset
+        offset_q = 0
+        if self.seqlen is not None:
+            offset_q = self.seqlen
+        elif layer_past is not None:
+            offset_q = layer_past[0].shape[-2]
+        offset_k = 0 if use_kv_buffer else offset_q
         if self.rotary_dim < self.head_dim:
             k_rot = key[:, :, :, :self.rotary_dim]
             k_pass = key[:, :, :, self.rotary_dim:]
@@ -62,8 +160,8 @@ def kv_buffer_gpt_neo_selfattn_forward(
             q_rot = query[:, :, :, :self.rotary_dim]
             q_pass = query[:, :, :, self.rotary_dim:]
 
-            k_rot = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(k_rot, (self.sin, self.cos), offset=offset).to(k_rot.dtype)
-            q_rot = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(q_rot, (self.sin, self.cos), offset=offset).to(q_rot.dtype)
+            k_rot = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(k_rot, (self.sin, self.cos), offset=offset_k).to(k_rot.dtype)
+            q_rot = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(q_rot, (self.sin, self.cos), offset=offset_q).to(q_rot.dtype)
 
             key = torch.cat([k_rot, k_pass], dim=-1)
             query = torch.cat([q_rot, q_pass], dim=-1)
@@ -73,25 +171,17 @@ def kv_buffer_gpt_neo_selfattn_forward(
         key = key.permute(0, 2, 1, 3)
         query = query.permute(0, 2, 1, 3)
 
-    if layer_past is not None:
-        past_key = layer_past[0]
-        past_value = layer_past[1]
+    if not use_kv_buffer:
+        if layer_past is not None:
+            past_key = layer_past[0]
+            past_value = layer_past[1]
+            key = torch.cat((past_key, key), dim=-2).to(key.dtype)
+            value = torch.cat((past_value, value), dim=-2).to(value.dtype)
 
-        seqlen = past_key.shape[2]
-
-        slice_scatter(self.bufk, key, offset=seqlen)
-        key = self.bufk[:, :, :seqlen+1, :]
-
-        slice_scatter(self.bufv, value, offset=seqlen)
-        value = self.bufv[:, :, :seqlen+1, :]
-    elif use_cache:
-        slice_scatter(self.bufk, key)
-        slice_scatter(self.bufv, value)
-
-    if use_cache is True:
-        present = (key, value)
-    else:
-        present = None
+        if use_cache is True:
+            present = (key, value)
+        else:
+            present = None
 
     query_length, key_length = query.size(-2), key.size(-2)
     causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length]
@@ -108,6 +198,9 @@ def kv_buffer_gpt_neo_selfattn_forward(
     if output_attentions:
         outputs += (attn_weights,)
 
+    if self.seqlen is not None:
+        self.seqlen += 1
+
     return outputs
 
 def setup_kv_buffer(
@@ -123,5 +216,18 @@ def setup_kv_buffer(
         model.add_adapters()
 
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.forward = kv_buffer_gpt_neo_selfattn_forward
+
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.set_past = set_past
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.clear_past = clear_past
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.shift_past = shift_past
+
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.set_past = model__set_past
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.clear_past = model__clear_past
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.shift_past = model__shift_past
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.collect_past = model__collect_past
+
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.use_kv_buffer = model__use_kv_buffer
+
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.using_kv_buffer = model__using_kv_buffer
 
     model.detach_adapters()

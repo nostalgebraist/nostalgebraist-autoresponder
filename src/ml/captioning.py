@@ -39,6 +39,9 @@ def caption_image(
     longest_of=1,
     adapters_device='cpu',
 ):
+    orig_using_kv_buffer = magma_wrapper.lm.using_kv_buffer
+    magma_wrapper.lm.use_kv_buffer(False)
+
     for k in magma_wrapper.adapter_map:
         magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].cuda()
 
@@ -77,5 +80,7 @@ def caption_image(
 
     for k in magma_wrapper.adapter_map:
         magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].to(device=adapters_device)
+
+    magma_wrapper.lm.use_kv_buffer(orig_using_kv_buffer)
 
     return caption

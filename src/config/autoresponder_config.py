@@ -619,7 +619,7 @@ AVOID_UNK_CAPTION = True
 BREAKRUNS_OFF_WITHIN_IMAGES = True
 
 if V12 and (GPU_TYPE == "small"):
-    max_feed_size_with_cache = 1600
+    max_feed_size_with_cache = 1500
     max_feed_size_no_cache = 1300
     USE_KV_BUFFER = True
 

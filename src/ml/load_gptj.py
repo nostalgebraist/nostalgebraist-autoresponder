@@ -45,6 +45,9 @@ class SplitCheckpoint(MutableMapping):
     def keys(self):
         return self.checkpoint.keys()
 
+    def __contains__(self, key):
+        return key in self.checkpoint
+
     def __iter__(self):
         for key in self.checkpoint:
             yield (key, self.__getitem__(key))

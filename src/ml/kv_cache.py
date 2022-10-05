@@ -96,6 +96,10 @@ def model__use_kv_buffer(self, enabled=True):
         if not enabled:
             block.attn.attention.seqlen = None
 
+@property
+def model__using_kv_buffer(self):
+    return getattr(self.transformer.h[0].attn.attention, 'use_kv_buffer', False)
+
 def kv_buffer_gpt_neo_selfattn_forward(
     self,
     hidden_states,
@@ -223,5 +227,8 @@ def setup_kv_buffer(
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.collect_past = model__collect_past
 
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.use_kv_buffer = model__use_kv_buffer
+
+        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.using_kv_buffer =
+        model__using_kv_buffer
 
     model.detach_adapters()

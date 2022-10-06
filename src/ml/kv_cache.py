@@ -203,6 +203,7 @@ def kv_buffer_gpt_neo_selfattn_forward(
 
     return outputs
 
+
 def setup_kv_buffer(
     model,  # magma wrapper -- TODO: work with ordinary HF model
     batch_size,
@@ -213,22 +214,22 @@ def setup_kv_buffer(
     if not hasattr(model.transformer[0].attn.module.attention, 'bufk'):
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.forward = kv_buffer_gpt_neo_selfattn_forward
 
-        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.set_past = set_past
-        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.clear_past = clear_past
-        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.shift_past = shift_past
-
-        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.set_past = model__set_past
-        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.clear_past = model__clear_past
-        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.shift_past = model__shift_past
-        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.collect_past = model__collect_past
-
-        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.use_kv_buffer = model__use_kv_buffer
-
-        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.using_kv_buffer = model__using_kv_buffer
-
         model.detach_adapters()
         make_kv_cache_hook(batch_size, max_sequence_length)(model)
         model.lm.use_kv_buffer()
         model.add_adapters()
 
     model.detach_adapters()
+
+transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.set_past = set_past
+transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.clear_past = clear_past
+transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.shift_past = shift_past
+
+transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.set_past = model__set_past
+transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.clear_past = model__clear_past
+transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.shift_past = model__shift_past
+transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.collect_past = model__collect_past
+
+transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.use_kv_buffer = model__use_kv_buffer
+
+transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.using_kv_buffer = model__using_kv_buffer

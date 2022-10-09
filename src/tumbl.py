@@ -1455,7 +1455,7 @@ def is_statically_reblog_worthy_on_dash(
             scrape_worthy = False
 
     if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):
-        if get_images_from_no_scrape_users:
+        if get_images_from_no_scrape_users and scrape_worthy:
             image_scrape_only = True
         else:
             scrape_worthy = False
@@ -2246,7 +2246,8 @@ def do_reblog_reply_handling(
                 response_cache,
                 verbose=VERBOSE_LOGS,
                 is_nost_dash_scraper=is_nost_dash_scraper,
-                slow_scraping_ok=slow_scraping_ok
+                slow_scraping_ok=slow_scraping_ok,
+                get_images_from_no_scrape_users=False,
             ):
                 statically_worthy_posts.append(post)
         print(f"{len(statically_worthy_posts)}/{len(posts)} statically reblog worthy")

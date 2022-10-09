@@ -309,7 +309,7 @@ class GeneratorModelTorch:
     @torch.no_grad()
     def get_next_logits(self, text: str, to_numpy=True):
         input_ids = self.tokenizer([text])["input_ids"]
-        input_ids = [input_ids[0][-self.max_context_size:]]
+        input_ids = [input_ids[0][-self.max_context_size:]] * self.batch_size
         input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
         past = None

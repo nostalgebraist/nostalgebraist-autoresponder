@@ -16,8 +16,8 @@ def make_kv_cache_hook(bs, maxlen):
         for l in model.transformer.h:
             shp_k = [
                 bs,
-                maxlen,
                 model.config.num_heads,
+                maxlen,
                 model.config.hidden_size // model.config.num_heads
             ]
             shp_v = [
@@ -67,7 +67,7 @@ def set_past(self, layer_past):
     seqlen = past_value.shape[2]
     self.seqlen = seqlen
 
-    slice_scatter_1(self.bufk, past_key)
+    slice_scatter_2(self.bufk, past_key)
     slice_scatter_2(self.bufv, past_value)
 
 def clear_past(self):
@@ -81,9 +81,9 @@ def shift_past(self, offset):
 
     self.bufv = self.bufv.roll(-offset, 2)
 
-    key = self.bufk[:, -self.seqlen:, :, :]
+    key = self.bufk[:, :, -self.seqlen:, :]
     key = shift_rotary_pos_emb(key, (self.sin, self.cos), offset=offset)
-    slice_scatter_1(self.bufk, key)
+    slice_scatter_2(self.bufk, key)
 
 def model__set_past(self, past_key_values):
     for block, layer_past in zip(self.transformer.h, past_key_values):
@@ -141,7 +141,7 @@ def kv_buffer_gpt_neo_selfattn_forward(
             offset_q = self.seqlen
         elif layer_past is not None:
             offset_q = layer_past[0].shape[-2]
-        offset_k = 0 if use_kv_buffer else offset_q
+        offset_k = offset_q
         if self.rotary_dim < self.head_dim:
             k_rot = key[:, :, :, :self.rotary_dim]
             k_pass = key[:, :, :, self.rotary_dim:]
@@ -162,8 +162,8 @@ def kv_buffer_gpt_neo_selfattn_forward(
 
     if use_kv_buffer:
         if self.seqlen is not None:
-            slice_scatter_1(self.bufk, key, offset=self.seqlen)
-            key = self.bufk[:, :self.seqlen+1, :, :]
+            slice_scatter_2(self.bufk, key, offset=self.seqlen)
+            key = self.bufk[:, :, :self.seqlen+1, :]
 
             slice_scatter_2(self.bufv, value, offset=self.seqlen)
             value = self.bufv[:, :, :self.seqlen+1, :]
@@ -173,13 +173,13 @@ def kv_buffer_gpt_neo_selfattn_forward(
 
             seqlen = past_value.shape[2]
 
-            slice_scatter_1(self.bufk, key, offset=seqlen)
-            key = self.bufk[:, :seqlen+1, :, :]
+            slice_scatter_2(self.bufk, key, offset=seqlen)
+            key = self.bufk[:, :, :seqlen+1, :]
 
             slice_scatter_2(self.bufv, value, offset=seqlen)
             value = self.bufv[:, :, :seqlen+1, :]
         elif use_cache:
-            slice_scatter_1(self.bufk, key)
+            slice_scatter_2(self.bufk, key)
             slice_scatter_2(self.bufv, value)
     else:
         if layer_past is not None:

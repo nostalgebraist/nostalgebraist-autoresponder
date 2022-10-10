@@ -293,12 +293,14 @@ class GeneratorModelTorch:
         if self.using_kv_buffer:
             self.clear_past()
 
-        continuations_tokens_ = [
+        continuations_tokens = [
             toks[n_orig_prompt_tokens:]
             for toks in continuations_tokens
         ]
 
-        for toks in continuations_tokens_:
+        continuations_tokens_ = []
+
+        for toks in continuations_tokens:
             subs = None
             for i, t in enumerate(toks):
                 if t == self.tokenizer.eos_token_id:

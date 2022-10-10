@@ -269,7 +269,7 @@ class GeneratorModelTorch:
                     if len(next_prompt_tokens) < self.max_context_size:
                         # ended early + kv buffer
                         next_prompt_tokens.extend(pads)
-                        print(f"next_prompt_tokens: {len(next_prompt_tokens)}" with pads)
+                        print(f"next_prompt_tokens: {len(next_prompt_tokens)} with pads")
                     input_ids.append(next_prompt_tokens)
 
             del out

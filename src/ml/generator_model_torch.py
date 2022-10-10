@@ -241,6 +241,7 @@ class GeneratorModelTorch:
                 # record the tokens
                 extras = o[prompt_end_ix:].cpu().numpy()
                 nonpads = [t for t in extras if t != self.tokenizer.pad_token_id]
+                pads = [t for t in extras if t != self.tokenizer.pad_token_id]
                 continuations_tokens[i].extend(nonpads)
 
                 # is this one done?
@@ -265,6 +266,10 @@ class GeneratorModelTorch:
                     # construct next prompt
                     next_prompt_tokens = continuations_tokens[i][-self.max_context_size:]
                     print(f"next_prompt_tokens: {len(next_prompt_tokens)}")
+                    if len(next_prompt_tokens) < self.max_context_size:
+                        # ended early + kv buffer
+                        next_prompt_tokens.extend(pads)
+                        print(f"next_prompt_tokens: {len(next_prompt_tokens)}" with pads)
                     input_ids.append(next_prompt_tokens)
 
             del out
@@ -279,6 +284,13 @@ class GeneratorModelTorch:
 
         if self.using_kv_buffer:
             self.clear_past()
+
+        continuations_tokens = [
+            [
+                t for t in toks if t != self.tokenizer.pad_token_id
+            ]
+            for toks in continuations_tokens
+        ]
 
         continuations_ = [
             self.tokenizer.decode(o[n_orig_prompt_tokens:])

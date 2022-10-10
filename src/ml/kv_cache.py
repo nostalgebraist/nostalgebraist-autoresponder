@@ -2,6 +2,9 @@
 Pre-allocates a fixed buffer for the key/value cache used in autoregressive sampling, to avoid growth/fragmentation in CUDA memory from repeatedly `torch.cat`-ing CUDA tensors with local scope.
 
 Monkey-patches HF transformers code.
+
+NOTE: the approach on this branch (`rotary-shift-10-10-22`) didn't work,
+possibly because of fp16 roundoff error. :(
 """
 from typing import Union
 from contextlib import contextmanager

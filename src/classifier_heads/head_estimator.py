@@ -613,7 +613,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         input_ids, attention_mask, input_ids_with_pads, _ = self._feed_from_batch(batch)
 
         # TODO: figure out whether we need logits in float32 explicitly
-        with kv_buffer_scope(self.model_, False):
+        with kv_buffer_scope(self.base_model, False):
             with torch.cuda.amp.autocast(enabled=self.use_amp_training):
                 logits_raw = self.model_(
                     input_ids=input_ids,

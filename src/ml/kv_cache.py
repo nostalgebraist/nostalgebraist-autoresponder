@@ -3,13 +3,17 @@ Pre-allocates a fixed buffer for the key/value cache used in autoregressive samp
 
 Monkey-patches HF transformers code.
 """
+from typing import Union
+from contextlib import contextmanager
+
 import torch
 import transformers.models.gpt_neo.modeling_gpt_neo
+import magma
 
 def make_kv_cache_hook(bs, maxlen):
     def hook(model):
         print(f'kv cache hook called with bs={bs}, maxlen={maxlen}')
-        for l in model.transformer:
+        for l in model.transformer.h:
             shp_k = [
                 bs,
                 maxlen,
@@ -205,21 +209,29 @@ def kv_buffer_gpt_neo_selfattn_forward(
 
 
 def setup_kv_buffer(
-    model,  # magma wrapper -- TODO: work with ordinary HF model
+    model: Union[transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM, magma.Magma],
     batch_size,
     max_sequence_length,
 ):
-    model.add_adapters()
+    is_magma_wrapper = isinstance(model, magma.Magma)
+    lm = model.lm if is_magma_wrapper else model
 
-    if not hasattr(model.transformer[0].attn.module.attention, 'bufk'):
+    orig_adapters_attached = False
+
+    if is_magma_wrapper:
+        orig_adapters_attached = len(model.adapter_map) == 0
+
+    if orig_adapters_attached:
+        model.detach_adapters()
+
+    if not hasattr(lm.transformer[0].attn.attention, 'bufk'):
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.forward = kv_buffer_gpt_neo_selfattn_forward
 
-        model.detach_adapters()
-        make_kv_cache_hook(batch_size, max_sequence_length)(model)
-        model.lm.use_kv_buffer()
-        model.add_adapters()
+        make_kv_cache_hook(batch_size, max_sequence_length)(lm)
+        lm.use_kv_buffer()
 
-    model.detach_adapters()
+    if orig_adapters_attached:
+        model.add_adapters()
 
 transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.set_past = set_past
 transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.clear_past = clear_past
@@ -233,3 +245,36 @@ transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.collect_past = mo
 transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.use_kv_buffer = model__use_kv_buffer
 
 transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.using_kv_buffer = model__using_kv_buffer
+
+@contextmanager
+def kv_buffer_scope(
+    model: Union[transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM, magma.Magma],
+    enabled: bool,
+):
+    is_magma_wrapper = isinstance(model, magma.Magma)
+    lm = model.lm if is_magma_wrapper else model
+
+    orig_adapters_attached = False
+
+    if is_magma_wrapper:
+        orig_adapters_attached = len(model.adapter_map) == 0
+
+    if orig_adapters_attached:
+        model.detach_adapters()
+
+    orig_enabled = lm.using_kv_buffer
+    lm.use_kv_buffer(enabled)
+
+    if orig_adapters_attached:
+        model.add_adapters()
+
+    try:
+        yield None
+    finally:
+        if orig_adapters_attached:
+            model.detach_adapters()
+
+        lm.use_kv_buffer(orig_enabled)
+
+        if orig_adapters_attached:
+            model.add_adapters()

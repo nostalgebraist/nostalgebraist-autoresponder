@@ -17,14 +17,14 @@ def make_kv_cache_hook(bs, maxlen):
             shp_k = [
                 bs,
                 maxlen,
-                model.lm.config.num_heads,
-                model.lm.config.hidden_size // model.lm.config.num_heads
+                model.config.num_heads,
+                model.config.hidden_size // model.config.num_heads
             ]
             shp_v = [
                 bs,
-                model.lm.config.num_heads,
+                model.config.num_heads,
                 maxlen,
-                model.lm.config.hidden_size // model.lm.config.num_heads
+                model.config.hidden_size // model.config.num_heads
             ]
             if hasattr(l.attn.attention, 'bufk'):
                 continue
@@ -224,7 +224,7 @@ def setup_kv_buffer(
     if orig_adapters_attached:
         model.detach_adapters()
 
-    if not hasattr(lm.transformer[0].attn.attention, 'bufk'):
+    if not hasattr(lm.transformer.h[0].attn.attention, 'bufk'):
         transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.forward = kv_buffer_gpt_neo_selfattn_forward
 
         make_kv_cache_hook(batch_size, max_sequence_length)(lm)

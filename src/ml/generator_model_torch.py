@@ -202,6 +202,7 @@ class GeneratorModelTorch:
 
         input_ids = None
         past = None
+        already_done = [False for _ in batch_pr_tokens]
 
         while not done:
             if input_ids is None:
@@ -248,8 +249,8 @@ class GeneratorModelTorch:
                 more_needed = final_token != self.tokenizer.eos_token_id
 
                 # was it already done?
-                already_done = self.tokenizer.pad_token_id in o[:prompt_end_ix]
-                more_needed = more_needed and not already_done
+                already_done[i] = already_done[i] or self.tokenizer.pad_token_id in o[:prompt_end_ix]
+                more_needed = more_needed and not already_done[i]
 
                 n_continuations_tokens = (
                     len(continuations_tokens[i]) - n_orig_prompt_tokens
@@ -260,7 +261,7 @@ class GeneratorModelTorch:
                 dones.append(this_done)
 
                 print(f"this_done: {this_done}")
-                print(f"\tmore_needed={more_needed} <-- final_token={final_token}, already_done={already_done}")
+                print(f"\tmore_needed={more_needed} <-- final_token={final_token}, already_done={already_done[i]}")
                 print(
                     f"\tmore_permitted={more_permitted} <-- n_continuations_tokens={n_continuations_tokens}, len(continuations_tokens[i])={len(continuations_tokens[i])}, n_orig_prompt_tokens={n_orig_prompt_tokens}"
                 )
@@ -276,6 +277,8 @@ class GeneratorModelTorch:
                         next_prompt_tokens = next_prompt_tokens[-self.max_context_size:]
                         print(f"next_prompt_tokens: {len(next_prompt_tokens)} with pads")
                     input_ids.append(next_prompt_tokens)
+                else:
+                    already_done.pop(i)
 
             del out
             del input_ids_th

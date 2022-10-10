@@ -241,7 +241,7 @@ class GeneratorModelTorch:
                 # record the tokens
                 extras = o[prompt_end_ix:].cpu().numpy()
                 nonpads = [t for t in extras if t != self.tokenizer.pad_token_id]
-                pads = [t for t in extras if t != self.tokenizer.pad_token_id]
+                pads = [t for t in extras if t == self.tokenizer.pad_token_id]
                 continuations_tokens[i].extend(nonpads)
 
                 # is this one done?

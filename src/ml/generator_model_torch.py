@@ -293,16 +293,26 @@ class GeneratorModelTorch:
         if self.using_kv_buffer:
             self.clear_past()
 
-        continuations_tokens = [
-            [
-                t for t in toks if t != self.tokenizer.pad_token_id
-            ]
+        continuations_tokens_ = [
+            toks[n_orig_prompt_tokens:]
             for toks in continuations_tokens
         ]
 
+        for toks in continuations_tokens_:
+            subs = None
+            for i, t in enumerate(toks):
+                if t == self.tokenizer.eos_token_id:
+                    subs = toks[:i+1]
+                    break
+            if subs is None:
+                subs = toks
+            continuations_tokens_.append(subs)
+
+        continuations_tokens = continuations_tokens_
+
         continuations_ = [
-            self.tokenizer.decode(o[n_orig_prompt_tokens:])
-            for o in continuations_tokens
+            self.tokenizer.decode(toks)
+            for toks in continuations_tokens
         ]
         mirotarg = None  # for back compat
         miro_traces = {

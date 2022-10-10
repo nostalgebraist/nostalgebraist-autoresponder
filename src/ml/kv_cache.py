@@ -82,7 +82,17 @@ def shift_past(self, offset):
     self.bufv = self.bufv.roll(-offset, 2)
 
     key = self.bufk[:, :, -self.seqlen:, :]
-    key = shift_rotary_pos_emb(key, (self.sin, self.cos), offset=offset)
+
+    key = key.permute(0, 2, 1, 3)
+
+    k_rot = key[:, :, :, :self.rotary_dim]
+    k_pass = key[:, :, :, self.rotary_dim:]
+
+    k_rot = shift_rotary_pos_emb(k_rot, (self.sin, self.cos), offset=offset)
+
+    key = torch.cat([k_rot, k_pass], dim=-1)
+    key = key.permute(0, 2, 1, 3)
+
     slice_scatter_2(self.bufk, key)
 
 def model__set_past(self, past_key_values):

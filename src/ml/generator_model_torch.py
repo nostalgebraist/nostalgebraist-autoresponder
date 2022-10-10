@@ -261,12 +261,8 @@ class GeneratorModelTorch:
                     f"\tmore_permitted={more_permitted} <-- n_continuations_tokens={n_continuations_tokens}, len(continuations_tokens[i])={len(continuations_tokens[i])}, n_orig_prompt_tokens={n_orig_prompt_tokens}"
                 )
 
-                if not this_done:
+                if (not this_done) or self.using_kv_buffer:
                     # construct next prompt
-                    if self.using_kv_buffer:
-                        self.shift_past(self.required_continuation_room)
-                        past = self.collect_past()
-
                     next_prompt_tokens = continuations_tokens[i][-self.max_context_size:]
                     print(f"next_prompt_tokens: {len(next_prompt_tokens)}")
                     input_ids.append(next_prompt_tokens)
@@ -276,6 +272,10 @@ class GeneratorModelTorch:
             hardcore_collect_and_show()
 
             done = all(dones)
+
+            if self.using_kv_buffer and not done:
+                self.shift_past(self.required_continuation_room)
+                past = self.collect_past()
 
         if self.using_kv_buffer:
             self.clear_past()

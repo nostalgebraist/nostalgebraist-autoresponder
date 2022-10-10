@@ -51,6 +51,15 @@ def slice_scatter_2(a, b, offset=0):
     ix = torch.arange(offset, offset+b.shape[2], device=a.device)[None, None, :, None].expand_as(b)
     a.scatter_(dim=2, src=b, index=ix)
 
+def shift_rotary_pos_emb(x, sincos, offset=0):
+    """shifts absolute position backwards by offset"""
+    sin, cos = map(lambda t: torch.tile(t[offset:offset+1,:], (x.shape[1], 1)), sincos)
+    return transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(
+        x,
+        (-sin, cos),
+        offset=0
+    ).to(x.dtype)
+
 def set_past(self, layer_past):
     past_key = layer_past[0]
     past_value = layer_past[1]
@@ -70,8 +79,11 @@ def shift_past(self, offset):
 
     self.seqlen -= offset
 
-    self.bufk = self.bufk.roll(-offset, 1)
     self.bufv = self.bufv.roll(-offset, 2)
+
+    key = self.bufk[:, -self.seqlen:, :, :]
+    key = shift_rotary_pos_emb(key, (self.sin, self.cos), offset=offset)
+    slice_scatter_1(self.bufk, key)
 
 def model__set_past(self, past_key_values):
     for block, layer_past in zip(self.transformer.h, past_key_values):
@@ -123,33 +135,6 @@ def kv_buffer_gpt_neo_selfattn_forward(
     key = self._split_heads(key, self.num_heads, self.head_dim, self.rotary)
     value = self._split_heads(value, self.num_heads, self.head_dim, False)
 
-    if use_kv_buffer:
-        if self.seqlen is not None:
-            slice_scatter_1(self.bufk, key, offset=self.seqlen)
-            key = self.bufk[:, :self.seqlen+1, :, :]
-
-            slice_scatter_2(self.bufv, value, offset=self.seqlen)
-            value = self.bufv[:, :, :self.seqlen+1, :]
-        elif layer_past is not None:
-            past_key = layer_past[0]
-            past_value = layer_past[1]
-
-            seqlen = past_value.shape[2]
-
-            slice_scatter_1(self.bufk, key, offset=seqlen)
-            key = self.bufk[:, :seqlen+1, :, :]
-
-            slice_scatter_2(self.bufv, value, offset=seqlen)
-            value = self.bufv[:, :, :seqlen+1, :]
-        elif use_cache:
-            slice_scatter_1(self.bufk, key)
-            slice_scatter_2(self.bufv, value)
-
-        if use_cache is True:
-            present = (key, value)
-        else:
-            present = None
-
     if self.rotary:
         offset_q = 0
         if self.seqlen is not None:
@@ -175,17 +160,38 @@ def kv_buffer_gpt_neo_selfattn_forward(
         key = key.permute(0, 2, 1, 3)
         query = query.permute(0, 2, 1, 3)
 
-    if not use_kv_buffer:
+    if use_kv_buffer:
+        if self.seqlen is not None:
+            slice_scatter_1(self.bufk, key, offset=self.seqlen)
+            key = self.bufk[:, :self.seqlen+1, :, :]
+
+            slice_scatter_2(self.bufv, value, offset=self.seqlen)
+            value = self.bufv[:, :, :self.seqlen+1, :]
+        elif layer_past is not None:
+            past_key = layer_past[0]
+            past_value = layer_past[1]
+
+            seqlen = past_value.shape[2]
+
+            slice_scatter_1(self.bufk, key, offset=seqlen)
+            key = self.bufk[:, :seqlen+1, :, :]
+
+            slice_scatter_2(self.bufv, value, offset=seqlen)
+            value = self.bufv[:, :, :seqlen+1, :]
+        elif use_cache:
+            slice_scatter_1(self.bufk, key)
+            slice_scatter_2(self.bufv, value)
+    else:
         if layer_past is not None:
             past_key = layer_past[0]
             past_value = layer_past[1]
             key = torch.cat((past_key, key), dim=-2).to(key.dtype)
             value = torch.cat((past_value, value), dim=-2).to(value.dtype)
 
-        if use_cache is True:
-            present = (key, value)
-        else:
-            present = None
+    if use_cache is True:
+        present = (key, value)
+    else:
+        present = None
 
     query_length, key_length = query.size(-2), key.size(-2)
     causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length]

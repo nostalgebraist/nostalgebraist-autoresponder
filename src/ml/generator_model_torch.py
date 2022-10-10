@@ -247,6 +247,10 @@ class GeneratorModelTorch:
                 final_token = nonpads[-1]
                 more_needed = final_token != self.tokenizer.eos_token_id
 
+                # was it already done?
+                already_done = self.tokenizer.pad_token_id in o[:prompt_end_ix]
+                more_needed = more_needed and not already_done
+
                 n_continuations_tokens = (
                     len(continuations_tokens[i]) - n_orig_prompt_tokens
                 )
@@ -256,7 +260,7 @@ class GeneratorModelTorch:
                 dones.append(this_done)
 
                 print(f"this_done: {this_done}")
-                print(f"\tmore_needed={more_needed} <-- final_token={final_token}")
+                print(f"\tmore_needed={more_needed} <-- final_token={final_token}, already_done={already_done}")
                 print(
                     f"\tmore_permitted={more_permitted} <-- n_continuations_tokens={n_continuations_tokens}, len(continuations_tokens[i])={len(continuations_tokens[i])}, n_orig_prompt_tokens={n_orig_prompt_tokens}"
                 )

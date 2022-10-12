@@ -628,7 +628,7 @@ length_sentiment = max_feed_size_with_cache
 length_autoreview = max_feed_size_with_cache
 
 batch_size = 2 if GPU_TYPE == "bigger" else 1
-head_inference_batch_size = 8 if GPU_TYPE == "bigger" else 1
+head_inference_batch_size = 4 if GPU_TYPE == "bigger" else 1
 head_load_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 captioning_adapters_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 

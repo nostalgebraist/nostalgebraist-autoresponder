@@ -2,6 +2,7 @@
 import re
 import json
 from copy import deepcopy
+import html as html_lib
 
 import pytumblr
 from wcwidth import wcwidth
@@ -46,6 +47,7 @@ def format_post_for_api(post):
         .lstrip("\n")
     )
 
+    post = html_lib.escape(post)
     post = "<p>" + post + "</p>"
     post = re.sub("\n", "</p><p>", post)
     return post

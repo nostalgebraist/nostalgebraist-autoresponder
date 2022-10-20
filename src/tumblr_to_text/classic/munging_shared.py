@@ -1,11 +1,12 @@
 """tumblr API <--> preprocessed text tools I need in more than one place"""
 import re
 import json
-from copy import deepcopy
 import html as html_lib
+from html.parser import HTMLParser
+from copy import deepcopy
+from wcwidth import wcwidth
 
 import pytumblr
-from wcwidth import wcwidth
 
 from tumblr_to_text.classic.autoresponder_static import ORIG_POST_CHAR_CHINESE, EOT
 
@@ -22,6 +23,22 @@ JUNE_2020_TRAIL_HACK_UPDATE = True
 AUGUST_2020_TRAIL_HACK_ADDON = True
 FORCE_TRAIL_HACK_IDS = {621279018200760320, 624899848589688832, 645400204942704640, 645854610131714048, 645861728145555456}
 JUNE_2020_LINKPOST_HACK = True
+
+
+class EscapingParser(HTMLParser):
+    def handle_starttag(self, tag, attrs):
+        self.accum += self.get_starttag_text()
+
+    def handle_endtag(self, tag):
+        self.accum += "<" + tag + "/>"
+
+    def handle_data(self, data):
+        self.accum += html_lib.escape(data)
+
+    def apply(self, text):
+        self.accum = ''
+        self.feed(text)
+        return self.accum
 
 
 def sanitize_user_input_outer_shell(text):
@@ -47,8 +64,7 @@ def format_post_for_api(post):
         .lstrip("\n")
     )
 
-    # TODO: escape text between html tags (and only this)
-    # post = html_lib.escape(post)
+    post = EscapingParser().apply(post)
 
     post = "<p>" + post + "</p>"
     post = re.sub("\n", "</p><p>", post)

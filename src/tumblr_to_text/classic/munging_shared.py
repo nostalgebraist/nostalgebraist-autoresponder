@@ -30,7 +30,7 @@ class EscapingParser(HTMLParser):
         self.accum += self.get_starttag_text()
 
     def handle_endtag(self, tag):
-        self.accum += "<" + tag + "/>"
+        self.accum += "</" + tag + ">"
 
     def handle_data(self, data):
         self.accum += html_lib.escape(data)

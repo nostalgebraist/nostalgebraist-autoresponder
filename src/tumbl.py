@@ -164,7 +164,7 @@ REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this re
 
 MAX_POSTS_PER_STEP = 5
 
-DASH_REBLOG_PROB_DELT_CUTOFF = 0.003
+DASH_REBLOG_PROB_DELT_CUTOFF = 2.
 DASH_REBLOG_PROB_DELT_NOISE = 0.
 
 DASH_REBLOG_SELECTION_CUTOFF = 0.
@@ -1615,14 +1615,17 @@ def is_dynamically_reblog_worthy_on_dash(
         2 * DASH_REBLOG_PROB_DELT_NOISE * np.random.random()
         - DASH_REBLOG_PROB_DELT_NOISE
     )
-    buffed_prob_delt = prob_delt + prob_delt_buff
+    prob_ratio_buff = np.exp(prob_delt_buff)
 
-    formatted_buffed_prob_delt = f"{buffed_prob_delt:.4f} "
-    formatted_buffed_prob_delt += f"(= prob_delt {prob_delt:.4f} + buff {prob_delt_buff:.4f})"
+    prob_ratio = np.exp(prob_delt)
+    buffed_prob_ratio = prob_ratio * prob_ratio_buff
 
-    if buffed_prob_delt < DASH_REBLOG_PROB_DELT_CUTOFF:
-        msg = f"\trejecting {post_identifier}: buffed_prob_delt {formatted_buffed_prob_delt}"
-        msg += f" < cutoff {DASH_REBLOG_PROB_DELT_CUTOFF:.4f}"
+    formatted_buffed_prob_delt = f"{buffed_prob_ratio:.4f} "
+    formatted_buffed_prob_delt += f"(= prob_ratio {prob_ratio:.4f} * buff {prob_ratio_buff:.4f})"
+
+    if buffed_prob_ratio < DASH_REBLOG_PROB_RATIO_CUTOFF:
+        msg = f"\trejecting {post_identifier}: buffed_prob_ratio {formatted_buffed_prob_delt}"
+        msg += f" < cutoff {DASH_REBLOG_PROB_RATIO_CUTOFF:.4f}"
         print(msg)
         return False
 

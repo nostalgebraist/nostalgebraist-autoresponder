@@ -89,6 +89,8 @@ DEFAULT_SAMPLING_CONFIG = SamplingConfig(
         typical_sampling_min_tokens_to_keep=TYPICAL_SAMPLING_MIN_TOKENS_TO_KEEP,
         avoid_unk_caption=False,
         breakruns_off_within_images=False,
+        breakruns_modified_within_images=False,
+        breakruns_temp_modifier=0.,
     ),
     disable_prints=True,
     first_step_length=first_step_length,

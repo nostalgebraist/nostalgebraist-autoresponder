@@ -19,6 +19,8 @@ GPT_NEO_DEFAULT_SAMPLING_PARAMS = copy_and_update_config(
     top_k=GPT_NEO_TOP_K,
     avoid_unk_caption=AVOID_UNK_CAPTION,
     breakruns_off_within_images=BREAKRUNS_OFF_WITHIN_IMAGES,
+    breakruns_modified_within_images=BREAKRUNS_MODIFIED_WITHIN_IMAGES,
+    breakruns_temp_modifier=BREAKRUNS_TEMP_MODIFIER
 )
 
 
@@ -96,9 +98,14 @@ class GeneratorModelTorch:
 
         if self.sampling_params.breakruns:
             disable_trigger, enable_trigger = None, None
+            modify_on_trigger, modify_off_trigger, temp_shift_modifier = None, None, 0.0
             if self.sampling_params.breakruns_off_within_images:
                 disable_trigger = (1421, 18604, 198, 1421, 18604, 198,)
                 enable_trigger = (1421, 18604, 198,)
+            elif self.sampling_params.breakruns_modified_within_images:
+                modify_on_trigger =  (1421, 18604, 198, 1421, 18604, 198,)
+                modify_off_trigger = (1421, 18604, 198,)
+                temp_shift_modifier = self.sampling_params.breakruns_temp_modifier
 
             msg = f'using breakruns, base T={self.sampling_params.temperature}, tau={self.sampling_params.breakruns_tau}'
             msg += f', avoid_unk_caption={self.sampling_params.avoid_unk_caption}'
@@ -113,6 +120,9 @@ class GeneratorModelTorch:
                 avoid_unk_caption=self.sampling_params.avoid_unk_caption,
                 disable_trigger=disable_trigger,
                 enable_trigger=enable_trigger,
+                modify_on_trigger=modify_on_trigger,
+                modify_off_trigger=modify_off_trigger,
+                temp_shift_modifier=temp_shift_modifier,
             )
             self.transformers_model._get_logits_processor = breakruns_override
         elif self.sampling_params.typical_sampling:

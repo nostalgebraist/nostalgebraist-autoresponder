@@ -116,6 +116,7 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
 
                 self._dprint(f"modify on: {input_ids[:, -self.modify_on_trigger.shape[1]:]} vs {self.modify_on_trigger}")
 
+                # note reversed order
                 self.modified = torch.logical_and(~disable_flip, self.modified)
                 self.modified = torch.logical_or(enable_flip, self.modified)
 

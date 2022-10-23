@@ -42,10 +42,10 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
         self.debug = debug
         self.tokenizer = tokenizer
         self.first_count = first_count
-        self.disable_trigger = None if disable_trigger is None else torch.as_tensor(disable_trigger).to(device)
-        self.enable_trigger = None if enable_trigger is None else torch.as_tensor(enable_trigger).to(device)
-        self.modify_on_trigger = None if modify_on_trigger is None else torch.as_tensor(modify_on_trigger).to(device)
-        self.modify_off_trigger = None if modify_off_trigger is None else torch.as_tensor(modify_off_trigger).to(device)
+        self.disable_trigger = None if disable_trigger is None else torch.as_tensor(disable_trigger)[None, :].to(device)
+        self.enable_trigger = None if enable_trigger is None else torch.as_tensor(enable_trigger)[None, :].to(device)
+        self.modify_on_trigger = None if modify_on_trigger is None else torch.as_tensor(modify_on_trigger)[None, :].to(device)
+        self.modify_off_trigger = None if modify_off_trigger is None else torch.as_tensor(modify_off_trigger)[None, :].to(device)
         self.temp_shift_modifier = temp_shift_modifier
 
         self.enabled = None
@@ -97,8 +97,8 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
             with torch.no_grad():
                 prev_enabled = self.enabled
 
-                disable_flip = (input_ids[:, -self.disable_trigger.shape[0]:] == self.disable_trigger.to(input_ids.device)).all(dim=1)
-                enable_flip = (input_ids[:, -self.enable_trigger.shape[0]:] == self.enable_trigger.to(input_ids.device)).all(dim=1)
+                disable_flip = (input_ids[:, -self.disable_trigger.shape[1]:] == self.disable_trigger.to(input_ids.device)).all(dim=1)
+                enable_flip = (input_ids[:, -self.enable_trigger.shape[1]:] == self.enable_trigger.to(input_ids.device)).all(dim=1)
 
                 self.enabled = torch.logical_or(enable_flip, self.enabled)
                 self.enabled = torch.logical_and(~disable_flip, self.enabled)
@@ -111,14 +111,16 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
             with torch.no_grad():
                 prev_modified = self.modified
 
-                disable_flip = (input_ids[:, -self.modify_off_trigger.shape[0]:] == self.modify_off_trigger.to(input_ids.device)).all(dim=1)
-                enable_flip = (input_ids[:, -self.modify_on_trigger.shape[0]:] == self.modify_on_trigger.to(input_ids.device)).all(dim=1)
+                disable_flip = (input_ids[:, -self.modify_off_trigger.shape[1]:] == self.modify_off_trigger.to(input_ids.device)).all(dim=1)
+                enable_flip = (input_ids[:, -self.modify_on_trigger.shape[1]:] == self.modify_on_trigger.to(input_ids.device)).all(dim=1)
 
-                self.modified = torch.logical_or(enable_flip, self.modified)
+                self._dprint(f"modify on: {input_ids[:, -self.modify_on_trigger.shape[1]:]} vs {self.modify_on_trigger}")
+
                 self.modified = torch.logical_and(~disable_flip, self.modified)
+                self.modified = torch.logical_or(enable_flip, self.modified)
 
                 if self.debug and (self.modified != prev_modified).any().item():
-                    self._dprint(f"BREAKRUNS: enabled {prev_modified} -> {self.modified}")
+                    self._dprint(f"BREAKRUNS: modified {prev_modified} -> {self.modified}")
 
         # check if last was top
         was_top = (input_ids[:, -1] == self.last_logits.argmax(dim=1)).to(torch.long)

@@ -41,6 +41,9 @@ def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=Fal
                                 disable_trigger=None,
                                 enable_trigger=None,
                                 avoid_unk_caption=True,
+                                modify_on_trigger=None,
+                                modify_off_trigger=None,
+                                temp_shift_modifier=0.0,
                                 ):
     def _override_get_breakruns(*args, **kwargs) -> LogitsProcessorList:
         processors = [
@@ -51,6 +54,9 @@ def make_override_get_breakruns(base_temperature, tau, tokenizer=None, debug=Fal
                 debug=debug,
                 disable_trigger=disable_trigger,
                 enable_trigger=enable_trigger,
+                modify_on_trigger=modify_on_trigger,
+                modify_off_trigger=modify_off_trigger,
+                temp_shift_modifier=temp_shift_modifier,
             )
         ]
         if avoid_unk_caption:

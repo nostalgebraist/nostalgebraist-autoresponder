@@ -32,6 +32,9 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
                 first_count=0,
                 disable_trigger = None,
                 enable_trigger = None,
+                modify_on_trigger = None,
+                modify_off_trigger = None,
+                temp_shift_modifier = 0.0,
                 device='cuda:0',
                 ):
         self.base_temperature = base_temperature
@@ -41,8 +44,12 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
         self.first_count = first_count
         self.disable_trigger = None if disable_trigger is None else torch.as_tensor(disable_trigger).to(device)
         self.enable_trigger = None if enable_trigger is None else torch.as_tensor(enable_trigger).to(device)
+        self.modify_on_trigger = None if modify_on_trigger is None else torch.as_tensor(modify_on_trigger).to(device)
+        self.modify_off_trigger = None if modify_off_trigger is None else torch.as_tensor(modify_off_trigger).to(device)
+        self.temp_shift_modifier = temp_shift_modifier
 
         self.enabled = None
+        self.modified = None
         self.breakruns_counter = None
         self.last_logits = None
         self.last_length = None
@@ -72,6 +79,10 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
             self._dprint("BREAKRUNS: init enabled")
             self.enabled = torch.ones((input_ids.shape[0],), device=input_ids.device)
 
+        if self.modified is None:
+            self._dprint("BREAKRUNS: init modified")
+            self.modified = torch.zeros((input_ids.shape[0],), device=input_ids.device)
+
         if self.breakruns_counter is None:
             self.breakruns_counter = self.first_count * torch.ones((), device=input_ids.device)
             self._dprint(f"BREAKRUNS: init counter {self.breakruns_counter}")
@@ -95,6 +106,20 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
                 if self.debug and (self.enabled != prev_enabled).any().item():
                     self._dprint(f"BREAKRUNS: enabled {prev_enabled} -> {self.enabled}")
 
+        # TODO: DRY
+        if (self.modify_on_trigger is not None) and (self.modify_off_trigger is not None):
+            with torch.no_grad():
+                prev_modified = self.modified
+
+                disable_flip = (input_ids[:, -self.modify_off_trigger.shape[0]:] == self.modify_off_trigger.to(input_ids.device)).all(dim=1)
+                enable_flip = (input_ids[:, -self.modify_on_trigger.shape[0]:] == self.modify_on_trigger.to(input_ids.device)).all(dim=1)
+
+                self.modified = torch.logical_or(enable_flip, self.modified)
+                self.modified = torch.logical_and(~disable_flip, self.modified)
+
+                if self.debug and (self.modified != prev_modified).any().item():
+                    self._dprint(f"BREAKRUNS: enabled {prev_modified} -> {self.modified}")
+
         # check if last was top
         was_top = (input_ids[:, -1] == self.last_logits.argmax(dim=1)).to(torch.long)
 
@@ -103,9 +128,9 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
         if self.debug:
             sampled_str = repr(self.tokenizer.decode(input_ids[0, -1].item()))
             actual_top_str = repr(self.tokenizer.decode([self.last_logits.argmax(dim=1)[0].item()]))
-            print(f"enabled {self.enabled[0]} | was_top?: {was_top[0]} | sampled {sampled_str} actual_top {actual_top_str} | self.breakruns_counter: {self.breakruns_counter}")
+            print(f"enabled {self.enabled[0]} | modified {self.modified[0]} | was_top?: {was_top[0]} | sampled {sampled_str} actual_top {actual_top_str} | self.breakruns_counter: {self.breakruns_counter}")
 
-        eff_temperature = self.base_temperature + (self.breakruns_counter * self.tau)
+        eff_temperature = self.base_temperature + (self.breakruns_counter * self.tau) + (self.modified * self.temp_shift_modifier)
         self._dprint("eff_temperature: {et}", fillers={"et": eff_temperature})
 
         self.last_logits = scores

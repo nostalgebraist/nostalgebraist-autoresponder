@@ -115,12 +115,17 @@ def fetch_and_process(blog_name: str = bot_name,
     max_processed_id = max(line["id"] for line in lines)
     print(f"loaded {len(lines)} existing records, max id {max_processed_id}")
 
+    fetched_ids = {pp['id'] for pp in posts}
+    processed_ids = {line['id'] for line in lines}
+
     if process_only:
-        new_posts = [pp for pp in posts if pp["id"] > max_processed_id]
+        new_posts = posts
     else:
         pool = ClientPool()
 
         new_posts = fetch_posts(pool, blog_name, n, offset, needs_private_client=True, stop_at_id=max_processed_id)
+
+        new_posts = [pp for pp in posts if pp["id"] not in fetched_ids]
 
         posts.extend(new_posts)
 
@@ -131,6 +136,11 @@ def fetch_and_process(blog_name: str = bot_name,
 
     if fetch_only:
         return lines
+
+    new_posts = [pp for pp in posts if pp["id"] not in processed_ids]
+    new_posts = sorted(new_posts, key=lambda pp: pp['id'])
+    new_ids = {pp['id'] for pp in new_posts}
+    print(f"processing subset of length {len(new_posts)}, min id {min(new_ids)}, max id {max(new_ids)}")
 
     base_head_timestamp = now_pst()
 

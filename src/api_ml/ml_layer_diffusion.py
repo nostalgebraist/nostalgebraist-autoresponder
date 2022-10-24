@@ -30,10 +30,12 @@ BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 # HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
 HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-captions'
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
-timestep_respacing_sres1 = '250'
-timestep_respacing_sres1p5 = '90,60,60,20,20'
-timestep_respacing_sres2 = '90,60,60,20,20'
-timestep_respacing_sres3 = '90,60,60,20,20'
+
+
+timestep_respacing_sres1 = 'ddim100'
+timestep_respacing_sres1p5 = 'ddim50'
+timestep_respacing_sres2 = 'ddim27'
+timestep_respacing_sres3 = 'ddim27'
 FORCE_CAPTS = True
 
 TRUNCATE_LENGTH = 380
@@ -112,6 +114,14 @@ if using_sres3:
 # for sm in [sampling_model_sres1, sampling_model_sres1p5, sampling_model_sres2, sampling_model_sres3]:
 #     sm.model = sm.model.cpu()
 
+sampling_model_sres1.set_timestep_respacing(timestep_respacing_sres1, double_mesh_first_n=3)
+
+sampling_model_sres1p5.set_timestep_respacing(timestep_respacing_sres1p5, double_mesh_first_n=3)
+
+sampling_model_sres2.set_timestep_respacing(timestep_respacing_sres2, double_mesh_first_n=0)
+
+sampling_model_sres3.set_timestep_respacing(timestep_respacing_sres3, double_mesh_first_n=0)
+
 
 def poll(
     dummy=False,
@@ -159,11 +169,12 @@ def poll(
             text=text,
             batch_size=1,
             n_samples=1,
-            to_visible=False,
+            to_visible=True,
             clf_free_guidance=True,
             guidance_scale=guidance_scale,
             guidance_scale_txt=guidance_scale_txt,
             dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
+            use_plms=True,
             capt=capt,
         )
 
@@ -181,14 +192,15 @@ def poll(
                 text=text,
                 batch_size=1,
                 n_samples=1,
-                to_visible=False,
-                from_visible=False,
+                to_visible=True,
+                from_visible=True,
                 low_res=result,
                 clf_free_guidance=True,
                 guidance_scale=guidance_scale,
                 guidance_scale_txt=guidance_scale_txt,
                 dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
                 noise_cond_ts=225,
+                use_plms=True,
                 capt=capt,
             )
 
@@ -208,12 +220,14 @@ def poll(
             text=text if sampling_model_sres2.model.txt else None,
             batch_size=1,
             n_samples=1,
-            to_visible=not using_sres3,
-            from_visible=False,
+            to_visible=True,
+            from_visible=True,
             low_res=result,
             clf_free_guidance=True,
             guidance_scale=guidance_scale_step2,
             noise_cond_ts=150,
+            use_ddim=True,
+            ddim_eta=0.5,
         )
 
         print('step2 done')
@@ -231,9 +245,11 @@ def poll(
                 batch_size=1,
                 n_samples=1,
                 to_visible=True,
-                from_visible=False,
+                from_visible=True,
                 low_res=result,
                 noise_cond_ts=75,
+                use_ddim=True,
+                ddim_eta=0.5,
             )
 
             # sampling_model_sres3.model.cpu();
@@ -256,8 +272,8 @@ def poll(
 
         if not dummy:
             requests.post(
-                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
-                data=b
+                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}/{data['id']}",
+                data=b,
             )
     return did_generation
 

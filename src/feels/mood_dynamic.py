@@ -119,6 +119,8 @@ DETERMINER_CENTER_UPDATES = {
     pd.Timestamp("2022-07-15 19:50:00"): 0.,
     pd.Timestamp("2022-08-02 07:20:00"): 0.05,
     pd.Timestamp("2022-08-14 00:06:45"): 0.1,
+    pd.Timestamp("2022-08-21 23:30:00"): 0.05,
+    pd.Timestamp("2022-10-22 10:40:00"): 0.,
 }
 DETERMINER_MULTIPLIER_UPDATES = {
     pd.Timestamp("2020-08-25 17:00:00"): 0.1 / RESPONSE_SCALE_BASE,
@@ -171,6 +173,7 @@ DETERMINER_MULTIPLIER_UPDATES = {
     pd.Timestamp("2022-07-14 00:05:00"): 0.12 / RESPONSE_SCALE_BASE,
     pd.Timestamp("2022-07-21 00:08:05"): 0.15 / RESPONSE_SCALE_BASE,
     pd.Timestamp("2022-07-30 00:07:00"): 0.12 / RESPONSE_SCALE_BASE,
+    pd.Timestamp("2022-10-22 10:40:00"): 0.15 / RESPONSE_SCALE_BASE,
 }
 
 MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP_BASE = {

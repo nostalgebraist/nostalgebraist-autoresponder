@@ -79,6 +79,12 @@ def upload_images_to_tumblr_urls(images, keys, client, blogname):
     return {k: url for k, url in zip(keys, urls)}
 
 
+def prep_caption_for_model(caption):
+    if caption is None:
+        return "unknown"
+    return " " + caption.lstrip(" ")
+
+
 def find_text_images_and_sub_real_images(
     text,
     client,
@@ -159,7 +165,7 @@ def find_text_images_and_sub_real_images(
         prompt = imtext
         per_image_kwargs = {}
         per_image_kwargs.update(image_maker_kwargs)
-        per_image_kwargs['capt'] = caption
+        per_image_kwargs['capt'] = prep_caption_for_model(caption)
 
         textless_guidance_substrings = ['[image]', '[animated gif]']
         textless_guidance_trigger = (len(imtext) == 0) or any(s == imtext.strip().lower() for s in textless_guidance_substrings)

@@ -4,7 +4,7 @@ from io import BytesIO
 import requests
 from PIL import Image
 
-from api_ml.bridge_shared import get_bridge_service_url
+from api_ml.bridge_shared import get_bridge_service_url, bridge_service_unique_id
 
 
 def request_diffusion(text, **kwargs):
@@ -13,7 +13,13 @@ def request_diffusion(text, **kwargs):
 
     bridge_service_url = get_bridge_service_url()
 
-    requests.post(bridge_service_url + "/requestdiffusion", json=data)
+    bridge_id = bridge_service_unique_id(bridge_service_url, data)
+
+    data_to_send = dict()
+    data_to_send.update(data)
+    data_to_send["id"] = bridge_id
+
+    requests.post(bridge_service_url + "/requestdiffusion", json=data_to_send)
 
 
 def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=5):

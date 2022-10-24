@@ -57,6 +57,7 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
     def _reset(self):
         self._dprint("BREAKRUNS: _reset")
         self.enabled = None
+        self.modified = None
         self.breakruns_counter = None
         self.last_logits = None
 

@@ -417,7 +417,7 @@ def format_extracted_text(image_text, url, image_formatter=V9_IMAGE_FORMATTER, v
 
 
 class ImageAnalysisCache:
-    def __init__(self, path="image_analysis_cache.pkl", cache=None, hash_to_url=None, aux_cache_obj=None):
+    def __init__(self, path="image_analysis_cache.pkl", cache=None, hash_to_url=None, aux_cache_obj=None, log_cache_miss=False):
         self.path = path
         self.cache = cache
         self.hash_to_url = hash_to_url
@@ -429,6 +429,7 @@ class ImageAnalysisCache:
             self.hash_to_url = dict()
 
         self.aux_cache_obj = aux_cache_obj
+        self.log_cache_miss = log_cache_miss
 
     @staticmethod
     def _get_text_from_cache_entry(entry, deduplicate=True):
@@ -561,6 +562,8 @@ class ImageAnalysisCache:
                     vprint(f"\turl NOT in cache:\n\t\t{url}\n")
 
             if entry is None:
+                if self.log_cache_miss:
+                    print(f"cache miss: {url}")
                 vprint(f"calling rek for {url}")
                 self.hash_to_url[content_hash] = url
                 entry = self._extract_text_from_bytes(frame_bytes)

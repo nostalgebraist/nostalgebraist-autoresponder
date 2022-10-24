@@ -211,6 +211,7 @@ def main():
     parser.add_argument("--blog-name", type=str, default=bot_name)
     parser.add_argument("--include-unused-types", action="store_true")
     parser.add_argument("--save-image-cache", action="store_true")
+    parser.add_argument("--log-image-cache-misses", action="store_true")
     parser.add_argument("--fetch-only", action="store_true")
     parser.add_argument("--process-only", action="store_true")
     parser.add_argument("--aux-image-cache-path", type=str, default=None)
@@ -219,6 +220,9 @@ def main():
     args = parser.parse_args()
 
     args = parser.parse_args()
+
+    if args.log_image_cache_misses:
+        multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.log_cache_miss = True
 
     if args.reroll_head_timestamps:
         lines = reroll_head_timestamps()

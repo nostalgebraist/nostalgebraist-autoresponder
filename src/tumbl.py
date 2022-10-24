@@ -1849,6 +1849,13 @@ def get_relevant_replies_from_notes(
 ):
     if post_payload["id"] in NO_REBLOG_IDS:
         return replies_to_handle, loop_persistent_data, response_cache
+
+    for trail_entry in post_payload.get("trail", []):
+        if trail_entry.get("blog", {}).get("name", "") in USER_AVOID_LIST:
+            return replies_to_handle, loop_persistent_data, response_cache
+        if int(trail_entry.get("post", {}).get("id", -1)) in NO_REBLOG_IDS:
+            return replies_to_handle, loop_persistent_data, response_cache
+
     for ix, n in enumerate(notes_payload):
         if n["type"] != "reply":
             continue

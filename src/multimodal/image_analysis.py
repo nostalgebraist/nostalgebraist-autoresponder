@@ -538,7 +538,8 @@ class ImageAnalysisCache:
             try:
                 frame_bytes, content_hash = self._download_and_hash(
                     url,
-                    verbose=verbose
+                    verbose=verbose,
+                    downsize_to=[],
                 )
             except urllib3.exceptions.RequestError:
                 entry = ""

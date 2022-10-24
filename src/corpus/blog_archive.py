@@ -130,6 +130,8 @@ def fetch_and_process(blog_name: str = bot_name,
                       include_unused_types=False,
                       fetch_only=False,
                       process_only=False,
+                      save_processed_every=-1,
+                      save_image_cache=False,
                       write_captions=False,):
     with open("data/head_training_data_raw_posts.pkl.gz", "rb") as f:
         posts = pickle.load(f)
@@ -142,15 +144,17 @@ def fetch_and_process(blog_name: str = bot_name,
     max_processed_id = max(line["id"] for line in lines)
     print(f"loaded {len(lines)} existing records, max id {max_processed_id}")
 
+    fetched_ids = {pp['id'] for pp in posts}
+    processed_ids = {line['id'] for line in lines}
+
     if process_only:
-        new_posts = [pp for pp in posts if pp["id"] > max_processed_id]
-        new_posts = sorted(new_posts, key=lambda pp: pp["id"])[:n]
-        min_new_id, max_new_id = min(pp["id"] for pp in new_posts), max(pp["id"] for pp in new_posts)
-        print(f"processing {len(new_posts)} new posts, min id {min_new_id}, max id {max_new_id}")
+        new_posts = posts
     else:
         pool = ClientPool()
 
         new_posts = fetch_posts(pool, blog_name, n, offset, needs_private_client=True, stop_at_id=max_processed_id)
+
+        new_posts = [pp for pp in posts if pp["id"] not in fetched_ids]
 
         posts.extend(new_posts)
 
@@ -162,6 +166,11 @@ def fetch_and_process(blog_name: str = bot_name,
     if fetch_only:
         return lines
 
+    new_posts = [pp for pp in posts if pp["id"] not in processed_ids]
+    new_posts = sorted(new_posts, key=lambda pp: pp['id'])
+    new_ids = {pp['id'] for pp in new_posts}
+    print(f"processing subset of length {len(new_posts)}, min id {min(new_ids)}, max id {max(new_ids)}")
+
     base_head_timestamp = now_pst()
 
     caption_fn = None
@@ -169,13 +178,20 @@ def fetch_and_process(blog_name: str = bot_name,
         from api_ml.ml_connector import caption_images_in_post_html
         caption_fn = partial(caption_images_in_post_html, verbose=False)
 
-    lines_new = [post_to_line_entry(pp,
-                                    base_head_timestamp,
-                                    blog_name=blog_name,
-                                    include_unused_types=include_unused_types,
-                                    caption_fn=caption_fn)
-                 for pp in tqdm(new_posts, mininterval=0.3, smoothing=0)]
-    lines.extend(lines_new)
+    for i, pp in enumerate(tqdm(new_posts, mininterval=0.3, smoothing=0)):
+        line = post_to_line_entry(
+            pp,
+            base_head_timestamp,
+            blog_name=blog_name,
+            include_unused_types=include_unused_types,
+            caption_fn=caption_fn
+        )
+        lines.append(line)
+        if (save_processed_every > 0) and (i > 0) and (i % save_processed_every == 0):
+            save(lines)
+            if save_image_cache:
+                multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()
+
     return lines
 
 
@@ -194,6 +210,7 @@ def reroll_head_timestamps():
 
 
 def save(lines, path="data/head_training_data.json"):
+    print(f"saving {len(lines)} processed entries")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(lines, f, indent=1)
 
@@ -214,6 +231,7 @@ def main():
     parser.add_argument("--log-image-cache-misses", action="store_true")
     parser.add_argument("--fetch-only", action="store_true")
     parser.add_argument("--process-only", action="store_true")
+    parser.add_argument("--save-processed-every", type=int, default=-1)
     parser.add_argument("--aux-image-cache-path", type=str, default=None)
     parser.add_argument("--write-captions", action="store_true")
     parser.add_argument("--reroll-head-timestamps", action="store_true")
@@ -234,7 +252,9 @@ def main():
         lines = fetch_and_process(blog_name=args.blog_name, n=args.n, offset=args.offset,
                                   include_unused_types=args.include_unused_types,
                                   fetch_only=args.fetch_only, process_only=args.process_only,
-                                  write_captions=args.write_captions)
+                                  write_captions=args.write_captions,
+                                  save_processed_every=args.save_processed_every,
+                                  save_image_cache=args.save_image_cache)
         if args.save_image_cache:
             multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()
 

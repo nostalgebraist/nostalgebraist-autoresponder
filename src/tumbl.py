@@ -165,7 +165,7 @@ REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this re
 MAX_POSTS_PER_STEP = 5
 
 DASH_REBLOG_PROB_RATIO_CUTOFF = 2.
-DASH_REBLOG_PROB_RATIO_NOISE = 0.
+DASH_REBLOG_PROB_RATIO_NOISE = 2.
 
 DASH_REBLOG_SELECTION_CUTOFF = 0.
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
@@ -1611,11 +1611,13 @@ def is_dynamically_reblog_worthy_on_dash(
         judg["prob_delt"]
     )
 
-    prob_delt_buff = (
-        2 * DASH_REBLOG_PROB_RATIO_NOISE * np.random.random()
-        - DASH_REBLOG_PROB_RATIO_NOISE
+    logprob_noise = np.log(DASH_REBLOG_PROB_RATIO_NOISE + 1e-6)
+
+    logprob_ratio_buff = (
+        2 * logprob_noise * np.random.random()
+        - logprob_noise
     )
-    prob_ratio_buff = np.exp(prob_delt_buff)
+    prob_ratio_buff = np.exp(logprob_ratio_buff)
 
     prob_ratio = np.exp(prob_delt)
     buffed_prob_ratio = prob_ratio * prob_ratio_buff

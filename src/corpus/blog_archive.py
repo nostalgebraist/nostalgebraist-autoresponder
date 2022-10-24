@@ -101,7 +101,9 @@ def fetch_and_process(blog_name: str = bot_name,
                       offset : int = 0,
                       include_unused_types=False,
                       fetch_only=False,
-                      process_only=False):
+                      process_only=False,
+                      save_processed_every=-1,
+                      save_image_cache=False):
     with open("data/head_training_data_raw_posts.pkl.gz", "rb") as f:
         posts = pickle.load(f)
 
@@ -132,16 +134,24 @@ def fetch_and_process(blog_name: str = bot_name,
 
     base_head_timestamp = now_pst()
 
-    lines_new = [post_to_line_entry(pp,
-                                    base_head_timestamp,
-                                    blog_name=blog_name,
-                                    include_unused_types=include_unused_types)
-                 for pp in tqdm(new_posts, mininterval=0.3, smoothing=0)]
-    lines.extend(lines_new)
+    for i, pp in enumerate(tqdm(new_posts, mininterval=0.3, smoothing=0)):
+        line = post_to_line_entry(
+            pp,
+            base_head_timestamp,
+            blog_name=blog_name,
+            include_unused_types=include_unused_types
+        )
+        lines.append(line)
+        if (save_processed_every > 0) and (i > 0) and (i % save_processed_every == 0):
+            save(lines)
+            if save_image_cache:
+                multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()
+
     return lines
 
 
 def save(lines, path="data/head_training_data.json"):
+    print(f"saving {len(lines)} processed entries")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(lines, f, indent=1)
 
@@ -161,11 +171,14 @@ def main():
     parser.add_argument("--save-image-cache", action="store_true")
     parser.add_argument("--fetch-only", action="store_true")
     parser.add_argument("--process-only", action="store_true")
+    parser.add_argument("--save-processed-every", type=int, default=-1)
     args = parser.parse_args()
 
     lines = fetch_and_process(blog_name=args.blog_name, n=args.n, offset=args.offset,
                               include_unused_types=args.include_unused_types,
-                              fetch_only=args.fetch_only, process_only=args.process_only)
+                              fetch_only=args.fetch_only, process_only=args.process_only,
+                              save_processed_every=args.save_processed_every,
+                              save_image_cache=args.save_image_cache)
     if args.save_image_cache:
         multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()
 

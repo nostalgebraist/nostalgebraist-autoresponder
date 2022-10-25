@@ -32,10 +32,10 @@ HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 
 
-timestep_respacing_sres1 = 'ddim100'
-timestep_respacing_sres1p5 = 'ddim50'
-timestep_respacing_sres2 = 'ddim27'
-timestep_respacing_sres3 = 'ddim27'
+timestep_respacing_sres1 = '50'
+timestep_respacing_sres1p5 = '18,12,12,4,4'
+timestep_respacing_sres2 = '18,12,12,4,4'
+timestep_respacing_sres3 = '10,7,6,2,2'
 FORCE_CAPTS = True
 
 TRUNCATE_LENGTH = 380
@@ -114,13 +114,18 @@ if using_sres3:
 # for sm in [sampling_model_sres1, sampling_model_sres1p5, sampling_model_sres2, sampling_model_sres3]:
 #     sm.model = sm.model.cpu()
 
-sampling_model_sres1.set_timestep_respacing(timestep_respacing_sres1, double_mesh_first_n=3)
+use_ddim = dict('1'=False, '1p5'=False, '2'=False, '3'=False)
+use_plms = dict('1'=False, '1p5'=False, '2'=False, '3'=False)
 
-sampling_model_sres1p5.set_timestep_respacing(timestep_respacing_sres1p5, double_mesh_first_n=3)
+double_mesh_first_n = {k: 3 if use_plms[k] else 0 for k in use_plms}
 
-sampling_model_sres2.set_timestep_respacing(timestep_respacing_sres2, double_mesh_first_n=0)
+sampling_model_sres1.set_timestep_respacing(timestep_respacing_sres1, double_mesh_first_n=double_mesh_first_n['1'])
 
-sampling_model_sres3.set_timestep_respacing(timestep_respacing_sres3, double_mesh_first_n=0)
+sampling_model_sres1p5.set_timestep_respacing(timestep_respacing_sres1p5, double_mesh_first_n=double_mesh_first_n['1p5'])
+
+sampling_model_sres2.set_timestep_respacing(timestep_respacing_sres2, double_mesh_first_n=double_mesh_first_n['2'])
+
+sampling_model_sres3.set_timestep_respacing(timestep_respacing_sres3, double_mesh_first_n=double_mesh_first_n['2'])
 
 
 def poll(
@@ -174,7 +179,8 @@ def poll(
             guidance_scale=guidance_scale,
             guidance_scale_txt=guidance_scale_txt,
             dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
-            use_plms=True,
+            use_ddim=use_ddim['1'],
+            use_plms=use_plms['1'],
             capt=capt,
         )
 
@@ -200,7 +206,8 @@ def poll(
                 guidance_scale_txt=guidance_scale_txt,
                 dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
                 noise_cond_ts=225,
-                use_plms=True,
+                use_ddim=use_ddim['1p5'],
+                use_plms=use_plms['1p5'],
                 capt=capt,
             )
 
@@ -225,8 +232,9 @@ def poll(
             low_res=result,
             clf_free_guidance=True,
             guidance_scale=guidance_scale_step2,
-            noise_cond_ts=150,
-            use_ddim=True,
+            noise_cond_ts=0,
+            use_ddim=use_ddim['2'],
+            use_plms=use_plms['2'],
             ddim_eta=0.5,
         )
 
@@ -247,8 +255,9 @@ def poll(
                 to_visible=True,
                 from_visible=True,
                 low_res=result,
-                noise_cond_ts=75,
-                use_ddim=True,
+                noise_cond_ts=0,
+                use_ddim=use_ddim['3'],
+                use_plms=use_plms['3'],
                 ddim_eta=0.5,
             )
 

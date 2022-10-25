@@ -114,8 +114,8 @@ if using_sres3:
 # for sm in [sampling_model_sres1, sampling_model_sres1p5, sampling_model_sres2, sampling_model_sres3]:
 #     sm.model = sm.model.cpu()
 
-use_ddim = dict('1'=False, '1p5'=False, '2'=False, '3'=False)
-use_plms = dict('1'=False, '1p5'=False, '2'=False, '3'=False)
+use_ddim = {'1': False, '1p5': False, '2': False, '3': False}
+use_plms = {'1': False, '1p5': False, '2': False, '3': False}
 
 double_mesh_first_n = {k: 3 if use_plms[k] else 0 for k in use_plms}
 

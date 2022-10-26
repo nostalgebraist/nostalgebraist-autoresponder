@@ -1,5 +1,5 @@
 from functools import partial
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 import numpy as np
 import torch
@@ -18,6 +18,7 @@ NostARHeadOptimizerParams = NamedTuple(
     adam_beta2=float,
     classic_behavior_lr_sched=bool,
     block_lr=float,
+    no_weight_decay_in_blocks=bool,
 )
 
 
@@ -63,6 +64,9 @@ def classic_cosine_anneal_warmup_multiplier(
 def get_nost_ar_head_optimizers(
     model, opt_params: NostARHeadOptimizerParams
 ):
+    no_weight_decay_in_blocks = opt_params.no_weight_decay_in_blocks
+    print(f"no_weight_decay_in_blocks: {no_weight_decay_in_blocks}")
+
     non_decay_vars = []
     decay_vars = []
 
@@ -79,8 +83,12 @@ def get_nost_ar_head_optimizers(
                 non_decay_vars.append(param)
         else:
             if 'block' in name:
-                print(f"assigning '{name}' to decay_vars_blocks")
-                decay_vars_blocks.append(param)
+                if no_weight_decay_in_blocks:
+                    print(f"assigning '{name}' to non_decay_vars_blocks")
+                    non_decay_vars_blocks.append(param)
+                else:
+                    print(f"assigning '{name}' to decay_vars_blocks")
+                    decay_vars_blocks.append(param)
             else:
                 print(f"assigning '{name}' to decay_vars")
                 decay_vars.append(param)

@@ -21,7 +21,7 @@ from stable_library_code.transformers.gpt_neo.modeling_gpt_neo import (
 )
 from stable_library_code.transformers.gpt_neo.partial_forward import partial_forward as ref_partial_forward
 
-from transformers.models.gpt_neo.modeling_gpt_neo import fixed_pos_embedding, apply_rotary_pos_emb, GPTNeoAttentionMixin
+from transformers.models.gpt_neo.modeling_gpt_neo import fixed_pos_embedding, apply_rotary_pos_emb, GPTNeoAttentionMixin, GPTNeoSelfAttention
 
 from transformer_utils.partial_forward import partial_forward, add_partial_forward_hooks
 
@@ -312,16 +312,22 @@ class NostARHeadBlock(nn.Module):
         gain_scale,
         use_out_gain,
         mlp_only_blocks,
+        tune_base_block_attn,
         tune_base_block_mlp,
     ):
         super().__init__()
         self.mlp_only = mlp_only_blocks
+        self.tune_base_block_attn = tune_base_block_attn
         self.tune_base_block_mlp = tune_base_block_mlp
 
-        if not self.mlp_only:
-            self.attn = NostARHeadAttention(pool_to_vector=False, **attn_params)
-        else:
+        if self.mlp_only:
             self.attn = FakeAttn()
+        else:
+            if self.tune_base_block_attn:
+                self.attn = GPTNeoSelfAttention('global', self.base_model.config)
+            else:
+                self.attn = NostARHeadAttention(pool_to_vector=False, **attn_params)
+
         self.ln_2 = nn.LayerNorm(embed_dim, eps=1e-5)
         self.mlp = NostARHeadMLP(**mlp_params)
 
@@ -333,13 +339,13 @@ class NostARHeadBlock(nn.Module):
             self.mlp_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
 
     def forward(self, hidden_states):
-        if self.tune_base_block_mlp:
+        if self.tune_base_block_mlp and not self.tune_base_block_attn:
             hidden_states = hidden_states[0]  # base model attn returns tuple
         if self.use_out_gain:
             hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(hidden_states)[0]
             hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(self.ln_2(hidden_states))
         else:
-            hidden_states = hidden_states +  self.attn(hidden_states)[0]
+            hidden_states = hidden_states + self.attn(hidden_states)[0]
             hidden_states = hidden_states + self.mlp(self.ln_2(hidden_states))
         return hidden_states
 
@@ -367,6 +373,7 @@ NostARHeadArchitectureParams = NamedTuple(
     use_block_out_gain=bool,
     init_gain_blocks_out=float,
     gain_scale_blocks_out=float,
+    tune_base_block_attn=bool,
     tune_base_block_mlp=bool,
     mlp_only_blocks=bool,
 )
@@ -411,7 +418,7 @@ class NostARHead(nn.Module):
                 NostARHeadArchitectureParams,
                 self.params,
                 mlp_ratio_blocks=4,
-                mlp_only_blocks=True,
+                mlp_only_blocks=not self.params.tune_base_block_attn,
             )
 
         self._setup()
@@ -440,9 +447,13 @@ class NostARHead(nn.Module):
 
     @property
     def layer_names(self):
-        names = [f'h.{i}' for i in self.layer_nums]
-        if self.params.tune_base_block_mlp:
-            names = list(map(lambda s: s + ".attn", names))
+        if self.params.tune_base_block_attn:
+            assert min(self.layer_nums) > 0
+            names = [f'h.{i-1}' for i in self.layer_nums]
+        elif self.params.tune_base_block_mlp:
+            names = [f'h.{i}.attn' for i in self.layer_nums]
+        else:
+            names = [f'h.{i}' for i in self.layer_nums]
         return names
 
     @property
@@ -461,6 +472,11 @@ class NostARHead(nn.Module):
     def init_weights(self):
         self.apply(self._init_weights)
         for block in self.blocks:
+            if block.tune_base_block_mlp:
+                print(f"tune_base_block_mlp init for block")
+                print(f"before: {repr(block.attn.state_dict())}")
+                block.mlp.load_state_dict(self.input_layers[0].attn.state_dict())
+                print(f"after: {repr(block.attn.state_dict())}")
             if block.tune_base_block_mlp:
                 print(f"tune_base_block_mlp init for block")
                 print(f"before: {repr(block.mlp.state_dict())}")
@@ -529,6 +545,7 @@ class NostARHead(nn.Module):
                     gain_scale=self.params.gain_scale_blocks_out,
                     embed_dim=self.base_model.config.hidden_size,
                     mlp_only_blocks=self.params.mlp_only_blocks,
+                    tune_base_block_attn=self.params.tune_base_block_attn,
                     tune_base_block_mlp=self.params.tune_base_block_mlp,
                 )
                 for _ in range(self.n_blocks)

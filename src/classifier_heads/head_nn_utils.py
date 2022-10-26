@@ -70,7 +70,7 @@ def get_nost_ar_head_optimizers(
     decay_vars_blocks = []
 
     for name, param in model.named_parameters():
-        if name.split('.')[-2].startswith('ln') in name or "logit_head.bias" in name:
+        if name.split('.')[-2].startswith('ln') or "logit_head.bias" in name:
             if 'block' in name:
                 print(f"assigning '{name}' to non_decay_vars_blocks")
                 non_decay_vars_blocks.append(param)

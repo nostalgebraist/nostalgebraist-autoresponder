@@ -324,7 +324,7 @@ class NostARHeadBlock(nn.Module):
             self.attn = FakeAttn()
         else:
             if self.tune_base_block_attn:
-                self.attn = GPTNeoSelfAttention('global', self.base_model.config)
+                self.attn = GPTNeoSelfAttention('global', attn_params['base_model_config'])
             else:
                 self.attn = NostARHeadAttention(pool_to_vector=False, **attn_params)
 

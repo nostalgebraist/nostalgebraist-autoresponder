@@ -25,6 +25,8 @@ from transformers.models.gpt_neo.modeling_gpt_neo import fixed_pos_embedding, ap
 
 from transformer_utils.partial_forward import partial_forward, add_partial_forward_hooks
 
+from util.util import copy_and_update_config
+
 GPT2TokenizerType = Union[GPT2Tokenizer, GPT2TokenizerFast]
 GPTConfigType = Union[GPT2Config, GPTNeoConfig]
 GPTModelType = Union[GPT2LMHeadModel, GPTNeoForCausalLM]
@@ -291,14 +293,31 @@ class NostARHeadMLP(nn.Module):
         return hidden_states
 
 
+class FakeAttn(nn.Module):
+    def forward(self, x):
+        return [torch.zeros_like(x)]
+
+
 class NostARHeadBlock(nn.Module):
     def __init__(
-        self, attn_params, mlp_params,
+        self,
+        attn_params,
+        mlp_params,
         embed_dim,
-        init_gain, gain_scale, use_out_gain
+        init_gain,
+        gain_scale,
+        use_out_gain,
+        mlp_only_blocks,
+        tune_base_block_mlp,
     ):
         super().__init__()
-        self.attn = NostARHeadAttention(pool_to_vector=False, **attn_params)
+        self.mlp_only = mlp_only_blocks
+        self.tune_base_block_mlp = tune_base_block_mlp
+
+        if not self.mlp_only:
+            self.attn = NostARHeadAttention(pool_to_vector=False, **attn_params)
+        else:
+            self.attn = FakeAttn()
         self.ln_2 = nn.LayerNorm(embed_dim, eps=1e-5)
         self.mlp = NostARHeadMLP(**mlp_params)
 
@@ -342,6 +361,8 @@ NostARHeadArchitectureParams = NamedTuple(
     use_block_out_gain=bool,
     init_gain_blocks_out=float,
     gain_scale_blocks_out=float,
+    tune_base_block_mlp=bool,
+    mlp_only_blocks=bool,
 )
 
 
@@ -379,6 +400,14 @@ class NostARHead(nn.Module):
         self.partial_forward_type = partial_forward_type
         self.params_extras = {} if params_extras is None else params_extras
 
+        if self.params.tune_base_block_mlp:
+            self.params = copy_and_update_config(
+                NostARHeadArchitectureParams,
+                self.params,
+                mlp_ratio_blocks=4,
+                mlp_only_blocks=True,
+            )
+
         self._setup()
         if initialize_weights:
             self.init_weights()
@@ -405,7 +434,10 @@ class NostARHead(nn.Module):
 
     @property
     def layer_names(self):
-        return [f'h.{i}' for i in self.layer_nums]
+        names = [f'h.{i}' for i in self.layer_nums]
+        if self.params.tune_base_block_mlp:
+            names = list(map(lambda s: s + ".attn", names))
+        return names
 
     @property
     def n_head(self) -> List[int]:
@@ -413,11 +445,21 @@ class NostARHead(nn.Module):
             return [self.params.n_head for _ in self.layer_nums]
         return self.params.n_head
 
+    @property
+    def input_layers(self):
+        return [self.base_model.transformer.h[num] for num in self.layer_nums]
+
     def __str__(self):
         return f"NostARHead(params={repr(self.params)})"
 
     def init_weights(self):
         self.apply(self._init_weights)
+        for block in self.blocks:
+            if block.tune_base_block_mlp:
+                print(f"tune_base_block_mlp init for block")
+                print(f"before: {repr(block.mlp.state_dict())}")
+                block.mlp.load_state_dict(self.input_layers[0].mlp.state_dict())
+                print(f"after: {repr(block.mlp.state_dict())}")
 
     def _init_weights(self, module):
         """Initialize the weights."""
@@ -465,6 +507,7 @@ class NostARHead(nn.Module):
             rotary=self.params.rotary_blocks,
             rotary_dim=self.params.rotary_dim_blocks,
         )
+
         mlp_params = dict(
             input_size=self.base_model.config.hidden_size,
             intermediate_size=int(self.base_model.config.hidden_size * self.params.mlp_ratio_blocks),
@@ -479,6 +522,8 @@ class NostARHead(nn.Module):
                     init_gain=self.params.init_gain_blocks_out,
                     gain_scale=self.params.gain_scale_blocks_out,
                     embed_dim=self.base_model.config.hidden_size,
+                    mlp_only_blocks=self.params.mlp_only_blocks,
+                    tune_base_block_mlp=self.params.tune_base_block_mlp,
                 )
                 for _ in range(self.n_blocks)
             ]

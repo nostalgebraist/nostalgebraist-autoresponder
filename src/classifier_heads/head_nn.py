@@ -473,9 +473,9 @@ class NostARHead(nn.Module):
         self.apply(self._init_weights)
         for block in self.blocks:
             if block.tune_base_block_mlp:
-                print(f"tune_base_block_mlp init for block")
+                print(f"tune_base_block_attn init for block")
                 print(f"before: {repr(block.attn.state_dict())}")
-                block.mlp.load_state_dict(self.input_layers[0].attn.state_dict())
+                block.attn.load_state_dict(self.input_layers[0].attn.state_dict())
                 print(f"after: {repr(block.attn.state_dict())}")
             if block.tune_base_block_mlp:
                 print(f"tune_base_block_mlp init for block")

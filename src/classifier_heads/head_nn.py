@@ -155,12 +155,16 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         self.qk_dim = qk_dim or self.embed_dim
         self.v_dim = v_dim or self.qk_dim
         self.head_dim = self.qk_dim // self.n_head
-        self.proj_dim = int(proj_ratio * self.v_dim)
+        self.head_dim_v = self.qk_dim // self.n_head
+        self.proj_dim = int(proj_ratio * self.embed_dim)
         if self.head_dim * self.n_head != self.qk_dim:
             raise ValueError(
-                f"embed_dim must be divisible by n_head (got `embed_dim`: {self.embed_dim} and `n_head`: {self.n_head})."
+                f"{self.head_dim_v} * {self.n_head} != {self.qk_dim}"
             )
-
+        if self.head_dim_v * self.n_head != self.v_dim:
+            raise ValueError(
+                f"{self.head_dim_v} * {self.n_head} != {self.v_dim}"
+            )
 
         self.ln = nn.LayerNorm(self.embed_dim, eps=layer_norm_epsilon)
 
@@ -168,7 +172,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         self.q_proj = nn.Linear(self.embed_dim, self.qk_dim, bias=True)  # vs bias=False in GPTNeo -nost
         self.v_proj = nn.Linear(self.embed_dim, self.v_dim, bias=True)  # vs bias=False in GPTNeo -nost
 
-        self.use_proj = use_proj
+        self.use_proj = use_proj or (self.v_dim != self.proj_dim)
 
         if self.use_proj:
             self.out_proj = nn.Linear(self.v_dim, self.proj_dim, bias=True)
@@ -223,7 +227,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
         query = self._split_heads(query, self.n_head, self.head_dim, self.rotary)
         key = self._split_heads(key, self.n_head, self.head_dim, self.rotary)
-        value = self._split_heads(value, self.n_head, self.head_dim, False)
+        value = self._split_heads(value, self.n_head, self.head_dim_v, False)
 
         if self.rotary:
             seq_len = key.shape[1]
@@ -262,7 +266,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
             head_mask,
         )
 
-        attn_output = self._merge_heads(attn_output, self.n_head, self.head_dim)
+        attn_output = self._merge_heads(attn_output, self.n_head, self.head_dim_v)
         if self.use_proj:
             attn_output = self.out_proj(attn_output)
         attn_output = self.res_dropout(attn_output)
@@ -377,6 +381,7 @@ NostARHeadArchitectureParams = NamedTuple(
     n_head_blocks=int,
     qk_dim_blocks=Optional[int],
     qk_dim_final=Optional[int],
+    v_dim_final==Optional[int],
     rotary_blocks=bool,
     rotary_dim_blocks=int,
     init_gain_blocks=float,
@@ -580,6 +585,7 @@ class NostARHead(nn.Module):
                     proj_ratio=self.params.proj_ratio,
                     use_proj=self.use_proj,
                     qk_dim=self.params.qk_dim_final,
+                    v_dim=self.params.v_dim_final,
                 )
                 for nh in self.n_head
             ]

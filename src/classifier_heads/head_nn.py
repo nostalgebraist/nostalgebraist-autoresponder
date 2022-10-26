@@ -297,6 +297,10 @@ class FakeAttn(nn.Module):
     def forward(self, x):
         return [torch.zeros_like(x)]
 
+    @property
+    def out_proj(self):
+        return None
+
 
 class NostARHeadBlock(nn.Module):
     def __init__(
@@ -329,6 +333,8 @@ class NostARHeadBlock(nn.Module):
             self.mlp_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
 
     def forward(self, hidden_states):
+        if self.tune_base_block_mlp:
+            hidden_states = hidden_states[0]  # base model attn returns tuple
         if self.use_out_gain:
             hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(hidden_states)[0]
             hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(self.ln_2(hidden_states))

@@ -14,6 +14,7 @@ NostARHeadOptimizerParams = NamedTuple(
     weight_decay=float,
     min_lr_frac=float,
     warmup_ratio=float,
+    decay_ratio=Optional[float]
     adam_beta1=float,
     adam_beta2=float,
     classic_behavior_lr_sched=bool,
@@ -122,14 +123,16 @@ def get_nost_ar_head_scheduler(
     opt_params: NostARHeadOptimizerParams,
     data_len: int,
 ):
+    decay_ratio = opt_params.decay_ratio or 1 - opt_params.warmup_ratio
     total_steps = opt_params.epochs * data_len // opt_params.batch_size
+    decay_steps = decay_ratio * total_steps
 
     classic_behavior = opt_params.classic_behavior_lr_sched
     sched_fn = classic_cosine_anneal_warmup_multiplier if classic_behavior else cosine_anneal_warmup_multiplier
 
     lr_lambda = partial(
         sched_fn,
-        total_steps=total_steps,
+        total_steps=decay_steps,
         warmup_steps=opt_params.warmup_ratio * total_steps,
         min_value_warmup=0.0,
         min_value_decay=opt_params.min_lr_frac,

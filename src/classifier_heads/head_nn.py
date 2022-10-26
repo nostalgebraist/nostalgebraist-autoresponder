@@ -155,7 +155,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         self.qk_dim = qk_dim or self.embed_dim
         self.v_dim = v_dim or self.qk_dim
         self.head_dim = self.qk_dim // self.n_head
-        self.head_dim_v = self.qk_dim // self.n_head
+        self.head_dim_v = self.v_dim // self.n_head
         self.proj_dim = int(proj_ratio * self.embed_dim)
         if self.head_dim * self.n_head != self.qk_dim:
             raise ValueError(

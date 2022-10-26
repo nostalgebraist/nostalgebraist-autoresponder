@@ -391,6 +391,7 @@ NostARHeadArchitectureParams = NamedTuple(
     tune_base_block_attn=bool,
     tune_base_block_mlp=bool,
     mlp_only_blocks=bool,
+    no_orth_init_in_final_mlp=bool,
 )
 
 
@@ -530,9 +531,12 @@ class NostARHead(nn.Module):
             print(
                 f"initialized {repr(module)} with gain {self.params.init_gain:.2f}"
             )
-            torch.nn.init.orthogonal_(module.weight, gain=self.params.init_gain)
-            if module.bias is not None:
-                module.bias.data.zero_()
+            if self.params.no_orth_init_in_final_mlp:
+                pass
+            else:
+                torch.nn.init.orthogonal_(module.weight, gain=self.params.init_gain)
+                if module.bias is not None:
+                    module.bias.data.zero_()
         elif isinstance(module, nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)

@@ -528,12 +528,12 @@ class NostARHead(nn.Module):
             if module.bias is not None:
                 module.bias.data.zero_()
         elif isinstance(module, (nn.Linear,)):
-            print(
-                f"initialized {repr(module)} with gain {self.params.init_gain:.2f}"
-            )
             if self.params.no_orth_init_in_final_mlp:
                 pass
             else:
+                print(
+                    f"initialized {repr(module)} with gain {self.params.init_gain:.2f}"
+                )
                 torch.nn.init.orthogonal_(module.weight, gain=self.params.init_gain)
                 if module.bias is not None:
                     module.bias.data.zero_()

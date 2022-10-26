@@ -153,7 +153,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
         self.embed_dim = base_model_config.hidden_size
         self.qk_dim = qk_dim or self.embed_dim
-        self.v_dim = v_dim or self.embed_dim
+        self.v_dim = v_dim or self.qk_dim
         self.head_dim = self.qk_dim // self.n_head
         self.proj_dim = int(proj_ratio * self.v_dim)
         if self.head_dim * self.n_head != self.qk_dim:

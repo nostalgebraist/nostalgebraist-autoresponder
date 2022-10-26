@@ -320,15 +320,16 @@ class NostARHeadBlock(nn.Module):
         self.tune_base_block_attn = tune_base_block_attn
         self.tune_base_block_mlp = tune_base_block_mlp
 
+        self.ln_1 = nn.LayerNorm(embed_dim, eps=1e-5)
         if self.mlp_only:
             self.attn = FakeAttn()
         else:
             if self.tune_base_block_attn:
-                self.attn = GPTNeoSelfAttention('global', attn_params['base_model_config'])
+                base_model_config = attn_params['base_model_config']
+                self.attn = GPTNeoSelfAttention('global', base_model_config)
             else:
                 self.attn = NostARHeadAttention(pool_to_vector=False, **attn_params)
 
-        self.ln_2 = nn.LayerNorm(embed_dim, eps=1e-5)
         self.mlp = NostARHeadMLP(**mlp_params)
 
         self.gain_scale = gain_scale
@@ -338,14 +339,21 @@ class NostARHeadBlock(nn.Module):
             self.attn_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
             self.mlp_gain = torch.nn.Parameter((np.log(init_gain) / gain_scale) * torch.ones(1))
 
+    @property
+    def ln_2(self):
+        return self.ln_1
+
     def forward(self, hidden_states):
         if self.tune_base_block_mlp and not self.tune_base_block_attn:
             hidden_states = hidden_states[0]  # base model attn returns tuple
+        attn_in = hidden_states
+        if self.tune_base_block_attn:
+            attn_in = self.ln_1(attn_in)
         if self.use_out_gain:
-            hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(hidden_states)[0]
+            hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(attn_in)[0]
             hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(self.ln_2(hidden_states))
         else:
-            hidden_states = hidden_states + self.attn(hidden_states)[0]
+            hidden_states = hidden_states + self.attn(attn_in)[0]
             hidden_states = hidden_states + self.mlp(self.ln_2(hidden_states))
         return hidden_states
 
@@ -472,13 +480,18 @@ class NostARHead(nn.Module):
     def init_weights(self):
         self.apply(self._init_weights)
         for block in self.blocks:
-            if block.tune_base_block_mlp:
-                print(f"tune_base_block_attn init for block")
+            if block.tune_base_block_attn or block.tune_base_block_mlp:
+                print(f"tune_base_block ln init for block")
+                print(f"before: {repr(block.ln_1.state_dict())}")
+                block.ln_1.load_state_dict(self.input_layers[0].ln_1.state_dict())
+                print(f"after: {repr(block.ln_1.state_dict())}")
+            if block.tune_base_block_attn:
+                print(f"tune_base_block_attn mod init for block")
                 print(f"before: {repr(block.attn.state_dict())}")
                 block.attn.load_state_dict(self.input_layers[0].attn.attention.state_dict())
                 print(f"after: {repr(block.attn.state_dict())}")
             if block.tune_base_block_mlp:
-                print(f"tune_base_block_mlp init for block")
+                print(f"tune_base_block_mlp mod init for block")
                 print(f"before: {repr(block.mlp.state_dict())}")
                 block.mlp.load_state_dict(self.input_layers[0].mlp.state_dict())
                 print(f"after: {repr(block.mlp.state_dict())}")

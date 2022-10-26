@@ -381,7 +381,7 @@ NostARHeadArchitectureParams = NamedTuple(
     n_head_blocks=int,
     qk_dim_blocks=Optional[int],
     qk_dim_final=Optional[int],
-    v_dim_final==Optional[int],
+    v_dim_final=Optional[int],
     rotary_blocks=bool,
     rotary_dim_blocks=int,
     init_gain_blocks=float,

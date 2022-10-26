@@ -131,7 +131,8 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         proj_ratio: float = 1.,
         use_proj=True,
         pool_to_vector=True,
-        qkv_dim=None,
+        qk_dim=None,
+        v_dim=None,
         rotary=False,
         rotary_dim=64,
     ):
@@ -151,10 +152,11 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         self.res_dropout = nn.Dropout(res_dropout)
 
         self.embed_dim = base_model_config.hidden_size
-        self.qkv_dim = qkv_dim or self.embed_dim
-        self.head_dim = self.qkv_dim // self.n_head
-        self.proj_dim = int(proj_ratio * self.embed_dim)
-        if self.head_dim * self.n_head != self.qkv_dim:
+        self.qk_dim = qk_dim or self.embed_dim
+        self.v_dim = v_dim or self.embed_dim
+        self.head_dim = self.qk_dim // self.n_head
+        self.proj_dim = int(proj_ratio * self.v_dim)
+        if self.head_dim * self.n_head != self.qk_dim:
             raise ValueError(
                 f"embed_dim must be divisible by n_head (got `embed_dim`: {self.embed_dim} and `n_head`: {self.n_head})."
             )
@@ -162,14 +164,14 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
         self.ln = nn.LayerNorm(self.embed_dim, eps=layer_norm_epsilon)
 
-        self.k_proj = nn.Linear(self.embed_dim, self.qkv_dim, bias=True)  # vs bias=False in GPTNeo -nost
-        self.v_proj = nn.Linear(self.embed_dim, self.qkv_dim, bias=True)  # vs bias=False in GPTNeo -nost
-        self.q_proj = nn.Linear(self.embed_dim, self.qkv_dim, bias=True)  # vs bias=False in GPTNeo -nost
+        self.k_proj = nn.Linear(self.embed_dim, self.qk_dim, bias=True)  # vs bias=False in GPTNeo -nost
+        self.q_proj = nn.Linear(self.embed_dim, self.qk_dim, bias=True)  # vs bias=False in GPTNeo -nost
+        self.v_proj = nn.Linear(self.embed_dim, self.v_dim, bias=True)  # vs bias=False in GPTNeo -nost
 
-        self.use_proj = use_proj or (self.embed_dim != self.qkv_dim)
+        self.use_proj = use_proj
 
         if self.use_proj:
-            self.out_proj = nn.Linear(self.qkv_dim, self.proj_dim, bias=True)
+            self.out_proj = nn.Linear(self.v_dim, self.proj_dim, bias=True)
 
         self.rotary = rotary
         self.rotary_dim = rotary_dim
@@ -180,10 +182,10 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
     def classic_init(self, gain=1.):
         with torch.no_grad():
-            qkv_weight = torch.empty(3 * self.qkv_dim, self.embed_dim, requires_grad=False)
+            qkv_weight = torch.empty(2 * self.qk_dim + self.v_dim, self.embed_dim, requires_grad=False)
             torch.nn.init.orthogonal_(qkv_weight, gain=gain)
 
-            q_weight, k_weight, v_weight = torch.split(qkv_weight, self.qkv_dim, dim=0)
+            q_weight, k_weight, v_weight = torch.split(qkv_weight, [self.qk_dim, self.qk_dim, self.v_dim], dim=0)
 
             print(q_weight.shape)
             print(self.q_proj.weight.shape)
@@ -373,8 +375,8 @@ NostARHeadArchitectureParams = NamedTuple(
     n_blocks=int,
     mlp_ratio_blocks=Union[int, float],
     n_head_blocks=int,
-    qkv_dim_blocks=Optional[int],
-    qkv_dim_final=Optional[int],
+    qk_dim_blocks=Optional[int],
+    qk_dim_final=Optional[int],
     rotary_blocks=bool,
     rotary_dim_blocks=int,
     init_gain_blocks=float,
@@ -534,7 +536,7 @@ class NostARHead(nn.Module):
         attn_params = dict(
             base_model_config=self.base_model.config,
             n_head=self.params.n_head_blocks,
-            qkv_dim=self.params.qkv_dim_blocks,
+            qk_dim=self.params.qk_dim_blocks,
             attn_dropout=self.params.attn_dropout,
             res_dropout=self.params.res_dropout,
             proj_ratio=self.params.proj_ratio,
@@ -577,7 +579,7 @@ class NostARHead(nn.Module):
                     res_dropout=self.params.res_dropout,
                     proj_ratio=self.params.proj_ratio,
                     use_proj=self.use_proj,
-                    qkv_dim=self.params.qkv_dim_final,
+                    qk_dim=self.params.qk_dim_final,
                 )
                 for nh in self.n_head
             ]

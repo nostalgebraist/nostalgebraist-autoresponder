@@ -29,6 +29,10 @@ SamplingParams = NamedTuple(
     typical_sampling=bool,
     typical_sampling_mass=float,
     typical_sampling_min_tokens_to_keep=int,
+    avoid_unk_caption=bool,
+    breakruns_off_within_images=bool,
+    breakruns_modified_within_images=bool,
+    breakruns_temp_modifier=float,
 )
 
 
@@ -64,6 +68,10 @@ DEFAULT_SAMPLING_CONFIG = SamplingConfig(
         typical_sampling=TYPICAL_SAMPLING,
         typical_sampling_mass=TYPICAL_SAMPLING_MASS,
         typical_sampling_min_tokens_to_keep=TYPICAL_SAMPLING_MIN_TOKENS_TO_KEEP,
+        avoid_unk_caption=False,
+        breakruns_off_within_images=False,
+        breakruns_modified_within_images=False,
+        breakruns_temp_modifier=0.,
     ),
     params=SamplingParams(
         temperature=temperature,
@@ -78,12 +86,16 @@ DEFAULT_SAMPLING_CONFIG = SamplingConfig(
         breakruns_decay=BREAKRUNS_DECAY,
         typical_sampling=TYPICAL_SAMPLING,
         typical_sampling_mass=TYPICAL_SAMPLING_MASS,
-        typical_sampling_min_tokens_to_keep=TYPICAL_SAMPLING_MIN_TOKENS_TO_KEEP
+        typical_sampling_min_tokens_to_keep=TYPICAL_SAMPLING_MIN_TOKENS_TO_KEEP,
+        avoid_unk_caption=False,
+        breakruns_off_within_images=False,
+        breakruns_modified_within_images=False,
+        breakruns_temp_modifier=0.,
     ),
     disable_prints=True,
     first_step_length=first_step_length,
     post_window_length=length,
-    max_ctx_fits_on_gpu=max_ctx_fits_on_gpu,
+    max_ctx_fits_on_gpu=max_feed_size_with_cache,
     max_continue_steps=MAX_CONTINUE_STEPS,
     max_continue_tokens=MAX_CONTINUE_TOKENS,
     mirostat_lr=MIRO_LR,

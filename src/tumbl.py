@@ -86,8 +86,10 @@ from api_tumblr.tumblr_parsing import TumblrThread
 from util.error_handling import LogExceptionAndSkip
 
 from corpus.dash_archive import archive_to_corpus
+from corpus.prob_delt_archive import archive_prob_delt
 
-from experimental.prob_delta import get_prob_delta_for_payloads
+from experimental.prob_delta import get_prob_delta_for_payloads, \
+    construct_prob_delta_prompts_for_ask, construct_prob_delta_prompts_for_post
 
 image_analysis_cache = image_analysis_singleton.IMAGE_ANALYSIS_CACHE
 
@@ -129,6 +131,8 @@ LIMITED_SUBSTRINGS = bot_specific_constants.LIMITED_SUBSTRINGS
 SCREENED_USERS = bot_specific_constants.SCREENED_USERS
 NO_SCRAPE_USERS = bot_specific_constants.NO_SCRAPE_USERS
 ask_min_words = bot_specific_constants.ask_min_words
+reblog_reply_window_nposts = bot_specific_constants.reblog_reply_window_nposts
+STOP_ABOVE_COST = bot_specific_constants.STOP_ABOVE_COST
 LIMITED_SUBSTRING_FAKE_USERNAME = "!,!,limitedsubs"
 
 client_pool = ClientPool()
@@ -159,17 +163,16 @@ REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
 MAX_POSTS_PER_STEP = 5
-STOP_ABOVE_COST = 9
 
-DASH_REBLOG_PROB_DELT_CUTOFF = 0.002 # 0.0025
-DASH_REBLOG_PROB_DELT_NOISE = 0.003 # 0.002
+DASH_REBLOG_PROB_RATIO_CUTOFF = 2.
+DASH_REBLOG_PROB_RATIO_NOISE = 2.
 
 DASH_REBLOG_SELECTION_CUTOFF = 0.
 DASH_REBLOG_MOOD_BUFF_SCALE = 0.15
 DASH_REBLOG_RANDOM_BUFF_SCALE = 0.1
 DASH_REBLOG_MAX_NEG_SENTIMENT = 0.9
-DASH_REBLOG_CONTINUATION_SELECTION_CUTOFF = None  # "roll"  # 0.5
-DASH_REBLOG_CONTINUATION_DELTA_TO_WRITTEN_CUTOFF = -0.025  # 0.015
+DASH_REBLOG_CONTINUATION_SELECTION_CUTOFF = None
+DASH_REBLOG_CONTINUATION_DELTA_TO_WRITTEN_CUTOFF = 0.0
 
 DASH_REBLOG_REQUIRE_COMMENT = False
 DASH_REBLOG_NO_BOT = True
@@ -217,6 +220,10 @@ CAPTION_IMAGES_IN_MODEL_INPUT = True
 CAPTION_IMAGES_IN_HEAD_INPUT = True
 
 SAMPLE_YEAR_FOR_GENERATOR = True
+
+ARCHIVE_ASK_PROB_DELT = True
+ARCHIVE_DASH_PROB_DELT = True
+USE_MASKED_DASK_PROB_DELT = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
@@ -563,13 +570,17 @@ def augment_screener_output_with_autoreviewer(
                     print(f"draft_autoreviewer: autoreview_proba {autoreview_proba:.1%} >= cutoff {cut:.1%}")
             if (not must_be_draft):
                 # should we force reject ?
-                cut = AUTOREVIEWER_CUTOFFS["reject_above"]
-                if autoreview_proba > cut:
-                    print(f"draft_autoreviewer rejects post: autoreview_proba {autoreview_proba:.1%} > cutoff {cut:.1%}")
+                cut_reject = AUTOREVIEWER_CUTOFFS["reject_above"]
+                cut_flag = AUTOREVIEWER_CUTOFFS.get("flag_above", 1.0)
+                if autoreview_proba > cut_reject:
+                    print(f"draft_autoreviewer rejects post: autoreview_proba {autoreview_proba:.1%} > cutoff {cut_reject:.1%}")
                     should_publish = False
                     ml_rejected = True
+                elif autoreview_proba > cut_flag:
+                    print(f"draft_autoreviewer flags post: flag cutoff {cut_flag:.1%} < autoreview_proba {autoreview_proba:.1%} <= reject cutoff {cut_reject:.1%} ")
+                    should_publish = False
                 else:
-                    print(f"draft_autoreviewer: autoreview_proba {autoreview_proba:.1%} <= cutoff {cut:.1%}")
+                    print(f"draft_autoreviewer: autoreview_proba {autoreview_proba:.1%} <= cutoff {min(cut_flag, cut_reject):.1%}")
 
         else:
             print("can't use draft_autoreviewer: no autoreview_proba was supplied")
@@ -612,7 +623,9 @@ def make_text_post(
     )
     state_reasons["reject_action"] = reject_action
 
-    if IMAGE_CREATION and not state_reasons["ml_rejected"]:  # don't waste time making images if post was rejected
+    if IMAGE_CREATION and not (
+        state_reasons["ml_rejected"] or state_reasons["do_not_post"]  # don't waste time making images if post was rejected
+    ):
         presub_post = post
 
         guidance_scale = random.choice(GUIDANCE_SCALE_OPTIONS)
@@ -672,21 +685,22 @@ def make_text_post(
     tags = strip_avoid_listed_strings_from_tags(tags)
 
     # finalize state
+    delete_after_posting = False
     state_reasons["should_publish"] = state_reasons["should_publish"] and (not state_reasons["must_be_draft"])
     publ_state = "queue" if to_queue else "published"
     state = publ_state if state_reasons["should_publish"] else "draft"
-    if state_reasons["ml_rejected"]:
+    if state_reasons["ml_rejected"] or state_reasons["do_not_post"]:
         if reject_action == "rts":
             tags.append("rts")
         elif reject_action == "do_not_post":
-            state_reasons["do_not_post"] = True
+            delete_after_posting = True
 
     kwargs = {"state": state, "body": post}
     if len(tags) > 0:
         kwargs["tags"] = tags
 
     api_response = client_pool.get_private_client().create_text(blogname, **kwargs)
-    if state_reasons["do_not_post"]:
+    if delete_after_posting:
         client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
 
     if log_data is not None:
@@ -810,13 +824,14 @@ def answer_ask(
         state_reasons["must_be_draft"] = True
 
     # finalize state
+    delete_after_posting = False
     state_reasons["should_publish"] = state_reasons["should_publish"] and (not state_reasons["must_be_draft"])
     state = "published" if state_reasons["should_publish"] else "draft"
-    if state_reasons["ml_rejected"]:
+    if state_reasons["ml_rejected"] or state_reasons["do_not_post"]:
         if reject_action == "rts":
             tags.append("rts")
         elif reject_action == "do_not_post":
-            state_reasons["do_not_post"] = True
+            delete_after_posting = True
 
     # Take a list of tags and make them acceptable for upload
     tags = ",".join(tags)
@@ -835,7 +850,7 @@ def answer_ask(
         data = {"id": ask_id, "answer": answer, "tags": tags, "state": state}
 
     api_response = client_pool.get_private_client().send_api_request("post", url, data, valid_options)
-    if state_reasons["do_not_post"]:
+    if delete_after_posting:
         client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
     if log_data is not None:
         log_data["requested__state"] = state
@@ -983,7 +998,7 @@ def prioritize_reblogs_replies(
             (thread_length_cost, thread_length, "thread_length"),
             (word_cost, min(word_count, word_cost_first_n_words), "min(word_count, word_cost_first_n_words)"),
             (short_cost, (word_count < short_under_n_words), "word_count < short_under_n_words"),
-            (empty_cost, (word_count == 0), "word_count == 0")
+            (empty_cost, (word_count <= 1), "word_count <= 1")
         ]:
             cost += item[0] * item[1]
             vprint(f"\tcost now {cost:.1f} | added {item[0] * item[1]:.1f} with {item[2]}={item[1]}")
@@ -1426,10 +1441,8 @@ def is_statically_reblog_worthy_on_dash(
     if '.gif' in p_body:
         scrape_worthy = False
 
-    if n_img > 3:
+    if n_img > 2:
         scrape_worthy = False
-    elif n_img > 2:
-        image_scrape_only = True
 
     if n_img > 0:
         roll = random.random()
@@ -1439,10 +1452,10 @@ def is_statically_reblog_worthy_on_dash(
     if not has_comment:
         roll = random.random()
         if roll > 0.667:
-            image_scrape_only = True
+            scrape_worthy = False
 
     if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):
-        if get_images_from_no_scrape_users:
+        if get_images_from_no_scrape_users and scrape_worthy:
             image_scrape_only = True
         else:
             scrape_worthy = False
@@ -1533,7 +1546,13 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         prompts_selector.append(prompt_selector)
 
     if len(payloads_to_judge) > 0:
-        prob_delts = get_prob_delta_for_payloads(payloads_to_judge, blogName)
+        pd_kwargs_full = dict(cut_to_last_and_skip_username=False)
+        pd_kwargs_masked = dict(cut_to_last_and_skip_username=True)
+
+        prob_delts = get_prob_delta_for_payloads(payloads_to_judge, blogName, is_ask=False, **pd_kwargs_full)
+
+        prob_delts_masked = get_prob_delta_for_payloads(payloads_to_judge, blogName, is_ask=False, **pd_kwargs_masked)
+
         probs = selection_proba_from_gpt(prompts_selector)
         sentiments = sentiment_logit_diffs_from_gpt(prompts_selector)
         autoreview_probs = autoreview_proba_from_gpt(prompts_selector)
@@ -1541,9 +1560,10 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         delta = time.time() - t1
         print(f"got {len(payloads_to_judge)} judgments in {delta:.2f}s")
 
-        for pi, text, prob, sentiment, autoreview_prob, prob_delt in zip(
-            post_identifiers, prompts_selector, probs, sentiments, autoreview_probs, prob_delts
+        for pi, pp, text, prob, sentiment, autoreview_prob, prob_delt_full, prob_delt_masked in zip(
+            post_identifiers, post_payloads, prompts_selector, probs, sentiments, autoreview_probs, prob_delts, prob_delts_masked
         ):
+            prob_delt = prob_delt_masked if USE_MASKED_DASK_PROB_DELT else prob_delt_full
             entry = {
                 "text": text,
                 "prob": prob,
@@ -1552,6 +1572,17 @@ def batch_judge_dash_posts(post_payloads, response_cache):
                 "prob_delt": prob_delt
             }
             response_cache.mark_dash_post_judgments(pi, entry)
+
+            if ARCHIVE_DASH_PROB_DELT:
+                kind = 'dash_full'
+                user = pp['blog_name']
+                post_id = pi.id_
+                substring, _, _ = construct_prob_delta_prompts_for_post(TumblrThread.from_payload(pp), **pd_kwargs_full)
+                archive_prob_delt(kind=kind, user=user, substring=substring, post_id=post_id, prob_delt=prob_delt_full)
+
+                kind = 'dash_masked'
+                substring, _, _ = construct_prob_delta_prompts_for_post(TumblrThread.from_payload(pp), **pd_kwargs_masked)
+                archive_prob_delt(kind=kind, user=user, substring=substring, post_id=post_id, prob_delt=prob_delt_masked)
     return response_cache
 
 
@@ -1580,18 +1611,23 @@ def is_dynamically_reblog_worthy_on_dash(
         judg["prob_delt"]
     )
 
-    prob_delt_buff = (
-        2 * DASH_REBLOG_PROB_DELT_NOISE * np.random.random()
-        - DASH_REBLOG_PROB_DELT_NOISE
+    logprob_noise = np.log(DASH_REBLOG_PROB_RATIO_NOISE + 1e-6)
+
+    logprob_ratio_buff = (
+        2 * logprob_noise * np.random.random()
+        - logprob_noise
     )
-    buffed_prob_delt = prob_delt + prob_delt_buff
+    prob_ratio_buff = np.exp(logprob_ratio_buff)
 
-    formatted_buffed_prob_delt = f"{buffed_prob_delt:.4f} "
-    formatted_buffed_prob_delt += f"(= prob_delt {prob_delt:.4f} + buff {prob_delt_buff:.4f})"
+    prob_ratio = np.exp(prob_delt)
+    buffed_prob_ratio = prob_ratio * prob_ratio_buff
 
-    if buffed_prob_delt < DASH_REBLOG_PROB_DELT_CUTOFF:
-        msg = f"\trejecting {post_identifier}: buffed_prob_delt {formatted_buffed_prob_delt}"
-        msg += f" < cutoff {DASH_REBLOG_PROB_DELT_CUTOFF:.4f}"
+    formatted_buffed_prob_delt = f"{buffed_prob_ratio:.4f} "
+    formatted_buffed_prob_delt += f"(= prob_ratio {prob_ratio:.4f} * buff {prob_ratio_buff:.4f})"
+
+    if buffed_prob_ratio < DASH_REBLOG_PROB_RATIO_CUTOFF:
+        msg = f"\trejecting {post_identifier}: buffed_prob_ratio {formatted_buffed_prob_delt}"
+        msg += f" < cutoff {DASH_REBLOG_PROB_RATIO_CUTOFF:.4f}"
         print(msg)
         return False
 
@@ -1815,6 +1851,13 @@ def get_relevant_replies_from_notes(
 ):
     if post_payload["id"] in NO_REBLOG_IDS:
         return replies_to_handle, loop_persistent_data, response_cache
+
+    for trail_entry in post_payload.get("trail", []):
+        if trail_entry.get("blog", {}).get("name", "") in USER_AVOID_LIST:
+            return replies_to_handle, loop_persistent_data, response_cache
+        if int(trail_entry.get("post", {}).get("id", -1)) in NO_REBLOG_IDS:
+            return replies_to_handle, loop_persistent_data, response_cache
+
     for ix, n in enumerate(notes_payload):
         if n["type"] != "reply":
             continue
@@ -1854,6 +1897,12 @@ def get_relevant_replies_from_notes(
             reply_context_post_identifier,
             care_about_notes=False,
         )
+
+        for trail_entry in reply_context_post.get("trail", []):
+            if trail_entry.get("blog", {}).get("name", "") in USER_AVOID_LIST:
+                return replies_to_handle, loop_persistent_data, response_cache
+            if int(trail_entry.get("post", {}).get("id", -1)) in NO_REBLOG_IDS:
+                return replies_to_handle, loop_persistent_data, response_cache
 
         reply_identifier = ReplyIdentifier(
             n["blog_name"], reply_context_post_id, n["timestamp"]
@@ -2215,7 +2264,8 @@ def do_reblog_reply_handling(
                 response_cache,
                 verbose=VERBOSE_LOGS,
                 is_nost_dash_scraper=is_nost_dash_scraper,
-                slow_scraping_ok=slow_scraping_ok
+                slow_scraping_ok=slow_scraping_ok,
+                get_images_from_no_scrape_users=False,
             ):
                 statically_worthy_posts.append(post)
         print(f"{len(statically_worthy_posts)}/{len(posts)} statically reblog worthy")
@@ -2224,7 +2274,7 @@ def do_reblog_reply_handling(
             statically_worthy_posts, response_cache
         )
     else:
-        statically_worthy_posts = posts  # posts[:n_posts_to_check]
+        statically_worthy_posts = sorted(posts, key=lambda pp: pp["id"])[-reblog_reply_window_nposts:]
 
     ### loop through posts
     for post_ix, post in enumerate(tqdm(statically_worthy_posts)):
@@ -2328,12 +2378,14 @@ def do_reblog_reply_handling(
     cost_ordered_idents = sorted(costs.keys(), key=lambda ident: costs[ident])
     pprint([{"cost": costs[ident], "ident": ident} for ident in cost_ordered_idents])
 
+    effective_stop_above_cost = STOP_ABOVE_COST + loop_persistent_data.slowdown_level['STOP_ABOVE_COST_modifier']
+
     cost_ordered_idents_screened = []
     for ident in cost_ordered_idents:
         if costs[ident] < STOP_ABOVE_COST:
             cost_ordered_idents_screened.append(ident)
         else:
-            print(f"ignoring {ident} forever with cost {costs[ident]:.1f}!")
+            print(f"ignoring {ident}: cost {costs[ident]:.1f} >= effective_stop_above_cost {effective_stop_above_cost:.1f}")
     cost_ordered_idents = cost_ordered_idents_screened
 
     blog_names_to_idents = defaultdict(list)
@@ -2660,8 +2712,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
     ]
 
     max_posts_per_step_with_slowdown = max_posts_per_step(loop_persistent_data.slowdown_level)
-    kept = submissions[-max_posts_per_step_with_slowdown:]
-    excluded = submissions[:-max_posts_per_step_with_slowdown]
+    kept = submissions[::-1][:max_posts_per_step_with_slowdown]
+    excluded = submissions[::-1][max_posts_per_step_with_slowdown:]
     if len(excluded) > 0:
         print(
             f"saving {len(excluded)} of {len(submissions)} for later with MAX_POSTS_PER_STEP={max_posts_per_step_with_slowdown}"
@@ -2672,7 +2724,19 @@ def do_ask_handling(loop_persistent_data, response_cache):
             )
     submissions = kept
 
-    for post_payload in submissions[::-1]:
+    if ARCHIVE_ASK_PROB_DELT:
+        non_command_asks = [pp for pp in submissions if not pp.get("summary", "").startswith("!")]
+        pd_kwargs = dict(skip_asking_name=True)
+        prob_delts = get_prob_delta_for_payloads(non_command_asks, blogName, is_ask=True, **pd_kwargs)
+
+        for pp, pd in zip(non_command_asks, prob_delts):
+            kind = 'ask'
+            user = pp['asking_name']
+            substring, _, _ = construct_prob_delta_prompts_for_ask(TumblrThread.from_payload(pp), **pd_kwargs)
+            archive_prob_delt(kind=kind, user=user, substring=substring, prob_delt=pd)
+
+    for ix, post_payload in enumerate(submissions):
+        print(f'\nhandling ask {ix+1}/{len(submissions)}')
         if post_payload.get("summary", "") == FOLLOW_COMMAND:
             with LogExceptionAndSkip("follow"):
                 response_cache.follow(post_payload["asking_name"], client_pool.get_dashboard_client())
@@ -3116,11 +3180,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                     image_analysis_cache.save()
         return loop_persistent_data, response_cache
 
-    ### do asks check
-    loop_persistent_data, response_cache = _mainloop_asks_block(
-        loop_persistent_data, response_cache
-    )
-
     ### do reblog/reply check
     if n_posts_to_check > 0:
         # reblogs, replies
@@ -3130,10 +3189,13 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         response_cache.save()
         image_analysis_cache.save()
 
-        ### do another asks check
+    relevant_ratelimit_data = client_pool.get_private_client().get_ratelimit_data()
+    if relevant_ratelimit_data["effective_remaining"] > 0:
+        ### do asks check
         loop_persistent_data, response_cache = _mainloop_asks_block(
             loop_persistent_data, response_cache
         )
+
 
     # dash check
     for is_nost_dash_scraper, relevant_client in [
@@ -3161,10 +3223,10 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             print("skipping dash check this time")
             loop_persistent_data.requests_per_check_history_dash.append(0)
 
-        ### do another asks check
-        loop_persistent_data, response_cache = _mainloop_asks_block(
-            loop_persistent_data, response_cache, save_after=False
-        )
+    ### do another asks check
+    loop_persistent_data, response_cache = _mainloop_asks_block(
+        loop_persistent_data, response_cache, save_after=False
+    )
 
     relevant_ratelimit_data = client_pool.get_private_client().get_ratelimit_data()
     if relevant_ratelimit_data["effective_remaining"] > 0:
@@ -3173,10 +3235,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
 
         ### do rts
         response_cache = do_rts(response_cache)
-
-        # inform us about drafts
-        drafts = client_pool.get_private_client().drafts(blogName)["posts"]
-        print(f"{len(drafts)} waiting for review")
 
         ### do queue check
         loop_persistent_data, response_cache = do_queue_handling(

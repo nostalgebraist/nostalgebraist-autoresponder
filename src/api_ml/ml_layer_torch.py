@@ -14,6 +14,7 @@ from tumblr_to_text.classic.autoresponder_static_v8 import *
 from ml.generator_model_torch import GeneratorModelTorch, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
 from classifier_heads.head_estimator import NostARHeadEstimator
 from ml.load_gptj import load_gpt_j_split_ckpt, load_gpt_j_split_ckpt_state_dict, quick_init_gptj
+from ml.kv_cache import setup_kv_buffer
 
 import ml.captioning
 
@@ -27,7 +28,12 @@ BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 
 
 def caption_image(self, path_or_url, **kwargs):
-    return ml.captioning.caption_image(path_or_url=path_or_url, magma_wrapper=self, **kwargs)
+    return ml.captioning.caption_image(
+        path_or_url=path_or_url,
+        magma_wrapper=self,
+        adapters_device=captioning_adapters_device,
+        **kwargs
+    )
 
 magma.Magma.caption_image = caption_image
 
@@ -69,6 +75,7 @@ def load_generator_model(
     retries=False,
     use_captioner=False,
     captioner_path="",
+    use_kv_buffer=True,
 ):
     if use_captioner:
         sd = load_gpt_j_split_ckpt_state_dict(path)
@@ -86,7 +93,10 @@ def load_generator_model(
         magma_wrapper.detach_adapters()
 
         for k in magma_wrapper.adapter_map:
-            magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].cpu()
+            magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].to(device=captioning_adapters_device)
+
+        if use_kv_buffer:
+            setup_kv_buffer(magma_wrapper, batch_size=batch_size, max_sequence_length=max_feed_size_with_cache)
 
         transformers_model = magma_wrapper.lm
     else:
@@ -182,6 +192,7 @@ generator_model, magma_wrapper = load_generator_model(
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
     use_captioner="captioner" in MODELS_SERVED,
     captioner_path=os.path.abspath(ckpt_captioner),
+    use_kv_buffer=USE_KV_BUFFER,
 )
 
 if "selector" in MODELS_SERVED:
@@ -194,6 +205,7 @@ if "sentiment" in MODELS_SERVED:
 
 if "autoreviewer" in MODELS_SERVED:
     autoreviewer_est = load_selector(ckpt_autoreviewer, base_model=generator_model.transformers_model, tokenizer=tokenizer)
+    autoreviewer_est.length = length_autoreview
 
 DEPRECATED_KWARGS = {"mirotarg"}
 
@@ -274,7 +286,7 @@ def poll(
                 "BREAKRUNS": BREAKRUNS,
                 "BREAKRUNS_TAU": BREAKRUNS_TAU,
                 "BREAKRUNS_DECAY": BREAKRUNS_DECAY,
-                "length": GPT_NEO_MAX_LENGTH,
+                "length": generator_model.max_feed_size_with_cache,
                 "T": GPT_NEO_T,
                 "p": GPT_NEO_TOP_P,
                 "chop_lowest": chop_lowest,

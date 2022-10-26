@@ -55,6 +55,7 @@ if V12_19:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.138,  # v12_19/v2: predict true accept rate: ~32%, false accept rate ~8.75%
         "reject_above": 0.666,  # v12_19/v2: predict true reject rate: ~23%, false reject rate ~3%
+        "flag_above":   0.35,
     }
 elif V12_18:
     AUTOREVIEWER_CUTOFFS = {
@@ -441,8 +442,6 @@ def _gpu_type():
 
 GPU_TYPE = _gpu_type()
 
-batch_size = 1
-
 max_ctx_fits_on_gpu = 1020
 
 # sets max context size, for long prompts we want to cut off to allow bot to write at least this many tokens
@@ -606,32 +605,34 @@ else:
     first_step_chop_lowest = chop_lowest
     first_step_chop_highest = chop_highest
 
-max_ctx_fits_on_gpu = 2048 if V11 else 1024
-
-if SELECT_VIA_GENERATOR_LONGLENGTH:
-    length_select = max_ctx_fits_on_gpu
-
-if SENTIMENT_VIA_GENERATOR_LONGLENGTH:
-    length_sentiment = max_ctx_fits_on_gpu
-
 # TODO: collapse these w/ "regular" T, top_p, etc
 # (wow this file needs cleanup badly...)
-GPT_NEO_T = 1.
+GPT_NEO_T = 1.0
 GPT_NEO_TOP_P = 0.95
 GPT_NEO_TOP_K = 0
-GPT_NEO_MAX_LENGTH = 2048 if V11 else 1024
 
-if V11 and (GPU_TYPE == "small"):
-    # TODO: figure out if this OOM happened due to something in transformers 4.6.0
-    #
-    # https://github.com/huggingface/transformers/compare/v4.5.1...v4.6.0
-    GPT_NEO_MAX_LENGTH = 1900
+max_feed_size_with_cache = 2048 if V11 else 1024
+max_feed_size_no_cache = max_feed_size_with_cache
+USE_KV_BUFFER = False
+
+AVOID_UNK_CAPTION = True
+BREAKRUNS_OFF_WITHIN_IMAGES = False
+BREAKRUNS_MODIFIED_WITHIN_IMAGES = True
+BREAKRUNS_TEMP_MODIFIER = 1.0
 
 if V12 and (GPU_TYPE == "small"):
-    GPT_NEO_MAX_LENGTH = 1536
+    max_feed_size_with_cache = 1500
+    max_feed_size_no_cache = 1300
+    USE_KV_BUFFER = True
 
-head_inference_batch_size = 8 if GPU_TYPE == "bigger" else 1
+length_select = max_feed_size_with_cache
+length_sentiment = max_feed_size_with_cache
+length_autoreview = max_feed_size_with_cache
+
+batch_size = 2 if GPU_TYPE == "bigger" else 1
+head_inference_batch_size = 4 if GPU_TYPE == "bigger" else 1
 head_load_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
+captioning_adapters_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 
 MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
 

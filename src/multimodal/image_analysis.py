@@ -417,7 +417,7 @@ def format_extracted_text(image_text, url, image_formatter=V9_IMAGE_FORMATTER, v
 
 
 class ImageAnalysisCache:
-    def __init__(self, path="image_analysis_cache.pkl", cache=None, hash_to_url=None):
+    def __init__(self, path="image_analysis_cache.pkl", cache=None, hash_to_url=None, aux_cache_obj=None, log_cache_miss=False):
         self.path = path
         self.cache = cache
         self.hash_to_url = hash_to_url
@@ -427,6 +427,9 @@ class ImageAnalysisCache:
 
         if self.hash_to_url is None:
             self.hash_to_url = dict()
+
+        self.aux_cache_obj = aux_cache_obj
+        self.log_cache_miss = log_cache_miss
 
     @staticmethod
     def _get_text_from_cache_entry(entry, deduplicate=True):
@@ -530,6 +533,11 @@ class ImageAnalysisCache:
             formatted_text = format_extracted_text(cached_text, url, image_formatter=image_formatter, verbose=verbose)
             return formatted_text
 
+        if self.aux_cache_obj is not None:
+            in_aux = (url in self.aux_cache_obj.cache) or (url in self.aux_cache_obj.hash_to_url.values())
+            if in_aux:
+                return self.aux_cache_obj.extract_and_format_text_from_url(url, image_formatter=image_formatter, verbose=verbose)
+
         # TODO: integrate downsizing
         if url not in self.cache:
             vprint(f"url NOT in cache:\n\t{url}\n")
@@ -538,7 +546,8 @@ class ImageAnalysisCache:
             try:
                 frame_bytes, content_hash = self._download_and_hash(
                     url,
-                    verbose=verbose
+                    verbose=verbose,
+                    downsize_to=[],
                 )
             except urllib3.exceptions.RequestError:
                 entry = ""
@@ -554,6 +563,8 @@ class ImageAnalysisCache:
                     vprint(f"\turl NOT in cache:\n\t\t{url}\n")
 
             if entry is None:
+                if self.log_cache_miss:
+                    print(f"cache miss: {url}")
                 vprint(f"calling rek for {url}")
                 self.hash_to_url[content_hash] = url
                 entry = self._extract_text_from_bytes(frame_bytes)

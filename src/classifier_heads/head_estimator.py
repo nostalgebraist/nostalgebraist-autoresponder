@@ -32,6 +32,7 @@ from tumblr_to_text.classic.autoresponder_static import ORIG_POST_CHAR_CHINESE
 from classifier_heads.head_nn import NostARHead, NostARHeadArchitectureParams, GPT2TokenizerType, GPTModelType, prep_inputs
 from classifier_heads.head_nn_utils import NostARHeadOptimizerParams, get_nost_ar_head_optimizers, get_nost_ar_head_scheduler, cross_entropy_with_flooding, make_huber_loss_from_logits
 from util.util import typed_namedtuple_to_dict
+from ml.kv_cache import kv_buffer_scope
 
 
 def var_score(y_true, y_pred):
@@ -613,12 +614,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         input_ids, attention_mask, input_ids_with_pads, _ = self._feed_from_batch(batch)
 
         # TODO: figure out whether we need logits in float32 explicitly
-        with torch.cuda.amp.autocast(enabled=self.use_amp_training):
-            logits_raw = self.model_(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                input_ids_with_pads=input_ids_with_pads,
-            ).cpu().detach().numpy()
+        with kv_buffer_scope(self.base_model, False):
+            with torch.cuda.amp.autocast(enabled=self.use_amp_training):
+                logits_raw = self.model_(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    input_ids_with_pads=input_ids_with_pads,
+                ).cpu().detach().numpy()
 
         if self.regression_target and (self.calibrate and not disable_calibration):
             logits = self._compute_calib_probs(logits_raw, pfcs=batch["prompt_finalchar"])

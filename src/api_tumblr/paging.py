@@ -14,11 +14,16 @@ from util.times import fromtimestamp_pst
 
 
 # TODO: DRY (centralize paging helpers)
-def fetch_next_page(client, offset, limit=50, blog_name: str = bot_name, before=None):
+def fetch_next_page(client, offset, limit=50, blog_name: str = bot_name, before=None, page_number=None):
     kwargs = dict(limit=limit, offset=offset)
-    if before:
+    if before and not offset:
         kwargs["before"] = before
+        del kwargs["offset"]
+    if page_number:
+        kwargs["page_number"] = page_number
+
     response = client.posts(blog_name, **kwargs)
+
     posts = response["posts"]
     total_posts = response["total_posts"]
 
@@ -27,11 +32,13 @@ def fetch_next_page(client, offset, limit=50, blog_name: str = bot_name, before=
     #
     # TODO: use `page_number` or w/e it is tumblr wants me to do now (8/19/21)
 
-    # with LogExceptionAndSkip("get next offset for /posts"):
-    #     next_offset = response["_links"]["next"]["query_params"]["offset"]
-    if next_offset is None:
+    next_page_number = None
+    with LogExceptionAndSkip("get next page_number for /posts"):
+        # next_offset = response["_links"]["next"]["query_params"]["offset"]
+        next_page_number = response["_links"]["next"]["query_params"]["page_number"]
+    if next_offset is None and offset is not None:
         next_offset = offset + len(posts)  # fallback
-    return posts, next_offset, total_posts
+    return posts, next_offset, total_posts, next_page_number
 
 
 def fetch_posts(pool: ClientPool,
@@ -63,16 +70,24 @@ def fetch_posts(pool: ClientPool,
     if needs_dash_client:
         client_getter = pool.get_dashboard_client
 
+    page_number = None
+
     while True:
         client = client_getter()
-        page, next_offset, total_posts = fetch_next_page(client, offset=offset, blog_name=blog_name, before=before)
+        page, next_offset, total_posts, next_page_number = fetch_next_page(client, offset=None, blog_name=blog_name, before=before, page_number=page_number)
 
         if not tqdm_bar:
             tqdm_bar = tqdm(total=total_posts)
             tqdm_bar.update(offset)
             tqdm_bar.set_postfix(cl=pool.client_name(client))
 
-        if (len(page) == 0) or (next_offset == offset):
+        if page_number is not None and next_page_number is None:
+            print(f"stopping, failed to retrieve page_number at {len(posts)} posts")
+            return posts
+        
+        page_number = next_page_number
+
+        if (len(page) == 0) or (page_number is None and (next_offset == offset)):
             print(f"stopping, empty page after {len(posts)} posts")
             return posts
 

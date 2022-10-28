@@ -364,7 +364,6 @@ class NostARHeadBlock(nn.Module):
             mlp_in = mlp_in.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
             hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(mlp_in)
         else:
-            # TODO: actual parallel attn/ff
             hidden_states = hidden_states + self.attn(attn_in)[0]
             mlp_in = attn_in if self.parallel_attn_ff else self.ln_2(hidden_states)
             mlp_in = mlp_in.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
@@ -565,7 +564,6 @@ class NostARHead(nn.Module):
             use_proj=True,
             rotary=self.params.rotary_blocks,
             rotary_dim=self.params.rotary_dim_blocks,
-            parallel_attn_ff=self.block_parallel_attn_ff,
         )
 
         mlp_params = dict(
@@ -585,6 +583,7 @@ class NostARHead(nn.Module):
                     mlp_only_blocks=self.params.mlp_only_blocks,
                     tune_base_block_attn=self.params.tune_base_block_attn,
                     tune_base_block_mlp=self.params.tune_base_block_mlp,
+                    parallel_attn_ff=self.block_parallel_attn_ff,
                 )
                 for _ in range(self.n_blocks)
             ]

@@ -613,6 +613,11 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             raise ValueError("badlength")
         input_ids, attention_mask, input_ids_with_pads, _ = self._feed_from_batch(batch)
 
+        # move tuned block to gpu for use
+        if est.model_.params.tune_base_block_attn or est.model_.params.tune_base_block_mlp:
+            for block in est.model_.blocks:
+                block.cuda()
+
         # TODO: figure out whether we need logits in float32 explicitly
         with kv_buffer_scope(self.base_model, False):
             with torch.cuda.amp.autocast(enabled=self.use_amp_training):
@@ -621,6 +626,11 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                     attention_mask=attention_mask,
                     input_ids_with_pads=input_ids_with_pads,
                 ).cpu().detach().numpy()
+
+        # move tuned block back to orig device (potentially cpu)
+        if est.model_.params.tune_base_block_attn or est.model_.params.tune_base_block_mlp:
+            for block in est.model_.blocks:
+                block.to(device=self.device)
 
         if self.regression_target and (self.calibrate and not disable_calibration):
             logits = self._compute_calib_probs(logits_raw, pfcs=batch["prompt_finalchar"])
@@ -787,9 +797,5 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         est.model_.load_state_dict(torch.load(state_dict_path, map_location=constructor_args['device']))
 
         est.lr_calib_ = joblib.load(os.path.join(path, "lr_calib.pkl.gz"))
-
-        if est.model_.params.tune_base_block_attn or est.model_.params.tune_base_block_mlp:
-            for block in est.model_.blocks:
-                block.cuda() 
 
         return est

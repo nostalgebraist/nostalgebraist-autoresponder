@@ -788,4 +788,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         est.lr_calib_ = joblib.load(os.path.join(path, "lr_calib.pkl.gz"))
 
+        if est.model_.params.tune_base_block_attn or est.model_.params.tune_base_block_mlp:
+            for block in est.model_.blocks:
+                block.cuda() 
+
         return est

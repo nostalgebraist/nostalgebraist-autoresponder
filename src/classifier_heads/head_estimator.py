@@ -114,9 +114,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         partial_forward_type="tfu",
         use_wandb=False,
         wandb_init_args=None,
+        blocks_inference_device_attn=None,
+        blocks_inference_device_mlp=None,
         **kwargs
     ):
         self.device = device
+        self.blocks_inference_device_attn = blocks_inference_device_attn or self.device
+        self.blocks_inference_device_mlp = blocks_inference_device_mlp or self.device
         self._base_model = weakref.ref(base_model)
         self.tokenizer = tokenizer
         self.params = params
@@ -657,10 +661,12 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             else list(range(0, steps))
         )
 
-        # move tuned block to gpu for use
+        # move tuned block to blocks_inference_device for use
         if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
             for block in self.model_.blocks:
-                block.cuda()
+                block.ln_1.to(device=self.blocks_inference_device_attn)
+                block.attn.to(device=self.blocks_inference_device_attn)
+                block.mlp.to(device=self.blocks_inference_device_mlp)
 
         for step_ix in step_iter:
             data_batch = data.iloc[row_ix : row_ix + self.opt_params.batch_size, :]
@@ -741,7 +747,12 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         joblib.dump(self.lr_calib_, os.path.join(path, "lr_calib.pkl.gz"))
 
     @staticmethod
-    def load(path, base_model, tokenizer, inference_batch_size=None, use_amp_inference=True, **kwargs) -> "NostARHeadEstimator":
+    def load(path, base_model, tokenizer,
+             inference_batch_size=None,
+             use_amp_inference=True,
+             blocks_inference_device_attn=None,
+             blocks_inference_device_mlp=None,
+             **kwargs) -> "NostARHeadEstimator":
         with open(os.path.join(path, "metadata.json"), "r") as f:
             metadata = json.load(f)
 
@@ -749,6 +760,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         constructor_args["base_model"] = base_model
         constructor_args["tokenizer"] = tokenizer
         constructor_args["use_amp_inference"] = use_amp_inference
+        constructor_args["blocks_inference_device_attn"] = blocks_inference_device_attn
+        constructor_args["blocks_inference_device_mlp"] = blocks_inference_device_mlp
 
         if inference_batch_size is not None:
             constructor_args["opt_params"]["batch_size"] = inference_batch_size

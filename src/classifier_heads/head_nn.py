@@ -357,11 +357,17 @@ class NostARHeadBlock(nn.Module):
         if self.tune_base_block_attn:
             attn_in = self.ln_1(attn_in)
         if self.use_out_gain:
+            # TODO: actual parallel attn/ff
             hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(attn_in)[0]
-            hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(self.ln_2(hidden_states))
+            mlp_in = self.ln_2(hidden_states)
+            mlp_in = mlp_in.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
+            hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(mlp_in)
         else:
+            # TODO: actual parallel attn/ff
             hidden_states = hidden_states + self.attn(attn_in)[0]
-            hidden_states = hidden_states + self.mlp(self.ln_2(hidden_states))
+            mlp_in = self.ln_2(hidden_states)
+            mlp_in = mlp_in.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
+            hidden_states = hidden_states + self.mlp(mlp_in)
         return hidden_states
 
 

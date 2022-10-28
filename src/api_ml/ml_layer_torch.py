@@ -123,6 +123,8 @@ def load_selector(path, base_model, tokenizer, retries=False, **kwargs):
         inference_batch_size=head_inference_batch_size,
         use_amp_inference=autocast_recommended,
         device=head_load_device,
+        blocks_inference_device_attn=head_inference_blocks_device_attn,
+        blocks_inference_device_mlp=head_inference_blocks_device_mlp,
         **kwargs
     )
     return selector_est

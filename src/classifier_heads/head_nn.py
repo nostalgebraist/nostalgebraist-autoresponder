@@ -646,9 +646,8 @@ class NostARHead(nn.Module):
         output_attentions=False,
         autocast=True,
     ):
-        with torch.no_grad():
-            autocast_base = False  # no autocast - model is stable in fp16
-            with torch.cuda.amp.autocast(autocast and autocast_base):
+        with torch.cuda.amp.autocast(autocast):
+            with torch.no_grad():
                 extracted_activations = partial_forward(
                     model=self.base_model.transformer,
                     output_names=self.layer_names,
@@ -657,15 +656,10 @@ class NostARHead(nn.Module):
                     use_cache=False
                 )
 
-        # if tuned from base, stable in fp16
-        autocast_blocks = not (self.params.tune_base_block_mlp and self.params.tune_base_block_attn)
-        with torch.cuda.amp.autocast(autocast and autocast_blocks):
             for block in self.blocks:
                 name = self.layer_names[0]
                 extracted_activations[name] = block(extracted_activations[name])
 
-        autocast_rest = True
-        with torch.cuda.amp.autocast(autocast and autocast_rest):
             attn_outs = [
                 attn(extracted_activations[name], input_ids_with_pads)[0]
                 for name, attn in self.layer_names_to_attns.items()

@@ -64,7 +64,7 @@ def switch_to_diffusion():
                 api_ml.ml_layer_diffusion.sampling_model_sres2,
                 api_ml.ml_layer_diffusion.sampling_model_sres3,
             ]:
-        m.to(device=_GLOBAL_FLAGS['DIFFUSION_DEVICE'])
+            m.to(device=_GLOBAL_FLAGS['DIFFUSION_DEVICE'])
 
     gc.collect()
     th.cuda.empty_cache()

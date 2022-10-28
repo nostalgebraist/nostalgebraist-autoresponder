@@ -3,7 +3,7 @@ import torch as th
 
 import improved_diffusion.dist_util
 
-_GLOBAL_FLAGS = {"DIFFUSION_DEVICE": 'cpu'}
+_GLOBAL_FLAGS = {"DIFFUSION_DEVICE": 'gpu'}
 
 
 def diffusion_device():
@@ -11,7 +11,15 @@ def diffusion_device():
 
 improved_diffusion.dist_util.dev = diffusion_device
 
+# load on gpu first to avoid 2x cpu memory
 import api_ml.ml_layer_diffusion
+
+# move diffusion to cpu to prep for text load
+_GLOBAL_FLAGS['DIFFUSION_DEVICE'] = 'cpu'
+
+for m in api_ml.ml_layer_diffusion.pipelines:
+    m.to(device=_GLOBAL_FLAGS['DIFFUSION_DEVICE'])
+
 import api_ml.ml_layer_torch
 # os.chdir("/nostalgebraist-autoresponder/")
 

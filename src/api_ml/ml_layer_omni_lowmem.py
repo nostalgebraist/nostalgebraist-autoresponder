@@ -3,7 +3,7 @@ import torch as th
 
 import improved_diffusion.dist_util
 
-_GLOBAL_FLAGS = {"DIFFUSION_DEVICE": 'gpu'}
+_GLOBAL_FLAGS = {"DIFFUSION_DEVICE": 'cuda:0'}
 
 
 def diffusion_device():

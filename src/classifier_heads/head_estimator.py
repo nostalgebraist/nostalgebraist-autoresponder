@@ -614,8 +614,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         input_ids, attention_mask, input_ids_with_pads, _ = self._feed_from_batch(batch)
 
         # move tuned block to gpu for use
-        if est.model_.params.tune_base_block_attn or est.model_.params.tune_base_block_mlp:
-            for block in est.model_.blocks:
+        if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
+            for block in self.model_.blocks:
                 block.cuda()
 
         # TODO: figure out whether we need logits in float32 explicitly
@@ -628,8 +628,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 ).cpu().detach().numpy()
 
         # move tuned block back to orig device (potentially cpu)
-        if est.model_.params.tune_base_block_attn or est.model_.params.tune_base_block_mlp:
-            for block in est.model_.blocks:
+        if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
+            for block in self.model_.blocks:
                 block.to(device=self.device)
 
         if self.regression_target and (self.calibrate and not disable_calibration):

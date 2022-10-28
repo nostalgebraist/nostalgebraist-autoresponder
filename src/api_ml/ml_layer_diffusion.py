@@ -74,7 +74,7 @@ using_sres3 = os.path.exists(checkpoint_path_sres3) and os.path.exists(config_pa
 
 # load
 def load_part1_part1p5_curried():
-
+    os.chdir("/nostalgebraist-autoresponder/")
     sampling_model_sres1 = improved_diffusion.pipeline.SamplingModel.from_config(
         checkpoint_path=checkpoint_path_sres1,
         config_path=config_path_sres1,
@@ -94,6 +94,7 @@ def load_part1_part1p5_curried():
     return sampling_model_sres1, sampling_model_sres1p5
 
 def load_part2_curried():
+    os.chdir("/nostalgebraist-autoresponder/")
     sampling_model_sres2 = improved_diffusion.pipeline.SamplingModel.from_config(
         checkpoint_path=checkpoint_path_sres2,
         config_path=config_path_sres2,
@@ -104,6 +105,7 @@ def load_part2_curried():
     return sampling_model_sres2
 
 def load_part3_curried():
+    os.chdir("/nostalgebraist-autoresponder/")
     if using_sres3:
         sampling_model_sres3 = improved_diffusion.pipeline.SamplingModel.from_config(
             checkpoint_path=checkpoint_path_sres3,

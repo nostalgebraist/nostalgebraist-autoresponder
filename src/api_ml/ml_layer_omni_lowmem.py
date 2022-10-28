@@ -1,5 +1,6 @@
 import io, sys, gc
 import torch as th
+import torch.nn as nn
 
 import improved_diffusion.dist_util
 
@@ -38,23 +39,37 @@ import api_ml.ml_layer_torch
 _STDOUT_REF = sys.stdout
 
 
+class AnnoyingCLIPLayerNorm(nn.LayerNorm):
+    """Subclass torch's LayerNorm to handle fp16."""
+
+    def forward(self, x: torch.Tensor):
+        orig_type = x.dtype
+        ret = super().forward(x.type(torch.float32))
+        return ret.type(orig_type)
+
+
 class FakeStream(io.IOBase):
     def write(self, *args, **kwargs): pass
 
 
 def switch_to_diffusion():
-    del api_ml.ml_layer_torch.generator_model.transformers_model
-    del api_ml.ml_layer_torch.generator_model
-    del api_ml.ml_layer_torch.magma_wrapper
-    del api_ml.ml_layer_torch.selector_est
-    del api_ml.ml_layer_torch.sentiment_est
-    del api_ml.ml_layer_torch.autoreviewer_est
-    gc.collect()
-    th.cuda.empty_cache()
+    if hasattr(api_ml.ml_layer_torch, 'generator_model'):
+        del api_ml.ml_layer_torch.generator_model.transformers_model
+        del api_ml.ml_layer_torch.generator_model
+        del api_ml.ml_layer_torch.magma_wrapper
+        del api_ml.ml_layer_torch.selector_est
+        del api_ml.ml_layer_torch.sentiment_est
+        del api_ml.ml_layer_torch.autoreviewer_est
+        gc.collect()
+        th.cuda.empty_cache()
 
     _GLOBAL_FLAGS['DIFFUSION_DEVICE'] = 'cuda:0'
 
     if not hasattr(api_ml.ml_layer_diffusion, 'sampling_model_sres1'):
+        # undo magma monkeypatch
+        import clip.model
+        clip.model.LayerNorm = AnnoyingCLIPLayerNorm
+
         api_ml.ml_layer_diffusion.sampling_model_sres1, api_ml.ml_layer_diffusion.sampling_model_sres1p5 = \
         api_ml.ml_layer_diffusion.load_part1_part1p5_curried()
 
@@ -90,6 +105,10 @@ def switch_to_text():
     th.cuda.empty_cache()
 
     if not hasattr(api_ml.ml_layer_torch, 'generator_model'):
+        # reapply magma monkeypatch
+        import clip.model
+        clip.model.LayerNorm = nn.LayerNorm
+
         api_ml.ml_layer_torch.generator_model, api_ml.ml_layer_torch.magma_wrapper = \
         api_ml.ml_layer_torch.load_generator_model_curried()
 

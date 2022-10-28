@@ -192,6 +192,7 @@ if needs_head_download:
 
 # MODELS: load
 def load_generator_model_curried():
+    os.chdir("/")
     return load_generator_model(
         path=generator_path,
         tokenizer=tokenizer,
@@ -204,6 +205,7 @@ def load_generator_model_curried():
     )
 
 def load_selector_curried():
+    os.chdir("/")
     if "selector" not in MODELS_SERVED:
         return
     selector_est = load_selector(ckpt_select, base_model=generator_model.transformers_model, tokenizer=tokenizer)
@@ -211,6 +213,7 @@ def load_selector_curried():
     return selector_est
 
 def load_sentiment_curried():
+    os.chdir("/")
     if "sentiment" not in MODELS_SERVED:
         return
     sentiment_est = load_selector(ckpt_sentiment, base_model=generator_model.transformers_model, tokenizer=tokenizer)
@@ -218,6 +221,7 @@ def load_sentiment_curried():
     return sentiment_est
 
 def load_autoreviewer_curried():
+    os.chdir("/")
     if "autoreviewer" not in MODELS_SERVED:
         return
     autoreviewer_est = load_selector(ckpt_autoreviewer, base_model=generator_model.transformers_model, tokenizer=tokenizer)

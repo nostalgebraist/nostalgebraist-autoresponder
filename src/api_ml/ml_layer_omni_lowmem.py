@@ -73,8 +73,9 @@ def switch_to_diffusion():
 def switch_to_text():
     _GLOBAL_FLAGS['DIFFUSION_DEVICE'] = 'cpu'
 
-    del api_ml.ml_layer_diffusion.sampling_model_sres1
-    del api_ml.ml_layer_diffusion.sampling_model_sres1p5
+    if hasattr(api_ml.ml_layer_diffusion, 'sampling_model_sres1'):
+        del api_ml.ml_layer_diffusion.sampling_model_sres1
+        del api_ml.ml_layer_diffusion.sampling_model_sres1p5
 
     gc.collect()
     th.cuda.empty_cache()

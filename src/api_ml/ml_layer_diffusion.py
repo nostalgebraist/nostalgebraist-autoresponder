@@ -164,7 +164,7 @@ def poll(
         t1 = time.time()
 
         with torch.inference_mode():
-            with torch.amp.autocast(enabled=autocast_recommended):
+            with torch.cuda.amp.autocast(enabled=autocast_recommended):
 
                 # sampling_model_sres1.model.cuda();
 

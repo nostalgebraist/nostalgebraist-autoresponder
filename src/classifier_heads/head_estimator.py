@@ -613,11 +613,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             raise ValueError("badlength")
         input_ids, attention_mask, input_ids_with_pads, _ = self._feed_from_batch(batch)
 
-        # move tuned block to gpu for use
-        if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
-            for block in self.model_.blocks:
-                block.cuda()
-
         # TODO: figure out whether we need logits in float32 explicitly
         with kv_buffer_scope(self.base_model, False):
             with torch.cuda.amp.autocast(enabled=self.use_amp_training):
@@ -626,11 +621,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                     attention_mask=attention_mask,
                     input_ids_with_pads=input_ids_with_pads,
                 ).cpu().detach().numpy()
-
-        # move tuned block back to orig device (potentially cpu)
-        if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
-            for block in self.model_.blocks:
-                block.to(device=self.device)
 
         if self.regression_target and (self.calibrate and not disable_calibration):
             logits = self._compute_calib_probs(logits_raw, pfcs=batch["prompt_finalchar"])
@@ -665,6 +655,11 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             else list(range(0, steps))
         )
 
+        # move tuned block to gpu for use
+        if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
+            for block in self.model_.blocks:
+                block.cuda()
+
         for step_ix in step_iter:
             data_batch = data.iloc[row_ix : row_ix + self.opt_params.batch_size, :]
             n_needed = len(data_batch)
@@ -684,6 +679,11 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             all_pd_ixs.extend(data_batch["selector_internal_ix"].tolist()[:n_needed])
 
             row_ix += self.opt_params.batch_size
+
+        # move tuned block back to orig device (potentially cpu)
+        if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
+            for block in self.model_.blocks:
+                block.to(device=self.device)
 
         if key == "preds":
             pd_obj = pd.Series(all_preds, index=all_pd_ixs)

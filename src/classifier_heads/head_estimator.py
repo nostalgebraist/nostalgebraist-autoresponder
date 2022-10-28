@@ -116,11 +116,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         wandb_init_args=None,
         blocks_inference_device_attn=None,
         blocks_inference_device_mlp=None,
+        block_inference_offload=False,
         **kwargs
     ):
         self.device = device
         self.blocks_inference_device_attn = blocks_inference_device_attn or self.device
         self.blocks_inference_device_mlp = blocks_inference_device_mlp or self.device
+        self.block_inference_offload = block_inference_offload
         self._base_model = weakref.ref(base_model)
         self.tokenizer = tokenizer
         self.params = params
@@ -626,6 +628,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 attention_mask=attention_mask,
                 input_ids_with_pads=input_ids_with_pads,
                 autocast=self.use_amp_inference,
+                block_inference_offload=self.block_inference_offload,
             ).cpu().detach().numpy()
 
         if self.regression_target and (self.calibrate and not disable_calibration):
@@ -662,7 +665,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         )
 
         # move tuned block to blocks_inference_device for use
-        if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
+        if not self.block_inference_offload and (
+            self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp
+        ):
             for block in self.model_.blocks:
                 block.ln_1.to(device=self.blocks_inference_device_attn)
                 block.attn.to(device=self.blocks_inference_device_attn)
@@ -752,6 +757,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
              use_amp_inference=True,
              blocks_inference_device_attn=None,
              blocks_inference_device_mlp=None,
+             block_inference_offload=False,
              **kwargs) -> "NostARHeadEstimator":
         with open(os.path.join(path, "metadata.json"), "r") as f:
             metadata = json.load(f)
@@ -762,6 +768,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         constructor_args["use_amp_inference"] = use_amp_inference
         constructor_args["blocks_inference_device_attn"] = blocks_inference_device_attn
         constructor_args["blocks_inference_device_mlp"] = blocks_inference_device_mlp
+        constructor_args["block_inference_offload"] = block_inference_offload
 
         if inference_batch_size is not None:
             constructor_args["opt_params"]["batch_size"] = inference_batch_size

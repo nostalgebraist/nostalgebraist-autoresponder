@@ -125,6 +125,7 @@ def load_selector(path, base_model, tokenizer, retries=False, **kwargs):
         device=head_load_device,
         blocks_inference_device_attn=head_inference_blocks_device_attn,
         blocks_inference_device_mlp=head_inference_blocks_device_mlp,
+        block_inference_offload=head_inference_offload,
         **kwargs
     )
     return selector_est

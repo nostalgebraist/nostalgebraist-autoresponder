@@ -351,21 +351,34 @@ class NostARHeadBlock(nn.Module):
     def ln_2(self):
         return self.ln_1
 
-    def forward(self, hidden_states):
+    def forward(self, hidden_states, block_inference_offload=False):
         if self.tune_base_block_mlp and not self.tune_base_block_attn:
             hidden_states = hidden_states[0]  # base model attn returns tuple
+
+        if block_inference_offload:
+            self.ln_1.cuda()
+            self.attn.cuda()
+
         hidden_states = hidden_states.to(device=self.ln_1.weight.device, dtype=self.ln_1.weight.dtype)
         attn_in = hidden_states
+
         if self.tune_base_block_attn:
             attn_in = self.ln_1(attn_in)
+
         if self.use_out_gain:
             hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(attn_in)[0]
             mlp_in = attn_in if self.parallel_attn_ff else self.ln_2(hidden_states)
+            if block_inference_offload:
+                self.attn.cpu()
+                self.mlp.cuda()
             mlp_in = mlp_in.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
             hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(mlp_in)
         else:
             hidden_states = hidden_states + self.attn(attn_in)[0]
             mlp_in = attn_in if self.parallel_attn_ff else self.ln_2(hidden_states)
+            if block_inference_offload:
+                self.attn.cpu()
+                self.mlp.cuda()
             mlp_in = mlp_in.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
             hidden_states = hidden_states.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
             hidden_states = hidden_states + self.mlp(mlp_in)
@@ -645,6 +658,7 @@ class NostARHead(nn.Module):
         head_mask=None,
         output_attentions=False,
         autocast=True,
+        block_inference_offload=False,
     ):
         with torch.no_grad():
             autocast_base = False  # no autocast - model is stable in fp16
@@ -662,7 +676,9 @@ class NostARHead(nn.Module):
         with torch.cuda.amp.autocast(autocast and autocast_blocks):
             for block in self.blocks:
                 name = self.layer_names[0]
-                extracted_activations[name] = block(extracted_activations[name])
+                extracted_activations[name] = block(extracted_activations[name],
+                                                    block_inference_offload=block_inference_offload
+                                                    )
 
         autocast_rest = True
         with torch.cuda.amp.autocast(autocast and autocast_rest):

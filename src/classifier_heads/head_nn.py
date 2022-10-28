@@ -352,6 +352,7 @@ class NostARHeadBlock(nn.Module):
     def forward(self, hidden_states):
         if self.tune_base_block_mlp and not self.tune_base_block_attn:
             hidden_states = hidden_states[0]  # base model attn returns tuple
+        hidden_states = hidden_states.to(device=self.ln_1.weight.device, dtype=self.ln_1.weight.dtype)
         attn_in = hidden_states
         if self.tune_base_block_attn:
             attn_in = self.ln_1(attn_in)

@@ -743,6 +743,36 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         if "proj_ratio" not in constructor_args["params"]:
             constructor_args["params"]["proj_ratio"] = 1  # TODO: remove after next model save
 
+        # using namedtuple was a mistake :(
+        extras_defaults = {
+            'block_lr': None,
+            'decay_ratio': None,
+            'no_weight_decay_in_blocks': True,
+            'gain_scale_blocks_out': 1.,
+            'init_gain_blocks': 1.,
+            'init_gain_blocks_out': 1.,
+            'mlp_only_blocks': False,
+            'mlp_ratio_blocks': 4,
+            'n_blocks': 0,
+            'n_head_blocks': 16,
+            'no_orth_init_in_final_mlp': False,
+            'qk_dim_blocks': 4096,
+            'qk_dim_final': 4096,
+            'rotary_blocks': False,
+            'rotary_dim_blocks': 32,
+            'tune_base_block_attn': False,
+            'tune_base_block_mlp': False,
+            'use_block_out_gain': False,
+            'use_final_mlp': True,
+            'v_dim_final': 4096
+        }
+
+        for k in extras_defaults:
+            if k not in constructor_args["params"]:
+                constructor_args["params"][k] = extras_defaults[k]
+            if k not in constructor_args["opt_params"]:
+                constructor_args["opt_params"][k] = extras_defaults[k]
+
         constructor_args["params"] = NostARHeadArchitectureParams(**constructor_args["params"])
         constructor_args["opt_params"] = NostARHeadOptimizerParams(**constructor_args["opt_params"])
 

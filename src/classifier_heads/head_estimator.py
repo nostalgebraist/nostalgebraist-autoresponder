@@ -150,10 +150,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.target_cols_ = None
 
         self.lr_ = None
-        self.opt_decay_ = None
-        self.opt_no_decay_ = None
-        self.sched_decay_ = None
-        self.sched_no_decay_ = None
+        self.opt_ = None
+        self.sched_ = None
         self.scaler_ = None
         self.grad_clip_ = None
 
@@ -206,19 +204,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         # opt stuff
         print("creating opt")
-        self.opt_decay_, self.opt_no_decay_ = get_nost_ar_head_optimizers(
+        self.opt_ = get_nost_ar_head_optimizers(
             self.model_,
             self.opt_params
         )
 
-        self.sched_decay_ = get_nost_ar_head_scheduler(
-            self.opt_decay_,
-            self.opt_params,
-            len(X),
-        )
-
-        self.sched_no_decay_ = get_nost_ar_head_scheduler(
-            self.opt_no_decay_,
+        self.sched_ = get_nost_ar_head_scheduler(
+            self.opt_,
             self.opt_params,
             len(X),
         )
@@ -325,18 +317,17 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             self.scaler_.scale(loss).backward()
 
+            self.scaler_.unscale_(self.opt_)
+
             grad_norm = torch.nn.utils.clip_grad_norm_(self.model_.parameters(),
                                                        max_norm=self.grad_clip_)
 
-            self.scaler_.step(self.opt_decay_)
-            self.scaler_.step(self.opt_no_decay_)
+            self.scaler_.step(self.opt_)
             self.scaler_.update()
 
-            self.opt_decay_.zero_grad()
-            self.opt_no_decay_.zero_grad()
+            self.opt_.zero_grad()
 
-            self.sched_decay_.step()
-            self.sched_no_decay_.step()
+            self.sched_.step()
 
             loss_float = None
             cur_lr = None
@@ -344,13 +335,18 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 loss_float = loss.detach().item()
                 all_losses.append(loss_float)
 
-                cur_lr = self.sched_decay_.state_dict()['_last_lr'][0]
+                cur_lr = self.sched_.state_dict()['_last_lr'][0]
 
                 grad_norm_float = grad_norm.item()
 
             del loss
             del logits
             del batch_data
+
+            attn_gain, mlp_gain = None, None
+            if len(self.model_.blocks) > 0 and self.model_.params.use_block_out_gain:
+                attn_gain = (self.model_.blocks[0].attn_gain * self.model_.blocks[0].gain_scale).exp().item()
+                mlp_gain = (self.model_.blocks[0].mlp_gain * self.model_.blocks[0].gain_scale).exp().item()
 
             if self.show_running_loss:
                 if running_loss is None:
@@ -370,12 +366,17 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                         f'train/ntok': batch_max_tokens,
                         f'train/lr': cur_lr,
                         f'train/grad_norm': grad_norm_float,
+                        f'train/attn_gain': attn_gain,
+                        f'train/mlp_gain': mlp_gain,
                     }
                 )
 
             max_tokens_so_far = max(max_tokens_so_far, batch_max_tokens)
             extra_postfixes["ntok"] = batch_max_tokens
             extra_postfixes["ntok_max"] = max_tokens_so_far
+
+            extra_postfixes["attn_gain"] = attn_gain
+            extra_postfixes["mlp_gain"] = mlp_gain
 
             step_iter.set_postfix(
                 loss=loss_float,
@@ -694,8 +695,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
     def cleanup(self):
         print("cleanup: deleting state")
         to_delete = list(self.model_.parameters())
-        to_delete += list(self.opt_decay_.state)
-        to_delete += list(self.opt_no_decay_.state)
+        to_delete += list(self.opt_.state)
         for p in to_delete:
             del p
         gc.collect()
@@ -743,6 +743,38 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         if "proj_ratio" not in constructor_args["params"]:
             constructor_args["params"]["proj_ratio"] = 1  # TODO: remove after next model save
 
+        # using namedtuple was a mistake :(
+        extras_defaults = {
+            'block_lr': None,
+            'decay_ratio': None,
+            'no_weight_decay_in_blocks': True,
+            'gain_scale_blocks_out': 1.,
+            'init_gain_blocks': 1.,
+            'init_gain_blocks_out': 1.,
+            'mlp_only_blocks': False,
+            'mlp_ratio_blocks': 4,
+            'n_blocks': 0,
+            'n_head_blocks': 16,
+            'no_orth_init_in_final_mlp': False,
+            'qk_dim_blocks': 4096,
+            'qk_dim_final': 4096,
+            'rotary_blocks': False,
+            'rotary_dim_blocks': 32,
+            'tune_base_block_attn': False,
+            'tune_base_block_mlp': False,
+            'use_block_out_gain': False,
+            'use_final_mlp': True,
+            'v_dim_final': 4096
+        }
+
+        init_args = inspect.signature(NostARHeadArchitectureParams.__new__).parameters.keys()
+        for k in set(init_args).intersection(extras_defaults.keys()).difference(constructor_args["params"].keys()):
+            constructor_args["params"][k] = extras_defaults[k]
+
+        init_args = inspect.signature(NostARHeadOptimizerParams.__new__).parameters.keys()
+        for k in set(init_args).intersection(extras_defaults.keys()).difference(constructor_args["opt_params"].keys()):
+            constructor_args["opt_params"][k] = extras_defaults[k]
+
         constructor_args["params"] = NostARHeadArchitectureParams(**constructor_args["params"])
         constructor_args["opt_params"] = NostARHeadOptimizerParams(**constructor_args["opt_params"])
 
@@ -755,5 +787,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         est.model_.load_state_dict(torch.load(state_dict_path, map_location=constructor_args['device']))
 
         est.lr_calib_ = joblib.load(os.path.join(path, "lr_calib.pkl.gz"))
+
+        if est.model_.params.tune_base_block_attn or est.model_.params.tune_base_block_mlp:
+            for block in est.model_.blocks:
+                block.cuda() 
 
         return est

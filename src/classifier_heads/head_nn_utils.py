@@ -1,5 +1,5 @@
 from functools import partial
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 import numpy as np
 import torch
@@ -14,9 +14,12 @@ NostARHeadOptimizerParams = NamedTuple(
     weight_decay=float,
     min_lr_frac=float,
     warmup_ratio=float,
+    decay_ratio=Optional[float],
     adam_beta1=float,
     adam_beta2=float,
-    classic_behavior_lr_sched=bool
+    classic_behavior_lr_sched=bool,
+    block_lr=float,
+    no_weight_decay_in_blocks=bool,
 )
 
 
@@ -62,31 +65,57 @@ def classic_cosine_anneal_warmup_multiplier(
 def get_nost_ar_head_optimizers(
     model, opt_params: NostARHeadOptimizerParams
 ):
+    no_weight_decay_in_blocks = opt_params.no_weight_decay_in_blocks
+    print(f"no_weight_decay_in_blocks: {no_weight_decay_in_blocks}")
+
     non_decay_vars = []
     decay_vars = []
 
-    for name, param in model.named_parameters():
-        if "ln.weight" in name or "logit_head.bias" in name:
-            print(f"assigning '{name}' to non_decay_vars")
-            non_decay_vars.append(param)
-        else:
-            print(f"assigning '{name}' to decay_vars")
-            decay_vars.append(param)
+    non_decay_vars_blocks = []
+    decay_vars_blocks = []
 
-    opt_decay = torch.optim.AdamW(
-        params=decay_vars,
+    for name, param in model.named_parameters():
+        if name.split('.')[-2].startswith('ln') or "logit_head.bias" in name:
+            if 'block' in name:
+                print(f"assigning '{name}' to non_decay_vars_blocks")
+                non_decay_vars_blocks.append(param)
+            else:
+                print(f"assigning '{name}' to non_decay_vars")
+                non_decay_vars.append(param)
+        else:
+            if 'block' in name:
+                if no_weight_decay_in_blocks:
+                    print(f"assigning '{name}' to non_decay_vars_blocks")
+                    non_decay_vars_blocks.append(param)
+                else:
+                    print(f"assigning '{name}' to decay_vars_blocks")
+                    decay_vars_blocks.append(param)
+            else:
+                print(f"assigning '{name}' to decay_vars")
+                decay_vars.append(param)
+
+    param_groups = [
+        {"params": non_decay_vars, "weight_decay": 0.0},
+        {"params": decay_vars},
+        {"params": non_decay_vars_blocks, "lr": opt_params.block_lr, "weight_decay": 0.0},
+        {"params": decay_vars_blocks, "lr": opt_params.block_lr},
+
+    ]
+
+    opt = torch.optim.AdamW(
+        params=param_groups,
         lr=opt_params.base_lr,
         weight_decay=opt_params.weight_decay,
         betas=(opt_params.adam_beta1, opt_params.adam_beta2),
     )
 
-    opt_no_decay = torch.optim.Adam(
-        params=non_decay_vars,
-        lr=opt_params.base_lr,
-        betas=(opt_params.adam_beta1, opt_params.adam_beta2),
-    )
+    # opt_no_decay = torch.optim.Adam(
+    #     params=non_decay_vars,
+    #     lr=opt_params.base_lr,
+    #     betas=(opt_params.adam_beta1, opt_params.adam_beta2),
+    # )
 
-    return opt_decay, opt_no_decay
+    return opt
 
 
 def get_nost_ar_head_scheduler(
@@ -94,14 +123,16 @@ def get_nost_ar_head_scheduler(
     opt_params: NostARHeadOptimizerParams,
     data_len: int,
 ):
+    decay_ratio = opt_params.decay_ratio or 1 - opt_params.warmup_ratio
     total_steps = opt_params.epochs * data_len // opt_params.batch_size
+    decay_steps = decay_ratio * total_steps
 
     classic_behavior = opt_params.classic_behavior_lr_sched
     sched_fn = classic_cosine_anneal_warmup_multiplier if classic_behavior else cosine_anneal_warmup_multiplier
 
     lr_lambda = partial(
         sched_fn,
-        total_steps=total_steps,
+        total_steps=decay_steps,
         warmup_steps=opt_params.warmup_ratio * total_steps,
         min_value_warmup=0.0,
         min_value_decay=opt_params.min_lr_frac,

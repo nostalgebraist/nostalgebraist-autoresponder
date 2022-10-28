@@ -114,6 +114,10 @@ def kv_buffer_gpt_neo_selfattn_forward(
     output_attentions=False,
 ):
     use_kv_buffer = getattr(self, 'use_kv_buffer', False)
+    self.use_kv_buffer = use_kv_buffer
+
+    seqlen = getattr(self, 'seqlen', None)
+    self.seqlen = seqlen
 
     query = self.q_proj(hidden_states)
     key = self.k_proj(hidden_states)

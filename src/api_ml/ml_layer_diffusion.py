@@ -128,6 +128,13 @@ sampling_model_sres2.set_timestep_respacing(timestep_respacing_sres2, double_mes
 
 sampling_model_sres3.set_timestep_respacing(timestep_respacing_sres3, double_mesh_first_n=double_mesh_first_n['2'])
 
+pipelines = [
+    sampling_model_sres1,
+    sampling_model_sres1p5,
+    sampling_model_sres2,
+    sampling_model_sres3,
+]
+
 
 def poll(
     dummy=False,
@@ -138,6 +145,7 @@ def poll(
         "polldiffusion",
     ],
     show_memory=True,
+    pre_hook=None,
 ):
     did_generation = False
 
@@ -162,6 +170,9 @@ def poll(
             capt = 'unknown'
 
         t1 = time.time()
+
+        if pre_hook is not None:
+            pre_hook()
 
         with torch.inference_mode():
             with torch.cuda.amp.autocast(enabled=autocast_recommended):
@@ -302,6 +313,7 @@ def loop_poll(
     ],
     show_memory=True,
     n_loops=None,
+    pre_hook=None,
 ):
     loop_counter = 0
 
@@ -311,7 +323,8 @@ def loop_poll(
         return False
 
     while not _should_stop(loop_counter):
-        did_generation = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
+        did_generation = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory,
+                              pre_hook=pre_hook)
         if did_generation:
             collect_and_show()
         time.sleep(period)

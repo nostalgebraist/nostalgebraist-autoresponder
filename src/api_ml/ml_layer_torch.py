@@ -191,28 +191,46 @@ if needs_head_download:
     subprocess.run(f"rm {heads_tar_path}", shell=True)
 
 # MODELS: load
-generator_model, magma_wrapper = load_generator_model(
-    path=generator_path,
-    tokenizer=tokenizer,
-    batch_size=batch_size,
-    device='cuda:0',
-    sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
-    use_captioner="captioner" in MODELS_SERVED,
-    captioner_path=os.path.abspath(ckpt_captioner),
-    use_kv_buffer=USE_KV_BUFFER,
-)
+def load_generator_model_curried():
+    return load_generator_model(
+        path=generator_path,
+        tokenizer=tokenizer,
+        batch_size=batch_size,
+        device='cuda:0',
+        sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
+        use_captioner="captioner" in MODELS_SERVED,
+        captioner_path=os.path.abspath(ckpt_captioner),
+        use_kv_buffer=USE_KV_BUFFER,
+    )
 
-if "selector" in MODELS_SERVED:
+def load_selector_curried():
+    if "selector" not in MODELS_SERVED:
+        return
     selector_est = load_selector(ckpt_select, base_model=generator_model.transformers_model, tokenizer=tokenizer)
     selector_est.length = length_select
+    return selector_est
 
-if "sentiment" in MODELS_SERVED:
+def load_sentiment_curried():
+    if "sentiment" not in MODELS_SERVED:
+        return
     sentiment_est = load_selector(ckpt_sentiment, base_model=generator_model.transformers_model, tokenizer=tokenizer)
     sentiment_est.length = length_sentiment
+    return sentiment_est
 
-if "autoreviewer" in MODELS_SERVED:
+def load_autoreviewer_curried():
+    if "autoreviewer" not in MODELS_SERVED:
+        return
     autoreviewer_est = load_selector(ckpt_autoreviewer, base_model=generator_model.transformers_model, tokenizer=tokenizer)
     autoreviewer_est.length = length_autoreview
+    return autoreviewer_est
+
+generator_model, magma_wrapper = load_generator_model_curried()
+
+selector_est = load_selector_curried()
+
+sentiment_est = load_sentiment_curried()
+
+autoreviewer_est = load_autoreviewer_curried()
 
 DEPRECATED_KWARGS = {"mirotarg"}
 
@@ -226,6 +244,7 @@ def poll(
         "pollml",
     ],
     show_memory=True,
+    pre_hook=None,
 ):
     global CLOSED_REQUESTS
 
@@ -245,6 +264,9 @@ def poll(
 
             if data["model"] not in MODELS_SERVED:
                 continue
+
+            if pre_hook is not None:
+                pre_hook()
 
             requested_model = None
             if data["model"] == "generator":
@@ -365,6 +387,7 @@ def loop_poll(
     ],
     show_memory=True,
     n_loops=None,
+    pre_hook=None,
 ):
     loop_counter = 0
     open_request_ids = set()
@@ -375,7 +398,8 @@ def loop_poll(
         return False
 
     while not _should_stop(loop_counter, open_request_ids):
-        open_request_ids, almostdone_in_flight = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
+        open_request_ids, almostdone_in_flight = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory,
+                                                      pre_hook=pre_hook,)
         if len(open_request_ids) == 0 or dummy:
             time.sleep(period)
         elif almostdone_in_flight:

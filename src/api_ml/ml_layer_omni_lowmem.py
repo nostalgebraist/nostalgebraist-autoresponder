@@ -12,6 +12,7 @@ def diffusion_device():
 improved_diffusion.dist_util.dev = diffusion_device
 
 import api_ml.ml_layer_torch
+os.chdir("/nostalgebraist-autoresponder/")
 import api_ml.ml_layer_diffusion
 
 _STDOUT_REF = sys.stdout

@@ -9,6 +9,7 @@ from PIL import Image
 
 import requests
 import numpy as np
+import torch
 from transformer_utils.util.tfm_utils import get_local_path_from_huggingface_cdn
 
 import improved_diffusion.pipeline
@@ -162,128 +163,131 @@ def poll(
 
         t1 = time.time()
 
-        # sampling_model_sres1.model.cuda();
+        with torch.inference_mode():
+            with torch.amp.autocast(enabled=autocast_recommended):
 
-        guidance_scale = data['guidance_scale']
-        guidance_scale_txt = data.get('guidance_scale_txt')
-        if guidance_scale_txt is None:
-            guidance_scale_txt = guidance_scale
-        pprint(dict(guidance_scale=guidance_scale, guidance_scale_txt=guidance_scale_txt))
+                # sampling_model_sres1.model.cuda();
 
-        result = sampling_model_sres1.sample(
-            text=text,
-            batch_size=1,
-            n_samples=1,
-            to_visible=True,
-            clf_free_guidance=True,
-            guidance_scale=guidance_scale,
-            guidance_scale_txt=guidance_scale_txt,
-            dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
-            use_ddim=use_ddim['1'],
-            use_plms=use_plms['1'],
-            capt=capt,
-        )
+                guidance_scale = data['guidance_scale']
+                guidance_scale_txt = data.get('guidance_scale_txt')
+                if guidance_scale_txt is None:
+                    guidance_scale_txt = guidance_scale
+                pprint(dict(guidance_scale=guidance_scale, guidance_scale_txt=guidance_scale_txt))
 
-        print('step1 done')
-        collect_and_show()
-        if show_memory:
-            show_gpu()
+                result = sampling_model_sres1.sample(
+                    text=text,
+                    batch_size=1,
+                    n_samples=1,
+                    to_visible=True,
+                    clf_free_guidance=True,
+                    guidance_scale=guidance_scale,
+                    guidance_scale_txt=guidance_scale_txt,
+                    dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
+                    use_ddim=use_ddim['1'],
+                    use_plms=use_plms['1'],
+                    capt=capt,
+                )
 
-        # sampling_model_sres1.model.cpu();
+                print('step1 done')
+                collect_and_show()
+                if show_memory:
+                    show_gpu()
 
-        if using_sres1p5:
-            # sampling_model_sres1p5.model.cuda();
+                # sampling_model_sres1.model.cpu();
 
-            result = sampling_model_sres1p5.sample(
-                text=text,
-                batch_size=1,
-                n_samples=1,
-                to_visible=True,
-                from_visible=True,
-                low_res=result,
-                clf_free_guidance=True,
-                guidance_scale=guidance_scale,
-                guidance_scale_txt=guidance_scale_txt,
-                dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
-                noise_cond_ts=225,
-                use_ddim=use_ddim['1p5'],
-                use_plms=use_plms['1p5'],
-                capt=capt,
-            )
+                if using_sres1p5:
+                    # sampling_model_sres1p5.model.cuda();
 
-            print('step1p5 done')
-            collect_and_show()
-            if show_memory:
-                show_gpu()
+                    result = sampling_model_sres1p5.sample(
+                        text=text,
+                        batch_size=1,
+                        n_samples=1,
+                        to_visible=True,
+                        from_visible=True,
+                        low_res=result,
+                        clf_free_guidance=True,
+                        guidance_scale=guidance_scale,
+                        guidance_scale_txt=guidance_scale_txt,
+                        dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
+                        noise_cond_ts=225,
+                        use_ddim=use_ddim['1p5'],
+                        use_plms=use_plms['1p5'],
+                        capt=capt,
+                    )
 
-            # sampling_model_sres1p5.model.cpu();
+                    print('step1p5 done')
+                    collect_and_show()
+                    if show_memory:
+                        show_gpu()
 
-        # sampling_model_sres2.model.cuda();
+                    # sampling_model_sres1p5.model.cpu();
 
-        # guidance_scale_step2 = 0 if text == "" else guidance_scale_txt
-        guidance_scale_step2 = 0
+                # sampling_model_sres2.model.cuda();
 
-        result = sampling_model_sres2.sample(
-            text=text if sampling_model_sres2.model.txt else None,
-            batch_size=1,
-            n_samples=1,
-            to_visible=True,
-            from_visible=True,
-            low_res=result,
-            clf_free_guidance=True,
-            guidance_scale=guidance_scale_step2,
-            noise_cond_ts=0,
-            use_ddim=use_ddim['2'],
-            use_plms=use_plms['2'],
-            ddim_eta=0.5,
-        )
+                # guidance_scale_step2 = 0 if text == "" else guidance_scale_txt
+                guidance_scale_step2 = 0
 
-        print('step2 done')
-        collect_and_show()
-        if show_memory:
-            show_gpu()
+                result = sampling_model_sres2.sample(
+                    text=text if sampling_model_sres2.model.txt else None,
+                    batch_size=1,
+                    n_samples=1,
+                    to_visible=True,
+                    from_visible=True,
+                    low_res=result,
+                    clf_free_guidance=True,
+                    guidance_scale=guidance_scale_step2,
+                    noise_cond_ts=0,
+                    use_ddim=use_ddim['2'],
+                    use_plms=use_plms['2'],
+                    ddim_eta=0.5,
+                )
 
-        # sampling_model_sres2.model.cpu();
+                print('step2 done')
+                collect_and_show()
+                if show_memory:
+                    show_gpu()
 
-        if using_sres3:
-            # sampling_model_sres3.model.cuda();
+                # sampling_model_sres2.model.cpu();
 
-            result = sampling_model_sres3.sample(
-                text=None,
-                batch_size=1,
-                n_samples=1,
-                to_visible=True,
-                from_visible=True,
-                low_res=result,
-                noise_cond_ts=0,
-                use_ddim=use_ddim['3'],
-                use_plms=use_plms['3'],
-                ddim_eta=0.5,
-            )
+                if using_sres3:
+                    # sampling_model_sres3.model.cuda();
 
-            # sampling_model_sres3.model.cpu();
+                    result = sampling_model_sres3.sample(
+                        text=None,
+                        batch_size=1,
+                        n_samples=1,
+                        to_visible=True,
+                        from_visible=True,
+                        low_res=result,
+                        noise_cond_ts=0,
+                        use_ddim=use_ddim['3'],
+                        use_plms=use_plms['3'],
+                        ddim_eta=0.5,
+                    )
 
-        im = Image.fromarray(result[0])
+                    # sampling_model_sres3.model.cpu();
 
-        print('step3 done')
-        collect_and_show()
-        if show_memory:
-            show_gpu()
+                im = Image.fromarray(result[0])
 
-        delta_t = time.time() - t1
-        print('--------------------')
-        print(f"pipeline took {delta_t:.1f}s")
-        print('--------------------\n')
+                print('step3 done')
+                collect_and_show()
+                if show_memory:
+                    show_gpu()
 
-        with BytesIO() as output:
-            im.save(output, "png")
-            b = output.getvalue()
+                delta_t = time.time() - t1
+                print('--------------------')
+                print(f"pipeline took {delta_t:.1f}s")
+                print('--------------------\n')
 
-        if not dummy:
-            requests.post(
-                f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}/{data['id']}",
-                data=b,
-            )
+                with BytesIO() as output:
+                    im.save(output, "png")
+                    b = output.getvalue()
+
+                if not dummy:
+                    requests.post(
+                        f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}/{data['id']}",
+                        data=b,
+                    )
     return did_generation
 
 

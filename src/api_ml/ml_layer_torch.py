@@ -3,6 +3,7 @@ import time
 
 import requests
 import numpy as np
+import torch
 from transformers import AutoTokenizer
 from transformer_utils.util.tfm_utils import get_local_path_from_huggingface_cdn
 
@@ -116,7 +117,11 @@ def load_generator_model(
 
 def load_selector(path, base_model, tokenizer, retries=False, **kwargs):
     selector_est = NostARHeadEstimator.load(
-        path, base_model=base_model, tokenizer=tokenizer, inference_batch_size=head_inference_batch_size,
+        path,
+        base_model=base_model,
+        tokenizer=tokenizer,
+        inference_batch_size=head_inference_batch_size,
+        use_amp_inference=autocast_recommended,
         device=head_load_device,
         **kwargs
     )
@@ -268,9 +273,10 @@ def poll(
                     print(f"skipping deprecated param {name}")
                     del requested_kwargs[name]
 
-            result = getattr(requested_model, requested_method)(
-                *requested_args, **requested_kwargs
-            )
+            with torch.inference_mode():
+                result = getattr(requested_model, requested_method)(
+                    *requested_args, **requested_kwargs
+                )
 
             if isinstance(result, np.ndarray):
                 result = result.tolist()

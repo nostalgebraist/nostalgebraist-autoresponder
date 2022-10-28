@@ -107,7 +107,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         flood_level=0.0,
         cleanup_on_exception=True,
         show_running_loss=True,
-        use_amp_training=False,
+        use_amp_training=True,
+        use_amp_inference=True,
         pad_to_mult=None,
         display_interval_secs=3,
         partial_forward_type="tfu",
@@ -140,6 +141,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.show_running_loss = show_running_loss
 
         self.use_amp_training = use_amp_training
+        self.use_amp_inference = use_amp_inference
 
         self.pad_to_mult = pad_to_mult
         self.display_interval_secs = display_interval_secs
@@ -604,7 +606,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         result = getattr(self.lr_calib_, predict_method)(calib_inputs)
         return result
 
-    def _predict_select(self, batch, threshold=0.5, disable_calibration=False):
+    def _predict_select(self, batch, threshold=0.5, disable_calibration=False, autocast=True):
         self.model_.eval()
         for param in self.model_.parameters():
             param.requires_grad = False
@@ -619,7 +621,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 input_ids_with_pads=input_ids_with_pads,
-                autocast=True,
+                autocast=self.use_amp_inference,
             ).cpu().detach().numpy()
 
         if self.regression_target and (self.calibrate and not disable_calibration):
@@ -739,13 +741,14 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         joblib.dump(self.lr_calib_, os.path.join(path, "lr_calib.pkl.gz"))
 
     @staticmethod
-    def load(path, base_model, tokenizer, inference_batch_size=None, **kwargs) -> "NostARHeadEstimator":
+    def load(path, base_model, tokenizer, inference_batch_size=None, use_amp_inference=True, **kwargs) -> "NostARHeadEstimator":
         with open(os.path.join(path, "metadata.json"), "r") as f:
             metadata = json.load(f)
 
         constructor_args = metadata["constructor_args"]
         constructor_args["base_model"] = base_model
         constructor_args["tokenizer"] = tokenizer
+        constructor_args["use_amp_inference"] = use_amp_inference
 
         if inference_batch_size is not None:
             constructor_args["opt_params"]["batch_size"] = inference_batch_size

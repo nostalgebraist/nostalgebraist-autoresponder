@@ -367,6 +367,7 @@ class NostARHeadBlock(nn.Module):
             hidden_states = hidden_states + self.attn(attn_in)[0]
             mlp_in = self.ln_2(hidden_states)
             mlp_in = mlp_in.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
+            hidden_states = hidden_states.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
             hidden_states = hidden_states + self.mlp(mlp_in)
         return hidden_states
 
@@ -451,6 +452,10 @@ class NostARHead(nn.Module):
     @property
     def use_proj(self):
         return self.params_extras.get("use_proj", True)
+
+    @property
+    def block_parallel_attn_ff(self):
+        return self.params_extras.get("block_parallel_attn_ff", False)
 
     @property
     def base_model(self) -> GPTModelType:
@@ -559,6 +564,7 @@ class NostARHead(nn.Module):
             use_proj=True,
             rotary=self.params.rotary_blocks,
             rotary_dim=self.params.rotary_dim_blocks,
+            parallel_attn_ff=self.block_parallel_attn_ff,
         )
 
         mlp_params = dict(

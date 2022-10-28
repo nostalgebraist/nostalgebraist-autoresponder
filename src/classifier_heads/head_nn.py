@@ -320,11 +320,13 @@ class NostARHeadBlock(nn.Module):
         mlp_only_blocks,
         tune_base_block_attn,
         tune_base_block_mlp,
+        parallel_attn_ff,
     ):
         super().__init__()
         self.mlp_only = mlp_only_blocks
         self.tune_base_block_attn = tune_base_block_attn
         self.tune_base_block_mlp = tune_base_block_mlp
+        self.parallel_attn_ff = parallel_attn_ff
 
         self.ln_1 = nn.LayerNorm(embed_dim, eps=1e-5)
         if self.mlp_only:
@@ -357,15 +359,14 @@ class NostARHeadBlock(nn.Module):
         if self.tune_base_block_attn:
             attn_in = self.ln_1(attn_in)
         if self.use_out_gain:
-            # TODO: actual parallel attn/ff
             hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(attn_in)[0]
-            mlp_in = self.ln_2(hidden_states)
+            mlp_in = attn_in if self.parallel_attn_ff else self.ln_2(hidden_states)
             mlp_in = mlp_in.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
             hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(mlp_in)
         else:
             # TODO: actual parallel attn/ff
             hidden_states = hidden_states + self.attn(attn_in)[0]
-            mlp_in = self.ln_2(hidden_states)
+            mlp_in = attn_in if self.parallel_attn_ff else self.ln_2(hidden_states)
             mlp_in = mlp_in.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
             hidden_states = hidden_states.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
             hidden_states = hidden_states + self.mlp(mlp_in)

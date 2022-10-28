@@ -767,11 +767,11 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             'v_dim_final': 4096
         }
 
-        init_args = inspect.signature(NostARHeadArchitectureParams.__init__).parameters.keys()
+        init_args = inspect.signature(NostARHeadArchitectureParams.__new__).parameters.keys()
         for k in set(init_args).intersection(extras_defaults.keys()).difference(constructor_args["params"].keys()):
             constructor_args["params"][k] = extras_defaults[k]
 
-        init_args = inspect.signature(NostARHeadOptimizerParams.__init__).parameters.keys()
+        init_args = inspect.signature(NostARHeadOptimizerParams.__new__).parameters.keys()
         for k in set(init_args).intersection(extras_defaults.keys()).difference(constructor_args["opt_params"].keys()):
             constructor_args["opt_params"][k] = extras_defaults[k]
 

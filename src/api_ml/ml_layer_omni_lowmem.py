@@ -11,14 +11,26 @@ def diffusion_device():
 
 improved_diffusion.dist_util.dev = diffusion_device
 
-# load on gpu first to avoid 2x cpu memory
+# load on gpu first to overusing cpu memory
 import api_ml.ml_layer_diffusion
 
-# move diffusion to cpu to prep for text load
+# offload diffusion to prep for text load
 _GLOBAL_FLAGS['DIFFUSION_DEVICE'] = 'cpu'
 
-for m in api_ml.ml_layer_diffusion.pipelines:
+del api_ml.ml_layer_diffusion.sampling_model_sres1
+del api_ml.ml_layer_diffusion.sampling_model_sres1p5
+
+gc.collect()
+th.cuda.empty_cache()
+
+for m in [
+        api_ml.ml_layer_diffusion.sampling_model_sres2,
+        api_ml.ml_layer_diffusion.sampling_model_sres3,
+    ]:
     m.to(device=_GLOBAL_FLAGS['DIFFUSION_DEVICE'])
+
+gc.collect()
+th.cuda.empty_cache()
 
 import api_ml.ml_layer_torch
 # os.chdir("/nostalgebraist-autoresponder/")
@@ -42,7 +54,16 @@ def switch_to_diffusion():
 
     _GLOBAL_FLAGS['DIFFUSION_DEVICE'] = 'cuda:0'
 
-    for m in api_ml.ml_layer_diffusion.pipelines:
+    if not hasattr(api_ml.ml_layer_diffusion, 'sampling_model_sres1'):
+        api_ml.ml_layer_diffusion.sampling_model_sres1, api_ml.ml_layer_diffusion.sampling_model_sres1p5 = \
+        api_ml.ml_layer_diffusion.load_part1_part1p5_curried()
+
+        for m in [
+                api_ml.ml_layer_diffusion.sampling_model_sres1,
+                api_ml.ml_layer_diffusion.sampling_model_sres1p5,
+                api_ml.ml_layer_diffusion.sampling_model_sres2,
+                api_ml.ml_layer_diffusion.sampling_model_sres3,
+            ]:
         m.to(device=_GLOBAL_FLAGS['DIFFUSION_DEVICE'])
 
     gc.collect()
@@ -52,7 +73,16 @@ def switch_to_diffusion():
 def switch_to_text():
     _GLOBAL_FLAGS['DIFFUSION_DEVICE'] = 'cpu'
 
-    for m in api_ml.ml_layer_diffusion.pipelines:
+    del api_ml.ml_layer_diffusion.sampling_model_sres1
+    del api_ml.ml_layer_diffusion.sampling_model_sres1p5
+
+    gc.collect()
+    th.cuda.empty_cache()
+
+    for m in [
+            api_ml.ml_layer_diffusion.sampling_model_sres2,
+            api_ml.ml_layer_diffusion.sampling_model_sres3,
+        ]:
         m.to(device=_GLOBAL_FLAGS['DIFFUSION_DEVICE'])
 
     gc.collect()

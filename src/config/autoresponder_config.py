@@ -640,6 +640,8 @@ autocast_recommended = GPU_TYPE != 'small'
 
 MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
 
+OMNI_LOWMEM_TWEAKS = False
+
 if V12_16:
     MODELS_SERVED.add("captioner")
 

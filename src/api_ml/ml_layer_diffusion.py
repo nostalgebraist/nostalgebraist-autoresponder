@@ -73,42 +73,52 @@ if os.path.exists(checkpoint_path_sres2_3):
 using_sres3 = os.path.exists(checkpoint_path_sres3) and os.path.exists(config_path_sres3)
 
 # load
-sampling_model_sres1 = improved_diffusion.pipeline.SamplingModel.from_config(
-    checkpoint_path=checkpoint_path_sres1,
-    config_path=config_path_sres1,
-    timestep_respacing=timestep_respacing_sres1,
-    # silu_impl='torch',
-)
+def load_part1_part1p5_curried():
 
-sampling_model_sres1p5 = None
-
-if using_sres1p5:
-    sampling_model_sres1p5 = improved_diffusion.pipeline.SamplingModel.from_config(
-        checkpoint_path=checkpoint_path_sres1p5,
-        config_path=config_path_sres1p5,
-        timestep_respacing=timestep_respacing_sres1p5,
-        clipmod=sampling_model_sres1.model.clipmod,
+    sampling_model_sres1 = improved_diffusion.pipeline.SamplingModel.from_config(
+        checkpoint_path=checkpoint_path_sres1,
+        config_path=config_path_sres1,
+        timestep_respacing=timestep_respacing_sres1,
         # silu_impl='torch',
     )
 
-sampling_model_sres2 = improved_diffusion.pipeline.SamplingModel.from_config(
-    checkpoint_path=checkpoint_path_sres2,
-    config_path=config_path_sres2,
-    timestep_respacing=timestep_respacing_sres2,
-    # silu_impl='torch',
-)
-sampling_model_sres2.model.image_size = 256
+    sampling_model_sres1p5 = None
+    if using_sres1p5:
+        sampling_model_sres1p5 = improved_diffusion.pipeline.SamplingModel.from_config(
+            checkpoint_path=checkpoint_path_sres1p5,
+            config_path=config_path_sres1p5,
+            timestep_respacing=timestep_respacing_sres1p5,
+            clipmod=sampling_model_sres1.model.clipmod,
+            # silu_impl='torch',
+        )
+    return sampling_model_sres1, sampling_model_sres1p5
 
-sampling_model_sres3 = None
-
-if using_sres3:
-    sampling_model_sres3 = improved_diffusion.pipeline.SamplingModel.from_config(
-        checkpoint_path=checkpoint_path_sres3,
-        config_path=config_path_sres3,
-        timestep_respacing=timestep_respacing_sres3,
+def load_part2_curried():
+    sampling_model_sres2 = improved_diffusion.pipeline.SamplingModel.from_config(
+        checkpoint_path=checkpoint_path_sres2,
+        config_path=config_path_sres2,
+        timestep_respacing=timestep_respacing_sres2,
         # silu_impl='torch',
     )
-    sampling_model_sres3.model.image_size = 512
+    sampling_model_sres2.model.image_size = 256
+    return sampling_model_sres2
+
+def load_part3_curried():
+    if using_sres3:
+        sampling_model_sres3 = improved_diffusion.pipeline.SamplingModel.from_config(
+            checkpoint_path=checkpoint_path_sres3,
+            config_path=config_path_sres3,
+            timestep_respacing=timestep_respacing_sres3,
+            # silu_impl='torch',
+        )
+        sampling_model_sres3.model.image_size = 512
+        return sampling_model_sres2
+
+sampling_model_sres1, sampling_model_sres1p5 = None, None
+if not OMNI_LOWMEM_TWEAKS:
+    sampling_model_sres1, sampling_model_sres1p5 = load_part1_part1p5_curried()
+sampling_model_sres2 = load_part2_curried()
+sampling_model_sres3 = load_part3_curried()
 
 # sampling_model_sres3.model.convert_to_fp16()
 
@@ -120,9 +130,10 @@ use_plms = {'1': False, '1p5': False, '2': False, '3': False}
 
 double_mesh_first_n = {k: 3 if use_plms[k] else 0 for k in use_plms}
 
-sampling_model_sres1.set_timestep_respacing(timestep_respacing_sres1, double_mesh_first_n=double_mesh_first_n['1'])
+if not OMNI_LOWMEM_TWEAKS:
+    sampling_model_sres1.set_timestep_respacing(timestep_respacing_sres1, double_mesh_first_n=double_mesh_first_n['1'])
 
-sampling_model_sres1p5.set_timestep_respacing(timestep_respacing_sres1p5, double_mesh_first_n=double_mesh_first_n['1p5'])
+    sampling_model_sres1p5.set_timestep_respacing(timestep_respacing_sres1p5, double_mesh_first_n=double_mesh_first_n['1p5'])
 
 sampling_model_sres2.set_timestep_respacing(timestep_respacing_sres2, double_mesh_first_n=double_mesh_first_n['2'])
 

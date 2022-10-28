@@ -768,14 +768,12 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         }
 
         init_args = inspect.signature(NostARHeadArchitectureParams.__init__).parameters.keys()
-        for k in init_args:
-            if k not in constructor_args["params"]:
-                constructor_args["params"][k] = extras_defaults[k]
+        for k in set(init_args).intersection(extras_defaults.keys()).difference(constructor_args["params"].keys()):
+            constructor_args["params"][k] = extras_defaults[k]
 
         init_args = inspect.signature(NostARHeadOptimizerParams.__init__).parameters.keys()
-        for k in init_args:
-            if k not in constructor_args["opt_params"]:
-                constructor_args["opt_params"][k] = extras_defaults[k]
+        for k in set(init_args).intersection(extras_defaults.keys()).difference(constructor_args["opt_params"].keys()):
+            constructor_args["opt_params"][k] = extras_defaults[k]
 
         constructor_args["params"] = NostARHeadArchitectureParams(**constructor_args["params"])
         constructor_args["opt_params"] = NostARHeadOptimizerParams(**constructor_args["opt_params"])

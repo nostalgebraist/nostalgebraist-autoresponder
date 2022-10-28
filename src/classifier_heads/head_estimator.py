@@ -307,13 +307,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             batch_target = batch_data["batch_target"]
 
             # TODO: figure out whether we need logits in float32 explicitly
-            with torch.cuda.amp.autocast(enabled=self.use_amp_training):
-                logits = self.model_(
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                    input_ids_with_pads=input_ids_with_pads,
-                )
-                loss = self.loss_fn(input=logits, target=batch_target)
+            logits = self.model_(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                input_ids_with_pads=input_ids_with_pads,
+                autocast=self.use_amp_training,
+            )
+            loss = self.loss_fn(input=logits, target=batch_target)
 
             self.scaler_.scale(loss).backward()
 
@@ -615,12 +615,12 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         # TODO: figure out whether we need logits in float32 explicitly
         with kv_buffer_scope(self.base_model, False):
-            with torch.cuda.amp.autocast(enabled=self.use_amp_training):
-                logits_raw = self.model_(
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                    input_ids_with_pads=input_ids_with_pads,
-                ).cpu().detach().numpy()
+            logits_raw = self.model_(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                input_ids_with_pads=input_ids_with_pads,
+                autocast=True,
+            ).cpu().detach().numpy()
 
         if self.regression_target and (self.calibrate and not disable_calibration):
             logits = self._compute_calib_probs(logits_raw, pfcs=batch["prompt_finalchar"])

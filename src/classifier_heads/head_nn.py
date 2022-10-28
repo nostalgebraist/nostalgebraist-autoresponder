@@ -632,31 +632,39 @@ class NostARHead(nn.Module):
         attention_mask,
         head_mask=None,
         output_attentions=False,
+        autocast=True,
     ):
         with torch.no_grad():
-            extracted_activations = partial_forward(
-                model=self.base_model.transformer,
-                output_names=self.layer_names,
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                use_cache=False
-            )
+            autocast_base = False  # no autocast - model is stable in fp16
+            with torch.cuda.autocast(autocast and autocast_base):
+                extracted_activations = partial_forward(
+                    model=self.base_model.transformer,
+                    output_names=self.layer_names,
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    use_cache=False
+                )
 
-        for block in self.blocks:
-            name = self.layer_names[0]
-            extracted_activations[name] = block(extracted_activations[name])
+        # if tuned from base, stable in fp16
+        autocast_blocks = not (self.params.tune_base_block_mlp and self.params.tune_base_block_attn)
+        with torch.cuda.autocast(autocast and autocast_blocks):
+            for block in self.blocks:
+                name = self.layer_names[0]
+                extracted_activations[name] = block(extracted_activations[name])
 
-        attn_outs = [
-            attn(extracted_activations[name], input_ids_with_pads)[0]
-            for name, attn in self.layer_names_to_attns.items()
-        ]
+        autocast_rest = True
+        with torch.cuda.autocast(autocast and autocast_rest):
+            attn_outs = [
+                attn(extracted_activations[name], input_ids_with_pads)[0]
+                for name, attn in self.layer_names_to_attns.items()
+            ]
 
-        hidden_state = torch.cat(attn_outs, dim=-1)
+            hidden_state = torch.cat(attn_outs, dim=-1)
 
-        if self.params.use_final_mlp:
-            hidden_state = hidden_state + self.mlp(hidden_state)
+            if self.params.use_final_mlp:
+                hidden_state = hidden_state + self.mlp(hidden_state)
 
-        logits = self.logit_head(hidden_state)
+            logits = self.logit_head(hidden_state)
 
         logits = logits.float()
 

@@ -664,11 +664,10 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         # move tuned block to inference device for use
         if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
             for block, layer_num in zip(self.model_.blocks, self.model_.layer_nums):
-                self.base_model.transformer.h[layer_num+1].cpu()
-
-                block.ln_1.to(device=self.blocks_inference_device_attn)
-                block.attn.to(device=self.blocks_inference_device_attn)
-                block.mlp.to(device=self.blocks_inference_device_mlp)
+                # TODO: use state_dicts once base and tuned layers do exactly the same thing (parallel attn+ff)
+                base_layer = self.base_model.transformer.h[layer_num+1]
+                base_layer.to(device=self.device)
+                block.cuda()
 
         for step_ix in step_iter:
             data_batch = data.iloc[row_ix : row_ix + self.opt_params.batch_size, :]
@@ -693,8 +692,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         # move tuned block back to orig device (potentially cpu)
         if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
             for block, layer_num in zip(self.model_.blocks, self.model_.layer_nums):
+                base_layer = self.base_model.transformer.h[layer_num+1]
                 block.to(device=self.device)
-                self.base_model.transformer.h[layer_num+1].cuda()
+                base_layer.cuda()
 
         if key == "preds":
             pd_obj = pd.Series(all_preds, index=all_pd_ixs)

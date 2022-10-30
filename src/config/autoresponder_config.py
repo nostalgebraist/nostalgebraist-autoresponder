@@ -613,7 +613,7 @@ GPT_NEO_TOP_K = 0
 
 max_feed_size_with_cache = 2048 if V11 else 1024
 max_feed_size_no_cache = max_feed_size_with_cache
-USE_KV_BUFFER = False
+USE_KV_BUFFER = True
 
 AVOID_UNK_CAPTION = True
 BREAKRUNS_OFF_WITHIN_IMAGES = False
@@ -630,10 +630,12 @@ length_sentiment = max_feed_size_with_cache
 length_autoreview = max_feed_size_with_cache
 
 batch_size = 2 if GPU_TYPE == "bigger" else 1
+
 head_inference_batch_size = 4 if GPU_TYPE == "bigger" else 1
 head_load_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
-head_inference_blocks_device_attn = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
+head_inference_blocks_device_attn = 'cuda:0'
 head_inference_blocks_device_mlp = 'cuda:0'
+
 captioning_adapters_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 
 autocast_recommended = GPU_TYPE != 'small'

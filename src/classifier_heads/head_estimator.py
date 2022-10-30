@@ -663,7 +663,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         # move tuned block to blocks_inference_device for use
         if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
-            for block in self.model_.blocks:
+            for block, layer_num in zip(self.model_.blocks, self.model_.layer_nums):
+                
                 block.ln_1.to(device=self.blocks_inference_device_attn)
                 block.attn.to(device=self.blocks_inference_device_attn)
                 block.mlp.to(device=self.blocks_inference_device_mlp)

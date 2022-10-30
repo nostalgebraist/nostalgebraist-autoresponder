@@ -24,8 +24,9 @@ while True:
     sys.stdout = _STDOUT_REF
 
     # check for switch
+    host, port = api_ml.ml_layer_diffusion.BRIDGE_SERVICE_REMOTE_HOST, api_ml.ml_layer_diffusion.bridge_service_port
     r = requests.get(
-        f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/pollml",
+        f"{host}:{port}/pollml",
     )
 
     time.sleep(0.2)

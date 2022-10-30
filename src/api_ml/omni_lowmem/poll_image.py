@@ -4,7 +4,7 @@ import time
 import requests
 from requests.exceptions import ConnectionError, Timeout
 
-sys.path.append("/nostalgebraist-autoresponder/src")
+sys.path.append("src")
 sys.path.append("/content/improved-diffusion")
 
 import api_ml.ml_layer_diffusion

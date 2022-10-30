@@ -41,6 +41,8 @@ FORCE_CAPTS = True
 
 TRUNCATE_LENGTH = 380
 
+t_start = time.time()
+
 # download
 if not os.path.exists(model_path_diffusion):
     model_tar_name = 'model.tar'
@@ -48,6 +50,9 @@ if not os.path.exists(model_path_diffusion):
         HF_REPO_NAME_DIFFUSION, model_tar_name
     )
     subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
+
+t_file = time.time()
+print(f"downloaded in {t_file - t_start}s")
 
 checkpoint_path_sres1 = os.path.join(model_path_diffusion, "sres1.pt")
 config_path_sres1 = os.path.join(model_path_diffusion, "config_sres1.json")
@@ -127,6 +132,10 @@ sampling_model_sres1p5.set_timestep_respacing(timestep_respacing_sres1p5, double
 sampling_model_sres2.set_timestep_respacing(timestep_respacing_sres2, double_mesh_first_n=double_mesh_first_n['2'])
 
 sampling_model_sres3.set_timestep_respacing(timestep_respacing_sres3, double_mesh_first_n=double_mesh_first_n['2'])
+
+
+t_ready = time.time()
+print(f"ready in {t_ready - t_start}s (model load: {t_ready - t_file}s)")
 
 
 def poll(

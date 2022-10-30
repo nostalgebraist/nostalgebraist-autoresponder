@@ -154,6 +154,8 @@ sample_done_criterion = make_sample_done_criterion(
 # MODELS
 generator_model, selector_est, sentiment_est, autoreviewer_est = None, None, None, None
 
+t_start = time.time()
+
 # GENERATOR: download if necessary
 generator_path = model_name
 
@@ -190,6 +192,9 @@ if "captioner" in MODELS_SERVED and not os.path.exists(ckpt_captioner):
 if needs_head_download:
     subprocess.run(f"rm {heads_tar_path}", shell=True)
 
+t_file = time.time()
+print(f"downloaded in {t_file - t_start}s")
+
 # MODELS: load
 generator_model, magma_wrapper = load_generator_model(
     path=generator_path,
@@ -215,6 +220,9 @@ if "autoreviewer" in MODELS_SERVED:
     autoreviewer_est.length = length_autoreview
 
 DEPRECATED_KWARGS = {"mirotarg"}
+
+t_ready = time.time()
+print(f"ready in {t_ready - t_start}s (model load: {t_ready - t_file}s)")
 
 
 def poll(

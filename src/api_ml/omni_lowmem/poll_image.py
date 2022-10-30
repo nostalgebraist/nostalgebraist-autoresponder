@@ -15,13 +15,10 @@ import api_ml.ml_layer_diffusion
 
 while True:
     # main poll
-    sys.stdout = fake
-
     api_ml.ml_layer_diffusion.loop_poll(
         period=5,
         n_loops=1
     )
-    sys.stdout = _STDOUT_REF
 
     # check for switch
     host, port = api_ml.ml_layer_diffusion.BRIDGE_SERVICE_REMOTE_HOST, api_ml.ml_layer_diffusion.bridge_service_port

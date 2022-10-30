@@ -1,11 +1,11 @@
 import sys
 import io
-simport time
+import time
 
 import requests
 from requests.exceptions import ConnectionError, Timeout
 
-sys.path.append("/nostalgebraist-autoresponer/src")
+sys.path.append("/nostalgebraist-autoresponder/src")
 sys.path.append("/content/improved-diffusion")
 
 import api_ml.ml_layer_torch

@@ -4,6 +4,9 @@ import time
 import requests
 from requests.exceptions import ConnectionError, Timeout
 
+import imageio.plugins.ffmpeg
+imageio.plugins.ffmpeg.download = lambda: None
+
 sys.path.append("src")
 sys.path.append("/content/improved-diffusion")
 

@@ -5,6 +5,9 @@ import time
 import requests
 from requests.exceptions import ConnectionError, Timeout
 
+import imageio.plugins.ffmpeg
+imageio.plugins.ffmpeg.download = lambda: None
+
 sys.path.append("src")
 sys.path.append("magma")
 
@@ -30,8 +33,9 @@ while True:
     sys.stdout = _STDOUT_REF
 
     # check for switch
+    host, port = api_ml.ml_layer_torch.BRIDGE_SERVICE_REMOTE_HOST, api_ml.ml_layer_torch.bridge_service_port
     r = requests.get(
-        f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/polldiffusion",
+        f"{host}:{port}/polldiffusion",
     )
 
     time.sleep(0.2)

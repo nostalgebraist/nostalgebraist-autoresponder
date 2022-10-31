@@ -28,7 +28,8 @@ while True:
 
     api_ml.ml_layer_torch.loop_poll(
         period=1,
-        n_loops=5
+        n_loops=5,
+        use_almostdone=False,
     )
     sys.stdout = _STDOUT_REF
 

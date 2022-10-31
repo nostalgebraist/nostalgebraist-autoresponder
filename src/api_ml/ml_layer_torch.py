@@ -373,6 +373,7 @@ def loop_poll(
     ],
     show_memory=True,
     n_loops=None,
+    use_almostdone=True,
 ):
     loop_counter = 0
     open_request_ids = set()
@@ -386,7 +387,7 @@ def loop_poll(
         open_request_ids, almostdone_in_flight = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
         if len(open_request_ids) == 0 or dummy:
             time.sleep(period)
-        elif almostdone_in_flight:
+        elif use_almostdone and almostdone_in_flight:
             time.sleep(2)
         else:
             time.sleep(0.2)

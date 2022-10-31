@@ -16,8 +16,8 @@ import api_ml.ml_layer_diffusion
 while True:
     # main poll
     api_ml.ml_layer_diffusion.loop_poll(
-        period=5,
-        n_loops=1
+        period=1,
+        n_loops=1,
     )
 
     # check for switch

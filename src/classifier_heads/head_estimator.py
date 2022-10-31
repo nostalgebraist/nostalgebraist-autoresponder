@@ -672,11 +672,11 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             offset += 1
 
         # move an additional base layer to make room for the head part after the block(s)
-        ix = self.model_.last_base_layer_used + offset + 1
-        base_layer = self.base_model.transformer.h[ix]
+        layer_num = self.model_.last_base_layer_used + offset + 1
+        base_layer = self.base_model.transformer.h[layer_num]
         base_layer.to(device=self.device)
         base_layers_moved.append(layer_num)
-        
+
         self.model_.cuda()
 
         # predict

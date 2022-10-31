@@ -22,7 +22,7 @@ def request_diffusion(text, **kwargs):
     requests.post(bridge_service_url + "/requestdiffusion", json=data_to_send)
 
 
-def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=5):
+def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=2):
     bridge_service_url = get_bridge_service_url()
     print("waiting for result", end="... ")
     started_waiting_ts = time.time()
@@ -45,7 +45,7 @@ def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=5):
     im = _try_load(result)
 
     while im is None:
-        time_to_wait = wait_recheck_time if n_tries < 100 else wait_recheck_time * 10
+        time_to_wait = wait_recheck_time
         n_tries += 1
         print(n_tries, end="... ")
         time.sleep(time_to_wait)

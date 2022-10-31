@@ -33,8 +33,8 @@ HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 
 
-timestep_respacing_sres1 = '50'
-timestep_respacing_sres1p5 = '18,12,12,4,4'
+timestep_respacing_sres1 = '100'
+timestep_respacing_sres1p5 = '36,24,24,8,8'
 timestep_respacing_sres2 = '18,12,12,4,4'
 timestep_respacing_sres3 = '10,7,6,2,2'
 FORCE_CAPTS = True

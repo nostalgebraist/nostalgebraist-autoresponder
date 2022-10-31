@@ -474,6 +474,12 @@ class NostARHead(nn.Module):
         return self.params.n_blocks
 
     @property
+    def last_base_layer_used(self):
+        if self.params.tune_base_block_attn:
+            return max(self.layer_nums) - 1
+        return max(self.layer_nums)
+
+    @property
     def layer_names(self):
         if self.params.tune_base_block_attn:
             assert min(self.layer_nums) > 0

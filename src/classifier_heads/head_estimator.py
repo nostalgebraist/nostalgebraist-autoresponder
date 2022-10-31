@@ -661,13 +661,24 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             else list(range(0, steps))
         )
 
-        # move tuned block to inference device for use
-        if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
-            for block, layer_num in zip(self.model_.blocks, self.model_.layer_nums):
-                base_layer = self.base_model.transformer.h[layer_num+1]
-                base_layer.to(device=self.device)
-                block.cuda()
+        # move to gpu for use
+        base_layers_moved = []
+        offset = 1
+        for block in self.model_.blocks:
+            layer_num = self.model_.last_base_layer_used + offset + 1
+            base_layer = self.base_model.transformer.h[layer_num]
+            base_layer.to(device=self.device)
 
+            base_layers_moved.append(layer_num)
+            offset += 1
+
+        # move an additional base layer to make room for the head part after the block(s)
+        ix = self.model_.last_base_layer_used + offset + 1
+        base_layer = self.base_model.transformer.h[ix]
+        base_layer.to(device=self.device)
+        self.model_.cuda()
+
+        # predict
         for step_ix in step_iter:
             data_batch = data.iloc[row_ix : row_ix + self.opt_params.batch_size, :]
             n_needed = len(data_batch)
@@ -688,7 +699,12 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             row_ix += self.opt_params.batch_size
 
-        # move tuned block back to orig device (potentially cpu)
+        # move back to orig devices
+        self.model_.to(device=self.device)
+        for layer_num in base_layers_moved:
+            base_layer = self.base_model.transformer.h[layer_num]
+            base_layer.cuda()
+
         if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
             for block, layer_num in zip(self.model_.blocks, self.model_.layer_nums):
                 base_layer = self.base_model.transformer.h[layer_num+1]

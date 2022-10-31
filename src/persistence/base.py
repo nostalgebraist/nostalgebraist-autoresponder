@@ -2,6 +2,8 @@ import os
 import jsonlines
 import shutil
 
+from tqdm.auto import tqdm
+
 
 class SelfArchivingJsonlStore:
     def __init__(
@@ -44,7 +46,8 @@ class SelfArchivingJsonlStore:
         path, path_coldstore, _ = SelfArchivingJsonlStore.format_paths(directory, name)
 
         with jsonlines.open(path, 'w', dumps=dumps) as f:
-            f.write_all(data)
+            for entry in tqdm(data, mininterval=0.25):
+                f.write(entry)
 
         with open(path_coldstore, 'w') as f:
             pass
@@ -73,7 +76,7 @@ class SelfArchivingJsonlStore:
         with jsonlines.open(self.path, loads=self.loads) as f:
             self.data = list(f)
 
-    def write_entry(self, entry):
+    def write_entry(self, entry, do_backup=True):
         with jsonlines.open(self.path, mode='a', dumps=self.dumps) as f:
             f.write(entry)
 
@@ -82,12 +85,12 @@ class SelfArchivingJsonlStore:
         if self.data_available:
             self.data.append(entry)
 
-        self.maybe_archive()
+        self.maybe_archive(do_backup=do_backup)
 
     def needs_archive(self):
         return self.n_entries > (self.max_entries_hot + self.archival_min_batch_size)
 
-    def maybe_archive(self):
+    def maybe_archive(self, do_backup=True):
         if not self.needs_archive():
             return
 
@@ -101,7 +104,8 @@ class SelfArchivingJsonlStore:
         with open(self.path_coldstore, 'a') as f:
             f.writelines(batch)  # does not add \ns
 
-        shutil.copy(self.path, self.path_backup)
+        if do_backup:
+            shutil.copy(self.path, self.path_backup)
 
         with open(self.path, 'w') as f:
             f.writelines(rest)  # does not add \n

@@ -58,7 +58,7 @@ class TraceabilityLogsJsonl(SelfArchivingJsonlStore):
         if needs:
             print(f"traceability logs: archived in {time.time()-t1:.1f}s, length now {self.n_entries}")
 
-    def on_post_creation_callback(self, api_response: dict, bridge_response: dict):
+    def on_post_creation_callback(self, api_response: dict, bridge_response: dict, do_backup=True):
         t1 = time.time()
 
         entry = {"api__" + k: v for k, v in api_response.items()}
@@ -66,7 +66,7 @@ class TraceabilityLogsJsonl(SelfArchivingJsonlStore):
 
         entry['timestamp_manual'] = now_pst().timestamp()
 
-        self.write_entry(entry)
+        self.write_entry(entry, do_backup=do_backup)
 
         t2 = time.time()
         print(f"on_post_creation_callback: took {t2-t1:.3f}s sec")

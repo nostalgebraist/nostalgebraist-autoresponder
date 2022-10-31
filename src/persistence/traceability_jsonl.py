@@ -1,4 +1,5 @@
 import time
+import json
 
 from persistence.base import SelfArchivingJsonlStore
 from persistence.response_cache import PostIdentifier
@@ -46,14 +47,14 @@ class TraceabilityLogsJsonl(SelfArchivingJsonlStore):
     def save(self):
         pass
 
-    def maybe_archive(self):
+    def maybe_archive(self, do_backup=True):
         needs = self.needs_archive()
         if needs:
             print(f"traceability logs: length {self.n_entries}, archiving...")
 
         t1 = time.time()
 
-        super().maybe_archive()
+        super().maybe_archive(do_backup=do_backup)
 
         if needs:
             print(f"traceability logs: archived in {time.time()-t1:.1f}s, length now {self.n_entries}")

@@ -3,6 +3,7 @@ import json
 
 from persistence.base import SelfArchivingJsonlStore
 from persistence.response_cache import PostIdentifier
+from util.times import now_pst
 
 TRACEABILITY_NAME = "traceability_logs"
 TRACEABILITY_DIR = "data"

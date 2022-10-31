@@ -664,7 +664,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         # move tuned block to inference device for use
         if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
             for block, layer_num in zip(self.model_.blocks, self.model_.layer_nums):
-                # TODO: use state_dicts once base and tuned layers do exactly the same thing (parallel attn+ff)
                 base_layer = self.base_model.transformer.h[layer_num+1]
                 base_layer.to(device=self.device)
                 block.cuda()

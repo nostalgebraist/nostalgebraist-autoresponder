@@ -74,7 +74,7 @@ from tumblr_to_text.nwo_munging import format_and_normalize_post_html, \
     add_empty_reblog, get_normalized_ask_text, insert_reply_before_final_post, cut_to_n_most_recent_by_user, \
     set_timestamp
 
-from persistence import traceability_singleton
+from persistence import traceability_jsonl_singleton as traceability_singleton
 from multimodal import image_analysis_singleton
 
 from tumblr_to_text.image_munging import find_text_images_and_sub_real_images

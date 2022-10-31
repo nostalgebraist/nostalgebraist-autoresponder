@@ -706,12 +706,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             base_layer = self.base_model.transformer.h[layer_num]
             base_layer.cuda()
 
-        if self.model_.params.tune_base_block_attn or self.model_.params.tune_base_block_mlp:
-            for block, layer_num in zip(self.model_.blocks, self.model_.layer_nums):
-                base_layer = self.base_model.transformer.h[layer_num+1]
-                block.to(device=self.device)
-                base_layer.cuda()
-
         if key == "preds":
             pd_obj = pd.Series(all_preds, index=all_pd_ixs)
         else:

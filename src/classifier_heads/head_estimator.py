@@ -668,7 +668,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             layer_num = self.model_.last_base_layer_used + offset + 1
             base_layer = self.base_model.transformer.h[layer_num]
             base_layer.to(device=self.device)
-
             base_layers_moved.append(layer_num)
             offset += 1
 
@@ -676,6 +675,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         ix = self.model_.last_base_layer_used + offset + 1
         base_layer = self.base_model.transformer.h[ix]
         base_layer.to(device=self.device)
+        base_layers_moved.append(layer_num)
+        
         self.model_.cuda()
 
         # predict

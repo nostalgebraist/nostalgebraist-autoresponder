@@ -313,6 +313,7 @@ def loop_poll(
     n_loops=None,
 ):
     loop_counter = 0
+    did_generation = False
 
     def _should_stop(loop_counter):
         if n_loops is not None:
@@ -325,6 +326,8 @@ def loop_poll(
             collect_and_show()
         time.sleep(period)
         loop_counter += 1
+
+    return did_generation
 
 if __name__ == "__main__":
     sys.exit(loop_poll())

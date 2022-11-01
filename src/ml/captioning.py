@@ -42,7 +42,9 @@ def caption_image(
 ):
     with kv_buffer_scope(magma_wrapper, False):
         for k in magma_wrapper.adapter_map:
-            magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].cuda()
+            magma_wrapper.adapter_map[k].cuda()
+
+        magma_wrapper.image_prefix.cuda()
 
         magma_wrapper.add_adapters()
 
@@ -79,5 +81,7 @@ def caption_image(
 
         for k in magma_wrapper.adapter_map:
             magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].to(device=adapters_device)
+
+        magma_wrapper.image_prefix.to(device=adapters_device)
 
     return caption

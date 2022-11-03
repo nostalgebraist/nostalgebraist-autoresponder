@@ -75,13 +75,15 @@ def make_textpost_scorer(metric, needs_proba=False):
     return _textpost_scorer
 
 
-def reshuffle_batches(train_data_for_selection, batch_size):
+def reshuffle_batches(train_data_for_selection, batch_size, seed=None):
     train_data_for_selection = train_data_for_selection.sort_values(by="n_tokens")
     batches = [
         train_data_for_selection.iloc[row_ix : row_ix + batch_size, :]
         for row_ix in range(0, len(train_data_for_selection), batch_size)
     ]
 
+    if seed is not None:
+        np.random.seed(seed)
     np.random.shuffle(batches)
 
     return pd.concat(batches, ignore_index=True)
@@ -102,6 +104,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         calibration_val_size=0.1,
         calibration_split_type="ttsp",
         calibration_val_seed=None,
+        shuffle_seed=None,
         evaluate_during_training=True,
         huber_delta=1.0,
         flooding=True,
@@ -136,7 +139,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.calibrate = calibrate
         self.calibration_val_size = calibration_val_size
         self.calibration_split_type = calibration_split_type
+
         self.calibration_val_seed = calibration_val_seed
+        self.shuffle_seed = shuffle_seed
 
         self.evaluate_during_training = evaluate_during_training
 
@@ -240,7 +245,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 lambda s: len(self.tokenizer.encode(s))
             )
         data = data.sort_values(by="n_tokens")
-        data = reshuffle_batches(data, batch_size=self.opt_params.batch_size)
+        data = reshuffle_batches(data, batch_size=self.opt_params.batch_size, seed=self.shuffle_seed)
         return data
 
     def _feed_from_batch(self, data_batch):

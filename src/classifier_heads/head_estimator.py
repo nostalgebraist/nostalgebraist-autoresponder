@@ -101,6 +101,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         calibrate=True,
         calibration_val_size=0.1,
         calibration_split_type="ttsp",
+        calibration_val_seed=None,
         evaluate_during_training=True,
         huber_delta=1.0,
         flooding=True,
@@ -135,6 +136,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.calibrate = calibrate
         self.calibration_val_size = calibration_val_size
         self.calibration_split_type = calibration_split_type
+        self.calibration_val_seed = calibration_val_seed
 
         self.evaluate_during_training = evaluate_during_training
 
@@ -399,13 +401,15 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             if self.calibration_split_type == "tts":
                 stratifier = (y > 0) if self.regression_target else y
                 X_train, X_val, y_train, y_val = train_test_split(
-                    X, y, stratify=stratifier, test_size=self.calibration_val_size
+                    X, y, stratify=stratifier, test_size=self.calibration_val_size,
+                    random_state=self.calibration_val_seed,
                 )
             elif self.calibration_split_type == "ttsp":
                 y_stratifier = (y > 0) if self.regression_target else y
                 stratifier = X["prompt_finalchar"] + y_stratifier.apply(str)
                 X_train, X_val, y_train, y_val = train_test_split(
-                    X, y, stratify=stratifier, test_size=self.calibration_val_size
+                    X, y, stratify=stratifier, test_size=self.calibration_val_size,
+                    random_state=self.calibration_val_seed,
                 )
             elif self.calibration_split_type == "gss":
                 gss = GroupKFold(n_splits=int(1 / self.calibration_val_size))

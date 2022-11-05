@@ -609,10 +609,10 @@ def old_bridge_call__answer(
 
     best_of = adjust_best_of(best_of, mood, is_textpost=False)
 
-    avoid_if_under = 10
+    avoid_if_under = 5
     if write_fic_override:
         avoid_if_under = 75
-    avoid_half_if_under = 15
+    avoid_half_if_under = 10
     avoid_if_profane = False
     avoid_if_says_frank = False
     random_year_for_generator = True
@@ -753,8 +753,8 @@ def old_bridge_call__textpost(
         mood=None,
         guidance_scale=None,
 ):
-    avoid_if_under = 10
-    avoid_half_if_under = 15
+    avoid_if_under = 5
+    avoid_half_if_under = 10
     avoid_initial_blockquote = False
     avoid_if_says_frank = False
 

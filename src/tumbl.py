@@ -3043,7 +3043,7 @@ def do_rts(response_cache):
             client_pool.get_private_client().delete_post(blogName, id=pid)
         elif p.get("type") == "answer":
             print(f"\tidentified as answer to ask")
-            client_pool.get_private_client().edit_post(blogName, id=pid, state="submission", tags=[])
+            client_pool.get_private_client().edit_post(blogName, id=pid, state="submission", tags=[], body="")
         elif "replied to your post" in p_body:
             print(f"\tidentified as answer to reply")
             reply_post_id, replier_name = post_body_find_reply_data(p_body)

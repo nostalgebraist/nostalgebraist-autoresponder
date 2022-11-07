@@ -6,7 +6,9 @@ import os
 import json
 import gc
 import weakref
+import random
 from functools import partial
+from string import ascii_lowercase
 
 import numpy as np
 import pandas as pd
@@ -118,6 +120,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         partial_forward_type="tfu",
         use_wandb=False,
         wandb_init_args=None,
+        use_galileo=False,
         blocks_inference_device_attn=None,
         blocks_inference_device_mlp=None,
         **kwargs
@@ -159,6 +162,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.partial_forward_type = partial_forward_type
         self.use_wandb = use_wandb
         self.wandb_init_args = wandb_init_args
+        self.use_galileo = use_galileo
 
         self.target_cols_ = None
 
@@ -295,13 +299,18 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             batch_target = torch.as_tensor(batch_target, dtype=target_dtype).pin_memory().to(self.device)
 
+            batch_dq_id = None
+            if self.use_galileo:
+                batch_dq_id = data_batch['dq_id'].values
+
             epoch_data.append(
                 {
                     "input_ids": input_ids,
                     "attention_mask": attention_mask,
                     "input_ids_with_pads": input_ids_with_pads,
                     "batch_max_tokens": batch_max_tokens,
-                    "batch_target": batch_target
+                    "batch_target": batch_target,
+                    "batch_dq_id": batch_dq_id
                 }
             )
             row_ix += self.opt_params.batch_size
@@ -318,14 +327,27 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             input_ids_with_pads = batch_data["input_ids_with_pads"]
             batch_max_tokens = batch_data["batch_max_tokens"]
             batch_target = batch_data["batch_target"]
+            batch_dq_id = batch_data["batch_dq_id"]
 
             # TODO: figure out whether we need logits in float32 explicitly
-            logits = self.model_(
+            outs = self.model_(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 input_ids_with_pads=input_ids_with_pads,
                 autocast=self.use_amp_training,
+                return_embs=self.use_galileo,
             )
+
+            if self.use_galileo:
+                logits, embs = outs
+            else:
+                logits = outs
+
+            if self.use_galileo:
+                import dataquality as dq
+
+                dq.log_model_outputs(embs=embs, logits=logits, ids=batch_dq_id)
+
             loss = self.loss_fn(input=logits, target=batch_target)
 
             self.scaler_.scale(loss).backward()
@@ -431,6 +453,23 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         else:
             X_train, y_train = X, y
             X_val, y_val = None, None
+
+        if self.use_galileo:
+            import dataquality as dq
+
+            X_train["dq_id"] = np.arange(len(X_train))
+            dq_df_train = X_train.copy()
+            dq_df_train['label'] = y_train
+            dq.log_dataset(dq_df_train, id="dq_id", text="selector_input", split="train")
+
+            if X_val:
+                X_val["dq_ix"] = np.arange(len(X_train), len(X_train) + len(X_val))
+                dq_df_val = X_val.copy()
+                dq_df_val['label'] = y_val
+                dq.log_dataset(dq_df_val, id="dq_id", text="selector_input", split="validation")
+
+            dq.set_labels_for_run([0, 1])
+
         return X_train, y_train, X_val, y_val
 
     def _display_eval_metrics(self, y_true, preds, probs, pfcs=None):
@@ -530,7 +569,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
     def eval_on_val_set(self, X_val, y_val, disable_calibration=True):
         stop_early_signal = None
 
-        probs = self._predict(X_val, key="probs", disable_calibration=True)
+        probs = self._predict(X_val, key="probs", disable_calibration=True, training=True)
         preds = probs[:, 1] > 0.5
 
         eval_metrics_results = self._display_eval_metrics(
@@ -586,12 +625,23 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 wandb_init_args.update(self.wandb_init_args)
 
             wandb.init(**wandb_init_args)
+
+        if self.use_galileo:
+            import dataquality as dq
+            dq.login()
+
+            run_name = ''.join(random.choices(ascii_lowercase, k=8))
+            dq.init(task_type="text_classification", project_name="nbar_heads", run_name=run_name)
+
         try:
             self.X_train_, self.y_train_, self.X_val_, self.y_val_ = self._val_split(
                 X, y
             )
             self._setup(self.X_train_, self.y_train_, training=True)
             for epoch_ix in tqdm(list(range(self.opt_params.epochs))):
+                if self.use_galileo:
+                    dq.set_epoch(epoch_ix)
+
                 self._epoch(self.X_train_, self.y_train_, avg_loss_beta=avg_loss_beta)
 
                 epoch_needs_val = self.evaluate_during_training
@@ -608,9 +658,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         except (Exception, KeyboardInterrupt) as e:
             if self.cleanup_on_exception:
                 self.cleanup()
+            if self.use_galileo:
+                dq.finish(wait=False)
             raise e
         if self.use_wandb:
             wandb.log({})  # commits final val
+        if self.use_galileo:
+            dq.finish(wait=False)
         return self
 
     def _compute_calib_probs(self, logits, pfcs):
@@ -619,7 +673,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         result = getattr(self.lr_calib_, predict_method)(calib_inputs)
         return result
 
-    def _predict_select(self, batch, threshold=0.5, disable_calibration=False, autocast=True):
+    def _predict_select(self, batch, threshold=0.5, disable_calibration=False, autocast=True, training=False):
         self.model_.eval()
         for param in self.model_.parameters():
             param.requires_grad = False
@@ -628,14 +682,31 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             raise ValueError("badlength")
         input_ids, attention_mask, input_ids_with_pads, _ = self._feed_from_batch(batch)
 
+        use_galileo = self.use_galileo and training
+
         # TODO: figure out whether we need logits in float32 explicitly
         with kv_buffer_scope(self.base_model, False):
-            logits_raw = self.model_(
+            outs = self.model_(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 input_ids_with_pads=input_ids_with_pads,
                 autocast=self.use_amp_inference,
-            ).cpu().detach().numpy()
+                return_embs=use_galileo,
+            )
+
+        if use_galileo:
+            logits_raw, embs = outs
+        else:
+            logits_raw = outs
+
+        if use_galileo:
+            import dataquality as dq
+
+            batch_dq_id = batch['dq_id'].values
+
+            dq.log_model_outputs(embs=embs, logits=logits_raw, ids=batch_dq_id)
+
+        logits_raw = logits_raw.cpu().detach().numpy()
 
         if self.regression_target and (self.calibrate and not disable_calibration):
             logits = self._compute_calib_probs(logits_raw, pfcs=batch["prompt_finalchar"])
@@ -653,7 +724,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         results["preds"] = probs[:, 1] > threshold
         return results
 
-    def _predict(self, X, key="preds", disable_calibration=False, suppress_tqdm=False):
+    def _predict(self, X, key="preds", disable_calibration=False, suppress_tqdm=False, training=False):
         if isinstance(X, list):
             X = pd.DataFrame.from_records(X)
 
@@ -702,7 +773,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 )
 
             results_batch = self._predict_select(
-                data_batch, disable_calibration=disable_calibration
+                data_batch, disable_calibration=disable_calibration, training=training,
             )
             all_preds.extend(results_batch[key][:n_needed])
             all_pd_ixs.extend(data_batch["selector_internal_ix"].tolist()[:n_needed])

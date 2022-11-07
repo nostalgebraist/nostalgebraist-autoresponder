@@ -651,6 +651,7 @@ class NostARHead(nn.Module):
         head_mask=None,
         output_attentions=False,
         autocast=True,
+        return_embs=False,
     ):
         with torch.cuda.amp.autocast(autocast):
             with torch.no_grad():
@@ -679,5 +680,9 @@ class NostARHead(nn.Module):
             logits = self.logit_head(hidden_state)
 
         logits = logits.float()
+
+        if return_embs:
+            hidden_state = hidden_state.float()
+            return logits, hidden_state
 
         return logits

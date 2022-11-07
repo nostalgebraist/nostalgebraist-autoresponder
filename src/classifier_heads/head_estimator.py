@@ -651,12 +651,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             self._setup(self.X_train_, self.y_train_, training=True)
             for epoch_ix in tqdm(list(range(self.opt_params.epochs))):
                 if self.use_galileo:
-                    dq.set_split('train')
                     if self.galileo_separate_runs_for_epochs:
                         self._init_dq_run(dq_run_name + f"_epoch{epoch_ix}")
                         dq.set_epoch(0)
                     else:
                         dq.set_epoch(epoch_ix)
+
+                    dq.set_split('train')
 
                 self._epoch(self.X_train_, self.y_train_, avg_loss_beta=avg_loss_beta)
 

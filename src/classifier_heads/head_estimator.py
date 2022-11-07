@@ -345,7 +345,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             if self.use_galileo:
                 import dataquality as dq
-
+                
                 dq.log_model_outputs(embs=embs, logits=logits, ids=batch_dq_id)
 
             loss = self.loss_fn(input=logits, target=batch_target)
@@ -640,6 +640,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             self._setup(self.X_train_, self.y_train_, training=True)
             for epoch_ix in tqdm(list(range(self.opt_params.epochs))):
                 if self.use_galileo:
+                    dq.set_split('train')
                     dq.set_epoch(epoch_ix)
 
                 self._epoch(self.X_train_, self.y_train_, avg_loss_beta=avg_loss_beta)
@@ -647,6 +648,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 epoch_needs_val = self.evaluate_during_training
 
                 if epoch_needs_val:
+                    dq.set_split('validation')
                     stop_early_signal, eval_metrics_results = self.eval_on_val_set(
                         self.X_val_, self.y_val_
                     )

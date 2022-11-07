@@ -725,7 +725,10 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             batch_dq_id = batch['dq_id'].values
 
-            dq.log_model_outputs(embs=embs, logits=logits_raw, ids=batch_dq_id)
+            if len(np.unique(batch_dq_id)) != len(batch_dq_id):
+                print(f"multiple dq ids in batch, skipping dq log: {batch_dq_id}")
+            else:
+                dq.log_model_outputs(embs=embs, logits=logits_raw, ids=batch_dq_id)
 
         logits_raw = logits_raw.cpu().detach().numpy()
 
@@ -786,7 +789,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             n_needed = len(data_batch)
             if n_needed == 0:
                 continue
-            if n_needed < self.opt_params.batch_size:
+            if n_needed < self.opt_params.batch_size and not training:
                 data_batch = pd.concat(
                     [data_batch]
                     + (self.opt_params.batch_size - n_needed) * [data_batch.iloc[:1, :]],

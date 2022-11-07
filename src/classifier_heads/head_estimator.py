@@ -121,6 +121,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         use_wandb=False,
         wandb_init_args=None,
         use_galileo=False,
+        galileo_separate_runs_for_epochs=False,
         blocks_inference_device_attn=None,
         blocks_inference_device_mlp=None,
         **kwargs
@@ -163,6 +164,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.use_wandb = use_wandb
         self.wandb_init_args = wandb_init_args
         self.use_galileo = use_galileo
+        self.galileo_separate_runs_for_epochs = galileo_separate_runs_for_epochs
 
         self.target_cols_ = None
 
@@ -345,7 +347,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             if self.use_galileo:
                 import dataquality as dq
-                
+
                 dq.log_model_outputs(embs=embs, logits=logits, ids=batch_dq_id)
 
             loss = self.loss_fn(input=logits, target=batch_target)
@@ -631,7 +633,11 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             dq.login()
 
             run_name = ''.join(random.choices(ascii_lowercase, k=8))
-            dq.init(task_type="text_classification", project_name="nbar_heads", run_name=run_name)
+            self._dq_run_name = run_name
+            if self.galileo_separate_runs_for_epochs:
+                dq.init(task_type="text_classification", project_name="nbar_heads", run_name=self._dq_run_name + "_epoch0")
+            else:
+                dq.init(task_type="text_classification", project_name="nbar_heads", run_name=self._dq_run_name)
 
         try:
             self.X_train_, self.y_train_, self.X_val_, self.y_val_ = self._val_split(
@@ -641,7 +647,14 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             for epoch_ix in tqdm(list(range(self.opt_params.epochs))):
                 if self.use_galileo:
                     dq.set_split('train')
-                    dq.set_epoch(epoch_ix)
+                    if self.galileo_separate_runs_for_epochs:
+                        raise ValueError("TODO")
+
+                        dq.init(task_type="text_classification", project_name="nbar_heads", run_name=self._dq_run_name + "_epoch0")
+                        dq.set_epoch(0)
+
+                    else:
+                        dq.set_epoch(epoch_ix)
 
                 self._epoch(self.X_train_, self.y_train_, avg_loss_beta=avg_loss_beta)
 

@@ -456,8 +456,16 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             X_train, y_train = X, y
             X_val, y_val = None, None
 
+        return X_train, y_train, X_val, y_val
+
+    def _init_dq_run(self, dq_run_name):
         if self.use_galileo:
             import dataquality as dq
+
+            dq.init(task_type="text_classification", project_name="nbar_heads", run_name=dq_run_name)
+
+            X_train, y_train = self.X_train_, self.y_train_
+            X_val, y_val = self.X_val_, self.y_val_
 
             X_train["dq_id"] = np.arange(len(X_train))
             dq_df_train = X_train.copy()
@@ -471,8 +479,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 dq.log_dataset(dq_df_val, id="dq_id", text="selector_input", split="validation")
 
             dq.set_labels_for_run([0, 1])
-
-        return X_train, y_train, X_val, y_val
 
     def _display_eval_metrics(self, y_true, preds, probs, pfcs=None):
         eval_metrics_results = {}
@@ -628,12 +634,13 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             wandb.init(**wandb_init_args)
 
+
+        dq_run_name = ''.join(random.choices(ascii_lowercase, k=8))
+
         if self.use_galileo:
             import dataquality as dq
             dq.login()
 
-            run_name = ''.join(random.choices(ascii_lowercase, k=8))
-            self._dq_run_name = run_name
             if self.galileo_separate_runs_for_epochs:
                 dq.init(task_type="text_classification", project_name="nbar_heads", run_name=self._dq_run_name + "_epoch0")
             else:
@@ -643,16 +650,17 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             self.X_train_, self.y_train_, self.X_val_, self.y_val_ = self._val_split(
                 X, y
             )
+            if not self.galileo_separate_runs_for_epochs:
+                self._init_dq_run(dq_run_name)
+
             self._setup(self.X_train_, self.y_train_, training=True)
             for epoch_ix in tqdm(list(range(self.opt_params.epochs))):
                 if self.use_galileo:
                     dq.set_split('train')
                     if self.galileo_separate_runs_for_epochs:
-                        raise ValueError("TODO")
-
-                        dq.init(task_type="text_classification", project_name="nbar_heads", run_name=self._dq_run_name + "_epoch0")
+                        dq.init(task_type="text_classification", project_name="nbar_heads",
+                                run_name=_dq_run_name + f"_epoch{epoch_ix}")
                         dq.set_epoch(0)
-
                     else:
                         dq.set_epoch(epoch_ix)
 
@@ -668,6 +676,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                     if stop_early_signal:
                         print(f"stopping early at {epoch_ix}")
                         break
+
+                if self.galileo_separate_runs_for_epochs:
+                    dq.finish(wait=False)
             if self.calibrate:
                 self._fit_calibration(self.X_val_, self.y_val_)
         except (Exception, KeyboardInterrupt) as e:

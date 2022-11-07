@@ -641,11 +641,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             import dataquality as dq
             dq.login()
 
-            if self.galileo_separate_runs_for_epochs:
-                dq.init(task_type="text_classification", project_name="nbar_heads", run_name=self._dq_run_name + "_epoch0")
-            else:
-                dq.init(task_type="text_classification", project_name="nbar_heads", run_name=self._dq_run_name)
-
         try:
             self.X_train_, self.y_train_, self.X_val_, self.y_val_ = self._val_split(
                 X, y

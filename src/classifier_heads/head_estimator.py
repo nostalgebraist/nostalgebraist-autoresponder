@@ -699,8 +699,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         for param in self.model_.parameters():
             param.requires_grad = False
 
-        if len(batch) != self.opt_params.batch_size:
-            raise ValueError("badlength")
         input_ids, attention_mask, input_ids_with_pads, _ = self._feed_from_batch(batch)
 
         use_galileo = self.use_galileo and training

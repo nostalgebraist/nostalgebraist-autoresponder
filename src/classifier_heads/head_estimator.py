@@ -684,7 +684,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             raise e
         if self.use_wandb:
             wandb.log({})  # commits final val
-        if self.use_galileo:
+        if self.use_galileo and not self.galileo_separate_runs_for_epochs:
             dq.finish(wait=False)
         return self
 

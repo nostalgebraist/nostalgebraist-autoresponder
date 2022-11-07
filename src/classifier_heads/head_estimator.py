@@ -653,8 +653,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 if self.use_galileo:
                     dq.set_split('train')
                     if self.galileo_separate_runs_for_epochs:
-                        dq.init(task_type="text_classification", project_name="nbar_heads",
-                                run_name=dq_run_name + f"_epoch{epoch_ix}")
+                        self._init_dq_run(dq_run_name + f"_epoch{epoch_ix}")
                         dq.set_epoch(0)
                     else:
                         dq.set_epoch(epoch_ix)

@@ -71,7 +71,7 @@ class BreakrunsLogitsProcessor(LogitsProcessor):
             self._dprint("BREAKRUNS: empty sequence, no op")
             return scores
 
-        if self.last_length is None or self.last_length > input_ids.shape[1]:
+        if self.last_length is None or self.last_length != (input_ids.shape[1] - 1):
             # new sequence
             self._reset()
         self.last_length = input_ids.shape[1]

@@ -136,7 +136,7 @@ def getresult():
 
 
 @app.route("/getresultdiffusion/<bridge_id>", methods=["GET"])
-def getresultdiffusion():
+def getresultdiffusion(bridge_id):
     global RESULT_DIFFUSION
 
     if bridge_id in RESULT_DIFFUSION:

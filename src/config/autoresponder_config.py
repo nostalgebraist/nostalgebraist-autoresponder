@@ -53,8 +53,8 @@ LOGGING_FLAGS = {
 
 if V12_19:
     AUTOREVIEWER_CUTOFFS = {
-        "accept_below": 0.117,  # v12_19/v3_experimental: predict true accept rate: ~49%, false accept rate ~8.75%
-        "reject_above": 0.679,  # v12_19/v3_experimental: predict true reject rate: ~36%, false reject rate ~3%
+        "accept_below": 0.138,  # v12_19/v2: predict true accept rate: ~32%, false accept rate ~8.75%
+        "reject_above": 0.666,  # v12_19/v2: predict true reject rate: ~23%, false reject rate ~3%
         "flag_above":   0.35,
     }
 elif V12_18:
@@ -267,7 +267,7 @@ ckpt_captioner = None
 if V12_19:
     ckpt_select = "selector/v12_19/v4_experimental/"
     ckpt_sentiment = "sentiment/v12_19/v1/"
-    ckpt_autoreviewer = "draft_autoreviewer/v12_19/v3_experimental/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_19/v2/"
     ckpt_captioner = "captioner/v12_19/v1/"
 elif V12_18:
     ckpt_select = "selector/v12_18/v1/"

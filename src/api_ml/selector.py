@@ -453,7 +453,7 @@ def serve_selection(
         for i, p in enumerate(selection_proba):
             if p > RETENTION_CUTOFF and continuations[i] not in retention_stack:
                 retention_stack.add(continuations[i])
-                retention_logit_diff_lookup[continuations[i]] = logit_diff(continuation_sentiments[i])
+                retention_logit_diff_lookup[continuations[i]] = sentiment_logit_diffs[i]
 
         if continuation in retention_stack:
             retention_stack.remove(continuation)

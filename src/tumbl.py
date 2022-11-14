@@ -3263,9 +3263,9 @@ def load_retention(path="data/retention_stack.jsonl"):
     except FileNotFoundError:
         print(f"Initialized retention_stack")
 
-    _, retention_logit_diff_lookup, _ = get_retention_stack_judgments(retention_stack)
+    _, retention_logit_diffs, _ = get_retention_stack_judgments(retention_stack)
 
-    retention_logit_diff_lookup = {s: d for s, d in zip(retention_stack, retention_logit_diff_lookup)}
+    retention_logit_diff_lookup = {s: d for s, d in zip(retention_stack, retention_logit_diffs)}
 
     retention_stack = set(retention_stack)
 

@@ -776,6 +776,7 @@ def old_bridge_call__textpost(
             mood["min_allowed_score"] < ld < mood["max_allowed_score"]
             for ld in retention_logit_diffs
         )
+        best_of = max(1, best_of - n_allowed)
         print(f"with {n_retention} on stack, of which {n_allowed} are mood-compatible, only need {best_of}")
 
     print(f"n_retention {n_retention}")

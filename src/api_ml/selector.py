@@ -357,15 +357,15 @@ def serve_selection(
         if selection_proba is not None:
             (
                 retention_stack_proba,
-                retention_logit_diff_lookup,
+                retention_logit_diffs,
                 retention_stack_autoreview_proba,
-            ) = get_retention_stack_judgments(retention_stack)
+            ) = get_retention_stack_judgments(sorted(retention_stack))
             if retention_stack_proba is not None:
                 print(
                     f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}"
                 )
                 selection_proba += retention_stack_proba
-                sentiment_logit_diffs += retention_logit_diff_lookup
+                sentiment_logit_diffs += retention_logit_diffs
                 autoreview_proba += retention_stack_autoreview_proba
             else:
                 selection_proba += [None for _ in retention_stack]

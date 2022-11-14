@@ -338,6 +338,7 @@ def serve_selection(
     retention_stack=None,
     strategy="proportional",
     eps=0.1,
+    retention_logit_diff_lookup=None,
 ):
     continuations = data["continuations"]
     selection_proba = data.get("selection_proba")
@@ -356,7 +357,7 @@ def serve_selection(
         if selection_proba is not None:
             (
                 retention_stack_proba,
-                retention_stack_logit_diffs,
+                retention_logit_diff_lookup,
                 retention_stack_autoreview_proba,
             ) = get_retention_stack_judgments(retention_stack)
             if retention_stack_proba is not None:
@@ -364,7 +365,7 @@ def serve_selection(
                     f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}"
                 )
                 selection_proba += retention_stack_proba
-                sentiment_logit_diffs += retention_stack_logit_diffs
+                sentiment_logit_diffs += retention_logit_diff_lookup
                 autoreview_proba += retention_stack_autoreview_proba
             else:
                 selection_proba += [None for _ in retention_stack]
@@ -452,6 +453,7 @@ def serve_selection(
         for i, p in enumerate(selection_proba):
             if p > RETENTION_CUTOFF and continuations[i] not in retention_stack:
                 retention_stack.add(continuations[i])
+                retention_logit_diff_lookup[continuations[i]] = logit_diff(continuation_sentiments[i])
 
         if continuation in retention_stack:
             retention_stack.remove(continuation)
@@ -499,7 +501,7 @@ def serve_selection(
             print(f"\t{k}")
         print("consider modifying selector.py to include them")
 
-    return parsed, retention_stack
+    return parsed, retention_stack, retention_logit_diff_lookup
 
 
 def get_retention_stack_judgments(retention_stack,

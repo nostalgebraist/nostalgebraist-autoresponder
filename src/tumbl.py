@@ -878,6 +878,7 @@ class LoopPersistentData:
         requests_per_check_history_dash=[],
         apriori_requests_per_check=10,
         retention_stack: set = set(),
+        retention_logit_diff_lookup: dict = dict(),
         slowdown_level: dict = BASE_SLOWDOWN_LEVEL,
         manual_ask_post_ids: set = set(),
     ):
@@ -894,6 +895,7 @@ class LoopPersistentData:
         self.requests_per_check_history_dash = requests_per_check_history_dash
         self.apriori_requests_per_check = apriori_requests_per_check
         self.retention_stack = retention_stack
+        self.retention_logit_diff_lookup = retention_logit_diff_lookup
         self.slowdown_level = slowdown_level
         self.manual_ask_post_ids = manual_ask_post_ids
 
@@ -3261,11 +3263,15 @@ def load_retention(path="data/retention_stack.jsonl"):
     except FileNotFoundError:
         print(f"Initialized retention_stack")
 
+    _, retention_logit_diff_lookup, _ = get_retention_stack_judgments(retention_stack)
+
+    retention_logit_diff_lookup = {s: d for s, d in zip(retention_stack, retention_logit_diff_lookup)}
+
     retention_stack = set(retention_stack)
 
     retention_stack = apply_retention_cutoff(retention_stack)
 
-    return retention_stack
+    return retention_stack, retention_logit_diff_lookup
 
 
 def parse_args():
@@ -3285,10 +3291,11 @@ if __name__ == "__main__":
     if args.regen_following:
         response_cache = update_follower_names(response_cache)
 
-    retention_stack = load_retention()
+    retention_stack, retention_logit_diff_lookup = load_retention()
 
     loop_persistent_data = LoopPersistentData(
         retention_stack=retention_stack,
+        retention_logit_diff_lookup=retention_logit_diff_lookup,
     )
 
     # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")

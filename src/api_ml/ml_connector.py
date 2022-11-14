@@ -708,13 +708,19 @@ def text_post_from_gpt(loop_persistent_data,
 
     n_retention = len(loop_persistent_data.retention_stack)
 
+    retention_logit_diffs = [
+        loop_persistent_data.retention_logit_diff_lookup[s]
+        for s in loop_persistent_data.retention_stack
+    ]
+
     result_generator = old_bridge_call__textpost(n_retention=n_retention,
                                                  mood=mood,
                                                  prompts=prompts,
                                                  prompts_selector=prompts_selector,
                                                  prompts_autoreviewer=prompts_autoreviewer,
                                                  prompts_probs=prompts_probs,
-                                                 guidance_scale=guidance_scale
+                                                 guidance_scale=guidance_scale,
+                                                 retention_logit_diffs=retention_logit_diffs,
                                                  )
 
     # strategy = "proportional"
@@ -722,18 +728,20 @@ def text_post_from_gpt(loop_persistent_data,
     strategy = "eps_greedy"
     eps = 0.15
 
-    result, retention_stack = serve_selection(
+    result, retention_stack, retention_logit_diff_lookup = serve_selection(
         data=result_generator,
         post_type="textpost",
         mood=mood,
         strategy=strategy,
         eps=eps,
+        retention_logit_diff_lookup=loop_persistent_data.retention_logit_diff_lookup,
         retention_stack=loop_persistent_data.retention_stack,
     )
 
     save_retention(retention_stack)
 
     loop_persistent_data.retention_stack = retention_stack
+    loop_persistent_data.retention_logit_diff_lookup = retention_logit_diff_lookup
 
     # for logging, add input fields that didn't make the round trip
     result["mood"] = mood_name
@@ -752,6 +760,7 @@ def old_bridge_call__textpost(
         prompts_probs,
         mood=None,
         guidance_scale=None,
+        retention_logit_diffs=None,
 ):
     avoid_if_under = 5
     avoid_half_if_under = 10
@@ -761,9 +770,13 @@ def old_bridge_call__textpost(
     best_of = TEXTPOST_N_CANDIDATES_TARGET
     best_of = adjust_best_of(best_of, mood, is_textpost=True)
 
-    if n_retention is not None:
-        best_of = max(1, best_of - int(round((RETENTION_DISCOUNT * n_retention))))
-        print(f"with {n_retention} on stack, only need {best_of}")
+    if n_retention is not None and mood is not None:
+        # best_of = max(1, best_of - int(round((RETENTION_DISCOUNT * n_retention))))
+        n_allowed = sum(
+            mood["min_allowed_score"] < ld < mood["max_allowed_score"]
+            for ld in retention_logit_diffs
+        )
+        print(f"with {n_retention} on stack, of which {n_allowed} are mood-compatible, only need {best_of}")
 
     print(f"n_retention {n_retention}")
 

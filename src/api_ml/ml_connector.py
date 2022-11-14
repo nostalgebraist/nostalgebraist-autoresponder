@@ -569,7 +569,7 @@ def answer_from_gpt(
     strategy = "eps_greedy"
     eps = 0.075
 
-    result, _ = serve_selection(
+    result, _, _ = serve_selection(
         data=result_generator,
         post_type="answer",
         mood=mood,

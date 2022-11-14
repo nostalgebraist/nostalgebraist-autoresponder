@@ -54,7 +54,7 @@ from feels.mood_dynamic import (
 )
 
 from api_ml.bridge_shared import send_alldone
-from api_ml.selector import apply_retention_cutoff
+from api_ml.selector import apply_retention_cutoff, get_retention_stack_judgments
 from api_ml.ml_connector import (
     answer_from_gpt,
     text_post_from_gpt,

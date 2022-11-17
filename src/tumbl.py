@@ -530,6 +530,7 @@ def augment_screener_output_with_autoreviewer(
     traced_reasons,
     to_drafts,
     autoreview_proba=None,
+    is_textpost=False,
 ):
     print(
         f"autopublish_screener says: {screener_result}"
@@ -561,7 +562,7 @@ def augment_screener_output_with_autoreviewer(
             print("draft_autoreviewer activated!")
             if (not should_publish) and (not must_be_draft):
                 # should we change reject --> accept ?
-                cut = AUTOREVIEWER_CUTOFFS["accept_below"]
+                cut = AUTOREVIEWER_CUTOFFS["accept_below_textpost"] if is_textpost else AUTOREVIEWER_CUTOFFS["accept_below"]
                 if autoreview_proba < cut:
                     print(f"draft_autoreviewer accepts post: autoreview_proba {autoreview_proba:.1%} < cutoff {cut:.1%}")
                     should_publish = True
@@ -620,6 +621,7 @@ def make_text_post(
         traced_reasons,
         to_drafts,
         autoreview_proba=autoreview_proba,
+        is_textpost=to_queue,
     )
     state_reasons["reject_action"] = reject_action
 

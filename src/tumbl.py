@@ -1437,7 +1437,7 @@ def is_statically_reblog_worthy_on_dash(
             )
         return True
 
-    ### rule-out conditions below don't block scraping, just reblog-from-dash
+    ### rule-out conditions below can block either of {scraping, reblog-from-dash} individually
     reblog_worthy = True
     scrape_worthy = True
     image_scrape_only = False
@@ -1445,7 +1445,7 @@ def is_statically_reblog_worthy_on_dash(
     if '.gif' in p_body:
         scrape_worthy = False
 
-    if n_img > 2:
+    if n_img > 3:
         scrape_worthy = False
 
     if n_img > 0:
@@ -1455,7 +1455,7 @@ def is_statically_reblog_worthy_on_dash(
 
     if not has_comment:
         roll = random.random()
-        if roll > 0.667:
+        if roll > 0.875:
             scrape_worthy = False
 
     if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):

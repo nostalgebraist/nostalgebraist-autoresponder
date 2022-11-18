@@ -225,6 +225,8 @@ ARCHIVE_ASK_PROB_DELT = True
 ARCHIVE_DASH_PROB_DELT = True
 USE_MASKED_DASK_PROB_DELT = True
 
+MAX_RTS_COUNT = 3
+
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
 scraped_usernames = set(scraped_usernames)
@@ -3013,6 +3015,26 @@ def do_queue_handling(loop_persistent_data, response_cache):
     return loop_persistent_data, response_cache
 
 
+def check_for_rts_loop(ident, pid, tags, response_cache):
+    global client_pool
+
+    was_loop = False
+    if response_cache.rts_count(ident) >= MAX_RTS_COUNT:
+        was_loop = True
+
+        print(f"{ident} is in an rts loop. Removing tag and resetting counter.")
+
+        client_pool.get_private_client().edit_post(
+            blogName,
+            id=pid,
+            tags=[t for t in tags if t != RTS_COMMAND]
+        )
+
+        response_cache.reset_rts_count(ident)
+
+    return response_cache, was_loop
+
+
 def do_rts(response_cache):
     global client_pool
     drafts = client_pool.get_private_client().drafts(blogName, reblog_info=True)["posts"]
@@ -3037,16 +3059,38 @@ def do_rts(response_cache):
         if "reblogged_from_id" in p and "reblogged_from_name" in p:
             pi = PostIdentifier(p["reblogged_from_name"], p["reblogged_from_id"])
             print(f"\tidentified as reblog from {pi}")
+
+            response_cache, was_loop = check_for_rts_loop(pi, pid, p["tags"], response_cache)
+            if was_loop:
+                continue
+
             print(
                 f"\tresponse_cache.is_handled({pi}) before: {response_cache.is_handled(pi)}"
             )
-            response_cache.mark_unhandled(pi)
+
+            response_cache.do_rts_to_reblog(pi)
+
             print(
                 f"\tresponse_cache.is_handled({pi}) after: {response_cache.is_handled(pi)}"
             )
+
             client_pool.get_private_client().delete_post(blogName, id=pid)
         elif p.get("type") == "answer":
             print(f"\tidentified as answer to ask")
+
+            uii = UserInputIdentifier(
+                input_type=UserInputType.ASK,
+                blog_name=p["asking_name"],
+                id_=post_payload["id"],
+                timestamp=p["timestamp"],
+            )
+
+            response_cache, was_loop = check_for_rts_loop(uii, pid, p["tags"], response_cache)
+            if was_loop:
+                continue
+
+            response_cache.do_rts_to_ask(uii)
+
             client_pool.get_private_client().edit_post(blogName, id=pid, state="submission", tags=[], answer="placeholder")
         elif "replied to your post" in p_body:
             print(f"\tidentified as answer to reply")
@@ -3105,7 +3149,12 @@ def do_rts(response_cache):
                         )
 
                 print(f"\tidentified as answer to {rid}")
-                response_cache.cache["replies_handled"].remove(rid)
+
+                response_cache, was_loop = check_for_rts_loop(rid, pid, p["tags"], response_cache)
+                if was_loop:
+                    continue
+
+                response_cache.do_rts_to_reply(rid)
                 client_pool.get_private_client().delete_post(blogName, id=pid)
         else:
             print(f"don't know how to RTS {pid}!")

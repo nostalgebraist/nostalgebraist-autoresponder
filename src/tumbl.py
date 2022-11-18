@@ -604,6 +604,7 @@ def augment_screener_output_with_autoreviewer(
 def make_text_post(
     blogname,
     post,
+    response_cache,
     tags=tuple(),
     to_queue=True,
     to_drafts=False,
@@ -693,9 +694,11 @@ def make_text_post(
     state_reasons["should_publish"] = state_reasons["should_publish"] and (not state_reasons["must_be_draft"])
     publ_state = "queue" if to_queue else "published"
     state = publ_state if state_reasons["should_publish"] else "draft"
+    increment_rts_after_create = False
     if state_reasons["ml_rejected"] or state_reasons["do_not_post"]:
         if reject_action == "rts":
             tags.append("rts")
+            increment_rts_after_create = True
         elif reject_action == "do_not_post":
             delete_after_posting = True
 
@@ -706,13 +709,15 @@ def make_text_post(
     api_response = client_pool.get_private_client().create_text(blogname, **kwargs)
     if delete_after_posting:
         client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
+    if increment_rts_after_create:
+        response_cache.increment_rts_count(PostIdentifier(blogName, str(api_response['id'])))
 
     if log_data is not None:
         log_data["requested__state"] = state
         log_data["state_reasons"] = state_reasons
         log_data["api_request_payload"] = kwargs
         traceability_singleton.TRACE_LOGS.on_post_creation_callback(api_response, log_data)
-    return api_response, log_data
+    return api_response, log_data, response_cache
 
 
 def answer_ask(
@@ -721,6 +726,7 @@ def answer_ask(
     asking_name,
     question,
     answer,
+    response_cache,
     tags=tuple(),
     to_drafts=False,
     is_reblog=False,
@@ -831,9 +837,11 @@ def answer_ask(
     delete_after_posting = False
     state_reasons["should_publish"] = state_reasons["should_publish"] and (not state_reasons["must_be_draft"])
     state = "published" if state_reasons["should_publish"] else "draft"
+    increment_rts_after_create = False
     if state_reasons["ml_rejected"] or state_reasons["do_not_post"]:
         if reject_action == "rts":
             tags.append("rts")
+            increment_rts_after_create = True
         elif reject_action == "do_not_post":
             delete_after_posting = True
 
@@ -856,12 +864,20 @@ def answer_ask(
     api_response = client_pool.get_private_client().send_api_request("post", url, data, valid_options)
     if delete_after_posting:
         client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
+    if increment_rts_after_create:
+        uii = UserInputIdentifier(
+            input_type=UserInputType.ASK,
+            blog_name=asking_name,
+            id_=api_response["id"],
+            timestamp=api_response["timestamp"],
+        )
+        response_cache.increment_rts_count(uii)
     if log_data is not None:
         log_data["requested__state"] = state
         log_data["state_reasons"] = state_reasons
         log_data["api_request_payload"] = data
         traceability_singleton.TRACE_LOGS.on_post_creation_callback(api_response, log_data)
-    return api_response, log_data
+    return api_response, log_data, response_cache
 
 
 class LoopPersistentData:
@@ -1241,9 +1257,10 @@ def respond_to_reblogs_replies(
                     ]["reply_text"],
                 )
                 to_drafts = HALLOWEEN_2K20_BEHAVIOR_TESTING
-                api_response, log_data = make_text_post(
+                api_response, log_data, response_cache = make_text_post(
                     blogName,
                     post_specifier["post"],
+                    response_cache,
                     reply_prefix=mocked_up + "\n",
                     tags=post_specifier["tags"],
                     to_queue=False,
@@ -1292,11 +1309,12 @@ def respond_to_reblogs_replies(
                 print(f"using screener_question: {repr(screener_question)}")
 
                 to_drafts = HALLOWEEN_2K20_BEHAVIOR_TESTING
-                api_response, log_data = answer_ask(
+                api_response, log_data, response_cache = answer_ask(
                     blogName,
                     ask_id=reblog_identifier.id_,
                     asking_name=reblog_identifier.blog_name,
                     question=screener_question,
+                    response_cache=response_cache,
                     answer=post_specifier["post"],
                     tags=post_specifier["tags"],
                     is_reblog=True,
@@ -2559,14 +2577,16 @@ def handle_review_command(
             asking_name=input_ident[1], asking_url=asking_url
         )
     )
-    make_text_post(
+    _, _, response_cache = make_text_post(
         blogName,
-        post=post,
+        post,
+        response_cache,
         tags=[],
         log_data=log_data,
         to_queue=False,
         to_drafts=REVIEW_COMMAND_TESTING,
     )
+    return response_cache
 
 
 def make_mood_graph_links_section(response_cache, start_time, end_time, n=5):
@@ -2779,7 +2799,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     print(f"malformed_review_command: {user_argstring} --> {user_args}")
                 else:
                     input_ident = (post_payload["id"], post_payload["asking_name"])
-                    handle_review_command(
+                    response_cache = handle_review_command(
                         user_args,
                         input_ident,
                         post_payload["asking_url"],
@@ -2934,11 +2954,12 @@ def do_ask_handling(loop_persistent_data, response_cache):
             log_data["post_type"] = "ask"
             log_data["input_ident"] = (post_payload["id"], post_payload["asking_name"])
             log_data["question"] = question
-            api_response, log_data = answer_ask(
+            api_response, log_data, response_cache = answer_ask(
                 blogName,
                 ask_id=post_payload["id"],
                 asking_name=post_payload["asking_name"],
                 question=question,
+                response_cache=response_cache,
                 answer=gpt2_output["post"],
                 tags=gpt2_output["tags"],
                 log_data=log_data,
@@ -3004,9 +3025,10 @@ def do_queue_handling(loop_persistent_data, response_cache):
             log_data["post_type"] = "textpost"
             log_data["input_ident"] = None
             log_data["question"] = None
-            make_text_post(
+            _, _, response_cache = make_text_post(
                 blogName,
                 post=gpt2_output["post"],
+                response_cache=response_cache,
                 tags=gpt2_output["tags"],
                 log_data=gpt2_output,
                 autoreview_proba=gpt2_output["autoreview_proba"],
@@ -3086,7 +3108,7 @@ def do_rts(response_cache):
             uii = UserInputIdentifier(
                 input_type=UserInputType.ASK,
                 blog_name=p["asking_name"],
-                id_=post_payload["id"],
+                id_=p["id"],
                 timestamp=p["timestamp"],
             )
 

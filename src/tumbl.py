@@ -1445,13 +1445,18 @@ def is_statically_reblog_worthy_on_dash(
     if '.gif' in p_body:
         scrape_worthy = False
 
-    if n_img > 3:
-        scrape_worthy = False
+    keep_prob_n_img = 1.0
 
-    if n_img > 0:
-        roll = random.random()
-        if roll > 0.5:
-            scrape_worthy = False
+    if n_img > 4:
+        keep_prob_n_img = 0.0  # don't scrape
+    elif n_img > 2:
+        keep_prob_n_img = 0.25
+    elif n_img > 0:
+        keep_prob_n_img = 0.5
+
+    roll = random.random()
+    if roll > keep_prob_n_img:
+        scrape_worthy = False
 
     if not has_comment:
         roll = random.random()

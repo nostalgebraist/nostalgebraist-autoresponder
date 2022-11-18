@@ -720,11 +720,14 @@ class ResponseCache:
 
     def do_rts_to_ask(self, uii: UserInputIdentifier):
         self.increment_rts_count(uii)
+        print(f"we have now RTS'd this {self.rts_count(uii)} times")
 
     def do_rts_to_reblog(self, pi: PostIdentifier):
         self.mark_unhandled(pi)
         self.increment_rts_count(pi)
+        print(f"we have now RTS'd this {self.rts_count(pi)} times")
 
     def do_rts_to_reply(self, rid: ReplyIdentifier):
         self.cache["replies_handled"].remove(rid)
         self.increment_rts_count(rid)
+        print(f"we have now RTS'd this {self.rts_count(rid)} times")

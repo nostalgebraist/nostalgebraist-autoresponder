@@ -3027,7 +3027,7 @@ def check_for_rts_loop(ident, pid, tags, response_cache):
     if response_cache.rts_count(ident) >= MAX_RTS_COUNT:
         was_loop = True
 
-        print(f"{ident} is in an rts loop. Removing tag and resetting counter.")
+        print(f"{ident} is in an rts loop. Removing tag and decrementing counter.")
 
         client_pool.get_private_client().edit_post(
             blogName,
@@ -3035,7 +3035,7 @@ def check_for_rts_loop(ident, pid, tags, response_cache):
             tags=[t for t in tags if t != RTS_COMMAND]
         )
 
-        response_cache.reset_rts_count(ident)
+        response_cache.decrement_rts_count(ident)
 
     return response_cache, was_loop
 

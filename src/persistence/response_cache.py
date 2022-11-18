@@ -715,8 +715,8 @@ class ResponseCache:
     def increment_rts_count(self, ident):
         self.cache["rts_counts"][ident] += 1
 
-    def reset_rts_count(self, ident):
-        self.cache["rts_counts"][ident] = 0
+    def decrement_rts_count(self, ident):
+        self.cache["rts_counts"][ident] -= 1
 
     def do_rts_to_ask(self, uii: UserInputIdentifier):
         self.increment_rts_count(uii)

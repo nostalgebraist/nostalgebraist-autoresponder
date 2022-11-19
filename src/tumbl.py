@@ -726,6 +726,7 @@ def answer_ask(
     asking_name,
     question,
     answer,
+    timestamp,
     response_cache,
     tags=tuple(),
     to_drafts=False,
@@ -868,8 +869,8 @@ def answer_ask(
         uii = UserInputIdentifier(
             input_type=UserInputType.ASK,
             blog_name=asking_name,
-            id_=api_response["id"],
-            timestamp=api_response["timestamp"],
+            id_=ask_id,
+            timestamp=timestamp,
         )
         response_cache.increment_rts_count(uii)
     if log_data is not None:
@@ -1314,6 +1315,7 @@ def respond_to_reblogs_replies(
                     ask_id=reblog_identifier.id_,
                     asking_name=reblog_identifier.blog_name,
                     question=screener_question,
+                    timestamp=post_payload["timestamp"],
                     response_cache=response_cache,
                     answer=post_specifier["post"],
                     tags=post_specifier["tags"],
@@ -2959,6 +2961,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 ask_id=post_payload["id"],
                 asking_name=post_payload["asking_name"],
                 question=question,
+                timestamp=post_payload["timestamp"],
                 response_cache=response_cache,
                 answer=gpt2_output["post"],
                 tags=gpt2_output["tags"],

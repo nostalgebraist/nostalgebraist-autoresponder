@@ -225,6 +225,7 @@ def basic_n_continuations(
     avoid_initial_blockquote=False,
     avoid_if_profane=False,
     avoid_if_says_frank=False,
+    permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
     mirotarg=None,
     verbose=False,
 ):
@@ -331,6 +332,8 @@ def basic_n_continuations(
 
             roll = np.random.rand()
             has_img = IMAGE_DELIMITER_WHITESPACED in c
+            tagged_usernames = set(re.findall(r"@(\w+)", c))
+
             # NOTE: the < 100 check is for weird posts where the newline doesn't happen
             if len(c.partition("\n")[2].split(" ")) < avoid_if_under and len(c) < 100 and (not has_img):
                 print(
@@ -359,6 +362,9 @@ def basic_n_continuations(
                 c.partition(T_CHAR)[0].strip(whitespace)
             ) in normalize_for_generator(pr):
                 print(f"\n\trejecting because repeating myself: {_tabfill(c)}\n")
+            elif tagged_usernames.difference(permitted_tagged_usernames) != set():
+                problem_names = tagged_usernames.difference(permitted_tagged_usernames)
+                print(f"\n\trejecting because tagged names {problem_names} not in {permitted_tagged_usernames}: {_tabfill(c)}\n")
             else:
                 if len(c.partition("\n")[2].split(" ")) < avoid_half_if_under:
                     print(
@@ -547,6 +553,7 @@ def answer_from_gpt(
         write_review_override=False,
         avoid_initial_blockquote=False,
         guidance_scale=None,
+        permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
 ):
     t1 = time.time()
 
@@ -561,7 +568,8 @@ def answer_from_gpt(
         write_fic_override=write_fic_override,
         write_review_override=write_review_override,
         avoid_initial_blockquote=avoid_initial_blockquote,
-        guidance_scale=guidance_scale
+        guidance_scale=guidance_scale,
+        permitted_tagged_usernames=permitted_tagged_usernames,
     )
 
     # strategy = "proportional"
@@ -600,7 +608,8 @@ def old_bridge_call__answer(
         write_fic_override=False,
         write_review_override=False,
         avoid_initial_blockquote=False,
-        guidance_scale=None
+        guidance_scale=None,
+        permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
 ):
     best_of = 11 if (not TRADE_QUALITY_FOR_SPEED) else 8
 
@@ -633,7 +642,7 @@ def old_bridge_call__answer(
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_profane=avoid_if_profane,
         avoid_if_says_frank=avoid_if_says_frank,
-
+        permitted_tagged_usernames=permitted_tagged_usernames,
     )
 
     response_data = {}
@@ -701,6 +710,7 @@ def text_post_from_gpt(loop_persistent_data,
                        prompts_probs,
                        mood_name=None,
                        guidance_scale=None,
+                       permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
                        ):
     t1 = time.time()
 
@@ -721,6 +731,7 @@ def text_post_from_gpt(loop_persistent_data,
                                                  prompts_probs=prompts_probs,
                                                  guidance_scale=guidance_scale,
                                                  retention_logit_diffs=retention_logit_diffs,
+                                                 permitted_tagged_usernames=permitted_tagged_usernames,
                                                  )
 
     # strategy = "proportional"
@@ -761,6 +772,7 @@ def old_bridge_call__textpost(
         mood=None,
         guidance_scale=None,
         retention_logit_diffs=None,
+        permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
 ):
     avoid_if_under = 5
     avoid_half_if_under = 10
@@ -792,6 +804,7 @@ def old_bridge_call__textpost(
         avoid_half_if_under=avoid_half_if_under,
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_says_frank=avoid_if_says_frank,
+        permitted_tagged_usernames=permitted_tagged_usernames,
     )
 
     response_data = {}

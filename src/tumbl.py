@@ -1031,6 +1031,13 @@ def prioritize_reblogs_replies(
     return costs, response_cache
 
 
+def get_permitted_tagged_usernames(thread: TumblrThread):
+    _, posts_with_ask = expand_asks(thread)
+    permitted_tagged_usernames = {post.blog_name for post in posts_with_ask}
+    permitted_tagged_usernames.update({'nostalgebraist', 'nostalgebraist-autoresponder'})
+    return permitted_tagged_usernames
+
+
 def respond_to_reblogs_replies(
     identifiers,
     reply_set,
@@ -1096,6 +1103,9 @@ def respond_to_reblogs_replies(
 
         print(f"\n\t--> using question:\n---------\n{prompt}\n---------\n")
 
+        permitted_tagged_usernames = get_permitted_tagged_usernames(thread)
+        print(f"permitted_tagged_usernames: {permitted_tagged_usernames}")
+
         gpt2_output = answer_from_gpt(
             prompt=prompt,
             prompt_selector=prompt_selector,
@@ -1104,6 +1114,7 @@ def respond_to_reblogs_replies(
             mood_name=determine_mood(response_cache),
             avoid_initial_blockquote=is_reply,
             guidance_scale=random.choice(GUIDANCE_SCALE_OPTIONS),  # for selector, may not be the actual one we'll use
+            permitted_tagged_usernames=permitted_tagged_usernames,
         )
 
         user_input_identifier = None
@@ -2916,6 +2927,9 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     prompt_selector = caption_images_in_post_html(prompt_selector)
                     prompt_autoreviewer = caption_images_in_post_html(prompt_autoreviewer)
 
+            permitted_tagged_usernames = get_permitted_tagged_usernames(thread)
+            print(f"permitted_tagged_usernames: {permitted_tagged_usernames}")
+
             gpt2_output = answer_from_gpt(
                 prompt=prompt,
                 prompt_selector=prompt_selector,
@@ -2924,6 +2938,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 mood_name=determine_mood(response_cache),
                 write_fic_override=write_fic_override,
                 guidance_scale=random.choice(GUIDANCE_SCALE_OPTIONS),  # for selector, may not be the actual one we'll use
+                permitted_tagged_usernames=permitted_tagged_usernames,
             )
 
             if (

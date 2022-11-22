@@ -469,13 +469,15 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             X_train["dq_id"] = np.arange(len(X_train))
             dq_df_train = X_train.copy()
-            dq_df_train['label'] = y_train
+            label_for_dq = (y_train > 0).astype(int) if self.regression_target else y_train
+            dq_df_train['label'] = label_for_dq
             dq.log_dataset(dq_df_train, id="dq_id", text="selector_input", split="train")
 
             if X_val is not None:
                 X_val["dq_id"] = np.arange(len(X_train), len(X_train) + len(X_val))
                 dq_df_val = X_val.copy()
-                dq_df_val['label'] = y_val
+                label_for_dq = (y_val > 0).astype(int) if self.regression_target else y_val
+                dq_df_val['label'] = label_for_dq
                 dq.log_dataset(dq_df_val, id="dq_id", text="selector_input", split="validation")
 
             dq.set_labels_for_run([0, 1])

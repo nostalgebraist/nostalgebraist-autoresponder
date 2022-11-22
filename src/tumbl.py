@@ -1481,7 +1481,7 @@ def is_statically_reblog_worthy_on_dash(
     if '.gif' in p_body:
         scrape_worthy = False
 
-    def calc_keep_prob(n_img, text_block_nwords, discount_words_per_image=60, max_imgs_scrape=6):
+    def calc_keep_prob(n_img, text_block_nwords, discount_words_per_image=30, max_imgs_scrape=10):
         n_img_discounted = max(0.01, n_img - (text_block_nwords / discount_words_per_image))
         keep_prob_n_img = 1/(n_img_discounted+1)
         keep_prob_n_img = max(0., min(1., keep_prob_n_img))

@@ -934,10 +934,7 @@ class LoopPersistentData:
                 [self.apriori_requests_per_check, self.apriori_requests_per_check]
             )
         if len(self.mainloop_times) == 0:
-            self.requests_per_check_history_dash.extend(
-                [self.apriori_requests_per_check, self.apriori_requests_per_check]
-            )
-            apriori_mainloop_time.extend(
+            self.mainloop_times.extend(
                 [self.apriori_mainloop_time]
             )
 

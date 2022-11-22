@@ -115,7 +115,7 @@ class ResponseCache:
             path = os.path.join(directory, f"{repr(k)}.pkl.gz")
             with open(path, "wb") as f:
                 pickle.dump({k: self.cache[k]}, f)
-                print(f"wrote {repr(k)} to {path}")
+                print(f"wrote {repr(k)} ({type(self.cache[k])}) to {path}")
 
     def remove_oldest(self, max_hours=18, dryrun=False):
         lat = self.cache["last_accessed_time"]

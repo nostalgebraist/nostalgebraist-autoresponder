@@ -84,6 +84,7 @@ from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
 from api_tumblr.tumblr_parsing import TumblrThread
 
 from util.error_handling import LogExceptionAndSkip
+from util.util import Timer
 
 from corpus.dash_archive import archive_to_corpus
 from corpus.prob_delt_archive import archive_prob_delt
@@ -902,6 +903,8 @@ class LoopPersistentData:
         retention_logit_diff_lookup: dict = dict(),
         slowdown_level: dict = BASE_SLOWDOWN_LEVEL,
         manual_ask_post_ids: set = set(),
+        mainloop_times=[],
+        apriori_mainloop_time=SLEEP_TIME * 1.5,
     ):
         self.reblogs_from_me = reblogs_from_me
         self.reblog_worthy_dash_posts = reblog_worthy_dash_posts
@@ -919,6 +922,8 @@ class LoopPersistentData:
         self.retention_logit_diff_lookup = retention_logit_diff_lookup
         self.slowdown_level = slowdown_level
         self.manual_ask_post_ids = manual_ask_post_ids
+        self.mainloop_times = mainloop_times
+        self.apriori_mainloop_time = apriori_mainloop_time
 
         if len(self.requests_per_check_history_private) == 0:
             self.requests_per_check_history_private.extend(
@@ -927,6 +932,13 @@ class LoopPersistentData:
         if len(self.requests_per_check_history_dash) == 0:
             self.requests_per_check_history_dash.extend(
                 [self.apriori_requests_per_check, self.apriori_requests_per_check]
+            )
+        if len(self.mainloop_times) == 0:
+            self.requests_per_check_history_dash.extend(
+                [self.apriori_requests_per_check, self.apriori_requests_per_check]
+            )
+            apriori_mainloop_time.extend(
+                [self.apriori_mainloop_time]
             )
 
 
@@ -3255,9 +3267,16 @@ def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False, s
         requests_per_check_sample = requests_per_check_sample[:-1]
 
     requests_needed_to_check = np.percentile(requests_per_check_sample, 50)
+    time_per_cycle = np.percentile(loop_persistent_data.mainloop_times, 50)
     print(f"requests_needed_to_check: {requests_needed_to_check} based on history\n{requests_per_check_sample}\n")
+    print(f"time_per_cycle: {time_per_cycle} based on history\n{loop_persistent_data.mainloop_times}\n")
 
-    checkprob = client_pool.compute_checkprob(requests_needed_to_check, EFFECTIVE_SLEEP_TIME, verbose=True, client_type='dashboard' if dashboard else 'private')
+    checkprob = client_pool.compute_checkprob(
+        requests_per_check=requests_needed_to_check,
+        time_per_cycle=time_per_cycle,
+        verbose=True,
+        client_type='dashboard' if dashboard else 'private'
+    )
 
     print(
         f"using checkprob: {checkprob:.1%}"
@@ -3275,6 +3294,7 @@ def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False, s
 
 def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseCache):
     global client_pool
+
     response_cache = do_rts(response_cache)
 
     ### decide whether we'll do the reblog/reply check
@@ -3302,6 +3322,8 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         )
         response_cache.save()
         image_analysis_cache.save()
+    else:
+        do_record_time = False
 
     relevant_ratelimit_data = client_pool.get_private_client().get_ratelimit_data()
     if relevant_ratelimit_data["effective_remaining"] > 0:
@@ -3417,13 +3439,20 @@ if __name__ == "__main__":
     # pr_main = cProfile.Profile()
     # pr_main.enable()
 
+    timer = Timer()
+
     while True:
         try:
+            timer.start()
+
             loop_persistent_data, response_cache = mainloop(
                 loop_persistent_data, response_cache
             )
             time.sleep(calculate_sleep_time(multiplier=loop_persistent_data.slowdown_level['SLEEP_TIME_scale'], verbose=True))
             send_alldone()
+
+            delta = timer.finish()
+            loop_persistent_data.mainloop_times.append(delta)
             # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")
             # pr_main.dump_stats(f"profiling_data/main/{_pr_name}")
             # pr_main.enable()

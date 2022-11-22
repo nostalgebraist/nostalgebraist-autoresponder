@@ -670,8 +670,14 @@ def create_mood_graph(
     plt.tick_params(labelsize=16)
     plt.tick_params(axis="x", labelrotation=80)
 
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%-I %p"))
-    plt.tick_params(axis="x", labelrotation=70)
+    fstring, labelrotation = "%-I %p", 70
+
+    n_days = (end_time - start_time).days
+    if n_days > 2:
+        fstring, labelrotation = "%-I %p %m/%d", 30
+
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter(fstring))
+    plt.tick_params(axis="x", labelrotation=labelrotation)
 
     plt.grid(axis="x")
 

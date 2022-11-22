@@ -904,7 +904,7 @@ class LoopPersistentData:
         slowdown_level: dict = BASE_SLOWDOWN_LEVEL,
         manual_ask_post_ids: set = set(),
         mainloop_times=[],
-        apriori_mainloop_time=SLEEP_TIME * 1.5,
+        apriori_mainloop_time=EFFECTIVE_SLEEP_TIME * 1.5,
     ):
         self.reblogs_from_me = reblogs_from_me
         self.reblog_worthy_dash_posts = reblog_worthy_dash_posts
@@ -3263,10 +3263,12 @@ def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False, s
     if skip_most_recent_record:
         requests_per_check_sample = requests_per_check_sample[:-1]
 
-    requests_needed_to_check = np.percentile(requests_per_check_sample, 50)
-    time_per_cycle = np.percentile(loop_persistent_data.mainloop_times, 50)
+    mainloop_times_sample = loop_persistent_data.mainloop_times[-30:]
+
+    requests_needed_to_check = np.percentile(requests_per_check_sample, 60)
+    time_per_cycle = np.percentile(mainloop_times_sample, 40)
     print(f"requests_needed_to_check: {requests_needed_to_check} based on history\n{requests_per_check_sample}\n")
-    print(f"time_per_cycle: {time_per_cycle} based on history\n{loop_persistent_data.mainloop_times}\n")
+    print(f"time_per_cycle: {time_per_cycle} based on history\n{mainloop_times_sample}\n")
 
     checkprob = client_pool.compute_checkprob(
         requests_per_check=requests_needed_to_check,

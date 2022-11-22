@@ -111,3 +111,43 @@ class SelfArchivingJsonlStore:
             f.writelines(rest)  # does not add \n
 
         self.n_entries -= len(batch)
+
+
+class CallbackDict(dict):
+    def set_callback(self, fn):
+        self.callback = fn
+
+    def _do_callback(self, mapping):
+        for key, value in mapping.items():
+            if key not in self or self.get(key) != value:
+                self.callback(key, value)
+
+    def __setitem__(self, key, value):
+        self._do_callback({key: value})
+        super().__setitem__(key, value)
+
+    def update(self, other, other2=None):
+        if other2 is not None:
+            raise NotImplementedError
+
+        self._do_callback(other)
+        super().update(other)
+
+    def copy(self):
+        copy = super().copy()
+        return CallbackDict.from_dict(copy, self.callback)
+
+    def __delitem__(*args, **kwargs):
+        raise NotImplementedError
+
+    def pop(*args, **kwargs):
+        raise NotImplementedError
+
+    def popitem(*args, **kwargs):
+        raise NotImplementedError
+
+    @staticmethod
+    def from_dict(d: dict, callback):
+        cd = CallbackDict(d)
+        cd.set_callback(callback)
+        return cd

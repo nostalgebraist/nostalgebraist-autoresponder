@@ -267,7 +267,7 @@ ckpt_captioner = None
 
 if V12_19:
     ckpt_select = "selector/v12_19/v4_experimental/"
-    ckpt_sentiment = "sentiment/v12_19/v1/"
+    ckpt_sentiment = "sentiment/v12_19/v2/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_19/v4_experimental/"
     ckpt_captioner = "captioner/v12_19/v1/"
 elif V12_18:

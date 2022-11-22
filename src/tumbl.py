@@ -1500,13 +1500,6 @@ def is_statically_reblog_worthy_on_dash(
 
     keep_prob_n_img = 1.0 if n_img < 1 else calc_keep_prob(n_img, text_block_nwords)
 
-    # if n_img > 4:
-    #     keep_prob_n_img = 0.0  # don't scrape
-    # elif n_img > 2:
-    #     keep_prob_n_img = 0.25
-    # elif n_img > 0:
-    #     keep_prob_n_img = 0.5
-
     roll = random.random()
     if roll > keep_prob_n_img:
         scrape_worthy = False

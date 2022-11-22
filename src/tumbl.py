@@ -2645,7 +2645,7 @@ def make_mood_graph_links_section(response_cache, start_time, end_time, n=5):
     return best_prefix + best_section + worst_prefix + worst_section + suffix
 
 
-def handle_mood_command(response_cache, post_payload):
+def handle_mood_command(response_cache, post_payload, n_days=MOOD_GRAPH_N_DAYS):
     global client_pool
     now = now_pst()
     start_time = now - pd.Timedelta(days=MOOD_GRAPH_N_DAYS)
@@ -2793,6 +2793,11 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 print(f"unfollowed {post_payload['asking_name']}")
         elif post_payload.get("summary", "") == MOOD_GRAPH_COMMAND:
             handle_mood_command(response_cache, post_payload)
+        elif post_payload['asking_name'] == 'nostalgebraist' and post_payload.get("summary", "").startswith(MOOD_GRAPH_COMMAND):
+            with LogExceptionAndSkip("custom n_days command"):
+                n_days = post_payload['summary'].split(' ')[1]
+                n_days = int(n_days)
+                handle_mood_command(response_cache, post_payload, n_days=n_days)
         elif post_payload['asking_name'] == 'nostalgebraist' and post_payload.get("summary", "").startswith('!pid'):
             with LogExceptionAndSkip("add manual ask id"):
                 pid = post_payload['summary'].split(' ')[1]

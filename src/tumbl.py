@@ -2648,7 +2648,7 @@ def make_mood_graph_links_section(response_cache, start_time, end_time, n=5):
 def handle_mood_command(response_cache, post_payload, n_days=MOOD_GRAPH_N_DAYS):
     global client_pool
     now = now_pst()
-    start_time = now - pd.Timedelta(days=MOOD_GRAPH_N_DAYS)
+    start_time = now - pd.Timedelta(days=n_days)
 
     path = create_mood_graph(
         response_cache,

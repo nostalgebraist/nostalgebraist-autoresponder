@@ -1435,6 +1435,9 @@ def is_statically_reblog_worthy_on_dash(
             print(f"\trejecting {post_identifier}: no text blocks\n{block_types}")
         return False
 
+    text_block_text = ' '.join(bl['text'] for bl in blocks if bl['type'] == 'text')
+    text_block_nwords = len(text_block_text.split())
+
     try:
         p_body = get_body(post_payload)
     except ValueError:
@@ -1478,14 +1481,22 @@ def is_statically_reblog_worthy_on_dash(
     if '.gif' in p_body:
         scrape_worthy = False
 
-    keep_prob_n_img = 1.0
+    def calc_keep_prob(n_img, text_block_nwords, discount_words_per_image=60, max_imgs_scrape=6):
+        n_img_discounted = max(0.01, n_img - (text_block_nwords / discount_words_per_image))
+        keep_prob_n_img = 1/(n_img_discounted+1)
+        keep_prob_n_img = max(0., min(1., keep_prob_n_img))
+        if n_img > max_imgs_scrape:
+            keep_prob_n_img = 0
+        return keep_prob_n_img
 
-    if n_img > 4:
-        keep_prob_n_img = 0.0  # don't scrape
-    elif n_img > 2:
-        keep_prob_n_img = 0.25
-    elif n_img > 0:
-        keep_prob_n_img = 0.5
+    keep_prob_n_img = 1.0 if n_img < 1 else calc_keep_prob(n_img, text_block_nwords)
+
+    # if n_img > 4:
+    #     keep_prob_n_img = 0.0  # don't scrape
+    # elif n_img > 2:
+    #     keep_prob_n_img = 0.25
+    # elif n_img > 0:
+    #     keep_prob_n_img = 0.5
 
     roll = random.random()
     if roll > keep_prob_n_img:

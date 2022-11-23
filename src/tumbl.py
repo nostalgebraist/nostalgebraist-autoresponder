@@ -2172,7 +2172,7 @@ def do_reblog_reply_handling(
         else:
             # coldstart
             offset_ = n_posts_to_check
-            updated_last_seen_ts, relevant_last_seen_ts = 0, 0
+            updated_last_seen_ts, relevant_last_seen_ts, start_ts = 0, 0, 0
     print(f"using extra kwargs: {extras}, starting offset {offset_}")
 
     ### get posts

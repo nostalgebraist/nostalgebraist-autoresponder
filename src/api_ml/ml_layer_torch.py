@@ -236,6 +236,7 @@ def poll(
         "pollml",
     ],
     show_memory=True,
+    multirequest_sequence_in_process=False,
 ):
     global CLOSED_REQUESTS
 
@@ -248,6 +249,8 @@ def poll(
 
         RESULT_STACK = {}
 
+        last_requested_model_name = None
+
         for prompt_id, data in PROMPT_STACK.items():
             if prompt_id in CLOSED_REQUESTS:
                 RESULT_STACK[prompt_id] = CLOSED_REQUESTS[prompt_id]
@@ -259,14 +262,18 @@ def poll(
             requested_model = None
             if data["model"] == "generator":
                 requested_model = generator_model
+                multirequest_sequence_in_process = True
             elif data["model"] == "selector":
                 requested_model = selector_est
+                multirequest_sequence_in_process = True
             elif data["model"] == "sentiment":
                 requested_model = sentiment_est
             elif data["model"] == "autoreviewer":
                 requested_model = autoreviewer_est
+                multirequest_sequence_in_process = False
             elif data["model"] == "captioner":
                 requested_model = magma_wrapper
+                multirequest_sequence_in_process = True
             else:
                 raise ValueError(f"requested_model: {data.get('model')}")
 
@@ -361,7 +368,7 @@ def poll(
             elif prompt_id in RESULT_STACK:
                 CLOSED_REQUESTS[prompt_id] = RESULT_STACK[prompt_id]
 
-        return open_request_ids, almostdone_in_flight
+        return open_request_ids, almostdone_in_flight, multirequest_sequence_in_process
 
 
 def loop_poll(
@@ -376,6 +383,7 @@ def loop_poll(
     show_memory=True,
     n_loops=None,
     use_almostdone=True,
+    multirequest_sequence_in_process=False,
 ):
     loop_counter = 0
     open_request_ids = set()
@@ -386,8 +394,13 @@ def loop_poll(
         return False
 
     while not _should_stop(loop_counter, open_request_ids):
-        open_request_ids, almostdone_in_flight = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
-        if len(open_request_ids) == 0 or dummy:
+        open_request_ids, almostdone_in_flight, multirequest_sequence_in_process = poll(
+            dummy=dummy, ports=ports, routes=routes, show_memory=show_memory,
+            multirequest_sequence_in_process=multirequest_sequence_in_process
+        )
+        if multirequest_sequence_in_process:
+            time.sleep(0.1)
+        elif len(open_request_ids) == 0 or dummy:
             time.sleep(period)
         elif use_almostdone and almostdone_in_flight:
             time.sleep(2)

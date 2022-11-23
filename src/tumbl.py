@@ -2129,9 +2129,8 @@ def do_reblog_reply_handling(
         posts = response["posts"]
         next_offset = kwargs["offset"] + len(posts)
         since_id = kwargs.get("since_id")
-        if since_id is None:
-            since_id = min(pp['id'] for pp in posts)
-            next_offset = len(posts)
+        since_id = max(pp['id'] for pp in posts)
+        next_offset = 0
         extras = {"since_id": since_id}
         return posts, next_offset, extras
 

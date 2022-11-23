@@ -622,7 +622,7 @@ BREAKRUNS_MODIFIED_WITHIN_IMAGES = False
 BREAKRUNS_TEMP_MODIFIER = 0.0
 
 if V12 and (GPU_TYPE == "small"):
-    max_feed_size_with_cache = 2048
+    max_feed_size_with_cache = 1600
     max_feed_size_no_cache = 1300
     USE_KV_BUFFER = True
 

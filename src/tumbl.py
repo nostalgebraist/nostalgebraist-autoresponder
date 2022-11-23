@@ -2179,6 +2179,7 @@ def do_reblog_reply_handling(
     print(f"\nchecking {n_posts_to_check} posts, start_ts={start_ts}...\n")
     posts = []
     posts_no_filters = []
+    seen_ids = set()
     updated_last_seen_ts = relevant_last_seen_ts
     updated_last_seen_id = relevant_last_seen_id
 
@@ -2207,9 +2208,14 @@ def do_reblog_reply_handling(
         min_ts = min(p["timestamp"] for p in next_)
         min_id = min(p["id"] for p in next_)
         print(f"got {len(next_)}, min_id={min_id}, min_ts={min_ts}, next_offset={next_offset}")
+
+        np_ids = {p["id"] for p in next_posts}
         min_ts = min(p["timestamp"] for p in next_posts)
-        min_id = min(p["id"] for p in next_posts)
+        min_id = min(np_ids)
+        novel_ids = len(np_ids.difference(seen_ids))
         print(f"\t raw: got {len(next_posts)}, min_id={min_id}, min_ts={min_ts}, next_offset={next_offset}")
+        seen_ids.update(np_ids)
+        print(f"\t {novel_ids} novel ids from this page, {len(seen_ids)} ids total")
 
         time.sleep(0.1)
         next_posts, next_offset, extras = post_getter(

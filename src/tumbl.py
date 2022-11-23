@@ -2193,6 +2193,7 @@ def do_reblog_reply_handling(
         for p in next_posts
         if p["timestamp"] > start_ts
         and p["id"] not in NO_REBLOG_IDS
+        and p["id"] not in seen_ids
         and not any(
             [
                 int(trail_entry.get("post", {}).get("id", -1)) in NO_REBLOG_IDS
@@ -2216,6 +2217,9 @@ def do_reblog_reply_handling(
         print(f"\t raw: got {len(next_posts)}, min_id={min_id}, min_ts={min_ts}, next_offset={next_offset}")
         seen_ids.update(np_ids)
         print(f"\t {novel_ids} novel ids from this page, {len(seen_ids)} ids total")
+        if novel_ids == 0:
+            print(f"bailing with {len(posts)} posts: zero novel ids")
+            break
 
         time.sleep(0.1)
         next_posts, next_offset, extras = post_getter(

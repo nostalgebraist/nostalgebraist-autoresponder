@@ -352,10 +352,10 @@ class GeneratorModelTorch:
             },
         }
 
-    def tok2str(t):
+    def tok2str(self, t):
         if isinstance(t, int):
-            return tokenizer.decode([t])
-        return [tokenizer.decode([tok]) for tok in t]
+            return self.tokenizer.decode([t])
+        return [self.tokenizer.decode([tok]) for tok in t]
 
     @torch.no_grad()
     def get_next_logits(self, text: str, to_numpy=True):

@@ -2101,15 +2101,21 @@ def do_reblog_reply_handling(
         if is_nost_dash_scraper:
             relevant_client_getter = client_pool.get_private_client
             relevant_client_type = 'private'
-            relevant_last_seen_ts_key = "last_seen_ts_nost_dash_scraper"
+            relevant_last_seen_ts_key = 'last_seen_ts_nost_dash_scraper'
+            relevant_last_seen_id_key = 'last_seen_id_nost_dash_scraper'
         else:
             relevant_client_getter = client_pool.get_dashboard_client
             relevant_client_type = 'dashboard'
             relevant_last_seen_ts_key = "last_seen_ts"
+            relevant_last_seen_id_key = "last_seen_id"
     else:
           relevant_last_seen_ts_key = "last_seen_ts_notifications"
+          relevant_last_seen_id_key = None
 
     relevant_last_seen_ts = response_cache.get_last_seen_ts(relevant_last_seen_ts_key)
+    relevant_last_seen_id = None if relevant_last_seen_id_key is None else response_cache.get_last_seen_ts(
+        relevant_last_seen_id_key
+    )
 
     count_check_requests_start = client_pool.remaining(relevant_client_type)
 
@@ -2159,12 +2165,20 @@ def do_reblog_reply_handling(
 
     offset_ = 0
     extras = {}
+    if is_dashboard:
+        if relevant_last_seen_id > 0:
+            extras['since_id'] = relevant_last_seen_id
+        else:
+            # coldstart
+            offset_ = n_posts_to_check
+    print(f"using extra kwargs: {extras}, starting offset {offset_}")
 
     ### get posts
     print(f"\nchecking {n_posts_to_check} posts, start_ts={start_ts}...\n")
     posts = []
     posts_no_filters = []
     updated_last_seen_ts = relevant_last_seen_ts
+    updated_last_seen_id = relevant_last_seen_id
 
     next_posts, next_offset, extras = post_getter(
         limit=limit_, offset=offset_, notes_info=(not is_dashboard),
@@ -2297,6 +2311,10 @@ def do_reblog_reply_handling(
     if is_dashboard:
         updated_last_seen_ts = max(
             [updated_last_seen_ts] + [post_payload["timestamp"] for post_payload in posts]
+        )
+
+        updated_last_seen_id = max(
+            [updated_last_seen_id] + [post_payload["id"] for post_payload in posts]
         )
 
         # batch up dash posts for side judgment computation
@@ -2496,6 +2514,7 @@ def do_reblog_reply_handling(
 
     if is_dashboard and len(kept) > 0 and len(excluded) > 0:
         last_handled_in_step_ts = max([reblog_reply_timestamps[r] for r in kept])
+        last_handled_in_step_id = max([r.id_ for r in kept])
         if last_handled_in_step_ts < updated_last_seen_ts:
             print(
                 f"rolling back updated_last_seen_ts: {updated_last_seen_ts} --> {last_handled_in_step_ts}"
@@ -2503,7 +2522,16 @@ def do_reblog_reply_handling(
             updated_last_seen_ts = last_handled_in_step_ts
         else:
             print(
-                f"weirdness: last_handled_in_step_ts {last_handled_in_step_ts} > updated_last_seen_ts{updated_last_seen_ts}"
+                f"weirdness: last_handled_in_step_ts {last_handled_in_step_ts} > updated_last_seen_ts {updated_last_seen_ts}"
+            )
+        if last_handled_in_step_id < updated_last_seen_id:
+            print(
+                f"rolling back updated_last_seen_id: {updated_last_seen_id} --> {last_handled_in_step_id}"
+            )
+            updated_last_seen_id = last_handled_in_step_id
+        else:
+            print(
+                f"weirdness: last_handled_in_step_id {last_handled_in_step_id} > updated_last_seen_id {updated_last_seen_id}"
             )
 
     # handle reblogs, replies
@@ -2535,6 +2563,7 @@ def do_reblog_reply_handling(
 
         # update last_seen_ts
         response_cache.update_last_seen_ts(relevant_last_seen_ts_key, updated_last_seen_ts)
+        response_cache.update_last_seen_ts(relevant_last_seen_id_key, updated_last_seen_id)
         # print(
         #     f"updating {relevant_last_seen_ts_key}: {relevant_last_seen_ts} --> {updated_last_seen_ts} (+{updated_last_seen_ts-relevant_last_seen_ts})"
         # )

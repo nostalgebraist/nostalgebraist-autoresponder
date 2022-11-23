@@ -2122,7 +2122,11 @@ def do_reblog_reply_handling(
         )
         posts = response["posts"]
         next_offset = kwargs["offset"] + len(posts)
-        return posts, next_offset
+        since_id = kwargs.get("since_id")
+        if since_id is None:
+            since_id = min(pp['id'] for pp in posts)
+        extras = {"since_id": since_id}
+        return posts, next_offset, extras
 
     def reblogs_post_getter(**kwargs):
         response = response_cache.record_response_to_cache(
@@ -2137,7 +2141,8 @@ def do_reblog_reply_handling(
         #     next_offset = response["_links"]["next"]["query_params"]["offset"]
         if next_offset is None:
             next_offset = kwargs["offset"] + len(posts)  # fallback
-        return posts, next_offset
+        extras = {}
+        return posts, next_offset, extras
 
     if is_dashboard:
         post_getter = dashboard_post_getter
@@ -2153,6 +2158,7 @@ def do_reblog_reply_handling(
     limit_ = min(50, n_posts_to_check)
 
     offset_ = 0
+    extras = {}
 
     ### get posts
     print(f"\nchecking {n_posts_to_check} posts, start_ts={start_ts}...\n")
@@ -2160,8 +2166,9 @@ def do_reblog_reply_handling(
     posts_no_filters = []
     updated_last_seen_ts = relevant_last_seen_ts
 
-    next_posts, next_offset = post_getter(
-        limit=limit_, offset=offset_, notes_info=(not is_dashboard)
+    next_posts, next_offset, extras = post_getter(
+        limit=limit_, offset=offset_, notes_info=(not is_dashboard),
+        **extras,
     )
     posts_no_filters.extend(next_posts)
     next_ = [
@@ -2187,8 +2194,9 @@ def do_reblog_reply_handling(
         print(f"\t raw: got {len(next_posts)}, starting with {next_posts[0]['id']}, min_ts={min_ts}, next_offset={next_offset}")
 
         time.sleep(0.1)
-        next_posts, next_offset = post_getter(
-            limit=limit_, offset=offset_, notes_info=(not is_dashboard)
+        next_posts, next_offset, extras = post_getter(
+            limit=limit_, offset=offset_, notes_info=(not is_dashboard),
+            **extras,
         )
         posts_no_filters.extend(next_posts)
         next_ = [

@@ -2131,6 +2131,7 @@ def do_reblog_reply_handling(
         since_id = kwargs.get("since_id")
         if since_id is None:
             since_id = min(pp['id'] for pp in posts)
+            next_offset = len(posts)
         extras = {"since_id": since_id}
         return posts, next_offset, extras
 
@@ -2171,6 +2172,7 @@ def do_reblog_reply_handling(
         else:
             # coldstart
             offset_ = n_posts_to_check
+            updated_last_seen_ts, relevant_last_seen_ts = 0, 0
     print(f"using extra kwargs: {extras}, starting offset {offset_}")
 
     ### get posts
@@ -2202,10 +2204,12 @@ def do_reblog_reply_handling(
     n_pages = 1
     while (len(next_) != 0) and (len(posts) < n_posts_to_check) and (n_pages < max_pages):
         # TODO: DRY
-        min_ts = min([p["timestamp"] for p in next_])
-        print(f"got {len(next_)}, starting with {next_[0]['id']}, min_ts={min_ts}, next_offset={next_offset}")
-        min_ts = min([p["timestamp"] for p in next_posts])
-        print(f"\t raw: got {len(next_posts)}, starting with {next_posts[0]['id']}, min_ts={min_ts}, next_offset={next_offset}")
+        min_ts = min(p["timestamp"] for p in next_)
+        min_id = min(p["id"] for p in next_)
+        print(f"got {len(next_)}, min_id={min_id}, min_ts={min_ts}, next_offset={next_offset}")
+        min_ts = min(p["timestamp"] for p in next_posts)
+        min_id = min(p["id"] for p in next_posts)
+        print(f"\t raw: got {len(next_posts)}, min_id={min_id}, min_ts={min_ts}, next_offset={next_offset}")
 
         time.sleep(0.1)
         next_posts, next_offset, extras = post_getter(

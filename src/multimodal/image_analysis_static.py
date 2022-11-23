@@ -88,6 +88,10 @@ def remove_image_urls_and_captions_from_post_text(s, return_urls=False):
     return scrubbed
 
 
+def remove_images_entirely_from_post_text(s):
+    return re.sub(imurl_imtext_regex, '', s, flags=re.DOTALL)
+
+
 def normalize_tumblr_image_url(k):
     return k.partition('media.tumblr.com')[2].replace('_','/').partition('.')[0]
 

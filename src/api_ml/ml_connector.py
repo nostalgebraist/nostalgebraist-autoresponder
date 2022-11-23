@@ -20,7 +20,7 @@ from api_ml.selector import serve_selection
 from api_ml import bridge_cache_singleton
 from api_ml.bridge_shared import get_bridge_service_url
 
-from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED, normalize_tumblr_image_url, fill_url_based_captions
+from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED, normalize_tumblr_image_url, fill_url_based_captions, remove_images_entirely_from_post_text
 from tumblr_to_text.image_munging import mock_up_image_generation_tags_for_heads
 
 from util.error_handling import LogExceptionAndSkip
@@ -332,7 +332,7 @@ def basic_n_continuations(
 
             roll = np.random.rand()
             has_img = IMAGE_DELIMITER_WHITESPACED in c
-            tagged_usernames = set(re.findall(r"@(\w+)", c))
+            tagged_usernames = set(re.findall(r"@(\w+)", remove_images_entirely_from_post_text(c)))
 
             # NOTE: the < 100 check is for weird posts where the newline doesn't happen
             if len(c.partition("\n")[2].split(" ")) < avoid_if_under and len(c) < 100 and (not has_img):

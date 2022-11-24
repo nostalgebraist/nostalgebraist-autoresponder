@@ -332,7 +332,7 @@ def basic_n_continuations(
 
             roll = np.random.rand()
             has_img = IMAGE_DELIMITER_WHITESPACED in c
-            tagged_usernames = set(re.findall(r"@(\w+)", remove_images_entirely_from_post_text(c)))
+            tagged_usernames = set(re.findall(r"@([\w-]+)", remove_images_entirely_from_post_text(c)))
 
             # NOTE: the < 100 check is for weird posts where the newline doesn't happen
             if len(c.partition("\n")[2].split(" ")) < avoid_if_under and len(c) < 100 and (not has_img):

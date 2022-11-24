@@ -1506,7 +1506,7 @@ def is_statically_reblog_worthy_on_dash(
 
     if not has_comment:
         roll = random.random()
-        if roll > 0.875:
+        if roll > 1.0:  # disabled
             scrape_worthy = False
 
     if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):

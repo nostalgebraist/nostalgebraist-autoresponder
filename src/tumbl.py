@@ -1394,8 +1394,19 @@ def am_i_tagged_in_reblog(post_payload):
 def is_statically_reblog_worthy_on_dash(
     post_payload, response_cache, verbose=True, is_nost_dash_scraper=False, slow_scraping_ok=True,
     get_images_from_no_scrape_users=True,
+    verbose_logs_to_file=False
 ):
     global client_pool
+
+    def vprint(*args, **kwargs):
+        if verbose:
+            if verbose_logs_to_file:
+                with open("data/dash_logic.txt", "a") as f:
+                    kwargs.pop('file', None)
+                    print(*args, file=f, **kwargs)
+            else:
+                print(*args, **kwargs)
+
     post_identifier = PostIdentifier(post_payload["blog_name"], str(post_payload["id"]))
 
     if post_payload.get("id") in DEF_REBLOG_IDS:
@@ -1417,22 +1428,24 @@ def is_statically_reblog_worthy_on_dash(
             entry.get("blog", {}).get("name", "") == blogName for entry in trail
         ]
         if any(trail_blognames_are_me):
+            vprint(f"\trejecting {post_identifier}: includes bot")
             return False, False
 
     if not has_comment:
         if DASH_REBLOG_REQUIRE_COMMENT:
+            vprint(f"\trejecting {post_identifier}: no comment")
             return False, False
         else:
             trail = post_payload.get("trail", [])
             if len(trail) > 0:
                 if trail[-1].get("blog", {}).get("name", "") == blogName:
+                    vprint(f"\trejecting {post_identifier}: includes bot")
                     return False, False
 
     if post_payload.get("type") in {
         "video",
     }:
-        if verbose:
-            print(f"\trejecting {post_identifier}: is video")
+        vprint(f"\trejecting {post_identifier}: is video")
         return False, False
 
     blocks = post_payload['content'] + [bl
@@ -1440,8 +1453,7 @@ def is_statically_reblog_worthy_on_dash(
                                         for bl in entry.get('content', [])]
     block_types = {bl['type'] for bl in blocks}
     if "text" not in block_types:
-        if verbose:
-            print(f"\trejecting {post_identifier}: no text blocks\n{block_types}")
+        vprint(f"\trejecting {post_identifier}: no text blocks\n{block_types}")
         return False, False
 
     text_block_text = ' '.join(bl['text'] for bl in blocks if bl['type'] == 'text')
@@ -1455,14 +1467,12 @@ def is_statically_reblog_worthy_on_dash(
         return False, False
     n_img = len(p_body.split("<img")) - 1
     if n_img > 10:
-        if verbose:
-            print(f"\trejecting {post_identifier}: too many images ({n_img})")
+        vprint(f"\trejecting {post_identifier}: too many images ({n_img})")
         return False, False
 
     # user avoid list
     if post_payload.get("source_title", "") in USER_AVOID_LIST:
-        if verbose:
-            print(f"\trejecting {post_identifier}: OP user avoid list")
+        vprint(f"\trejecting {post_identifier}: OP user avoid list")
         return False, False
 
     for trail_entry in post_payload.get("trail", []):
@@ -1476,8 +1486,7 @@ def is_statically_reblog_worthy_on_dash(
             return False, False
 
     if am_i_tagged_in_reblog(post_payload):
-        if verbose:
-            print(
+        vprint(
                 f"reblogging {post_identifier} from dash:\n\ti'm tagged in commment {comment_}"
             )
         return True, False
@@ -1502,20 +1511,24 @@ def is_statically_reblog_worthy_on_dash(
 
     roll = random.random()
     if roll > keep_prob_n_img:
+        vprint(f"\tno-scrape {post_identifier}: {n_img} images, {text_block_nwords} words, {keep_prob_n_img:.2f} prob")
         scrape_worthy = False
 
     if not has_comment:
         roll = random.random()
         if roll > 1.0:  # disabled
+            vprint(f"\tno-scrape {post_identifier}: no comment")
             scrape_worthy = False
 
     if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):
         if get_images_from_no_scrape_users and scrape_worthy:
             image_scrape_only = True
         else:
+            vprint(f"\tno-scrape {post_identifier}: triggered on user")
             scrape_worthy = False
 
     if (not slow_scraping_ok) and (n_img > 0):
+        vprint(f"\tno-scrape {post_identifier}: has images and not slow_scraping_ok")
         scrape_worthy = False
 
     # tag avoid list
@@ -1526,13 +1539,11 @@ def is_statically_reblog_worthy_on_dash(
         # TODO -- make this work properly.  we need to do /posts again on OP, their tags aren't in this payload
         tags.extend(trail[0].get("tags", []))
     if any([substring in t.lower() for t in tags for substring in DASH_TAG_AVOID_LIST]):
-        if verbose:
-            print("\trejecting: tag avoid list")
+        vprint(f"\tno-reblog {post_identifier}: tag avoid list")
         reblog_worthy = False
 
     if post_payload.get("note_count") >= 1500:
-        if verbose:
-            print(f"\trejecting {post_identifier}: notes >= 1500")
+        vprint(f"\tno-reblog {post_identifier}: notes >= 1500")
         reblog_worthy = False
 
     # must follow OP
@@ -1545,17 +1556,10 @@ def is_statically_reblog_worthy_on_dash(
         except (KeyError, IndexError, TypeError):
             pass
     if post_OP and (post_OP not in response_cache.following_names) and (post_OP != blogName):
-        if verbose:
-            print(
-                f"not reblogging {post_identifier} from dash:\n\ti don't follow OP {post_OP}"
+        vprint(
+                f"no-reblog {post_identifier}:\n\ti don't follow OP {post_OP}"
             )
         reblog_worthy = False
-
-    if post_identifier.blog_name in NO_SCRAPE_USERS or post_identifier.blog_name.startswith("artist"):
-        scrape_worthy = False
-        if get_images_from_no_scrape_users:
-            print(f"reading {post_identifier} | ", end="")
-            archive_to_corpus(post_payload, path=None, client_pool=client_pool, read_without_write=True)
 
     if scrape_worthy:
         path = "data/dash_post_dump_nost.txt" if is_nost_dash_scraper else "data/dash_post_dump_frank.txt"
@@ -2358,7 +2362,8 @@ def do_reblog_reply_handling(
             reblog_worthy, scrape_worthy = is_statically_reblog_worthy_on_dash(
                 post,
                 response_cache,
-                verbose=VERBOSE_LOGS,
+                verbose=True,
+                verbose_logs_to_file=True,
                 is_nost_dash_scraper=is_nost_dash_scraper,
                 slow_scraping_ok=slow_scraping_ok,
                 get_images_from_no_scrape_users=False,

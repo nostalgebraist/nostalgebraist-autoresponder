@@ -1452,9 +1452,6 @@ def is_statically_reblog_worthy_on_dash(
                                         for entry in post_payload.get("trail", [])
                                         for bl in entry.get('content', [])]
     block_types = {bl['type'] for bl in blocks}
-    if "text" not in block_types:
-        vprint(f"\trejecting {post_identifier}: no text blocks\n{block_types}")
-        return False, False
 
     text_block_text = ' '.join(bl['text'] for bl in blocks if bl['type'] == 'text')
     text_block_nwords = len(text_block_text.split())
@@ -1463,9 +1460,12 @@ def is_statically_reblog_worthy_on_dash(
         p_body = get_body(post_payload)
     except ValueError:
         print(f'ValueError on ({post_payload})')
+        vprint(f"\trejecting {post_identifier}: get_body ValueError")
         # TODO: debug ValueError: ('heading2', True) systematically
         return False, False
+
     n_img = len(p_body.split("<img")) - 1
+
     if n_img > 10:
         vprint(f"\trejecting {post_identifier}: too many images ({n_img})")
         return False, False
@@ -1496,7 +1496,12 @@ def is_statically_reblog_worthy_on_dash(
     scrape_worthy = True
     image_scrape_only = False
 
+    if len(text_block_text) == 0:
+        vprint(f"\tno-reblog {post_identifier}: no textblock text")
+        reblog_worthy = False
+
     if '.gif' in p_body:
+        vprint(f"\tno-scrape {post_identifier}: contains .gif")
         scrape_worthy = False
 
     def calc_keep_prob(n_img, text_block_nwords, discount_words_per_image=30, max_imgs_scrape=10):

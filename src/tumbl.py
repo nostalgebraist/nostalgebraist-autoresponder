@@ -2369,6 +2369,7 @@ def do_reblog_reply_handling(
 
             n_scraped += scrape_worthy
 
+        print()  # archive notices end w/o line break
         print(f"{n_scraped}/{len(posts)} statically scrape worthy")
         print(f"{len(statically_worthy_posts)}/{len(posts)} statically reblog worthy")
 

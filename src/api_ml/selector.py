@@ -398,6 +398,8 @@ def serve_selection(
 
     proba = np.asarray(retained_selection_proba)  # TODO: clearer name here
 
+    print(f"after exclusions, {len(proba)} left")
+
     # diffusion coldstart
     if IMAGE_COLDSTART_USE_ARGMAX:
         if any(IMAGE_COLDSTART_DELIMITER in c for c in retained_continuations):

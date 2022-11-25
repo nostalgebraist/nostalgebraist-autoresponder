@@ -176,20 +176,20 @@ class GeneratorModelTorch:
         self.clear_past()
 
         if full_len <= self.max_feed_size_no_cache:
-            presents = self.transformers_model(
+            presents = self.transformers_model.transformer(
                 input_ids=input_ids_no_cache[:, :-1],
                 use_cache=True,
             ).past_key_values
             self.set_past(presents)
         else:
-            presents = self.transformers_model(
+            presents = self.transformers_model.transformer(
                 input_ids=input_ids_no_cache,
                 use_cache=True,
             ).past_key_values
             self.set_past(presents)
 
         for ix in range(self.max_feed_size_no_cache, full_len-1):
-            presents = self.transformers_model(
+            presents = self.transformers_model.transformer(
                 input_ids=input_ids[:, ix:ix+1],
                 past_key_values=presents,
                 use_cache=True,

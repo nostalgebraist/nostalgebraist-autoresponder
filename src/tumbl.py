@@ -1399,12 +1399,12 @@ def is_statically_reblog_worthy_on_dash(
     post_identifier = PostIdentifier(post_payload["blog_name"], str(post_payload["id"]))
 
     if post_payload.get("id") in DEF_REBLOG_IDS:
-        return True
+        return True, False
 
     trail = post_payload.get("trail", [])
     if len(trail) > 1:
         if trail[-2].get("blog", {}).get("name", "") == blogName:
-            return False
+            return False, False
 
     has_comment = True
     if "reblog" in post_payload:
@@ -1417,23 +1417,23 @@ def is_statically_reblog_worthy_on_dash(
             entry.get("blog", {}).get("name", "") == blogName for entry in trail
         ]
         if any(trail_blognames_are_me):
-            return False
+            return False, False
 
     if not has_comment:
         if DASH_REBLOG_REQUIRE_COMMENT:
-            return False
+            return False, False
         else:
             trail = post_payload.get("trail", [])
             if len(trail) > 0:
                 if trail[-1].get("blog", {}).get("name", "") == blogName:
-                    return False
+                    return False, False
 
     if post_payload.get("type") in {
         "video",
     }:
         if verbose:
             print(f"\trejecting {post_identifier}: is video")
-        return False
+        return False, False
 
     blocks = post_payload['content'] + [bl
                                         for entry in post_payload.get("trail", [])
@@ -1442,7 +1442,7 @@ def is_statically_reblog_worthy_on_dash(
     if "text" not in block_types:
         if verbose:
             print(f"\trejecting {post_identifier}: no text blocks\n{block_types}")
-        return False
+        return False, False
 
     text_block_text = ' '.join(bl['text'] for bl in blocks if bl['type'] == 'text')
     text_block_nwords = len(text_block_text.split())
@@ -1452,35 +1452,35 @@ def is_statically_reblog_worthy_on_dash(
     except ValueError:
         print(f'ValueError on ({post_payload})')
         # TODO: debug ValueError: ('heading2', True) systematically
-        return False
+        return False, False
     n_img = len(p_body.split("<img")) - 1
     if n_img > 10:
         if verbose:
             print(f"\trejecting {post_identifier}: too many images ({n_img})")
-        return False
+        return False, False
 
     # user avoid list
     if post_payload.get("source_title", "") in USER_AVOID_LIST:
         if verbose:
             print(f"\trejecting {post_identifier}: OP user avoid list")
-        return False
+        return False, False
 
     for trail_entry in post_payload.get("trail", []):
         if trail_entry.get("blog", {}).get("name", "") in USER_AVOID_LIST:
             if verbose:
                 print(f"\trejecting {post_identifier}: trail user avoid list")
-            return False
+            return False, False
         if int(trail_entry.get("post", {}).get("id", -1)) in NO_REBLOG_IDS:
             if verbose:
                 print(f"\trejecting {post_identifier}: reblog id avoid list")
-            return False
+            return False, False
 
     if am_i_tagged_in_reblog(post_payload):
         if verbose:
             print(
                 f"reblogging {post_identifier} from dash:\n\ti'm tagged in commment {comment_}"
             )
-        return True
+        return True, False
 
     ### rule-out conditions below can block either of {scraping, reblog-from-dash} individually
     reblog_worthy = True

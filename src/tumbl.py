@@ -1569,7 +1569,7 @@ def is_statically_reblog_worthy_on_dash(
     if is_nost_dash_scraper:
         reblog_worthy = False
 
-    return reblog_worthy
+    return reblog_worthy, scrape_worthy
 
 
 def batch_judge_dash_posts(post_payloads, response_cache):
@@ -2342,6 +2342,8 @@ def do_reblog_reply_handling(
         if IMAGE_CREATION_TESTING and IMAGE_CREATION_DIFFUSION:
             slow_scraping_ok = False
 
+        n_scraped = 0
+
         iter_ = tqdm(posts)
         for post_ix, post in enumerate(iter_):
             try:
@@ -2353,15 +2355,21 @@ def do_reblog_reply_handling(
             n_img = len(p_body.split("<img")) - 1
             iter_.set_postfix(pi=(post["blog_name"], post["id"]), n_img=n_img)
 
-            if is_statically_reblog_worthy_on_dash(
+            reblog_worthy, scrape_worthy = is_statically_reblog_worthy_on_dash(
                 post,
                 response_cache,
                 verbose=VERBOSE_LOGS,
                 is_nost_dash_scraper=is_nost_dash_scraper,
                 slow_scraping_ok=slow_scraping_ok,
                 get_images_from_no_scrape_users=False,
-            ):
+            )
+
+            if reblog_worthy:
                 statically_worthy_posts.append(post)
+
+            n_scraped += scrape_worthy
+
+        print(f"{n_scraped}/{len(posts)} statically scrape worthy")
         print(f"{len(statically_worthy_posts)}/{len(posts)} statically reblog worthy")
 
         response_cache = batch_judge_dash_posts(

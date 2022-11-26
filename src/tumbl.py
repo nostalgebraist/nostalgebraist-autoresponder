@@ -1562,7 +1562,7 @@ def is_statically_reblog_worthy_on_dash(
             pass
     if post_OP and (post_OP not in response_cache.following_names) and (post_OP != blogName):
         vprint(
-                f"no-reblog {post_identifier}:\n\ti don't follow OP {post_OP}"
+                f"no-reblog {post_identifier}: i don't follow OP {post_OP}"
             )
         reblog_worthy = False
 

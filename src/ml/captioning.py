@@ -28,6 +28,36 @@ def caption_image_from_url(url: str, magma_wrapper: Magma):
     return caption_image(im)
 
 
+def activate_magma(
+    magma_wrapper: Magma,
+):
+    for k in magma_wrapper.adapter_map:
+        magma_wrapper.adapter_map[k].cuda()
+
+    magma_wrapper.image_prefix.cuda()
+
+    adapters_attached = len(magma_wrapper.adapter_map) == 0
+
+    if not adapters_attached:
+        magma_wrapper.add_adapters()
+
+
+def deactivate_magma(
+    magma_wrapper: Magma,
+    adapters_device='cpu',
+):
+    adapters_attached = len(magma_wrapper.adapter_map) == 0
+
+    if adapters_attached:
+        magma_wrapper.detach_adapters()
+
+    for k in magma_wrapper.adapter_map:
+        magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].to(device=adapters_device)
+
+    magma_wrapper.image_prefix.to(device=adapters_device)
+
+
+
 def caption_image(
     path_or_url: str,
     magma_wrapper: Magma,
@@ -39,14 +69,10 @@ def caption_image(
     prompt='[Image description:',
     longest_of=1,
     adapters_device='cpu',
+    deactivate_when_done=True,
 ):
     with kv_buffer_scope(magma_wrapper, False):
-        for k in magma_wrapper.adapter_map:
-            magma_wrapper.adapter_map[k].cuda()
-
-        magma_wrapper.image_prefix.cuda()
-
-        magma_wrapper.add_adapters()
+        activate_magma(magma_wrapper)
 
         caption = None
         caption_options = []
@@ -77,11 +103,7 @@ def caption_image(
 
                 caption = sorted(caption_options, key=len)[-1]
 
-        magma_wrapper.detach_adapters()
-
-        for k in magma_wrapper.adapter_map:
-            magma_wrapper.adapter_map[k] = magma_wrapper.adapter_map[k].to(device=adapters_device)
-
-        magma_wrapper.image_prefix.to(device=adapters_device)
+        if deactivate_when_done:
+            deactivate_magma(magma_wrapper, adapters_device=adapters_device)
 
     return caption

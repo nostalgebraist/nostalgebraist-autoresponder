@@ -3115,7 +3115,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
             or last_queued_post_ts.year > now_ts.year
         )
 
-        if last_queued_post_day > current_day:
+        if crosses_midnight:
             should_write_testpost = False
             print(f"not writing new text post: queue extends to {last_queued_post_ts}, vs current time {now_ts}")
 

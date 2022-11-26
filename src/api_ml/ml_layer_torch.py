@@ -243,6 +243,10 @@ def is_active():
     return magma_wrapper.lm.device == 'cuda:0'
 
 
+if os.environ.get('EARLY_ACTIVATE', False):
+    activate()
+
+
 def poll(
     dummy=False,
     ports=[

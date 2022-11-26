@@ -1,6 +1,7 @@
 import gc
 import sys
 import time
+import os
 from io import BytesIO
 from pprint import pprint
 
@@ -150,6 +151,10 @@ def activate():
 
 def is_active():
     return sampling_model_sres1.model.device == 'cuda:0'
+
+
+if os.environ.get('EARLY_ACTIVATE', False):
+    activate()
 
 
 def poll(

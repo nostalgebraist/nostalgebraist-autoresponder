@@ -287,6 +287,16 @@ def poll(
                 "kwargs", {}
             )
 
+            # keep magma activated over strings of captioning requests
+            if data["model"] == "captioner":
+                requested_kwargs['deactivate_when_done'] = False
+            elif len(magma_wrapper.adapter_map) == 0:
+                # need magma decativated, but adapters are attached
+                ml.captioning.deactivate_magma(
+                    magma_wrapper,
+                    adapters_device=captioning_adapters_device,
+                )
+
             for name in DEPRECATED_KWARGS:
                 if name in requested_kwargs:
                     print(f"skipping deprecated param {name}")

@@ -71,8 +71,9 @@ def caption_image(
     adapters_device='cpu',
     deactivate_when_done=True,
 ):
+    activate_magma(magma_wrapper)
+
     with kv_buffer_scope(magma_wrapper, False):
-        activate_magma(magma_wrapper)
 
         caption = None
         caption_options = []
@@ -103,7 +104,7 @@ def caption_image(
 
                 caption = sorted(caption_options, key=len)[-1]
 
-        if deactivate_when_done:
-            deactivate_magma(magma_wrapper, adapters_device=adapters_device)
+    if deactivate_when_done:
+        deactivate_magma(magma_wrapper, adapters_device=adapters_device)
 
     return caption

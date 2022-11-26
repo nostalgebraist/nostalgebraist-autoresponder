@@ -646,4 +646,6 @@ MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
 if V12_16:
     MODELS_SERVED.add("captioner")
 
+LATE_TRANSFER_TO_GPU = GPU_TYPE == "small"
+
 os.chdir(startdir)

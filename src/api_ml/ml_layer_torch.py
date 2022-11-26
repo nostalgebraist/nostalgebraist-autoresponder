@@ -88,15 +88,16 @@ def load_generator_model(
             config_path=magma_config_path,
             lm_path_or_state_dict=sd,
             gptj_init_fn=quick_init_gptj,
-            device='cuda:0'
+            device=device,
         )
 
         magma_wrapper.detach_adapters()
 
-        for k in magma_wrapper.adapter_map:
-            magma_wrapper.adapter_map[k].to(device=captioning_adapters_device)
+        if not LATE_TRANSFER_TO_GPU:
+            for k in magma_wrapper.adapter_map:
+                magma_wrapper.adapter_map[k].to(device=captioning_adapters_device)
 
-        magma_wrapper.image_prefix.to(device=captioning_adapters_device)
+            magma_wrapper.image_prefix.to(device=captioning_adapters_device)
 
         if use_kv_buffer:
             setup_kv_buffer(magma_wrapper, batch_size=batch_size, max_sequence_length=max_feed_size_with_cache)
@@ -202,7 +203,7 @@ generator_model, magma_wrapper = load_generator_model(
     path=generator_path,
     tokenizer=tokenizer,
     batch_size=batch_size,
-    device='cuda:0',
+    device='cpu' if LATE_TRANSFER_TO_GPU else 'cuda:0',
     sampling_params=GPT_NEO_DEFAULT_SAMPLING_PARAMS,
     use_captioner="captioner" in MODELS_SERVED,
     captioner_path=os.path.abspath(ckpt_captioner),
@@ -225,6 +226,21 @@ DEPRECATED_KWARGS = {"mirotarg"}
 
 t_ready = time.time()
 print(f"ready in {t_ready - t_start}s (model load: {t_ready - t_file}s)")
+
+
+def activate(magma_wrapper):
+    magma_wrapper.lm.cuda()
+
+    magma_wrapper.detach_adapters()
+
+    for k in magma_wrapper.adapter_map:
+        magma_wrapper.adapter_map[k].cuda()
+
+    magma_wrapper.image_prefix.cuda()
+
+
+def is_active():
+    return magma_wrapper.lm.device == 'cuda:0'
 
 
 def poll(
@@ -286,6 +302,14 @@ def poll(
             requested_args, requested_kwargs = data.get("args", []), data.get(
                 "kwargs", {}
             )
+
+            if not is_active():
+                wait_secs = 10
+                print(f"Waiting {wait_secs}s before activating...")
+                time.sleep(wait_secs)
+
+                activate()
+                print(f"activate done. is_active: {is_active()}")
 
             # keep magma activated over strings of captioning requests
             if data["model"] == "captioner":

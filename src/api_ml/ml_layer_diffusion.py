@@ -25,13 +25,12 @@ bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 bridge_service_port = bot_specific_constants.bridge_service_port
 BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 
-
+load_device = 'cpu' if LATE_TRANSFER_TO_GPU else 'cuda:0'
 
 # constants
 # HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
 HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-captions'
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
-
 
 timestep_respacing_sres1 = '100'
 timestep_respacing_sres1p5 = '36,24,24,8,8'
@@ -82,6 +81,7 @@ sampling_model_sres1 = improved_diffusion.pipeline.SamplingModel.from_config(
     checkpoint_path=checkpoint_path_sres1,
     config_path=config_path_sres1,
     timestep_respacing=timestep_respacing_sres1,
+    device=load_device,
     # silu_impl='torch',
 )
 
@@ -93,6 +93,7 @@ if using_sres1p5:
         config_path=config_path_sres1p5,
         timestep_respacing=timestep_respacing_sres1p5,
         clipmod=sampling_model_sres1.model.clipmod,
+        device=load_device,
         # silu_impl='torch',
     )
 
@@ -100,6 +101,7 @@ sampling_model_sres2 = improved_diffusion.pipeline.SamplingModel.from_config(
     checkpoint_path=checkpoint_path_sres2,
     config_path=config_path_sres2,
     timestep_respacing=timestep_respacing_sres2,
+    device=load_device,
     # silu_impl='torch',
 )
 sampling_model_sres2.model.image_size = 256
@@ -111,6 +113,7 @@ if using_sres3:
         checkpoint_path=checkpoint_path_sres3,
         config_path=config_path_sres3,
         timestep_respacing=timestep_respacing_sres3,
+        device=load_device,
         # silu_impl='torch',
     )
     sampling_model_sres3.model.image_size = 512
@@ -138,6 +141,17 @@ t_ready = time.time()
 print(f"ready in {t_ready - t_start}s (model load: {t_ready - t_file}s)")
 
 
+def activate():
+    sampling_model_sres1.model.cuda()
+    sampling_model_sres1p5.model.cuda()
+    sampling_model_sres2.model.cuda()
+    sampling_model_sres3.model.cuda()
+
+
+def is_active():
+    return sampling_model_sres1.model.device == 'cuda:0'
+
+
 def poll(
     dummy=False,
     ports=[
@@ -160,6 +174,14 @@ def poll(
             continue
 
         pprint(data)
+
+        if not is_active():
+            wait_secs = 10
+            print(f"Waiting {wait_secs}s before activating...")
+            time.sleep(wait_secs)
+
+            activate()
+            print(f"activate done. is_active: {is_active()}")
 
         did_generation = True
 

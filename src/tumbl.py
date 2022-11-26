@@ -187,6 +187,7 @@ mood_computed_most_recently = None
 
 WRITE_POSTS_WHEN_QUEUE_BELOW = 20
 N_TO_WRITE = 1
+AVOID_FILLING_NEXT_DAY_QUEUE = True
 
 INDIRECT_REBLOGS = False
 REPLY_RELEVANCE_V2 = True
@@ -3097,12 +3098,30 @@ def do_queue_handling(loop_persistent_data, response_cache):
             for pid in to_delete:
                 client_pool.get_private_client().delete_post(blogName, id=pid)
 
-            queue = client_pool.get_private_client().queue(blogName, limit=20)["posts"]
+            queue = client_pool.get_private_client().queue(blogName, limit=50)["posts"]
 
             n_posts_in_queue = len(queue)
             print(f"now {n_posts_in_queue} posts in queue")
 
-    if n_posts_in_queue < WRITE_POSTS_WHEN_QUEUE_BELOW:
+    should_write_testpost = n_posts_in_queue < WRITE_POSTS_WHEN_QUEUE_BELOW
+
+    if AVOID_FILLING_NEXT_DAY_QUEUE:
+        last_queued_post_ts_posix = max(pp.get('scheduled_publish_time', 0) for pp in queue)
+        last_queued_post_ts = fromtimestamp_pst(last_queued_post_ts_posix)
+
+        now_ts = now_pst()
+
+        crosses_midnight = (
+            last_queued_post_ts.day > now_ts.day
+            or last_queued_post_ts.month > now_ts.month
+            or last_queued_post_ts.year > now_ts.year
+        )
+
+        if last_queued_post_day > current_day:
+            should_write_testpost = False
+            print(f"not writing new text post: queue extends to {last_queued_post_ts}, vs current time {now_ts}")
+
+    if should_write_testpost:
         for textpost_ix in range(N_TO_WRITE):
             timestamp = next_queued_post_time()
             mood_for_queue_writing = determine_mood(response_cache, dt=timestamp)

@@ -275,7 +275,7 @@ def kv_buffer_scope(
     try:
         yield None
     finally:
-        if orig_adapters_attached:
+        if is_magma_wrapper:
             model.detach_adapters()
 
         lm.use_kv_buffer(orig_enabled)

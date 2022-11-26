@@ -1477,12 +1477,10 @@ def is_statically_reblog_worthy_on_dash(
 
     for trail_entry in post_payload.get("trail", []):
         if trail_entry.get("blog", {}).get("name", "") in USER_AVOID_LIST:
-            if verbose:
-                print(f"\trejecting {post_identifier}: trail user avoid list")
+            vprint(f"\trejecting {post_identifier}: trail user avoid list")
             return False, False
         if int(trail_entry.get("post", {}).get("id", -1)) in NO_REBLOG_IDS:
-            if verbose:
-                print(f"\trejecting {post_identifier}: reblog id avoid list")
+            vprint(f"\trejecting {post_identifier}: reblog id avoid list")
             return False, False
 
     if am_i_tagged_in_reblog(post_payload):

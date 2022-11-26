@@ -3084,7 +3084,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
 def do_queue_handling(loop_persistent_data, response_cache):
     global client_pool
-    queue = client_pool.get_private_client().queue(blogName, limit=20)["posts"]
+    queue = client_pool.get_private_client().queue(blogName, limit=50)["posts"]
 
     n_posts_in_queue = len(queue)
     print(f"{n_posts_in_queue} posts in queue")

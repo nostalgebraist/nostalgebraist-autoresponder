@@ -3413,6 +3413,9 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     for is_nost_dash_scraper in (True, False):
         if is_nost_dash_scraper:
             do_this_check = do_check
+
+            relevant_ratelimit_data = client_pool.get_private_client().get_ratelimit_data()
+            do_this_check = do_this_check and relevant_ratelimit_data["effective_remaining"] > 0
         else:
             do_this_check = get_checkprob_and_roll(
                 loop_persistent_data,
@@ -3420,6 +3423,8 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                 dashboard=True,
                 skip_most_recent_record=False
             )
+            relevant_ratelimit_data = client_pool.get_dashboard_client().get_ratelimit_data()
+            do_this_check = do_this_check and relevant_ratelimit_data["effective_remaining"] > 0
 
         n_posts_to_check_dash = loop_persistent_data.n_posts_to_check_dash if do_this_check else 0
 

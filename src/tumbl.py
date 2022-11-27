@@ -901,7 +901,7 @@ class LoopPersistentData:
         requests_per_check_history_private=[],
         requests_per_check_history_dash=[],
         apriori_requests_per_check=10,
-        apriori_requests_per_check_dash=100,
+        apriori_requests_per_check_dash=200,
         retention_stack: set = set(),
         retention_logit_diff_lookup: dict = dict(),
         slowdown_level: dict = BASE_SLOWDOWN_LEVEL,

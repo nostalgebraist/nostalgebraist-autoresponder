@@ -3409,17 +3409,19 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
             loop_persistent_data, response_cache
         )
 
-
     # dash check
-    for is_nost_dash_scraper, relevant_client in [
-        (True, client_pool.get_private_client()),
-        (False, client_pool.get_dashboard_client()),
-    ]:
-        do_check = get_checkprob_and_roll(loop_persistent_data,
-                                          client_pool,
-                                          dashboard=not is_nost_dash_scraper,
-                                          skip_most_recent_record=is_nost_dash_scraper)
-        n_posts_to_check_dash = loop_persistent_data.n_posts_to_check_dash if do_check else 0
+    for is_nost_dash_scraper in (True, False):
+        if is_nost_dash_scraper:
+            do_this_check = do_check
+        else:
+            do_this_check = get_checkprob_and_roll(
+                loop_persistent_data,
+                client_pool,
+                dashboard=True,
+                skip_most_recent_record=False
+            )
+
+        n_posts_to_check_dash = loop_persistent_data.n_posts_to_check_dash if do_this_check else 0
 
         if n_posts_to_check_dash > 0:
             print(f"checking dash (is_nost_dash_scraper={is_nost_dash_scraper})...")
@@ -3433,8 +3435,9 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                 is_nost_dash_scraper=is_nost_dash_scraper
             )
         else:
-            print("skipping dash check this time")
-            loop_persistent_data.requests_per_check_history_dash.append(0)
+            print(f"skipping dash check this time (is_nost_dash_scraper={is_nost_dash_scraper})")
+            if not is_nost_dash_scraper:
+                loop_persistent_data.requests_per_check_history_dash.append(0)
 
     ### do another asks check
     loop_persistent_data, response_cache = _mainloop_asks_block(

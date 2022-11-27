@@ -2124,7 +2124,7 @@ def do_reblog_reply_handling(
         relevant_last_seen_id_key
     )
 
-    count_check_requests_start = client_pool.remaining(relevant_client_type)
+    count_check_requests_start = client_pool.remaining()
 
     expected_pages = max(1, n_posts_to_check // 50)
     max_pages = expected_pages + max_pages_beyond_expected
@@ -2580,7 +2580,7 @@ def do_reblog_reply_handling(
 
     ### post-check stuff
 
-    count_check_requests_end = client_pool.remaining(relevant_client_type)
+    count_check_requests_end = client_pool.remaining()
     count_check_requests_diff = count_check_requests_start - count_check_requests_end
     print(f"used {count_check_requests_diff} requests in this check")
 
@@ -3343,8 +3343,8 @@ def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False, s
 
     mainloop_times_sample = loop_persistent_data.mainloop_times[-30:]
 
-    requests_needed_to_check = np.percentile(requests_per_check_sample, 60)
-    time_per_cycle = np.percentile(mainloop_times_sample, 40)
+    requests_needed_to_check = np.percentile(requests_per_check_sample, 70)
+    time_per_cycle = np.percentile(mainloop_times_sample, 30)
     print(f"requests_needed_to_check: {requests_needed_to_check} based on history\n{requests_per_check_sample}\n")
     print(f"time_per_cycle: {time_per_cycle} based on history\n{mainloop_times_sample}\n")
 

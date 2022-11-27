@@ -3428,7 +3428,7 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
 
     # dash check
     for is_nost_dash_scraper in (True, False):
-            n_posts_to_check_dash = loop_persistent_data.n_posts_to_check_dash
+        n_posts_to_check_dash = loop_persistent_data.n_posts_to_check_dash
 
         if is_nost_dash_scraper:
             do_this_check = do_check

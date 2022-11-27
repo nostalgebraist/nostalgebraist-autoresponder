@@ -922,6 +922,7 @@ class LoopPersistentData:
         self.requests_per_check_history_private = requests_per_check_history_private
         self.requests_per_check_history_dash = requests_per_check_history_dash
         self.apriori_requests_per_check = apriori_requests_per_check
+        self.apriori_requests_per_check_dash = apriori_requests_per_check_dash
         self.retention_stack = retention_stack
         self.retention_logit_diff_lookup = retention_logit_diff_lookup
         self.slowdown_level = slowdown_level

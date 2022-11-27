@@ -3352,7 +3352,7 @@ def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False, s
         requests_per_check=requests_needed_to_check,
         time_per_cycle=time_per_cycle,
         verbose=True,
-        client_type='dashboard' if dashboard else 'private'
+        client_type='any' if dashboard else 'private'
     )
 
     print(

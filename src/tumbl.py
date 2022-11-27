@@ -2240,6 +2240,10 @@ def do_reblog_reply_handling(
             print(f"bailing with {len(posts)} posts: zero novel ids")
             break
 
+        limit_ = min(50, n_posts_to_check - len(posts))
+        if limit_ <= 0:
+            break
+
         time.sleep(0.1)
         next_posts, next_offset, extras = post_getter(
             limit=limit_, offset=offset_, notes_info=(not is_dashboard),

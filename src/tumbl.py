@@ -3380,8 +3380,8 @@ def get_checkprob_and_roll(
 
     mainloop_times_sample = loop_persistent_data.mainloop_times[-30:]
 
-    requests_needed_to_check = np.percentile(requests_per_check_sample, 70)
-    time_per_cycle = np.percentile(mainloop_times_sample, 30)
+    requests_needed_to_check = np.mean(requests_per_check_sample)
+    time_per_cycle = np.mean(mainloop_times_sample)
     print(f"requests_needed_to_check: {requests_needed_to_check} based on history\n{requests_per_check_sample}\n")
     print(f"time_per_cycle: {time_per_cycle} based on history\n{mainloop_times_sample}\n")
 

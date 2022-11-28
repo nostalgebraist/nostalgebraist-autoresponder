@@ -143,6 +143,7 @@ class ClientPool:
         verbose=False,
         client_type='any',
         outside_requests_per_cycle=0,
+        safety_factor=1.0,
     ):
         def vprint(*args, **kwargs):
             if verbose:
@@ -159,7 +160,11 @@ class ClientPool:
 
         # if we checked *every* cycle, we could support up this many requests per check
         requests_per_cycle = time_per_cycle * summed_max_rate
-        vprint(f"requests_per_cycle: {requests_per_cycle:.4f} (vs requests_per_check {requests_per_check:.4})")
+
+        safety_str = f" ({requests_per_cycle:.4f} * {safety_factor:.2f})" if safety_factor != 1.0 else ""
+        requests_per_cycle *= safety_factor
+
+        vprint(f"requests_per_cycle: {requests_per_cycle:.4f}{safety_str} (vs requests_per_check {requests_per_check:.4})")
 
         # we'll check only a fraction `checkprob` of the cycles, to support up to `requests_needed_to_check`
         checkprob = requests_per_cycle / max(requests_per_check, 1)

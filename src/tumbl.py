@@ -3351,7 +3351,16 @@ def do_rts(response_cache):
     return response_cache
 
 
-def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False, skip_most_recent_record=False):
+def get_checkprob_and_roll(
+    loop_persistent_data,
+    client_pool,
+    dashboard=False,
+    skip_most_recent_record=False,
+    safety_factor=None,
+):
+    if safety_factor is None:
+        safety_factor = 0.8 if dashboard else 1.0
+
     if dashboard:
         requests_per_check_sample = [
             rate * loop_persistent_data.n_posts_to_check_dash
@@ -3382,6 +3391,7 @@ def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False, s
         verbose=True,
         client_type='any' if dashboard else 'private',
         outside_requests_per_cycle=outside_requests_per_cycle,
+        safety_factor=safety_factor,
     )
 
     print(

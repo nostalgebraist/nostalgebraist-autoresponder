@@ -3353,13 +3353,18 @@ def do_rts(response_cache):
 
 def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False, skip_most_recent_record=False):
     if dashboard:
-        # requests_per_check_sample = loop_persistent_data.requests_per_check_history_dash[-30:]
         requests_per_check_sample = [
             rate * loop_persistent_data.n_posts_to_check_dash
             for rate in loop_persistent_data.dash_requests_per_post_history[-30:]
         ]
+
+        # assumes we do non-frankdash checks 100% of the time
+        outside_requests_per_cycle = np.mean(loop_persistent_data.requests_per_check_history_private[-30:])
     else:
         requests_per_check_sample = loop_persistent_data.requests_per_check_history_private[-30:]
+
+        # ignores frankdash check
+        outside_requests_per_cycle = 0
 
     if skip_most_recent_record:
         requests_per_check_sample = requests_per_check_sample[:-1]
@@ -3375,7 +3380,8 @@ def get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False, s
         requests_per_check=requests_needed_to_check,
         time_per_cycle=time_per_cycle,
         verbose=True,
-        client_type='any' if dashboard else 'private'
+        client_type='any' if dashboard else 'private',
+        outside_requests_per_cycle=outside_requests_per_cycle,
     )
 
     print(

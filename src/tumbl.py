@@ -3364,13 +3364,13 @@ def get_checkprob_and_roll(
     if dashboard:
         requests_per_check_sample = [
             rate * loop_persistent_data.n_posts_to_check_dash
-            for rate in loop_persistent_data.dash_requests_per_post_history[-30:]
+            for rate in loop_persistent_data.dash_requests_per_post_history[-10:]
         ]
 
         # assumes we do non-frankdash checks 100% of the time
-        outside_requests_per_cycle = np.mean(loop_persistent_data.requests_per_check_history_private[-30:])
+        outside_requests_per_cycle = np.mean(loop_persistent_data.requests_per_check_history_private[-10:])
     else:
-        requests_per_check_sample = loop_persistent_data.requests_per_check_history_private[-30:]
+        requests_per_check_sample = loop_persistent_data.requests_per_check_history_private[-10:]
 
         # ignores frankdash check
         outside_requests_per_cycle = 0
@@ -3378,7 +3378,7 @@ def get_checkprob_and_roll(
     if skip_most_recent_record:
         requests_per_check_sample = requests_per_check_sample[:-1]
 
-    mainloop_times_sample = loop_persistent_data.mainloop_times[-30:]
+    mainloop_times_sample = loop_persistent_data.mainloop_times[-10:]
 
     requests_needed_to_check = np.mean(requests_per_check_sample)
     time_per_cycle = np.mean(mainloop_times_sample)

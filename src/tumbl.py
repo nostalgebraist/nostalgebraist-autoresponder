@@ -3383,7 +3383,7 @@ def get_checkprob_and_roll(
     mainloop_times_sample = loop_persistent_data.mainloop_times[-10:]
 
     # filter extremes
-    requests_per_check_sample = [r for r in requests_per_check_sample if 0 < t]
+    requests_per_check_sample = [r for r in requests_per_check_sample if 0 < r]
     mainloop_times_sample = [t for t in mainloop_times_sample if 0 < t < 1800]
 
     requests_needed_to_check = np.mean(requests_per_check_sample)

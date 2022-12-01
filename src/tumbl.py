@@ -2620,12 +2620,11 @@ def do_reblog_reply_handling(
                 loop_persistent_data.dash_requests_per_post_history.append(count_check_requests_diff / len(posts))
 
         # update last_seen_ts
-        response_cache.update_last_seen_ts(relevant_last_seen_ts_key, updated_last_seen_ts)
         response_cache.update_last_seen_ts(relevant_last_seen_id_key, updated_last_seen_id)
-        # print(
-        #     f"updating {relevant_last_seen_ts_key}: {relevant_last_seen_ts} --> {updated_last_seen_ts} (+{updated_last_seen_ts-relevant_last_seen_ts})"
-        # )
-        # setattr(loop_persistent_data, relevant_last_seen_ts_key, updated_last_seen_ts)
+        response_cache.update_last_seen_ts(relevant_last_seen_ts_key, updated_last_seen_ts)
+
+        backlog_minutes = (datetime.now() - datetime.fromtimestamp(updated_last_seen_ts)).total_seconds() / 60
+        print(f"running {backlog_minutes:.1f} minutes behind")
     else:
         # record calls for this check
         loop_persistent_data.requests_per_check_history_private.append(

@@ -933,11 +933,11 @@ class LoopPersistentData:
 
         if len(self.requests_per_check_history_private) == 0:
             self.requests_per_check_history_private.extend(
-                [self.apriori_requests_per_check, self.apriori_requests_per_check]
+                [self.apriori_requests_per_check]
             )
         if len(self.requests_per_check_history_dash) == 0:
             self.requests_per_check_history_dash.extend(
-                [self.apriori_requests_per_check_dash, self.apriori_requests_per_check_dash]
+                [self.apriori_requests_per_check_dash]
             )
         if len(self.mainloop_times) == 0:
             self.mainloop_times.extend(

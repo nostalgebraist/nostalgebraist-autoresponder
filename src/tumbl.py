@@ -1514,8 +1514,17 @@ def is_statically_reblog_worthy_on_dash(
         vprint(f"\tno-scrape {post_identifier}: contains .gif")
         scrape_worthy = False
 
-    def calc_keep_prob(n_img, text_block_nwords, discount_words_per_image=30, max_imgs_scrape=10):
-        n_img_discounted = max(0.01, n_img - (text_block_nwords / discount_words_per_image))
+    def calc_keep_prob(
+        n_img,
+        text_block_nwords,
+        discount_words_per_image=30,
+        costless_up_to_imgs=2,
+        max_imgs_scrape=10,
+    ):
+        n_img_discounted = n_img - costless_up_to_imgs
+        n_img_discounted -= (text_block_nwords / discount_words_per_image)
+        n_img_discounted = max(0.001, n_img_discounted)
+
         keep_prob_n_img = 1/(n_img_discounted+1)
         keep_prob_n_img = max(0., min(1., keep_prob_n_img))
         if n_img > max_imgs_scrape:

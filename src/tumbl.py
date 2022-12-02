@@ -1566,8 +1566,8 @@ def is_statically_reblog_worthy_on_dash(
         vprint(f"\tno-reblog {post_identifier}: tag avoid list")
         reblog_worthy = False
 
-    if post_payload.get("note_count") >= 1500:
-        vprint(f"\tno-reblog {post_identifier}: notes >= 1500")
+    if post_payload.get("note_count") >= 1500 and not has_comment:
+        vprint(f"\tno-reblog {post_identifier}: notes >= 1500 and no comment")
         reblog_worthy = False
 
     # must follow OP

@@ -266,7 +266,7 @@ if not model_path:
 ckpt_captioner = None
 
 if V12_19:
-    ckpt_select = "selector/v12_19/v4_experimental/"
+    ckpt_select = "selector/v12_19/v7_experimental/"
     ckpt_sentiment = "sentiment/v12_19/v2/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_19/v4_experimental/"
     ckpt_captioner = "captioner/v12_19/v1/"

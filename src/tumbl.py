@@ -13,6 +13,7 @@ from string import punctuation, whitespace
 from itertools import product
 from collections import defaultdict
 from pprint import pprint
+from wcwidth import wcwidth
 
 import requests
 import time
@@ -239,6 +240,16 @@ RTS_COMMAND = "rts"
 ACCEPT_COMMAND = "a"
 
 GLOBAL_TESTING_FLAG = False
+
+
+def split_and_count_words(text):
+    """
+    Split text with .split().
+    Count words by max char width -- ZWJ counts for nothing, CJK/emoji count 2x.
+    """
+    words = list(filter(lambda w: len(w) > 0, text.split()))
+    n_words = sum(max(map(wcwidth, w)) for w in words)
+    return words, n_words
 
 
 def roll_for_limited_users(name, sleep_time, text=""):
@@ -1032,10 +1043,10 @@ def prioritize_reblogs_replies(
         else:
             user_text = format_and_normalize_post_html(thread.posts[-1].to_html())
 
-        word_count = len(user_text.split())
+        words, word_count = split_and_count_words(user_text)
 
         vprint(ident)
-        vprint(user_text.split())
+        vprint(words)
 
         cost = 0
         for item in [
@@ -1466,7 +1477,7 @@ def is_statically_reblog_worthy_on_dash(
     block_types = {bl['type'] for bl in blocks}
 
     text_block_text = ' '.join(bl['text'] for bl in blocks if bl['type'] == 'text')
-    text_block_nwords = len(text_block_text.split())
+    _, text_block_nwords = split_and_count_words(text_block_text)
 
     try:
         p_body = get_body(post_payload)
@@ -2814,10 +2825,10 @@ def do_ask_handling(loop_persistent_data, response_cache):
         word_source = ' '.join(
             bl.get('text', '') for bl in post_payload.get('content', []) if bl.get('type', '') == 'text'
         )
-        words = [w for w in word_source.split(" ") if len(w) > 0]
+        words, n_words = split_and_count_words(word_source)
         block_types = [bl.get('type') for bl in post_payload['content']]
 
-        ask_ruleout_too_short = len(words) < ask_min_words and not post_payload["question"].startswith("<p>!")
+        ask_ruleout_too_short = n_words < ask_min_words and not post_payload["question"].startswith("<p>!")
         ask_ruleout_no_text = not any(blt == 'text' for blt in block_types)
         ask_ruleout_too_many_images = sum(blt == 'image' for blt in block_types) > 5
 

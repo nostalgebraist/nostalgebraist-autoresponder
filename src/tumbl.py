@@ -3212,7 +3212,7 @@ def check_for_rts_loop(ident, pid, tags, response_cache):
 
 def do_rts(response_cache):
     global client_pool
-    drafts = client_pool.get_private_client().drafts(blogName, reblog_info=True)["posts"]
+    drafts = client_pool.get_private_client().drafts(blogName, reblog_info=True, limit=50)["posts"]
     to_send_back = [p for p in drafts if RTS_COMMAND in p["tags"]]
     to_autopub = [p for p in drafts if ACCEPT_COMMAND in p["tags"]]
 

@@ -1008,6 +1008,7 @@ def prioritize_reblogs_replies(
     short_under_n_words=4,
     short_cost=6,
     empty_cost=10,
+    year_in_review_cost=15,
     api_fail_cost=10000,
     verbose=True
 ):
@@ -1048,15 +1049,26 @@ def prioritize_reblogs_replies(
         vprint(ident)
         vprint(words)
 
+        is_year_in_review = len(
+            re.findall(
+                r"Tumblr [0-9]{4,} Year in Review",
+                thread.posts[-1].to_html()
+            )
+        ) > 0
+
         cost = 0
         for item in [
             (thread_length_cost, thread_length, "thread_length"),
             (word_cost, min(word_count, word_cost_first_n_words), "min(word_count, word_cost_first_n_words)"),
             (short_cost, (word_count < short_under_n_words), "word_count < short_under_n_words"),
-            (empty_cost, (word_count <= 1), "word_count <= 1")
+            (empty_cost, (word_count <= 1), "word_count <= 1"),
         ]:
             cost += item[0] * item[1]
             vprint(f"\tcost now {cost:.1f} | added {item[0] * item[1]:.1f} with {item[2]}={item[1]}")
+
+        if is_year_in_review:
+            cost += year_in_review_cost
+            vprint(f"\tcost now {cost:.1f} | added {year_in_review_cost:.1f} with is_year_in_review=True")
         vprint()
 
         costs[ident] = cost

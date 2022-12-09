@@ -8,6 +8,7 @@ import urllib.parse
 import argparse
 import random
 import json
+import re
 from datetime import datetime, timedelta
 from string import punctuation, whitespace
 from itertools import product

@@ -2938,9 +2938,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
             kind = 'ask'
             user = pp['asking_name']
             substring, _, _ = construct_prob_delta_prompts_for_ask(TumblrThread.from_payload(pp), **pd_kwargs)
-            id_to_prob_delt[pp['id']] =
-            if ARCHIVE_ASK_PROB_DELT:
-                archive_prob_delt(kind=kind, user=user, substring=substring, prob_delt=pd)
+            archive_prob_delt(kind=kind, user=user, substring=substring, prob_delt=pd)
 
     for ix, post_payload in enumerate(submissions):
         print(f'\nhandling ask {ix+1}/{len(submissions)}')

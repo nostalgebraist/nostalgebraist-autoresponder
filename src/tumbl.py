@@ -229,6 +229,8 @@ ARCHIVE_ASK_PROB_DELT = True
 ARCHIVE_DASH_PROB_DELT = True
 USE_MASKED_DASK_PROB_DELT = True
 
+SORT_ASKS_BY_PROB_DELT = True
+
 DASH_CHECKPROB_IS_DISCOUNT = True
 
 MAX_RTS_COUNT = 3
@@ -2889,6 +2891,34 @@ def do_ask_handling(loop_persistent_data, response_cache):
     max_posts_per_step_with_slowdown = max_posts_per_step(loop_persistent_data.slowdown_level)
     kept = submissions[::-1][:max_posts_per_step_with_slowdown]
     excluded = submissions[::-1][max_posts_per_step_with_slowdown:]
+
+
+    if SORT_ASKS_BY_PROB_DELT and max_posts_per_step_with_slowdown < len(submissions):
+        with LogExceptionAndSkip("sorting by prob delt"):
+            id_to_prob_delt = {}
+
+            command_asks, non_command_asks = [], []
+            for pp in submissions:
+                if pp.get("summary", "").startswith("!"):
+                    command_asks.append(pp)
+                else:
+                    non_command_asks.append(pp)
+
+            pd_kwargs = dict(skip_asking_name=True)
+            prob_delts = get_prob_delta_for_payloads(non_command_asks, blogName, is_ask=True, **pd_kwargs)
+
+            id_to_prob_delt = {pp['id']: pd for pp, pd in zip(non_command_asks, prob_delts)}
+
+            ordered_non_command_asks = sorted(non_command_asks, key=lambda pp: id_to_prob_delt[pp['id']])
+            print("sorted non-command asks as follows:")
+            for pp in ordered_non_command_asks:
+                print(f"\t prob_delt={id_to_prob_delt[pp['id']]:.3f} | {pp['asking_name']}, question={pp['question']}")
+            ordered_asks = ordered_non_command_asks + command_asks
+
+            kept = ordered_asks[::-1][:max_posts_per_step_with_slowdown]
+            excluded = ordered_asks[::-1][max_posts_per_step_with_slowdown:]
+
+
     if len(excluded) > 0:
         print(
             f"saving {len(excluded)} of {len(submissions)} for later with MAX_POSTS_PER_STEP={max_posts_per_step_with_slowdown}"
@@ -2908,7 +2938,9 @@ def do_ask_handling(loop_persistent_data, response_cache):
             kind = 'ask'
             user = pp['asking_name']
             substring, _, _ = construct_prob_delta_prompts_for_ask(TumblrThread.from_payload(pp), **pd_kwargs)
-            archive_prob_delt(kind=kind, user=user, substring=substring, prob_delt=pd)
+            id_to_prob_delt[pp['id']] =
+            if ARCHIVE_ASK_PROB_DELT:
+                archive_prob_delt(kind=kind, user=user, substring=substring, prob_delt=pd)
 
     for ix, post_payload in enumerate(submissions):
         print(f'\nhandling ask {ix+1}/{len(submissions)}')

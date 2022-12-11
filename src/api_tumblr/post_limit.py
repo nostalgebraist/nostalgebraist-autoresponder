@@ -145,8 +145,12 @@ def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hard
     _, rate = compute_rate_over_last_hours(post_payloads, avg_over_hours=avg_over_hours, now=now)
     n_since_reset = count_posts_since_reset(post_payloads, now=now)
 
+    queue_pad = 0
+    if queued_post_times_pst is not None:
+        queue_pad = count_queued_posts_before_reset(queued_post_times_pst, now=now, verbose=verbose)
+
     ratio = rate / max_rate
-    n_remaining = max_per_24h - n_since_reset
+    n_remaining = max_per_24h - n_since_reset - queue_pad
 
     selected = None
     for level in SLOWDOWN_LEVELS:
@@ -156,11 +160,7 @@ def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hard
     if selected is None:
         selected = sorted(SLOWDOWN_LEVELS, key=lambda d: d["rate_ratio_thresh"])[-1]
 
-    queue_pad = 0
-    if queued_post_times_pst is not None:
-        queue_pad = count_queued_posts_before_reset(queued_post_times_pst, now=now, verbose=verbose)
-
-    hardstopping = n_remaining <= (HARDSTOP_AT_N_REMAINING + hardstop_pad + queue_pad)
+    hardstopping = n_remaining <= (HARDSTOP_AT_N_REMAINING + hardstop_pad)
 
     if hardstopping:
         selected = HARDSTOP_SLOWDOWN_LEVEL

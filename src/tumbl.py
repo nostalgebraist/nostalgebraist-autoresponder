@@ -2820,7 +2820,7 @@ def handle_mood_command(response_cache, post_payload, n_days=MOOD_GRAPH_N_DAYS):
 
 def do_ask_handling(loop_persistent_data, response_cache):
     global client_pool
-    submissions = client_pool.get_private_client().submission(blogName)["posts"]
+    submissions = client_pool.get_private_client().submission(blogName, limit=50)["posts"]
 
     for pid in loop_persistent_data.manual_ask_post_ids:
         response = client_pool.get_private_client().posts(blogName, id=pid)

@@ -923,6 +923,7 @@ class LoopPersistentData:
         mainloop_times=[],
         apriori_mainloop_time=EFFECTIVE_SLEEP_TIME * 1.5,
         dash_requests_per_post_history=None,
+        queued_post_times_pst=None,
     ):
         self.reblogs_from_me = reblogs_from_me
         self.reblog_worthy_dash_posts = reblog_worthy_dash_posts
@@ -944,6 +945,8 @@ class LoopPersistentData:
         self.mainloop_times = mainloop_times
         self.apriori_mainloop_time = apriori_mainloop_time
         self.dash_requests_per_post_history = dash_requests_per_post_history
+
+        self.queued_post_times_pst = queued_post_times_pst
 
         if len(self.requests_per_check_history_private) == 0:
             self.requests_per_check_history_private.extend(
@@ -2321,7 +2324,16 @@ def do_reblog_reply_handling(
     print(f"{len(posts)} after dedup")
 
     if not is_dashboard:
-        loop_persistent_data.slowdown_level = select_slowdown_level(posts_no_filters, ref_level=loop_persistent_data.slowdown_level, hardstop_pad=WRITE_POSTS_WHEN_QUEUE_BELOW)
+        if loop_persistent_data.queued_post_times_pst is None:
+            queue = client_pool.get_private_client().queue(blogName, limit=50)["posts"]
+            loop_persistent_data = update_queued_post_times_pst(loop_persistent_data, queue)
+
+        loop_persistent_data.slowdown_level = select_slowdown_level(
+            posts_no_filters,
+            ref_level=loop_persistent_data.slowdown_level,
+            hardstop_pad=5,  # fudge factor for nost posts + potential errors in our post counting methodology
+            queued_post_times_pst=loop_persistent_data.queued_post_times_pst,
+        )
     if not is_dashboard:
         print("checking notifications...")
         notifications = check_notifications(
@@ -3161,9 +3173,21 @@ def do_ask_handling(loop_persistent_data, response_cache):
     return loop_persistent_data, response_cache, n_asks
 
 
+def update_queued_post_times_pst(loop_persistent_data, queue):
+    loop_persistent_data.queued_post_times_pst = [
+        fromtimestamp_pst(pp['scheduled_publish_time'])
+        for pp in queue
+        if 'scheduled_publish_time' in pp
+    ]
+    return loop_persistent_data
+
+
+
 def do_queue_handling(loop_persistent_data, response_cache):
     global client_pool
+
     queue = client_pool.get_private_client().queue(blogName, limit=50)["posts"]
+    loop_persistent_data = update_queued_post_times_pst(loop_persistent_data, queue)
 
     n_posts_in_queue = len(queue)
     print(f"{n_posts_in_queue} posts in queue")
@@ -3178,6 +3202,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
                 client_pool.get_private_client().delete_post(blogName, id=pid)
 
             queue = client_pool.get_private_client().queue(blogName, limit=50)["posts"]
+            loop_persistent_data = update_queued_post_times_pst(loop_persistent_data, queue)
 
             n_posts_in_queue = len(queue)
             print(f"now {n_posts_in_queue} posts in queue")
@@ -3237,7 +3262,9 @@ def do_queue_handling(loop_persistent_data, response_cache):
                 reject_action="do_not_post"
             )
 
-        n_posts_in_queue = len(client_pool.get_private_client().queue(blogName, limit=20)["posts"])
+        queue = client_pool.get_private_client().queue(blogName, limit=50)["posts"]
+        n_posts_in_queue = len(queue)
+        loop_persistent_data = update_queued_post_times_pst(loop_persistent_data, queue)
         print(f"now {n_posts_in_queue} posts in queue")
 
         response_cache = do_rts(response_cache)

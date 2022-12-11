@@ -27,7 +27,6 @@ def post_limit_reset_ts(now=None):
     # this assumes:
     #   - tumblr resets at midnight EST
     #   - frank is running in PST
-    # TODO: revisit this if i'm on vacation or something
 
     if now is None:
         now = now_pst()
@@ -126,7 +125,20 @@ def review_rates(post_payloads, max_per_24h=250, hour_windows=(1, 2, 4, 12,), no
         print(msg)
 
 
+def count_queued_posts_before_reset(queued_post_times_pst, now=None, verbose=True):
+    reset_ts = post_limit_reset_ts(now=now)
+
+    n_before_reset = sum(ts < reset_ts for ts in queued_post_times_pst)
+
+    if verbose:
+        n_total = len(queued_post_times_pst)
+        print(f"of {n_total} queued posts, {n_before_reset} are before the post limit reset")
+
+    return n_before_reset
+
+
 def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hardstop_pad=0, ref_level=None, now=None,
+                          queued_post_times_pst=None,
                           verbose=True):
     max_rate = compute_max_rate_until_next_reset(post_payloads, now=now, max_per_24h=max_per_24h)
 
@@ -144,7 +156,11 @@ def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hard
     if selected is None:
         selected = sorted(SLOWDOWN_LEVELS, key=lambda d: d["rate_ratio_thresh"])[-1]
 
-    hardstopping = n_remaining <= (HARDSTOP_AT_N_REMAINING + hardstop_pad)
+    queue_pad = 0
+    if queued_post_times_pst is not None:
+        queue_pad = count_queued_posts_before_reset(queued_post_times_pst, now=now, verbose=verbose)
+
+    hardstopping = n_remaining <= (HARDSTOP_AT_N_REMAINING + hardstop_pad + queue_pad)
 
     if hardstopping:
         selected = HARDSTOP_SLOWDOWN_LEVEL

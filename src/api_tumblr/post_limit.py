@@ -126,13 +126,13 @@ def review_rates(post_payloads, max_per_24h=250, hour_windows=(1, 2, 4, 12,), no
 
 
 def count_queued_posts_before_reset(queued_post_times_pst, now=None, verbose=True):
-    reset_ts = post_limit_reset_ts(now=now)
+    next_reset_ts = post_limit_reset_ts(now=now) + timedelta(hours=24)
 
-    n_before_reset = sum(ts < reset_ts for ts in queued_post_times_pst)
+    n_before_reset = sum(ts < next_reset_ts for ts in queued_post_times_pst)
 
     if verbose:
         n_total = len(queued_post_times_pst)
-        print(f"of {n_total} queued posts, {n_before_reset} are before the post limit reset")
+        print(f"of {n_total} queued posts, {n_before_reset} are before the next post limit reset")
 
     return n_before_reset
 

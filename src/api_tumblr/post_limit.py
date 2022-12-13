@@ -1,14 +1,14 @@
 from datetime import datetime, timedelta, time as dtime
 from util.times import now_pst, fromtimestamp_pst
 
-BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thresh": 60, "SLEEP_TIME_scale": 1.,
+BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thresh": 40, "SLEEP_TIME_scale": 1.,
                        "MAX_POSTS_PER_STEP_scale": 1., "STOP_ABOVE_COST_modifier": 0.}
 
 SLOWDOWN_LEVELS = [
     BASE_SLOWDOWN_LEVEL,
-    {"name": "slower", "rate_ratio_thresh": 1.5, "n_remaining_thresh": 40, "SLEEP_TIME_scale": 2.5,
+    {"name": "slower", "rate_ratio_thresh": 1.5, "n_remaining_thresh": 25, "SLEEP_TIME_scale": 2.5,
      "MAX_POSTS_PER_STEP_scale": 3.1 / 5, "STOP_ABOVE_COST_modifier": -1.5},
-    {"name": "slower2", "rate_ratio_thresh": 2, "n_remaining_thresh": 25, "SLEEP_TIME_scale": 5,
+    {"name": "slower2", "rate_ratio_thresh": 2, "n_remaining_thresh": 5, "SLEEP_TIME_scale": 5,
      "MAX_POSTS_PER_STEP_scale": 2.1 / 5, "STOP_ABOVE_COST_modifier": -3.},
     {"name": "slowest", "rate_ratio_thresh": 1000, "n_remaining_thresh": 0, "SLEEP_TIME_scale": 10,
      "MAX_POSTS_PER_STEP_scale": 1.1 / 5, "STOP_ABOVE_COST_modifier": -3.},

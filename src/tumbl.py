@@ -2886,6 +2886,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
             print(f"Ignoring many-image ask from {repr(post_payload['asking_name'])} with block types: {repr(block_types)}, question {repr(post_payload['question'][:1000])}")
         elif USERLIST_MODE and post_payload['asking_name'] not in loop_persistent_data.user_list:
             print(f"Ignoring question from user {repr(post_payload['asking_name'])}: {repr(post_payload['question'][:1000])}")
+            client_pool.get_private_client().delete_post(blogName, id=post_payload['id'])
         else:
             submissions_.append(post_payload)
     submissions = submissions_

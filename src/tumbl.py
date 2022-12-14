@@ -2875,18 +2875,24 @@ def do_ask_handling(loop_persistent_data, response_cache):
         ask_ruleout_no_text = not any(blt == 'text' for blt in block_types)
         ask_ruleout_too_many_images = sum(blt == 'image' for blt in block_types) > 5
 
+        ask_ruleout_userlist = (
+            USERLIST_MODE
+            and post_payload['asking_name'] not in loop_persistent_data.user_list
+            and post_payload['summary'] not in {FOLLOW_COMMAND, UNFOLLOW_COMMAND}
+        )
+
         if post_payload['id'] in loop_persistent_data.manual_ask_post_ids:
             print(f"Skipping rule-outs for manually answered question from {repr(post_payload['asking_name'])}: {repr(post_payload['question'][:1000])}")
             submissions_.append(post_payload)
+        elif ask_ruleout_userlist:
+            print(f"Ignoring question from user {repr(post_payload['asking_name'])}: {repr(post_payload['question'][:1000])}")
+            client_pool.get_private_client().delete_post(blogName, id=post_payload['id'])
         elif ask_ruleout_too_short:
             print(f"Ignoring short question from {repr(post_payload['asking_name'])}: {repr(post_payload['question'][:1000])}")
         elif ask_ruleout_no_text:
             print(f"Ignoring no-text ask from {repr(post_payload['asking_name'])} with block types: {repr(block_types)}, question {repr(post_payload['question'][:1000])}")
         elif ask_ruleout_too_many_images:
             print(f"Ignoring many-image ask from {repr(post_payload['asking_name'])} with block types: {repr(block_types)}, question {repr(post_payload['question'][:1000])}")
-        elif USERLIST_MODE and post_payload['asking_name'] not in loop_persistent_data.user_list:
-            print(f"Ignoring question from user {repr(post_payload['asking_name'])}: {repr(post_payload['question'][:1000])}")
-            client_pool.get_private_client().delete_post(blogName, id=post_payload['id'])
         else:
             submissions_.append(post_payload)
     submissions = submissions_

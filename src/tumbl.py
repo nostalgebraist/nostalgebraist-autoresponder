@@ -2025,10 +2025,18 @@ def get_relevant_replies_from_notes(
             care_about_notes=False,
         )
 
-        for trail_entry in reply_context_post.get("trail", []):
+        reply_context_post_trail = reply_context_post.get("trail", [])
+
+        for trail_entry in reply_context_post_trail:
             if trail_entry.get("blog", {}).get("name", "") in USER_AVOID_LIST:
                 return replies_to_handle, loop_persistent_data, response_cache
             if int(trail_entry.get("post", {}).get("id", -1)) in NO_REBLOG_IDS:
+                return replies_to_handle, loop_persistent_data, response_cache
+
+        for trail_entry in reply_context_post_trail[1:]:
+            # if OP is nostalgebraist, this is probably a mod post
+            # so replies to it are probably for me
+            if trail_entry.get("blog", {}).get("name", "") == "nostalgebraist":
                 return replies_to_handle, loop_persistent_data, response_cache
 
         reply_identifier = ReplyIdentifier(

@@ -18,6 +18,7 @@ from wcwidth import wcwidth
 
 import requests
 import time
+import jsonlines
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -232,6 +233,8 @@ USE_MASKED_DASK_PROB_DELT = True
 SORT_ASKS_BY_PROB_DELT = True
 
 DASH_CHECKPROB_IS_DISCOUNT = True
+
+USERLIST_MODE = True
 
 MAX_RTS_COUNT = 3
 
@@ -924,6 +927,7 @@ class LoopPersistentData:
         apriori_mainloop_time=EFFECTIVE_SLEEP_TIME * 1.5,
         dash_requests_per_post_history=None,
         queued_post_times_pst=None,
+        user_list=set(),
     ):
         self.reblogs_from_me = reblogs_from_me
         self.reblog_worthy_dash_posts = reblog_worthy_dash_posts
@@ -966,6 +970,8 @@ class LoopPersistentData:
                 n_requests/self.n_posts_to_check_dash
                 for n_requests in self.requests_per_check_history_dash
             ]
+
+        self.user_list = user_list
 
 
 def update_follower_names(response_cache):
@@ -1016,7 +1022,9 @@ def prioritize_reblogs_replies(
     empty_cost=10,
     year_in_review_cost=15,
     api_fail_cost=10000,
-    verbose=True
+    user_list_cost=10000,
+    verbose=True,
+    user_list=set(),
 ):
     global client_pool
     def vprint(*args, **kwargs):
@@ -1047,8 +1055,10 @@ def prioritize_reblogs_replies(
 
         if is_reply:
             user_text = loop_persistent_data.reply_metadata[ident]["reply_note"]["reply_text"]
+            user_name = loop_persistent_data.reply_metadata[ident]["reply_note"]["blog_name"]
         else:
             user_text = format_and_normalize_post_html(thread.posts[-1].to_html())
+            user_name = thread.posts[-1].blog_name
 
         words, word_count = split_and_count_words(user_text)
 
@@ -1075,6 +1085,11 @@ def prioritize_reblogs_replies(
         if is_year_in_review:
             cost += year_in_review_cost
             vprint(f"\tcost now {cost:.1f} | added {year_in_review_cost:.1f} with is_year_in_review=True")
+
+        if USERLIST_MODE and user_name not in user_list:
+            cost += user_list_cost
+            print(f"\tcost now {cost:.1f} | added {user_list_cost:.1f} from userlist")
+
         vprint()
 
         costs[ident] = cost
@@ -2549,7 +2564,8 @@ def do_reblog_reply_handling(
 
     costs, response_cache = prioritize_reblogs_replies(identifiers=reblog_reply_timestamps.keys(),
                                                        reply_set=replies_to_handle,
-                                                       response_cache=response_cache)
+                                                       response_cache=response_cache,
+                                                       user_list=loop_persistent_data.user_list)
     cost_ordered_idents = sorted(costs.keys(), key=lambda ident: costs[ident])
     pprint([{"cost": costs[ident], "ident": ident} for ident in cost_ordered_idents])
 
@@ -2868,6 +2884,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
             print(f"Ignoring no-text ask from {repr(post_payload['asking_name'])} with block types: {repr(block_types)}, question {repr(post_payload['question'][:1000])}")
         elif ask_ruleout_too_many_images:
             print(f"Ignoring many-image ask from {repr(post_payload['asking_name'])} with block types: {repr(block_types)}, question {repr(post_payload['question'][:1000])}")
+        elif USERLIST_MODE and post_payload['asking_name'] not in loop_persistent_data.user_list:
+            print(f"Ignoring question from user {repr(post_payload['asking_name'])}: {repr(post_payload['question'][:1000])}")
         else:
             submissions_.append(post_payload)
     submissions = submissions_
@@ -3655,9 +3673,15 @@ if __name__ == "__main__":
 
     retention_stack, retention_logit_diff_lookup = load_retention()
 
+    user_list = set()
+    if USERLIST_MODE:
+        with jsonlines.open('user-list.jsonl') as f:
+            user_list = set(list(f))
+
     loop_persistent_data = LoopPersistentData(
         retention_stack=retention_stack,
         retention_logit_diff_lookup=retention_logit_diff_lookup,
+        user_list=user_list,
     )
 
     # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")

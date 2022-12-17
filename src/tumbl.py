@@ -2893,7 +2893,8 @@ def do_ask_handling(loop_persistent_data, response_cache):
             print(f"Skipping rule-outs for manually answered question from {repr(post_payload['asking_name'])}: {repr(post_payload['question'][:1000])}")
             submissions_.append(post_payload)
         elif ask_ruleout_userlist:
-            print(f"Ignoring question from user {repr(post_payload['asking_name'])}: {repr(post_payload['question'][:1000])}")
+            now_str = now_pst().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"At {now_str}, ignoring question from user {repr(post_payload['asking_name'])}: {repr(post_payload['question'][:1000])}")
             client_pool.get_private_client().delete_post(blogName, id=post_payload['id'])
         elif ask_ruleout_too_short:
             print(f"Ignoring short question from {repr(post_payload['asking_name'])}: {repr(post_payload['question'][:1000])}")

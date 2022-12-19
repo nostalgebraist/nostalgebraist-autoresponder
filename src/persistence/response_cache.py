@@ -714,9 +714,11 @@ class ResponseCache:
 
     def increment_rts_count(self, ident):
         self.cache["rts_counts"][ident] += 1
+        print(f"incremented rts count for {repr(ident)}")
 
     def decrement_rts_count(self, ident):
         self.cache["rts_counts"][ident] -= 1
+        print(f"decremented rts count for {repr(ident)}")
 
     def do_rts_to_ask(self, uii: UserInputIdentifier):
         print(f"automatic rejection count: {self.rts_count(uii)}")

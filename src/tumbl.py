@@ -633,7 +633,8 @@ def make_text_post(
     log_data=None,
     autoreview_proba=None,
     reject_action=None,
-    reply_prefix=""
+    reply_prefix="",
+    reply_identifier=None,
 ):
     global client_pool
     tags = list(tags)
@@ -730,7 +731,12 @@ def make_text_post(
     if delete_after_posting:
         client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
     if increment_rts_after_create:
-        response_cache.increment_rts_count(PostIdentifier(blogName, str(api_response['id'])))
+        if reply_identifier is not None:
+            # reply
+            response_cache.increment_rts_count(reply_identifier)
+        else:
+            # textpost
+            response_cache.increment_rts_count(PostIdentifier(blogName, str(api_response['id'])))
 
     if log_data is not None:
         log_data["requested__state"] = state
@@ -886,13 +892,19 @@ def answer_ask(
     if delete_after_posting:
         client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
     if increment_rts_after_create:
-        uii = UserInputIdentifier(
-            input_type=UserInputType.ASK,
-            blog_name=asking_name,
-            id_=ask_id,
-            timestamp=timestamp,
-        )
-        response_cache.increment_rts_count(uii)
+        if is_reblog:
+            ident = PostIdentifier(
+                blog_name=asking_name,
+                id_=str(ask_id),
+            )
+        else:
+            ident = UserInputIdentifier(
+                input_type=UserInputType.ASK,
+                blog_name=asking_name,
+                id_=str(ask_id),
+                timestamp=timestamp,
+            )
+        response_cache.increment_rts_count(ident)
     if log_data is not None:
         log_data["requested__state"] = state
         log_data["state_reasons"] = state_reasons
@@ -1198,7 +1210,7 @@ def respond_to_reblogs_replies(
             user_input_identifier = UserInputIdentifier(
                 input_type=input_type,
                 blog_name=reblog_identifier.blog_name,
-                id_=reblog_identifier.id_,
+                id_=str(reblog_identifier.id_),
                 timestamp=timestamp,
             )
             if (
@@ -1346,7 +1358,8 @@ def respond_to_reblogs_replies(
                     log_data=log_data if i == 0 else None,
                     to_drafts=to_drafts,
                     autoreview_proba=post_specifier["autoreview_proba"],
-                    reject_action="rts"
+                    reject_action="rts",
+                    reply_identifier=user_input_identifier,
                 )
                 if 'id_string' in api_response:
                     response_cache.mark_user_input_response_post_id(
@@ -1951,7 +1964,7 @@ def review_reblogs_from_me(note_payloads, loop_persistent_data, response_cache):
             user_input_identifier = UserInputIdentifier(
                 input_type=UserInputType.REBLOG,
                 blog_name=r["blog_name"],
-                id_=r["post_id"],
+                id_=str(r["post_id"]),
                 timestamp=r["timestamp"],
             )
             text_for_sentiment = r.get("added_text")
@@ -2075,7 +2088,7 @@ def get_relevant_replies_from_notes(
         user_input_identifier = UserInputIdentifier(
             input_type=UserInputType.REPLY,
             blog_name=n["blog_name"],
-            id_=post_payload["id"],
+            id_=str(post_payload["id"]),
             timestamp=n["timestamp"],
         )
         do_get_sentiment = False
@@ -3080,7 +3093,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
             user_input_identifier = UserInputIdentifier(
                 input_type=UserInputType.ASK,
                 blog_name=post_payload["asking_name"],
-                id_=post_payload["id"],
+                id_=str(post_payload["id"]),
                 timestamp=post_payload["timestamp"],
             )
             do_get_sentiment = False
@@ -3347,7 +3360,7 @@ def do_rts(response_cache):
         p_body = get_body(p)
 
         if "reblogged_from_id" in p and "reblogged_from_name" in p:
-            pi = PostIdentifier(p["reblogged_from_name"], p["reblogged_from_id"])
+            pi = PostIdentifier(p["reblogged_from_name"], str(p["reblogged_from_id"]))
             print(f"\tidentified as reblog from {pi}")
 
             response_cache, was_loop = check_for_rts_loop(pi, pid, p["tags"], response_cache)
@@ -3371,7 +3384,7 @@ def do_rts(response_cache):
             uii = UserInputIdentifier(
                 input_type=UserInputType.ASK,
                 blog_name=p["asking_name"],
-                id_=p["id"],
+                id_=str(p["id"]),
                 timestamp=p["timestamp"],
             )
 

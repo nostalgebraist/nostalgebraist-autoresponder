@@ -2563,12 +2563,14 @@ def do_reblog_reply_handling(
             )
         ]
 
+    use_userlist = USERLIST_MODE and not is_dashboard
+
     print(f"{len(reblogs_to_handle)} unhandled reblogs")
     if len(reblogs_to_handle) > 0:
         print(f"unhandled reblogs:")
         for item in reblogs_to_handle:
             print(f"\t{item}")
-            if USERLIST_MODE and item.blog_name not in loop_persistent_data.user_list:
+            if use_userlist and item.blog_name not in loop_persistent_data.user_list:
                 now_str = now_pst().strftime("%Y-%m-%d %H:%M:%S")
                 print(f"\tAt {now_str}, ignoring reblog {item}")
                 response_cache.mark_handled(item)
@@ -2579,7 +2581,7 @@ def do_reblog_reply_handling(
         for item in replies_to_handle:
             print(f"\t{item}")
 
-            if USERLIST_MODE and item.blog_name not in loop_persistent_data.user_list:
+            if use_userlist and item.blog_name not in loop_persistent_data.user_list:
                 now_str = now_pst().strftime("%Y-%m-%d %H:%M:%S")
                 print(f"\tAt {now_str}, ignoring reply {item}")
                 response_cache.mark_reply_handled(item)
@@ -2595,7 +2597,9 @@ def do_reblog_reply_handling(
     costs, response_cache = prioritize_reblogs_replies(identifiers=reblog_reply_timestamps.keys(),
                                                        reply_set=replies_to_handle,
                                                        response_cache=response_cache,
-                                                       user_list=loop_persistent_data.user_list)
+                                                       user_list=loop_persistent_data.user_list,
+                                                       user_list_cost=10000 if use_userlist else 0,
+                                                       )
     cost_ordered_idents = sorted(costs.keys(), key=lambda ident: costs[ident])
     pprint([{"cost": costs[ident], "ident": ident} for ident in cost_ordered_idents])
 

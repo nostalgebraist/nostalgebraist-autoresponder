@@ -2568,12 +2568,21 @@ def do_reblog_reply_handling(
         print(f"unhandled reblogs:")
         for item in reblogs_to_handle:
             print(f"\t{item}")
+            if USERLIST_MODE and item.blog_name not in loop_persistent_data.user_list:
+                now_str = now_pst().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"\tAt {now_str}, ignoring reblog {item}")
+                response_cache.mark_handled(item)
 
     print(f"{len(replies_to_handle)} unhandled replies")
     if len(replies_to_handle) > 0:
         print(f"unhandled replies:")
         for item in replies_to_handle:
             print(f"\t{item}")
+
+            if USERLIST_MODE and item.blog_name not in loop_persistent_data.user_list:
+                now_str = now_pst().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"\tAt {now_str}, ignoring reply {item}")
+                response_cache.mark_reply_handled(item)
 
     reblog_reply_timestamps = {
         r: loop_persistent_data.timestamps[r] for r in reblogs_to_handle

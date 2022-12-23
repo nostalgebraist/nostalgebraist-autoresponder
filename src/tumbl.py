@@ -3518,7 +3518,7 @@ def get_checkprob_and_roll(
 
         # assumes we do non-frankdash checks 100% of the time
         outside_requests_per_cycle_sample = loop_persistent_data.requests_per_check_history_private[-10:]
-        outside_requests_per_cycle_sample = [r for r in outside_requests_per_cycle_sample if 0 < r]
+        outside_requests_per_cycle_sample = [r for r in outside_requests_per_cycle_sample if 0 < r < 1500]
         outside_requests_per_cycle = np.mean(outside_requests_per_cycle_sample)
     else:
         requests_per_check_sample = loop_persistent_data.requests_per_check_history_private[-10:]
@@ -3532,7 +3532,7 @@ def get_checkprob_and_roll(
     mainloop_times_sample = loop_persistent_data.mainloop_times[-10:]
 
     # filter extremes
-    requests_per_check_sample = [r for r in requests_per_check_sample if 0 < r]
+    requests_per_check_sample = [r for r in requests_per_check_sample if 0 < r < 1500]
     mainloop_times_sample = [t for t in mainloop_times_sample if 0 < t < 1800]
 
     requests_needed_to_check = np.mean(requests_per_check_sample)

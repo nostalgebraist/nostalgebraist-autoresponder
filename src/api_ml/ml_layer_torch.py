@@ -21,11 +21,16 @@ import ml.captioning
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
-import config.bot_config_singleton
-bot_specific_constants = config.bot_config_singleton.bot_specific_constants
+BRIDGE_SERVICE_REMOTE_HOST, bridge_service_port = None, None
 
-bridge_service_port = bot_specific_constants.bridge_service_port
-BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
+try:
+    import config.bot_config_singleton
+    bot_specific_constants = config.bot_config_singleton.bot_specific_constants
+
+    bridge_service_port = bot_specific_constants.bridge_service_port
+    BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
+except FileNotFoundError:
+    print("No config file found. Running in local mode.")
 
 
 def caption_image(self, path_or_url, **kwargs):

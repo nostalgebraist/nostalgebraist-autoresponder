@@ -780,7 +780,6 @@ def old_bridge_call__textpost(
     avoid_if_says_frank = False
 
     best_of = TEXTPOST_N_CANDIDATES_TARGET
-    best_of = adjust_best_of(best_of, mood, is_textpost=True)
 
     if n_retention is not None and mood is not None:
         # best_of = max(1, best_of - int(round((RETENTION_DISCOUNT * n_retention))))
@@ -791,7 +790,7 @@ def old_bridge_call__textpost(
         best_of = max(1, best_of - n_allowed)
         print(f"with {n_retention} on stack, of which {n_allowed} are mood-compatible, only need {best_of}")
 
-    print(f"n_retention {n_retention}")
+    best_of = adjust_best_of(best_of, mood, is_textpost=True)
 
     # old serve_textpost
 

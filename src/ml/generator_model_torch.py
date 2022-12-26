@@ -205,6 +205,10 @@ class GeneratorModelTorch:
 
     @torch.no_grad()
     def write(self, prompt: str, verbose=False, max_length_per_feed=None):
+        def vprint(*args, **kwargs):
+            if verbose:
+                print(*args, **kwargs)
+
         batch_pr = [prompt for _ in range(self.batch_size)]
         batch_pr_tokens = self.tokenizer(
             batch_pr,
@@ -276,22 +280,22 @@ class GeneratorModelTorch:
                 this_done = (not more_needed) or (not more_permitted)
                 dones.append(this_done)
 
-                print(f"this_done: {this_done}")
-                print(f"\tmore_needed={more_needed} <-- final_token={final_token}, already_done={already_done[i]}")
-                print(
+                vprint(f"this_done: {this_done}")
+                vprint(f"\tmore_needed={more_needed} <-- final_token={final_token}, already_done={already_done[i]}")
+                vprint(
                     f"\tmore_permitted={more_permitted} <-- n_continuations_tokens={n_continuations_tokens}, len(continuations_tokens[i])={len(continuations_tokens[i])}, n_orig_prompt_tokens={n_orig_prompt_tokens}"
                 )
 
                 if (not this_done) or self.using_kv_buffer:
                     # construct next prompt
                     next_prompt_tokens = continuations_tokens[i][-self.max_context_size:]
-                    print(f"next_prompt_tokens: {len(next_prompt_tokens)}")
+                    vprint(f"next_prompt_tokens: {len(next_prompt_tokens)}")
                     if len(next_prompt_tokens) < self.max_context_size:
                         # ended early + kv buffer
                         pads = (self.max_context_size - len(next_prompt_tokens)) * [self.tokenizer.pad_token_id]
                         next_prompt_tokens.extend(pads)
                         next_prompt_tokens = next_prompt_tokens[-self.max_context_size:]
-                        print(f"next_prompt_tokens: {len(next_prompt_tokens)} with pads")
+                        vprint(f"next_prompt_tokens: {len(next_prompt_tokens)} with pads")
                     input_ids.append(next_prompt_tokens)
 
                     if this_done:

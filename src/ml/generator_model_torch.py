@@ -164,12 +164,13 @@ class GeneratorModelTorch:
         return self.transformers_model.using_kv_buffer
 
     @torch.no_grad()
-    def compute_kv_cache(self, input_ids):
+    def compute_kv_cache(self, input_ids, verbose=False):
         input_ids = input_ids[:, -self.max_feed_size_with_cache:]
 
         full_len = input_ids.shape[1]
 
-        print(f"Computing kv cache for length {full_len}")
+        if verbose:
+            print(f"Computing kv cache for length {full_len}")
 
         input_ids_no_cache = input_ids[:, :self.max_feed_size_no_cache]
 
@@ -195,7 +196,8 @@ class GeneratorModelTorch:
                 use_cache=True,
             ).past_key_values
 
-        print(f"Done computing kv cache for length {full_len}")
+        if verbose:
+            print(f"Done computing kv cache for length {full_len}")
 
         return input_ids, presents
 
@@ -235,7 +237,7 @@ class GeneratorModelTorch:
             input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
             if self.using_kv_buffer and past is None:
-                input_ids_th, past = self.compute_kv_cache(input_ids_th)
+                input_ids_th, past = self.compute_kv_cache(input_ids_th, verbose=verbose)
 
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(

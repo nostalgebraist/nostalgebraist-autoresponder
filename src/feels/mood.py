@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from smart_open import open
+from google.auth import exceptions
 
 from util.cloudsave import CLOUDSAVE_BUCKET
 
@@ -42,7 +43,7 @@ def load_logit_diff_sample():
     try:
         with open(f"gs://{CLOUDSAVE_BUCKET}/nbar_data/logit_diff_sample.pkl.gz", "rb") as f:
             logit_diff_sample = pickle.load(f)
-    except FileNotFoundError:
+    except (FileNotFoundError, exceptions.GoogleAuthError):
         logit_diff_sample = [
             -4.055, -0.483, -5.576, -2.096, -5.473, -2.132, -1.503, -5.712, 2.182,
             -1.419, -2.548, -2.114, 0.071, -3.568, -1.11, 0.379, -1.584, -0.045,

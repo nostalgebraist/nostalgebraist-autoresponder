@@ -9,7 +9,6 @@ from PIL import Image
 
 import requests
 import numpy as np
-import torch
 from transformer_utils.util.tfm_utils import get_local_path_from_huggingface_cdn
 
 import improved_diffusion.pipeline
@@ -25,6 +24,24 @@ bot_specific_constants = config.bot_config_singleton.bot_specific_constants
 bridge_service_port = bot_specific_constants.bridge_service_port
 BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
 
+
+def make_2sided_dynamic_threshold_denoised_fn_batched(p):
+    print(f"make_2sided_dynamic_threshold_denoised_fn_batched called with {p}")
+    def dynamic_threshold_denoised_fn(pred_xstart):
+        b, c, *spatial = pred_xstart.shape
+
+        flat = pred_xstart.reshape(b, -1)
+
+        s = torch.quantile(torch.clip(flat, min=0), p, dim=1).clamp(min=1)
+        s = s.reshape((-1, 1, 1, 1))
+
+        sneg = torch.quantile(torch.clip(flat, max=0), p, dim=1).clamp(max=-1)
+        sneg = sneg.reshape((-1, 1, 1, 1))
+
+        pred_xstart_threshed = pred_xstart.clamp(min=sneg, max=s) / torch.max(s, -sneg)
+
+        return pred_xstart_threshed
+    return dynamic_threshold_denoised_fn
 
 
 # constants
@@ -179,10 +196,12 @@ def poll(
 
                 guidance_scale = data['guidance_scale']
                 guidance_scale_txt = data.get('guidance_scale_txt')
+                dynamic_threshold_p = data.get('dynamic_threshold_p', 0.995)
                 if guidance_scale_txt is None:
                     guidance_scale_txt = guidance_scale
-                pprint(dict(guidance_scale=guidance_scale, guidance_scale_txt=guidance_scale_txt))
+                pprint(dict(guidance_scale=guidance_scale, guidance_scale_txt=guidance_scale_txt, dynamic_threshold_p=dynamic_threshold_p))
 
+                make_2sided_dynamic_threshold_denoised_fn_batched
                 result = sampling_model_sres1.sample(
                     text=text,
                     batch_size=1,
@@ -191,7 +210,8 @@ def poll(
                     clf_free_guidance=True,
                     guidance_scale=guidance_scale,
                     guidance_scale_txt=guidance_scale_txt,
-                    dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
+                    dynamic_threshold_p=dynamic_threshold_p,
+                    denoised_fn=make_2sided_dynamic_threshold_denoised_fn_batched(dynamic_threshold_p),
                     use_ddim=use_ddim['1'],
                     use_plms=use_plms['1'],
                     capt=capt,
@@ -207,6 +227,8 @@ def poll(
                 if using_sres1p5:
                     # sampling_model_sres1p5.model.cuda();
 
+                    dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995)
+
                     result = sampling_model_sres1p5.sample(
                         text=text,
                         batch_size=1,
@@ -217,7 +239,8 @@ def poll(
                         clf_free_guidance=True,
                         guidance_scale=guidance_scale,
                         guidance_scale_txt=guidance_scale_txt,
-                        dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995),
+                        dynamic_threshold_p=dynamic_threshold_p,
+                        denoised_fn=make_2sided_dynamic_threshold_denoised_fn_batched(dynamic_threshold_p),
                         noise_cond_ts=225,
                         use_ddim=use_ddim['1p5'],
                         use_plms=use_plms['1p5'],

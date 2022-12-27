@@ -196,7 +196,7 @@ def poll(
 
                 guidance_scale = data['guidance_scale']
                 guidance_scale_txt = data.get('guidance_scale_txt')
-                dynamic_threshold_p = data.get('dynamic_threshold_p', 0.995)
+                dynamic_threshold_p = data.get('dynamic_threshold_p', 0.99)
                 if guidance_scale_txt is None:
                     guidance_scale_txt = guidance_scale
                 pprint(dict(guidance_scale=guidance_scale, guidance_scale_txt=guidance_scale_txt, dynamic_threshold_p=dynamic_threshold_p))
@@ -227,7 +227,7 @@ def poll(
                 if using_sres1p5:
                     # sampling_model_sres1p5.model.cuda();
 
-                    dynamic_threshold_p=data.get('dynamic_threshold_p', 0.995)
+                    dynamic_threshold_p=data.get('dynamic_threshold_p', 0.99)
 
                     result = sampling_model_sres1p5.sample(
                         text=text,

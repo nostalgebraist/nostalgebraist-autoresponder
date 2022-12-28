@@ -52,8 +52,8 @@ model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 
 timestep_respacing_sres1 = '100'
 timestep_respacing_sres1p5 = '36,24,24,8,8'
-timestep_respacing_sres2 = '18,12,12,4,4'
-timestep_respacing_sres3 = '10,7,6,2,2'
+timestep_respacing_sres2 = '36,24,24,8,8'
+timestep_respacing_sres3 = '24,16,6,3,1'
 FORCE_CAPTS = True
 
 TRUNCATE_LENGTH = 380
@@ -268,7 +268,7 @@ def poll(
                     low_res=result,
                     clf_free_guidance=True,
                     guidance_scale=guidance_scale_step2,
-                    noise_cond_ts=100,
+                    noise_cond_ts=50,
                     use_ddim=use_ddim['2'],
                     use_plms=use_plms['2'],
                     ddim_eta=0.5,

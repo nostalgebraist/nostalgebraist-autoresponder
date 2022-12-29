@@ -2607,7 +2607,7 @@ def do_reblog_reply_handling(
 
     cost_ordered_idents_screened = []
     for ident in cost_ordered_idents:
-        if costs[ident] < STOP_ABOVE_COST:
+        if costs[ident] < effective_stop_above_cost:
             cost_ordered_idents_screened.append(ident)
         else:
             print(f"ignoring {ident}: cost {costs[ident]:.1f} >= effective_stop_above_cost {effective_stop_above_cost:.1f}")

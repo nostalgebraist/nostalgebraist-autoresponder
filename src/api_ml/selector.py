@@ -29,6 +29,7 @@ QUOTES_COLDSTART = True
 DREAMS_COLDSTART = False
 GUIDELINES_COLDSTART = True
 PSEUDO_TEXT_COLDSTART = True
+HS_COLDSTART = True
 
 FIC_COLDSTART_DELTA = 0.05
 REVIEW_COLDSTART_DELTA = 0.05
@@ -38,6 +39,7 @@ QUOTES_COLDSTART_DELTA = -0.25
 DREAMS_COLDSTART_DELTA = 0.15
 GUIDELINES_COLDSTART_DELTA = -0.25
 PSEUDO_TEXT_COLDSTART_DELTA = -0.4
+HS_COLDSTART_DELTA = -0.2
 
 # getting the capts MVP work to properly
 IMAGE_COLDSTART_DELIMITER = IMAGE_URL_DELIMITER.lstrip('\n')
@@ -300,6 +302,9 @@ do_guidelines_coldstart = partial(
 )
 do_pseudo_text_coldstart = partial(
     do_coldstart, substring="", custom_filter=match_pseudo_text, delta=PSEUDO_TEXT_COLDSTART_DELTA
+)
+do_hs_coldstart = partial(
+    do_coldstart, substring="homestuck", delta=PSEUDO_TEXT_COLDSTART_DELTA
 )
 
 

@@ -3270,16 +3270,19 @@ def do_queue_handling(loop_persistent_data, response_cache):
     should_write_testpost = n_posts_in_queue < WRITE_POSTS_WHEN_QUEUE_BELOW
 
     if AVOID_FILLING_NEXT_DAY_QUEUE:
-        last_queued_post_ts_posix = max([pp.get('scheduled_publish_time', 0) for pp in queue] + [0])
-        last_queued_post_ts = fromtimestamp_pst(last_queued_post_ts_posix)
+        crosses_midnight = False
 
-        now_ts = now_pst()
+        if len(queue) > 0:
+            last_queued_post_ts_posix = max(pp.get('scheduled_publish_time', 0) for pp in queue)
+            last_queued_post_ts = fromtimestamp_pst(last_queued_post_ts_posix)
 
-        crosses_midnight = (
-            last_queued_post_ts.day > now_ts.day
-            or last_queued_post_ts.month > now_ts.month
-            or last_queued_post_ts.year > now_ts.year
-        )
+            now_ts = now_pst()
+
+            crosses_midnight = (
+                last_queued_post_ts.day > now_ts.day
+                or last_queued_post_ts.month > now_ts.month
+                or last_queued_post_ts.year > now_ts.year
+            )
 
         if crosses_midnight:
             should_write_testpost = False

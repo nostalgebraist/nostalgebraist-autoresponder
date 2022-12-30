@@ -3270,7 +3270,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
     should_write_testpost = n_posts_in_queue < WRITE_POSTS_WHEN_QUEUE_BELOW
 
     if AVOID_FILLING_NEXT_DAY_QUEUE:
-        last_queued_post_ts_posix = max(pp.get('scheduled_publish_time', 0) for pp in queue)
+        last_queued_post_ts_posix = max([pp.get('scheduled_publish_time', 0) for pp in queue] + [0])
         last_queued_post_ts = fromtimestamp_pst(last_queued_post_ts_posix)
 
         now_ts = now_pst()

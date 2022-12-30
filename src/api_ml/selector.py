@@ -333,6 +333,9 @@ def do_all_coldstarts(continuations, selection_proba):
     if PSEUDO_TEXT_COLDSTART:
         selection_proba = do_pseudo_text_coldstart(continuations, selection_proba)
 
+    if HS_COLDSTART:
+        selection_proba = do_hs_coldstart(continuations, selection_proba)
+
     return selection_proba
 
 

@@ -270,7 +270,11 @@ def match_pseudo_text(c):
         for e in entries:
             caption = e.get('url') or ''
             text = e.get('imtext') or ''
-            if '`' in caption and text == '':
+            caption_wants_text = any(
+                s in caption for s in ('`', 'text', 'caption')
+            )
+            no_text = text == ''
+            if caption_wants_text and no_text:
                 is_match = True
                 substring += repr(e)
     return is_match, substring

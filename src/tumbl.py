@@ -3570,6 +3570,9 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
 
     response_cache = do_rts(response_cache)
 
+    # TEMPORARY
+    loop_persistent_data, response_cache = do_queue_handling(loop_persistent_data, response_cache)
+
     ### decide whether we'll do the reblog/reply check
 
     do_check, _ = get_checkprob_and_roll(loop_persistent_data, client_pool, dashboard=False)

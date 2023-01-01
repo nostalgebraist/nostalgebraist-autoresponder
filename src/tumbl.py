@@ -2487,6 +2487,7 @@ def do_reblog_reply_handling(
         )
     else:
         statically_worthy_posts = sorted(posts, key=lambda pp: pp["id"])[-reblog_reply_window_nposts:]
+        print(f"{len(statically_worthy_posts)} within reblog_reply_window_nposts")
 
         now_ = now_pst()
         max_delta = timedelta(hours=reblog_reply_window_nhours)
@@ -2496,6 +2497,7 @@ def do_reblog_reply_handling(
                 statically_worthy_posts
             )
         )
+        print(f"{len(statically_worthy_posts)} within reblog_reply_window_nhours")
 
     ### loop through posts
     for post_ix, post in enumerate(tqdm(statically_worthy_posts)):

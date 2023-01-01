@@ -215,9 +215,9 @@ if USE_SEPARATE_TXT_GUIDANCE:
     GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT = GUIDANCE_SCALE_OPTIONS
     GUIDANCE_SCALE_OPTIONS_TEXT_GUIDANCE = (1,)
 else:
-    GUIDANCE_SCALE_OPTIONS = (1.5, 2, 2, 2, 2, 3)  # dynamic thresholding, 4stage, v2, capts
-    GUIDANCE_SCALE_OPTIONS_NO_TEXT = (2, 2, 2, 3, 3, 4, 4, 5)  # dynamic thresholding, 4stage, v2, capts
-    GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT = (1,)  # dynamic thresholding, 4stage, v2, capts
+    GUIDANCE_SCALE_OPTIONS = (2, 2, 3, 3, 4,)  # dynamic thresholding, 4stage, v2, capts
+    GUIDANCE_SCALE_OPTIONS_NO_TEXT = (2, 3, 4, 5, 6, 7, 8,)  # dynamic thresholding, 4stage, v2, capts
+    GUIDANCE_SCALE_OPTIONS_HEAVY_TEXT = (1,2,)  # dynamic thresholding, 4stage, v2, capts
     GUIDANCE_SCALE_OPTIONS_TEXT_GUIDANCE = (None,)
 
 SCRAPE_FORMAT_V2 = True

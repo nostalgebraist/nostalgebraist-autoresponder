@@ -136,6 +136,7 @@ SCREENED_USERS = bot_specific_constants.SCREENED_USERS
 NO_SCRAPE_USERS = bot_specific_constants.NO_SCRAPE_USERS
 ask_min_words = bot_specific_constants.ask_min_words
 reblog_reply_window_nposts = bot_specific_constants.reblog_reply_window_nposts
+reblog_reply_window_nhours = bot_specific_constants.reblog_reply_window_nhours
 STOP_ABOVE_COST = bot_specific_constants.STOP_ABOVE_COST
 LIMITED_SUBSTRING_FAKE_USERNAME = "!,!,limitedsubs"
 
@@ -2486,6 +2487,15 @@ def do_reblog_reply_handling(
         )
     else:
         statically_worthy_posts = sorted(posts, key=lambda pp: pp["id"])[-reblog_reply_window_nposts:]
+
+        now_ = now_pst()
+        max_delta = timedelta(hours=reblog_reply_window_nhours)
+        statically_worthy_posts = list(
+            filter(
+                lambda pp: (now_ - fromtimestamp_pst(pp["timestamp"])) < max_delta,
+                statically_worthy_posts
+            )
+        )
 
     ### loop through posts
     for post_ix, post in enumerate(tqdm(statically_worthy_posts)):

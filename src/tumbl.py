@@ -2452,7 +2452,7 @@ def do_reblog_reply_handling(
 
         n_scraped = 0
 
-        iter_ = tqdm(posts)
+        iter_ = tqdm(posts, smoothing=0)
         for post_ix, post in enumerate(iter_):
             try:
                 p_body = get_body(post)

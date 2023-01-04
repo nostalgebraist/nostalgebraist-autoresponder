@@ -67,26 +67,26 @@ def get_mood_by_name(mood_name: str, interpolate_in_sent_space=INTERPOLATE_IN_SE
     moods_original_flavor = {
         "only_sad": {
             "min_allowed_score": bound_names["no_lower_bound"],
-            "max_allowed_score": 0.1,
+            "max_allowed_score": 0.2593,
             "score_fn": "pos_sentiment",
         },
         "only_non_happy": {
             "min_allowed_score": bound_names["no_lower_bound"],
-            "max_allowed_score": 0.2,
+            "max_allowed_score": 0.462,
             "score_fn": "pos_sentiment",
         },
         "meh": {
-            "min_allowed_score": 0.02,
-            "max_allowed_score": 0.6,
+            "min_allowed_score": 0.0128,
+            "max_allowed_score": 0.7031,
             "score_fn": "pos_sentiment",
         },
         "only_non_sad": {
-            "min_allowed_score": 0.15,
+            "min_allowed_score": 0.0483,
             "max_allowed_score": bound_names["no_upper_bound"],
             "score_fn": "pos_sentiment",
         },
         "only_happy": {
-            "min_allowed_score": 0.3,  # 0.4,
+            "min_allowed_score": 0.1192,
             "max_allowed_score": bound_names["no_upper_bound"],
             "score_fn": "pos_sentiment",
         },

@@ -643,7 +643,7 @@ def compute_dynamic_mood_over_interval(
     out = pd.concat(results)
 
     if return_spacing:
-        return out,  segments[-1]['system']['step_sec']
+        return out,  segments[-1]['system'].step_sec
     return out
 
 

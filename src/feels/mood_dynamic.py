@@ -205,6 +205,16 @@ DETERMINER_MULTIPLIER_UPDATES = {
     pd.Timestamp("2022-12-24 22:20:00"): 0.1 / RESPONSE_SCALE_BASE,
 }
 
+SYSTEM_UPDATES = [
+    {
+        'time': pd.Timestamp("2023-1-4 16:20:00"),
+        'updates': {
+            'tau_sec': 3600 * 6,
+        },
+    }
+]
+
+
 MOOD_NAME_TO_DYNAMIC_MOOD_VALUE_MAP_BASE = {
     "only_sad": 0.094,
     "only_non_happy": 0.37,
@@ -519,11 +529,12 @@ def apply_daily_mood_offset(
     return lti_series + base_mood_value_series
 
 
-def compute_dynamic_mood_over_interval(
+def _compute_dynamic_mood_over_interval(
     mood_inputs: pd.DataFrame,
     start_time: datetime = None,
     end_time: datetime = None,
     system: DynamicMoodSystem = None,
+    x0=None,
     apply_daily_offset: bool = True,
     forcing_system=False,
 ) -> pd.Series:
@@ -536,10 +547,6 @@ def compute_dynamic_mood_over_interval(
     if system is None:
         system = DynamicMoodSystem()
 
-    # sentiment_centered = determiner - system.determiner_center_series(determiner)
-    # sentiment_centered = (
-    #     system.determiner_multiplier_series(sentiment_centered) * sentiment_centered
-    # )
     sentiment_centered = mood_inputs["scaled_determiner"]
     if start_time > sentiment_centered.index.max():
         sentiment_centered.loc[start_time] = 0.
@@ -571,6 +578,7 @@ def compute_dynamic_mood_over_interval(
         u,
         t,
         interp=False,
+        X0=x0,
     )
     lti_series = pd.Series(y, index=sentiment_centered_indexed_extended.index)
 
@@ -580,19 +588,67 @@ def compute_dynamic_mood_over_interval(
     if not forcing_system:
         lti_series = lti_series.apply(logit_diff_to_pos_sent)
 
-    return lti_series
+    return lti_series, x
+
+
+def compute_dynamic_mood_over_interval(
+    mood_inputs: pd.DataFrame,
+    start_time: datetime = None,
+    end_time: datetime = None,
+    apply_daily_offset: bool = True,
+) -> pd.Series:
+    if start_time is None:
+        start_time = mood_inputs.index[0]
+
+    if end_time is None:
+        end_time = now_pst()
+
+    segment_edges = [
+        {'time': start_time, 'updates': {}},
+        *[
+            u
+            for u in sorted(SYSTEM_UPDATES, key=lambda uu: uu['time'])
+            if start_time < u['time'] < end_time
+        ],
+        {'time': end_time}
+    ]
+
+    print(('segment_edges', segment_edges))
+
+    segments = []
+    for left, right in zip(segment_edges[:-1], segment_edges[1:]):
+        segments.append(
+            {
+                'start_time': left['time'],
+                'end_time': right['time'],
+                'system': DynamicMoodSystem(**left['updates'])
+            }
+        )
+
+    print(('segments', segments))
+
+    x0 = None
+    results = []
+    for seg in segments:
+        lti_series, x = _compute_dynamic_mood_over_interval(
+            mood_inputs=mood_inputs,
+            apply_daily_offset=apply_daily_offset,
+            x0=x0,
+            **seg,
+        )
+        results.append(lti_series)
+        x0 = x[-1]
+
+    return pd.concat(results)
+
 
 
 def compute_dynamic_mood_at_time(
     mood_inputs: pd.DataFrame,
     time: datetime = None,
     window_length_days: float = WINDOW_LENGTH_DAYS,  # pass None for unbounded
-    system: DynamicMoodSystem = None,
     apply_daily_offset: bool = True,
 ) -> float:
-    if system is None:
-        system = DynamicMoodSystem()
-
     if time is None:
         time = now_pst()
 
@@ -616,7 +672,6 @@ def compute_dynamic_moodspec_at_time(
     response_cache: ResponseCache,
     time: datetime = None,
     window_length_days: float = None,  # pass None for unbounded
-    system: DynamicMoodSystem = None,
     verbose: bool = True,
 ) -> dict:
     mood_inputs = compute_dynamic_mood_inputs(response_cache)
@@ -633,7 +688,6 @@ def create_mood_graph(
     start_time: datetime = None,
     end_time: datetime = None,
     window_length_days: float = WINDOW_LENGTH_DAYS,
-    system: DynamicMoodSystem = None,
     in_logit_diff_space: bool = True,
     font: str = "Menlo",
     save_image: bool = True,
@@ -646,7 +700,6 @@ def create_mood_graph(
         mood_inputs,
         start_time - pd.Timedelta(days=window_length_days),
         end_time,
-        system,
     ).apply(ytrans)
     lti_series = lti_series.loc[start_time:end_time]
 

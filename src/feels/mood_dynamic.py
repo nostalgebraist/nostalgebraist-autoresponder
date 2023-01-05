@@ -207,7 +207,7 @@ DETERMINER_MULTIPLIER_UPDATES = {
 
 SYSTEM_UPDATES = [
     {
-        'time': pd.Timestamp("2023-1-4 16:20:00"),
+        'time': pd.Timestamp("2023-1-4 16:30:00"),
         'updates': {
             'tau_sec': 3600 * 6,
         },

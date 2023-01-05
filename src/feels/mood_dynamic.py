@@ -638,14 +638,13 @@ def compute_dynamic_mood_over_interval(
             **seg,
         )
         results.append(lti_series)
-        x0 = x[-1]
+        x0 = x[-2]  # compensate for extra_ts
 
     out = pd.concat(results)
 
     if return_spacing:
         return out,  segments[-1]['system'].step_sec
     return out
-
 
 
 def compute_dynamic_mood_at_time(

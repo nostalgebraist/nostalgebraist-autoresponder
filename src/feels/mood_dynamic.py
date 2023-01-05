@@ -624,8 +624,6 @@ def compute_dynamic_mood_over_interval(
             }
         )
 
-    print(('segments', segments))
-
     x0 = None
     results = []
     for seg in segments:

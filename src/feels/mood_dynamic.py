@@ -596,6 +596,7 @@ def compute_dynamic_mood_over_interval(
     start_time: datetime = None,
     end_time: datetime = None,
     apply_daily_offset: bool = True,
+    return_spacing=False,
 ) -> pd.Series:
     if start_time is None:
         start_time = mood_inputs.index[0]
@@ -639,7 +640,11 @@ def compute_dynamic_mood_over_interval(
         results.append(lti_series)
         x0 = x[-1]
 
-    return pd.concat(results)
+    out = pd.concat(results)
+
+    if return_spacing:
+        return out,  segments[-1]['system']['step_sec']
+    return out
 
 
 
@@ -656,15 +661,15 @@ def compute_dynamic_mood_at_time(
     if window_length_days is not None:
         start_time = time - pd.Timedelta(days=window_length_days)
 
-    lti_series = compute_dynamic_mood_over_interval(
+    lti_series, step_sec = compute_dynamic_mood_over_interval(
         mood_inputs=mood_inputs,
         start_time=start_time,
         end_time=time,
-        system=system,
         apply_daily_offset=apply_daily_offset,
+        return_spacing=True,
     )
 
-    time_indexable = pd.Timestamp(time).round(f"{system.step_sec}s")
+    time_indexable = pd.Timestamp(time).round(f"{step_sec}s")
     return lti_series.loc[time_indexable]
 
 

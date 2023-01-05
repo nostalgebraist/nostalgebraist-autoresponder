@@ -614,8 +614,6 @@ def compute_dynamic_mood_over_interval(
         {'time': end_time}
     ]
 
-    print(('segment_edges', segment_edges))
-
     segments = []
     for left, right in zip(segment_edges[:-1], segment_edges[1:]):
         segments.append(

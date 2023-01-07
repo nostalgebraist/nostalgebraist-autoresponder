@@ -1406,10 +1406,12 @@ def respond_to_reblogs_replies(
                 for trail_entry in post_payload['trail']:
                     # if it's a frank image and it has alt text, infer that it used the tag
                     # (as of this writing, mood graphs don't have alt text)
-                    if trail_entry['blog']['name'] == blogName and any(
-                        (block['type'] == 'image') and (block.get('alt_text', '') != '')
-                        for block in trail_entry['content']
-                    ):
+                    if trail_entry['blog']['name'] == blogName:
+                        has_cgi = any(
+                            (block['type'] == 'image') and (block.get('alt_text', '') != '')
+                            for block in trail_entry['content']
+                        )
+                        print(f"{trail_entry['post']['id']} has cgi? {has_cgi}")
                         earlier_posts_with_cgi.append(trail_entry['post']['id'])
                 if len(earlier_posts_with_cgi) > 0:
                     print(f"forcing '#computer generated image' tag: trail includes {earlier_posts_with_cgi}")

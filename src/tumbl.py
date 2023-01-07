@@ -1400,6 +1400,8 @@ def respond_to_reblogs_replies(
                 print(f"using screener_question: {repr(screener_question)}")
 
                 # add "#computer generated image" content tag if used in earlier posts in thread
+                # TODO: this actually doesn't work b/c we don't have tags in the trail
+                # TODO: need to infer this info from blogname and presence of image blocks
                 if any('computer generated image' in post.tags for post in thread.posts):
                     tags = [t for t in post_specifier['tags'] if t != "computer generated image"]
                     tags.append('computer generated image')

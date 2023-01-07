@@ -1412,7 +1412,8 @@ def respond_to_reblogs_replies(
                             for block in trail_entry['content']
                         )
                         print(f"{trail_entry['post']['id']} has cgi? {has_cgi}")
-                        earlier_posts_with_cgi.append(trail_entry['post']['id'])
+                        if has_cgi:
+                            earlier_posts_with_cgi.append(trail_entry['post']['id'])
                 if len(earlier_posts_with_cgi) > 0:
                     print(f"forcing '#computer generated image' tag: trail includes {earlier_posts_with_cgi}")
                     tags = [t for t in post_specifier['tags'] if t != "computer generated image"]

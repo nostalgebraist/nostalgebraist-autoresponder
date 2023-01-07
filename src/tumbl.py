@@ -1399,6 +1399,12 @@ def respond_to_reblogs_replies(
                     )
                 print(f"using screener_question: {repr(screener_question)}")
 
+                # add "#computer generated image" content tag if used in earlier posts in thread
+                if any('computer generated image' in post.tags for post in thread.posts):
+                    tags = [t for t in post_specifier['tags'] if t != "computer generated image"]
+                    tags.append('computer generated image')
+                    post_specifier['tags'] = tags
+
                 to_drafts = HALLOWEEN_2K20_BEHAVIOR_TESTING
                 api_response, log_data, response_cache = answer_ask(
                     blogName,

@@ -113,9 +113,11 @@ def done():
 def alldone():
     global PROMPT_STACK
     global RESULT_STACK
+    global PROMPT_DIFFUSION
 
     PROMPT_STACK = {}
     RESULT_STACK = {}
+    PROMPT_DIFFUSION = None
 
     return jsonify({})
 

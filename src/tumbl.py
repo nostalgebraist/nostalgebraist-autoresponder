@@ -1145,7 +1145,7 @@ def respond_to_reblogs_replies(
             ident_for_payload = PostIdentifier(blogName, reblog_identifier.id_)
 
         # TODO: (cleanup) remove response_cache.client
-        response_cache.client = client_pool.get_dashboard_client()
+        response_cache.client = client_pool.get_client()
         post_payload = response_cache.query(
             CachedResponseType.POSTS, ident_for_payload, care_about_notes=False
         )
@@ -1400,9 +1400,19 @@ def respond_to_reblogs_replies(
                 print(f"using screener_question: {repr(screener_question)}")
 
                 # add "#computer generated image" content tag if used in earlier posts in thread
-                # TODO: this actually doesn't work b/c we don't have tags in the trail
-                # TODO: need to infer this info from blogname and presence of image blocks
-                if any('computer generated image' in post.tags for post in thread.posts):
+                # using a hack b/c we don't get tags in trail entries and want to avoid requesting
+                # individual posts for just this
+                earlier_posts_with_cgi = []
+                for trail_entry in post_payload['trail']:
+                    # if it's a frank image and it has alt text, infer that it used the tag
+                    # (as of this writing, mood graphs don't have alt text)
+                    if trail_entry['blog']['name'] == blogName and any(
+                        (block['type'] == 'image') and (block.get('alt_text', '') != '')
+                        for block in trail_entry['content']
+                    ):
+                        earlier_posts_with_cgi.append(trail_entry['post']['id'])
+                if len(earlier_posts_with_cgi) > 0:
+                    print(f"forcing '#computer generated image' tag: trail includes {earlier_posts_with_cgi}")
                     tags = [t for t in post_specifier['tags'] if t != "computer generated image"]
                     tags.append('computer generated image')
                     post_specifier['tags'] = tags

@@ -1406,6 +1406,10 @@ def respond_to_reblogs_replies(
                 for trail_entry in post_payload['trail']:
                     # if it's a frank image and it has alt text, infer that it used the tag
                     # (as of this writing, mood graphs don't have alt text)
+                    if 'blog' not in trail_entry or 'post' not in trail_entry:
+                        # happens with broken_blog_name entries
+                        print(f"skipping trail entry: {trail_entry}")
+                        continue
                     if trail_entry['blog']['name'] == blogName:
                         has_cgi = any(
                             (block['type'] == 'image') and (block.get('alt_text', '') != '')

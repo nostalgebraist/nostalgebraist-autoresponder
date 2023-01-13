@@ -407,6 +407,7 @@ def serve_selection(
         all_continuation_sentiments = continuation_sentiments
         retained_selection_proba = selection_proba
         retained_continuation_side_data = continuation_side_data
+        retained_autoreview_proba = autoreview_proba
 
     proba = np.asarray(retained_selection_proba)  # TODO: clearer name here
 

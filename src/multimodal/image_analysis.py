@@ -19,7 +19,7 @@ from util.error_handling import LogExceptionAndSkip
 
 from smart_open import open
 
-rek = boto3.client("rekognition")
+# rek = boto3.client("rekognition")
 
 
 def xtn_from_headers(

@@ -5,7 +5,9 @@ from collections import defaultdict, Counter
 from functools import partial
 
 from tqdm.auto import tqdm as tqdm_base
+from tqdm.auto import trange as trange_base
 tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
+trange = partial(trange_base, mininterval=1, smoothing=0)
 
 from tumblr_to_text.classic.autoresponder_static import EOT, REVIEW_CHAR_FORUMLIKE_V10_1
 from experimental.corpus_text_hacks import extract_time_from_forumlike_doc, get_ccs_with_fixes, strip_post_identifier
@@ -412,14 +414,23 @@ def load_trails_from_docs(paths,
 
         if p in exclude_nost_paths:
             g_ = []
-            for _ in range(len(g)):
-                d = g.pop(0)
+            ok = {}
+            for ii in trange(len(g)):
+                # d = g.pop(0)
+                d = g[ii]
+                uid = uid_fn(d)
                 if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews):
-                    g_.append(d)
+                    ok[uid] = 1
+                    # g_.append(d)
                 else:
-                    excluded_nost_docs[p].append(d)
-            g = g_
-            # g = [d for d in g if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews)]
+                    ok[uid] = 0
+                    # excluded_nost_docs[p].append(d)
+
+            # g = g_
+            print('sort')
+            g = sorted(g, key=lambda d: ok[uid_fn(d)])
+            print('slice')
+            excluded_nost_docs[p], g = g[:-sum(ok.values())], g[-sum(ok.values()):]
             delta = n_raw - len(g)
             n_raw = len(g)
             print(f"excluded {delta} nost docs from file {p}:\n\t{n_raw} docs left\n")

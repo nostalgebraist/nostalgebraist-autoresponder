@@ -222,12 +222,18 @@ SYSTEM_UPDATES = [
             'tau_sec': 3600 * 3,
         },
     },
-    # temporary
     {
         'time': pd.Timestamp("2023-01-15 07:40:00"),
         'updates': {
             'tau_sec': 3600 * 1,
             'tau_sec_2nd': 60 * 20,
+        },
+    },
+    {
+        'time': pd.Timestamp("2023-01-16 10:00:00"),
+        'updates': {
+            'tau_sec': 3600 * 3,
+            'tau_sec_2nd': 60 * 60,
         },
     },
 ]

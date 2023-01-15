@@ -231,7 +231,7 @@ SYSTEM_UPDATES = [
         },
     },
     {
-        'time': pd.Timestamp("2023-01-16 10:00:00"),
+        'time': pd.Timestamp("2023-01-15 09:30:00"),
         'updates': {
             'tau_sec': 3600 * 3,
             'tau_sec_2nd': 60 * 60,

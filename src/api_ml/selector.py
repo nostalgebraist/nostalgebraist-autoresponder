@@ -256,11 +256,15 @@ def match_guidelines(c):
     return is_match, substring
 
 
-def match_pseudo_text(c):
+def match_pseudo_text(c, debug=True):
+    if debug:
+        print("match_pseudo_text called | ", end="")
     # TODO: DRY
     is_match, substring = False, 'match_pseudo_text||'
 
     if IMAGE_COLDSTART_DELIMITER in c:
+        if debug:
+            print(f"match_pseudo_text delim {repr(c)} | ", end="")
         try:
             entries = extract_image_texts_and_urls_from_post_text(c)
         except Exception as exc:
@@ -277,6 +281,8 @@ def match_pseudo_text(c):
             if caption_wants_text and no_text:
                 is_match = True
                 substring += repr(e)
+        if debug:
+            print(f"match_pseudo_text is_match {is_match}, substring {repr(substring)} | ", end="")
     return is_match, substring
 
 
@@ -308,7 +314,7 @@ do_pseudo_text_coldstart = partial(
     do_coldstart, substring="", custom_filter=match_pseudo_text, delta=PSEUDO_TEXT_COLDSTART_DELTA
 )
 do_hs_coldstart = partial(
-    do_coldstart, substring="homestuck", delta=PSEUDO_TEXT_COLDSTART_DELTA
+    do_coldstart, substring="homestuck", delta=HS_COLDSTART_DELTA
 )
 
 

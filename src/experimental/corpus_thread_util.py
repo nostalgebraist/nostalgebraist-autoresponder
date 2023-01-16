@@ -1,13 +1,20 @@
 import hashlib
 import random
 import re
+import multiprocessing as mp
 from collections import defaultdict, Counter
 from functools import partial
+
+mp.set_start_method('fork')
 
 from tqdm.auto import tqdm as tqdm_base
 from tqdm.auto import trange as trange_base
 tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
 trange = partial(trange_base, mininterval=1, smoothing=0)
+
+from tqdm.contrib.concurrent import thread_map, process_map
+thread_map = partial(thread_map, mininterval=1, smoothing=0, max_workers=4)
+process_map = partial(process_map, mininterval=1, smoothing=0, max_workers=6, chunksize=256)
 
 from tumblr_to_text.classic.autoresponder_static import EOT, REVIEW_CHAR_FORUMLIKE_V10_1
 from experimental.corpus_text_hacks import extract_time_from_forumlike_doc, get_ccs_with_fixes, strip_post_identifier
@@ -160,9 +167,9 @@ def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=Fal
 def find_title_groups(docs, nontrivial_only=True):
     titlestuff = {}
 
-    ixs = list(range(len(docs)))
+    ixs = range(len(docs))
 
-    for i in tqdm(ixs):
+    def update_titlestuff(i):
         title, other_content = get_title(docs[i])
 
         if title:
@@ -170,6 +177,24 @@ def find_title_groups(docs, nontrivial_only=True):
                 titlestuff[title] = {"ixs": [], "others": []}
             titlestuff[title]["ixs"].append(i)
             titlestuff[title]["others"].append(other_content)
+
+
+    for i, (title, other_content) in enumerate(process_map(get_title, docs)):
+        if title:
+            if title not in titlestuff:
+                titlestuff[title] = {"ixs": [], "others": []}
+            titlestuff[title]["ixs"].append(i)
+            titlestuff[title]["others"].append(other_content)
+
+
+    # for i in tqdm(ixs):
+    #     title, other_content = get_title(docs[i])
+    #
+    #     if title:
+    #         if title not in titlestuff:
+    #             titlestuff[title] = {"ixs": [], "others": []}
+    #         titlestuff[title]["ixs"].append(i)
+    #         titlestuff[title]["others"].append(other_content)
 
     if nontrivial_only:
         titlestuff = {k: d for k, d in titlestuff.items() if len(d['ixs']) > 1}
@@ -188,17 +213,43 @@ def identify_h2_contaminated_docs(docs):
     return excluded_doc_indices
 
 
+def hash_prefix(doc, include_usernames=False, ignore_titles=False):
+    try:
+        prefix = extract_prefix(doc, include_username=include_usernames, ignore_titles=ignore_titles)
+    except:
+        return None
+    prefix_hash = hashlib.md5(prefix.encode("utf-8")).hexdigest()
+    return prefix_hash
+
+
 def map_docs(docs, include_usernames=False, ignore_titles=False):
     trails = defaultdict(set)
     parse_fail_doc_ixs = set()
 
-    for i, doc in tqdm(enumerate(docs), total=len(docs)):
-        try:
-            prefix = extract_prefix(doc, include_username=include_usernames, ignore_titles=ignore_titles)
-        except:
+    # def update_trails(i):
+    #     doc = docs[i]
+    #     try:
+    #         prefix = extract_prefix(doc, include_username=include_usernames, ignore_titles=ignore_titles)
+    #     except:
+    #         parse_fail_doc_ixs.add(i)
+    #     prefix_hash = hashlib.md5(prefix.encode("utf-8")).hexdigest()
+    #     trails[prefix_hash].add(i)
+
+    for i, prefix_hash in enumerate(process_map(partial(hash_prefix, include_usernames=include_usernames, ignore_titles=ignore_titles), docs)):
+        if prefix_hash is None:
             parse_fail_doc_ixs.add(i)
-        prefix_hash = hashlib.md5(prefix.encode("utf-8")).hexdigest()
-        trails[prefix_hash].add(i)
+        else:
+            trails[prefix_hash].add(i)
+
+    # process_map(update_trails, range(len(docs)))
+
+    # for i, doc in tqdm(enumerate(docs), total=len(docs)):
+    #     try:
+    #         prefix = extract_prefix(doc, include_username=include_usernames, ignore_titles=ignore_titles)
+    #     except:
+    #         parse_fail_doc_ixs.add(i)
+    #     prefix_hash = hashlib.md5(prefix.encode("utf-8")).hexdigest()
+    #     trails[prefix_hash].add(i)
 
     return trails, parse_fail_doc_ixs
 
@@ -336,7 +387,7 @@ def show_trail(docs, trails, key):
         print('\n------\n')
 
 
-def stream_read_docs(fp, page_size=128, maxdocs=None):
+def stream_read_docs(fp, page_size=4096, maxdocs=None, doc_preprocessor=None):
     def gen(file):
         buffer = ''
 
@@ -351,11 +402,15 @@ def stream_read_docs(fp, page_size=128, maxdocs=None):
             buffer = segs[-1]
             for s in segs[:-1]:
                 if s != '':
+                    if doc_preprocessor is not None:
+                        s = doc_preprocessor(s)
                     yield s
                     n += 1
             if maxdocs and n>= maxdocs:
                 break
         if buffer != '':
+            if doc_preprocessor is not None:
+                buffer = doc_preprocessor(buffer)
             yield buffer
 
     with open(fp, 'r', encoding='utf-8') as f:
@@ -378,6 +433,12 @@ def exclude_nost_check(doc, keep_nost_reviews=True):
     return okay
 
 
+def mark_ok(d, keep_nost_reviews=True):
+    uid = unique_id_ignore_frank_nost(d)
+    ok = exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews)
+    return uid, ok
+
+
 def load_trails_from_docs(paths,
                           include_usernames=False,
                           exclude_malformed=True,
@@ -391,6 +452,7 @@ def load_trails_from_docs(paths,
                           doc_preprocessor=strip_post_identifier,
                           exclude_nost_paths=set(),
                           keep_nost_reviews=True,
+                          page_size=128,
                           ):
     using_uid_map = uid_to_metadata is not None
     doc_to_uid = {}
@@ -406,25 +468,36 @@ def load_trails_from_docs(paths,
         # with open(p, "r", encoding="utf-8") as f:
         #     ds = f.read()
         # g = [d for d in ds.split(EOT) if len(d) > 0]
-        g = stream_read_docs(p)
-        if doc_preprocessor is not None:
-            g = [doc_preprocessor(d) for d in g]
+        g = stream_read_docs(p, page_size=page_size, doc_preprocessor=doc_preprocessor)
+        # if doc_preprocessor is not None:
+        #     g = [doc_preprocessor(d) for d in tqdm(g)]
         n_raw = len(g)
         print(f"read group from file {p}:\n\t{n_raw} raw docs\n")
 
         if p in exclude_nost_paths:
             g_ = []
             ok = {}
-            for ii in trange(len(g)):
-                # d = g.pop(0)
-                d = g[ii]
-                uid = uid_fn(d)
-                if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews):
-                    ok[uid] = 1
-                    # g_.append(d)
-                else:
-                    ok[uid] = 0
-                    # excluded_nost_docs[p].append(d)
+
+            # def mark_ok(i):
+            #     d = g[i]
+            #     uid = uid_fn(d)
+            #     if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews):
+            #         ok[uid] = 1
+            #     else:
+            #         ok[uid] = 0
+
+            ok = {k: v for k, v in process_map(partial(mark_ok, keep_nost_reviews=keep_nost_reviews), g)}
+
+            # for ii in trange(len(g)):
+            #     # d = g.pop(0)
+            #     d = g[ii]
+            #     uid = uid_fn(d)
+            #     if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews):
+            #         ok[uid] = 1
+            #         # g_.append(d)
+            #     else:
+            #         ok[uid] = 0
+            #         # excluded_nost_docs[p].append(d)
 
             # g = g_
             print('sort')
@@ -477,7 +550,8 @@ def load_trails_from_docs(paths,
 
         if exclude_malformed:
             n_raw = len(g)
-            reasons = [diagnose_malformed(d) for d in g]
+            # reasons = [diagnose_malformed(d) for d in g]
+            reasons = process_map(diagnose_malformed, g)
             presentation_counts = Counter([tuple(sorted(r)) for r in reasons])
             symptom_counts = Counter([r for rs in reasons for r in rs])
 

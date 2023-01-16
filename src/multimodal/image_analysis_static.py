@@ -48,6 +48,9 @@ def extract_image_texts_and_urls_from_post_text(s):
     #   4. imtext if present
     #   5. IMAGE_DELIMITER if present
 
+    # make the end-of-string part of the regex work properly
+    s = s.replace("<|endoftext|>", "")
+
     entries = []
 
     for match in re.finditer(

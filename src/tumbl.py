@@ -169,7 +169,7 @@ REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this re
 
 MAX_POSTS_PER_STEP = 5
 
-DASH_REBLOG_PROB_RATIO_CUTOFF = 2.5
+DASH_REBLOG_PROB_RATIO_CUTOFF = 1.7
 DASH_REBLOG_PROB_RATIO_NOISE = 1.5
 
 DASH_REBLOG_SELECTION_CUTOFF = 0.
@@ -2393,7 +2393,7 @@ def do_reblog_reply_handling(
         loop_persistent_data.slowdown_level = select_slowdown_level(
             posts_no_filters,
             ref_level=loop_persistent_data.slowdown_level,
-            hardstop_pad=5,  # fudge factor for nost posts + potential errors in our post counting methodology
+            hardstop_pad=1,  # fudge factor for nost posts + potential errors in our post counting methodology
             queued_post_times_pst=loop_persistent_data.queued_post_times_pst,
         )
     if not is_dashboard:

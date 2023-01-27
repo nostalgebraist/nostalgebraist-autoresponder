@@ -37,6 +37,8 @@ V12_17 = True  # captions + legacy image data fixes
 V12_18 = True  # captions + more legacy image data fixes
 V12_19 = True  # captions + fix some mistakes introduced in V12_18 data prep
 
+ENDTAGS = False
+
 BUCKET_NAME = ""
 if not V12_7:
     # before switch to HF CDN

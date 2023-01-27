@@ -578,6 +578,7 @@ def get_retention_stack_judgments(retention_stack,
     prompts, prompts_selector, prompts_autoreviewer, _ = make_nwo_textpost_prompts(
         blog_name=blog_name,
         timestamp=timestamp,
+        endtags=ENDTAGS,
     )
 
     base_texts_for_selector_and_autoreviewer = [

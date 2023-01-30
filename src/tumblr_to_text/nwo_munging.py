@@ -124,7 +124,8 @@ def make_nwo_prompts(thread: TumblrThread,
                     include_image_urls=False,
                     include_image_urls_for_heads=False,
                     sample_year_for_generator=True,
-                    head_timestamp: Optional[datetime] = None):
+                    head_timestamp: Optional[datetime] = None,
+                    endtags=False):
     thread_generator = thread
 
     if sample_year_for_generator:
@@ -134,6 +135,7 @@ def make_nwo_prompts(thread: TumblrThread,
         thread_generator,
         ml_prompt_format=ml_prompt_format,
         include_image_urls=include_image_urls,
+        endtags=endtags,
     )
 
     if head_timestamp:
@@ -141,11 +143,13 @@ def make_nwo_prompts(thread: TumblrThread,
 
     thread_selector = cut_to_n_most_recent_by_user(thread, blog_name, n_most_recent=2, keep_first=False)
     prompt_selector = EOT + npf_thread_to_formatted_text(thread_selector, ml_prompt_format=ml_prompt_format,
-                                                         include_image_urls=include_image_urls_for_heads)
+                                                         include_image_urls=include_image_urls_for_heads,
+                                                         endtags=endtags)
 
     thread_autoreviewer = cut_to_n_most_recent_by_user(thread, blog_name, n_most_recent=2)
     prompt_autoreviewer = EOT + npf_thread_to_formatted_text(thread_autoreviewer, ml_prompt_format=ml_prompt_format,
-                                                             include_image_urls=include_image_urls_for_heads)
+                                                             include_image_urls=include_image_urls_for_heads,
+                                                             endtags=endtags)
     if debug:
         print(f"prompt: {repr(prompt)}")
         print(f"prompt_selector: {repr(prompt_selector)}")
@@ -174,7 +178,7 @@ def make_nwo_fic_override_prompts(thread: TumblrThread,
     return prompt, prompt_selector, prompt_autoreviewer
 
 
-def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_CSC, sample_year_for_generator=True, debug=False):
+def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_CSC, sample_year_for_generator=True, endtags=False, debug=False):
     prompts, prompts_selector, prompts_autoreviewer = [], {}, {}
     probs = []
 
@@ -185,7 +189,7 @@ def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_C
     timestamp_posix = int(timestamp.timestamp())
 
     timestamp_sampled_posix = timestamp_posix
- 
+
     if sample_year_for_generator:
         timestamp_sampled_posix = int(sample_year_and_set(timestamp).timestamp())
 
@@ -193,12 +197,15 @@ def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_C
     fake_thread_sampled_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_sampled_posix)
 
     prompt_regular = EOT + npf_thread_to_formatted_text(fake_thread_sampled_ts,
-                                                        ml_prompt_format=True)
+                                                        ml_prompt_format=True,
+                                                        endtags=endtags)
     prompts.append(prompt_regular)
     prompts_selector[prompt_regular] = EOT + npf_thread_to_formatted_text(fake_thread_real_ts,
-                                                                          ml_prompt_format=True)
+                                                                          ml_prompt_format=True,
+                                                                          endtags=endtags)
     prompts_autoreviewer[prompt_regular] = EOT + npf_thread_to_formatted_text(fake_thread_real_ts,
-                                                                              ml_prompt_format=True)
+                                                                              ml_prompt_format=True,
+                                                                              endtags=endtags)
 
     # fic
     probs.append(0.1)

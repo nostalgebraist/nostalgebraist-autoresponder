@@ -14,6 +14,7 @@ import pytumblr
 import time
 import os
 import pickle
+from collections import Counter
 
 from util.times import now_pst
 from util.cloudsave import resilient_pickle_load, resilient_pickle_save, CLOUDSAVE_BUCKET
@@ -76,6 +77,9 @@ class ResponseCache:
 
         if "genesis_id_to_published_id" not in self.cache:
             self.cache["genesis_id_to_published_id"] = {}
+
+        if "rts_counts" not in self.cache:
+            self.cache["rts_counts"] = Counter()
 
     @staticmethod
     def load(client=None,
@@ -704,3 +708,25 @@ class ResponseCache:
     @property
     def genesis_id_to_published_id(self):
         return self.cache["genesis_id_to_published_id"]
+
+    def rts_count(self, ident):
+        return self.cache["rts_counts"][ident]
+
+    def increment_rts_count(self, ident):
+        self.cache["rts_counts"][ident] += 1
+        print(f"incremented rts count for {repr(ident)}")
+
+    def decrement_rts_count(self, ident):
+        self.cache["rts_counts"][ident] -= 1
+        print(f"decremented rts count for {repr(ident)}")
+
+    def do_rts_to_ask(self, uii: UserInputIdentifier):
+        print(f"automatic rejection count: {self.rts_count(uii)}")
+
+    def do_rts_to_reblog(self, pi: PostIdentifier):
+        self.mark_unhandled(pi)
+        print(f"automatic rejection count: {self.rts_count(pi)} times")
+
+    def do_rts_to_reply(self, rid: ReplyIdentifier):
+        self.cache["replies_handled"].remove(rid)
+        print(f"automatic rejection count: {self.rts_count(rid)} times")

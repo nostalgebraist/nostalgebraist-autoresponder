@@ -20,14 +20,15 @@ def request_diffusion(text, **kwargs):
     data_to_send["id"] = bridge_id
 
     requests.post(bridge_service_url + "/requestdiffusion", json=data_to_send)
+    return bridge_id
 
 
-def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=2):
+def wait_for_result_diffusion(bridge_id, wait_first_time=40, wait_recheck_time=2):
     bridge_service_url = get_bridge_service_url()
     print("waiting for result", end="... ")
     started_waiting_ts = time.time()
     time.sleep(wait_first_time)
-    result = requests.get(bridge_service_url + "/getresultdiffusion")
+    result = requests.get(bridge_service_url + f"/getresultdiffusion/{bridge_id}")
     n_tries = 0
 
     def _try_load(result_):
@@ -49,7 +50,7 @@ def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=2):
         n_tries += 1
         print(n_tries, end="... ")
         time.sleep(time_to_wait)
-        result = requests.get(bridge_service_url + "/getresultdiffusion")
+        result = requests.get(bridge_service_url + f"/getresultdiffusion/{bridge_id}")
         im = _try_load(result)
 
     done_waiting_ts = time.time()
@@ -59,6 +60,6 @@ def wait_for_result_diffusion(wait_first_time=40, wait_recheck_time=2):
 
 
 def make_image_with_diffusion(text, **kwargs):
-    request_diffusion(text, **kwargs)
+    bridge_id = request_diffusion(text, **kwargs)
 
-    return wait_for_result_diffusion()
+    return wait_for_result_diffusion(bridge_id)

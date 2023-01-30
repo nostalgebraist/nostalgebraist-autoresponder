@@ -67,7 +67,11 @@ def format_post_for_api(post):
     post = EscapingParser().apply(post)
 
     post = "<p>" + post + "</p>"
+
+    # newlines --> p tag
+    post = re.sub(r"\n+", "\n", post)  # collapse multi
     post = re.sub("\n", "</p><p>", post)
+    post = re.sub("<p>(</?blockquote>)", "\g<1><p>", post)  # fix blockquotes
     return post
 
 

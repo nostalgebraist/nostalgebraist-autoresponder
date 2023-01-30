@@ -36,6 +36,10 @@ V12_16 = True  # captions + more data
 V12_17 = True  # captions + legacy image data fixes
 V12_18 = True  # captions + more legacy image data fixes
 V12_19 = True  # captions + fix some mistakes introduced in V12_18 data prep
+ARJ_V11 = True  # more data
+ARJ_V11_ENDTAGS = True
+
+ENDTAGS = False
 
 BUCKET_NAME = ""
 if not V12_7:
@@ -53,9 +57,10 @@ LOGGING_FLAGS = {
 
 if V12_19:
     AUTOREVIEWER_CUTOFFS = {
-        "accept_below": 0.117,  # v12_19/v3_experimental: predict true accept rate: ~49%, false accept rate ~8.75%
-        "reject_above": 0.679,  # v12_19/v3_experimental: predict true reject rate: ~36%, false reject rate ~3%
+        "accept_below": 0.113,  # v12_19/v4_experimental: predict true accept rate: ~48%, false accept rate ~8.75%
+        "reject_above": 0.661,  # v12_19/v4_experimental: predict true reject rate: ~32%, false reject rate ~3%
         "flag_above":   0.35,
+        "accept_below_textpost": 0.242,  # v12_19/v4_experimental: predict true accept rate: ~57%, false accept rate ~8.75%
     }
 elif V12_18:
     AUTOREVIEWER_CUTOFFS = {
@@ -192,7 +197,13 @@ HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
 HF_FILES_GZIPPED = False
 model_path = None
 
-if V12_19:
+if ARJ_V11_ENDTAGS:
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
+    model_name = "arj-x11-3450"
+    if ARJ_V11_ENDTAGS:
+        model_name = "arj-x11-endtags-3343"
+        ENDTAGS = True
+elif V12_19:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
     model_name = "arj-x10p3-2621"
 elif V12_18:
@@ -265,9 +276,9 @@ if not model_path:
 ckpt_captioner = None
 
 if V12_19:
-    ckpt_select = "selector/v12_19/v4_experimental/"
-    ckpt_sentiment = "sentiment/v12_19/v1/"
-    ckpt_autoreviewer = "draft_autoreviewer/v12_19/v3_experimental/"
+    ckpt_select = "selector/v12_19/v7_experimental/"
+    ckpt_sentiment = "sentiment/v12_19/v2/"
+    ckpt_autoreviewer = "draft_autoreviewer/v12_19/v4_experimental/"
     ckpt_captioner = "captioner/v12_19/v1/"
 elif V12_18:
     ckpt_select = "selector/v12_18/v1/"
@@ -617,17 +628,17 @@ USE_KV_BUFFER = True
 
 AVOID_UNK_CAPTION = True
 BREAKRUNS_OFF_WITHIN_IMAGES = False
-BREAKRUNS_MODIFIED_WITHIN_IMAGES = True
-BREAKRUNS_TEMP_MODIFIER = 1.0
+BREAKRUNS_MODIFIED_WITHIN_IMAGES = False
+BREAKRUNS_TEMP_MODIFIER = 0.0
 
 if V12 and (GPU_TYPE == "small"):
-    max_feed_size_with_cache = 1500
+    max_feed_size_with_cache = 2048
     max_feed_size_no_cache = 1300
     USE_KV_BUFFER = True
 
-length_select = max_feed_size_with_cache
-length_sentiment = max_feed_size_with_cache
-length_autoreview = max_feed_size_with_cache
+length_select = max_feed_size_no_cache
+length_sentiment = max_feed_size_no_cache
+length_autoreview = max_feed_size_no_cache
 
 batch_size = 2 if GPU_TYPE == "bigger" else 1
 

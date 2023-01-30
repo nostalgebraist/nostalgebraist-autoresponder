@@ -20,7 +20,7 @@ from api_ml.selector import serve_selection
 from api_ml import bridge_cache_singleton
 from api_ml.bridge_shared import get_bridge_service_url
 
-from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED, normalize_tumblr_image_url, fill_url_based_captions
+from multimodal.image_analysis_static import IMAGE_DELIMITER_WHITESPACED, normalize_tumblr_image_url, fill_url_based_captions, remove_images_entirely_from_post_text
 from tumblr_to_text.image_munging import mock_up_image_generation_tags_for_heads
 
 from util.error_handling import LogExceptionAndSkip
@@ -225,6 +225,7 @@ def basic_n_continuations(
     avoid_initial_blockquote=False,
     avoid_if_profane=False,
     avoid_if_says_frank=False,
+    permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
     mirotarg=None,
     verbose=False,
 ):
@@ -261,7 +262,7 @@ def basic_n_continuations(
     poll_interval_secs = 5
 
     while len(continuations) < N:
-        if len(continuations) >= N - 4:
+        if len(continuations) >= N - 2:
             if not almostdone_sent:
                 requests.post(bridge_service_url + "/almostdone", json={"id": bridge_id})
                 almostdone_sent = True
@@ -331,6 +332,8 @@ def basic_n_continuations(
 
             roll = np.random.rand()
             has_img = IMAGE_DELIMITER_WHITESPACED in c
+            tagged_usernames = set(re.findall(r"@([\w-]+)", remove_images_entirely_from_post_text(c)))
+
             # NOTE: the < 100 check is for weird posts where the newline doesn't happen
             if len(c.partition("\n")[2].split(" ")) < avoid_if_under and len(c) < 100 and (not has_img):
                 print(
@@ -359,6 +362,9 @@ def basic_n_continuations(
                 c.partition(T_CHAR)[0].strip(whitespace)
             ) in normalize_for_generator(pr):
                 print(f"\n\trejecting because repeating myself: {_tabfill(c)}\n")
+            elif tagged_usernames.difference(permitted_tagged_usernames) != set():
+                problem_names = tagged_usernames.difference(permitted_tagged_usernames)
+                print(f"\n\trejecting because tagged names {problem_names} not in {permitted_tagged_usernames}: {_tabfill(c)}\n")
             else:
                 if len(c.partition("\n")[2].split(" ")) < avoid_half_if_under:
                     print(
@@ -547,6 +553,7 @@ def answer_from_gpt(
         write_review_override=False,
         avoid_initial_blockquote=False,
         guidance_scale=None,
+        permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
 ):
     t1 = time.time()
 
@@ -561,7 +568,8 @@ def answer_from_gpt(
         write_fic_override=write_fic_override,
         write_review_override=write_review_override,
         avoid_initial_blockquote=avoid_initial_blockquote,
-        guidance_scale=guidance_scale
+        guidance_scale=guidance_scale,
+        permitted_tagged_usernames=permitted_tagged_usernames,
     )
 
     # strategy = "proportional"
@@ -569,7 +577,7 @@ def answer_from_gpt(
     strategy = "eps_greedy"
     eps = 0.075
 
-    result, _ = serve_selection(
+    result, _, _ = serve_selection(
         data=result_generator,
         post_type="answer",
         mood=mood,
@@ -600,7 +608,8 @@ def old_bridge_call__answer(
         write_fic_override=False,
         write_review_override=False,
         avoid_initial_blockquote=False,
-        guidance_scale=None
+        guidance_scale=None,
+        permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
 ):
     best_of = 11 if (not TRADE_QUALITY_FOR_SPEED) else 8
 
@@ -633,7 +642,7 @@ def old_bridge_call__answer(
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_profane=avoid_if_profane,
         avoid_if_says_frank=avoid_if_says_frank,
-
+        permitted_tagged_usernames=permitted_tagged_usernames,
     )
 
     response_data = {}
@@ -701,6 +710,7 @@ def text_post_from_gpt(loop_persistent_data,
                        prompts_probs,
                        mood_name=None,
                        guidance_scale=None,
+                       permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
                        ):
     t1 = time.time()
 
@@ -708,13 +718,20 @@ def text_post_from_gpt(loop_persistent_data,
 
     n_retention = len(loop_persistent_data.retention_stack)
 
+    retention_logit_diffs = [
+        loop_persistent_data.retention_logit_diff_lookup[s]
+        for s in loop_persistent_data.retention_stack
+    ]
+
     result_generator = old_bridge_call__textpost(n_retention=n_retention,
                                                  mood=mood,
                                                  prompts=prompts,
                                                  prompts_selector=prompts_selector,
                                                  prompts_autoreviewer=prompts_autoreviewer,
                                                  prompts_probs=prompts_probs,
-                                                 guidance_scale=guidance_scale
+                                                 guidance_scale=guidance_scale,
+                                                 retention_logit_diffs=retention_logit_diffs,
+                                                 permitted_tagged_usernames=permitted_tagged_usernames,
                                                  )
 
     # strategy = "proportional"
@@ -722,18 +739,20 @@ def text_post_from_gpt(loop_persistent_data,
     strategy = "eps_greedy"
     eps = 0.15
 
-    result, retention_stack = serve_selection(
+    result, retention_stack, retention_logit_diff_lookup = serve_selection(
         data=result_generator,
         post_type="textpost",
         mood=mood,
         strategy=strategy,
         eps=eps,
+        retention_logit_diff_lookup=loop_persistent_data.retention_logit_diff_lookup,
         retention_stack=loop_persistent_data.retention_stack,
     )
 
     save_retention(retention_stack)
 
     loop_persistent_data.retention_stack = retention_stack
+    loop_persistent_data.retention_logit_diff_lookup = retention_logit_diff_lookup
 
     # for logging, add input fields that didn't make the round trip
     result["mood"] = mood_name
@@ -752,6 +771,8 @@ def old_bridge_call__textpost(
         prompts_probs,
         mood=None,
         guidance_scale=None,
+        retention_logit_diffs=None,
+        permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
 ):
     avoid_if_under = 5
     avoid_half_if_under = 10
@@ -759,13 +780,17 @@ def old_bridge_call__textpost(
     avoid_if_says_frank = False
 
     best_of = TEXTPOST_N_CANDIDATES_TARGET
+
+    if n_retention is not None and mood is not None:
+        # best_of = max(1, best_of - int(round((RETENTION_DISCOUNT * n_retention))))
+        n_allowed = sum(
+            mood["min_allowed_score"] < ld < mood["max_allowed_score"]
+            for ld in retention_logit_diffs
+        )
+        best_of = max(1, best_of - n_allowed)
+        print(f"with {n_retention} on stack, of which {n_allowed} are mood-compatible, only need {best_of}")
+
     best_of = adjust_best_of(best_of, mood, is_textpost=True)
-
-    if n_retention is not None:
-        best_of = max(1, best_of - int(round((RETENTION_DISCOUNT * n_retention))))
-        print(f"with {n_retention} on stack, only need {best_of}")
-
-    print(f"n_retention {n_retention}")
 
     # old serve_textpost
 
@@ -778,6 +803,7 @@ def old_bridge_call__textpost(
         avoid_half_if_under=avoid_half_if_under,
         avoid_initial_blockquote=avoid_initial_blockquote,
         avoid_if_says_frank=avoid_if_says_frank,
+        permitted_tagged_usernames=permitted_tagged_usernames,
     )
 
     response_data = {}

@@ -96,7 +96,7 @@ def find_text_images_and_sub_real_images(
     textless_guidance_scale=4,
     textful_guidance_scale=1,
     text_guidance_scale=1,
-    dynamic_threshold_p=0.995,
+    dynamic_threshold_p=0.99,
 ):
     print(f'using diffusion?: {use_diffusion}')
     if use_diffusion:

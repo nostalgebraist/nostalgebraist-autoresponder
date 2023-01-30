@@ -8,13 +8,13 @@ from util.cloudsave import CLOUDSAVE_BUCKET
 try:
     with open(f"gs://{CLOUDSAVE_BUCKET}/nbar_data/nost_post_year_counts.json", "r") as f:
         nost_post_years_to_counts = json.load(f)
-except FileNotFoundError:
+except:
     nost_post_years_to_counts = {y: 1 for y in range(2012, 2022)}
 
 try:
     with open(f"gs://{CLOUDSAVE_BUCKET}/nbar_data/nost_post_year_fracs.json", "r") as f:
         nost_post_years_to_fracs = json.load(f)
-except FileNotFoundError:
+except:
     nyear = len(nost_post_years_to_counts)
     nost_post_years_to_fracs = {y: nost_post_years_to_counts[y] / nyear for y in nost_post_years_to_counts}
 

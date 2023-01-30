@@ -14,7 +14,7 @@ PROMPT_STACK = {}
 RESULT_STACK = {}
 
 PROMPT_DIFFUSION = {}
-RESULT_DIFFUSION = None
+RESULT_DIFFUSION = {}
 
 ### FLASK
 app = Flask(__name__)
@@ -63,8 +63,9 @@ def polldiffusion_id(bridge_id):
     global PROMPT_DIFFUSION
     global RESULT_DIFFUSION
 
-    if bridge_id == PROMPT_DIFFUSION["id"]:
-        RESULT_DIFFUSION = request.data
+    RESULT_DIFFUSION[bridge_id] = request.data
+
+    if PROMPT_DIFFUSION is not None and bridge_id == PROMPT_DIFFUSION["id"]:
         PROMPT_DIFFUSION = None
     return jsonify({})
 
@@ -112,9 +113,11 @@ def done():
 def alldone():
     global PROMPT_STACK
     global RESULT_STACK
+    global PROMPT_DIFFUSION
 
     PROMPT_STACK = {}
     RESULT_STACK = {}
+    PROMPT_DIFFUSION = None
 
     return jsonify({})
 
@@ -134,14 +137,13 @@ def getresult():
     return jsonify(response)
 
 
-@app.route("/getresultdiffusion", methods=["GET"])
-def getresultdiffusion():
+@app.route("/getresultdiffusion/<bridge_id>", methods=["GET"])
+def getresultdiffusion(bridge_id):
     global RESULT_DIFFUSION
 
-    if RESULT_DIFFUSION is not None:
-        ret = RESULT_DIFFUSION
+    if bridge_id in RESULT_DIFFUSION:
+        ret = RESULT_DIFFUSION.pop(bridge_id)
         print((type(ret), len(ret)))
-        RESULT_DIFFUSION = None
         response = make_response(ret)
         response.headers.set('Content-Type', 'image/png')
         return response

@@ -10,14 +10,14 @@ from textwrap import wrap
 from multimodal.image_analysis_static import IMAGE_URL_DELIMITER, extract_image_texts_and_urls_from_post_text
 from tumblr_to_text.image_munging import mock_up_image_generation_tags_for_heads
 
-from config.autoresponder_config import LOGGING_FLAGS
+from config.autoresponder_config import LOGGING_FLAGS, ENDTAGS
 from tumblr_to_text.classic.autoresponder_static import EOT
 from feels.mood import logit_diff_to_allen_schema
 
 
 RESULT_STACK = {}
 
-RETENTION_CUTOFF = 0.8
+RETENTION_CUTOFF = 0.7
 ENFORCE_RETENTION_CUTOFF = True
 
 FIC_COLDSTART = False
@@ -25,19 +25,21 @@ REVIEW_COLDSTART = False
 IMAGE_COLDSTART = False
 IMAGE_COLDSTART_USE_ARGMAX = False
 GIF_COLDSTART = False
-QUOTES_COLDSTART = False
+QUOTES_COLDSTART = True
 DREAMS_COLDSTART = False
 GUIDELINES_COLDSTART = True
 PSEUDO_TEXT_COLDSTART = True
+HS_COLDSTART = True
 
 FIC_COLDSTART_DELTA = 0.05
 REVIEW_COLDSTART_DELTA = 0.05
-IMAGE_COLDSTART_DELTA = 0.1  # !
+IMAGE_COLDSTART_DELTA = -0.3
 GIF_COLDSTART_DELTA = -0.2 -(IMAGE_COLDSTART * IMAGE_COLDSTART_DELTA)
 QUOTES_COLDSTART_DELTA = -0.25
 DREAMS_COLDSTART_DELTA = 0.15
 GUIDELINES_COLDSTART_DELTA = -0.25
-PSEUDO_TEXT_COLDSTART_DELTA = -0.4
+PSEUDO_TEXT_COLDSTART_DELTA = -0.6
+HS_COLDSTART_DELTA = -0.2
 
 # getting the capts MVP work to properly
 IMAGE_COLDSTART_DELIMITER = IMAGE_URL_DELIMITER.lstrip('\n')
@@ -82,9 +84,9 @@ def show_note_probas(texts, probas, continuation_sentiments=None, other_proba=No
         print("\n~_~_~_~_~_\n")
 
 
-def parse_continuation(continuation: str, verbose=LOGGING_FLAGS["parse_continuation"]):
+def parse_continuation_starttags(continuation: str, verbose=LOGGING_FLAGS["parse_continuation"]):
     if verbose:
-        msg = "parse_continuation_nwo: "
+        msg = "parse_continuation_starttags: "
         msg += f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"
         print(msg)
 
@@ -105,6 +107,36 @@ def parse_continuation(continuation: str, verbose=LOGGING_FLAGS["parse_continuat
     if verbose:
         print(f"parsed to:\n{parsed}")
     return parsed
+
+
+def parse_continuation_endtags(continuation: str, verbose=LOGGING_FLAGS["parse_continuation"]):
+    if verbose:
+        msg = "parse_continuation_endtags: "
+        msg += f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"
+        print(msg)
+
+    continuation = continuation.partition(EOT)[0]
+
+    post, _, tag_text = continuation.partition("\n\n\t")
+
+    if post.startswith('='):
+        # getting the capts MVP work to properly
+        if verbose:
+            print(f"prepending newline to post: {repr(post)}")
+        post = '\n' + post
+
+    tags = []
+    if len(tag_text) > 0:
+        tags = [s.rstrip(" ") for s in tag_text.split("#")]
+        tags = [t for t in tags if len(t) > 0]
+
+    parsed = {"post": post, "tags": tags}
+    if verbose:
+        print(f"parsed to:\n{parsed}")
+    return parsed
+
+
+parse_continuation = parse_continuation_endtags if ENDTAGS else parse_continuation_starttags
 
 
 def winndow_probabilities(proba, lower=0.167, upper=0.833):
@@ -254,11 +286,15 @@ def match_guidelines(c):
     return is_match, substring
 
 
-def match_pseudo_text(c):
+def match_pseudo_text(c, debug=True):
+    if debug:
+        print("match_pseudo_text called | ", end="")
     # TODO: DRY
     is_match, substring = False, 'match_pseudo_text||'
 
     if IMAGE_COLDSTART_DELIMITER in c:
+        if debug:
+            print(f"match_pseudo_text delim {repr(c)} | ", end="")
         try:
             entries = extract_image_texts_and_urls_from_post_text(c)
         except Exception as exc:
@@ -268,9 +304,15 @@ def match_pseudo_text(c):
         for e in entries:
             caption = e.get('url') or ''
             text = e.get('imtext') or ''
-            if '`' in caption and text == '':
+            caption_wants_text = any(
+                s in caption for s in ('`', 'text', 'caption')
+            )
+            no_text = text == ''
+            if caption_wants_text and no_text:
                 is_match = True
                 substring += repr(e)
+        if debug:
+            print(f"match_pseudo_text is_match {is_match}, substring {repr(substring)} | ", end="")
     return is_match, substring
 
 
@@ -301,6 +343,9 @@ do_guidelines_coldstart = partial(
 do_pseudo_text_coldstart = partial(
     do_coldstart, substring="", custom_filter=match_pseudo_text, delta=PSEUDO_TEXT_COLDSTART_DELTA
 )
+do_hs_coldstart = partial(
+    do_coldstart, substring="homestuck", delta=HS_COLDSTART_DELTA
+)
 
 
 def do_all_coldstarts(continuations, selection_proba):
@@ -328,6 +373,9 @@ def do_all_coldstarts(continuations, selection_proba):
     if PSEUDO_TEXT_COLDSTART:
         selection_proba = do_pseudo_text_coldstart(continuations, selection_proba)
 
+    if HS_COLDSTART:
+        selection_proba = do_hs_coldstart(continuations, selection_proba)
+
     return selection_proba
 
 
@@ -338,6 +386,7 @@ def serve_selection(
     retention_stack=None,
     strategy="proportional",
     eps=0.1,
+    retention_logit_diff_lookup=None,
 ):
     continuations = data["continuations"]
     selection_proba = data.get("selection_proba")
@@ -356,15 +405,15 @@ def serve_selection(
         if selection_proba is not None:
             (
                 retention_stack_proba,
-                retention_stack_logit_diffs,
+                retention_logit_diffs,
                 retention_stack_autoreview_proba,
-            ) = get_retention_stack_judgments(retention_stack)
+            ) = get_retention_stack_judgments(sorted(retention_stack))
             if retention_stack_proba is not None:
                 print(
                     f"len(retention_stack) {len(retention_stack)} vs len(retention_stack_proba) {len(retention_stack_proba)}"
                 )
                 selection_proba += retention_stack_proba
-                sentiment_logit_diffs += retention_stack_logit_diffs
+                sentiment_logit_diffs += retention_logit_diffs
                 autoreview_proba += retention_stack_autoreview_proba
             else:
                 selection_proba += [None for _ in retention_stack]
@@ -394,8 +443,11 @@ def serve_selection(
         all_continuation_sentiments = continuation_sentiments
         retained_selection_proba = selection_proba
         retained_continuation_side_data = continuation_side_data
+        retained_autoreview_proba = autoreview_proba
 
     proba = np.asarray(retained_selection_proba)  # TODO: clearer name here
+
+    print(f"after exclusions, {len(proba)} left")
 
     # diffusion coldstart
     if IMAGE_COLDSTART_USE_ARGMAX:
@@ -452,6 +504,7 @@ def serve_selection(
         for i, p in enumerate(selection_proba):
             if p > RETENTION_CUTOFF and continuations[i] not in retention_stack:
                 retention_stack.add(continuations[i])
+                retention_logit_diff_lookup[continuations[i]] = sentiment_logit_diffs[i]
 
         if continuation in retention_stack:
             retention_stack.remove(continuation)
@@ -499,7 +552,7 @@ def serve_selection(
             print(f"\t{k}")
         print("consider modifying selector.py to include them")
 
-    return parsed, retention_stack
+    return parsed, retention_stack, retention_logit_diff_lookup
 
 
 def get_retention_stack_judgments(retention_stack,
@@ -525,6 +578,7 @@ def get_retention_stack_judgments(retention_stack,
     prompts, prompts_selector, prompts_autoreviewer, _ = make_nwo_textpost_prompts(
         blog_name=blog_name,
         timestamp=timestamp,
+        endtags=ENDTAGS,
     )
 
     base_texts_for_selector_and_autoreviewer = [

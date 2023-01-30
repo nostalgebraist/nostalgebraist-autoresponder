@@ -25,6 +25,7 @@ class BotSpecificConstants:
         ask_min_words: int,
         STOP_ABOVE_COST: int,
         reblog_reply_window_nposts: int,
+        reblog_reply_window_nhours: int,
         NO_REBLOG_IDS: Set[int] = set(),
         DEF_REBLOG_IDS: Set[int] = set(),
         FORCE_TRAIL_HACK_IDS: Set[int] = set(),
@@ -136,6 +137,7 @@ class BotSpecificConstants:
         self.STOP_ABOVE_COST = STOP_ABOVE_COST
 
         self.reblog_reply_window_nposts = reblog_reply_window_nposts
+        self.reblog_reply_window_nhours = reblog_reply_window_nhours
 
     @staticmethod
     def load(path: str = "config.json") -> "BotSpecificConstants":

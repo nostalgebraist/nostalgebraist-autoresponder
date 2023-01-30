@@ -164,38 +164,40 @@ class GeneratorModelTorch:
         return self.transformers_model.using_kv_buffer
 
     @torch.no_grad()
-    def compute_kv_cache(self, input_ids):
+    def compute_kv_cache(self, input_ids, verbose=False):
         input_ids = input_ids[:, -self.max_feed_size_with_cache:]
 
         full_len = input_ids.shape[1]
 
-        print(f"Computing kv cache for length {full_len}")
+        if verbose:
+            print(f"Computing kv cache for length {full_len}")
 
         input_ids_no_cache = input_ids[:, :self.max_feed_size_no_cache]
 
         self.clear_past()
 
         if full_len <= self.max_feed_size_no_cache:
-            presents = self.transformers_model(
+            presents = self.transformers_model.transformer(
                 input_ids=input_ids_no_cache[:, :-1],
                 use_cache=True,
             ).past_key_values
             self.set_past(presents)
         else:
-            presents = self.transformers_model(
+            presents = self.transformers_model.transformer(
                 input_ids=input_ids_no_cache,
                 use_cache=True,
             ).past_key_values
             self.set_past(presents)
 
         for ix in range(self.max_feed_size_no_cache, full_len-1):
-            presents = self.transformers_model(
+            presents = self.transformers_model.transformer(
                 input_ids=input_ids[:, ix:ix+1],
                 past_key_values=presents,
                 use_cache=True,
             ).past_key_values
 
-        print(f"Done computing kv cache for length {full_len}")
+        if verbose:
+            print(f"Done computing kv cache for length {full_len}")
 
         return input_ids, presents
 
@@ -205,6 +207,10 @@ class GeneratorModelTorch:
 
     @torch.no_grad()
     def write(self, prompt: str, verbose=False, max_length_per_feed=None):
+        def vprint(*args, **kwargs):
+            if verbose:
+                print(*args, **kwargs)
+
         batch_pr = [prompt for _ in range(self.batch_size)]
         batch_pr_tokens = self.tokenizer(
             batch_pr,
@@ -231,7 +237,7 @@ class GeneratorModelTorch:
             input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
             if self.using_kv_buffer and past is None:
-                input_ids_th, past = self.compute_kv_cache(input_ids_th)
+                input_ids_th, past = self.compute_kv_cache(input_ids_th, verbose=verbose)
 
             if max_length_per_feed is not None:
                 max_length_for_transformers_call = min(
@@ -276,22 +282,22 @@ class GeneratorModelTorch:
                 this_done = (not more_needed) or (not more_permitted)
                 dones.append(this_done)
 
-                print(f"this_done: {this_done}")
-                print(f"\tmore_needed={more_needed} <-- final_token={final_token}, already_done={already_done[i]}")
-                print(
+                vprint(f"this_done: {this_done}")
+                vprint(f"\tmore_needed={more_needed} <-- final_token={final_token}, already_done={already_done[i]}")
+                vprint(
                     f"\tmore_permitted={more_permitted} <-- n_continuations_tokens={n_continuations_tokens}, len(continuations_tokens[i])={len(continuations_tokens[i])}, n_orig_prompt_tokens={n_orig_prompt_tokens}"
                 )
 
                 if (not this_done) or self.using_kv_buffer:
                     # construct next prompt
                     next_prompt_tokens = continuations_tokens[i][-self.max_context_size:]
-                    print(f"next_prompt_tokens: {len(next_prompt_tokens)}")
+                    vprint(f"next_prompt_tokens: {len(next_prompt_tokens)}")
                     if len(next_prompt_tokens) < self.max_context_size:
                         # ended early + kv buffer
                         pads = (self.max_context_size - len(next_prompt_tokens)) * [self.tokenizer.pad_token_id]
                         next_prompt_tokens.extend(pads)
                         next_prompt_tokens = next_prompt_tokens[-self.max_context_size:]
-                        print(f"next_prompt_tokens: {len(next_prompt_tokens)} with pads")
+                        vprint(f"next_prompt_tokens: {len(next_prompt_tokens)} with pads")
                     input_ids.append(next_prompt_tokens)
 
                     if this_done:
@@ -352,10 +358,10 @@ class GeneratorModelTorch:
             },
         }
 
-    def tok2str(t):
+    def tok2str(self, t):
         if isinstance(t, int):
-            return tokenizer.decode([t])
-        return [tokenizer.decode([tok]) for tok in t]
+            return self.tokenizer.decode([t])
+        return [self.tokenizer.decode([tok]) for tok in t]
 
     @torch.no_grad()
     def get_next_logits(self, text: str, to_numpy=True):

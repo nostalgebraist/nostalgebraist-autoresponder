@@ -1,14 +1,14 @@
 from datetime import datetime, timedelta, time as dtime
 from util.times import now_pst, fromtimestamp_pst
 
-BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thresh": 60, "SLEEP_TIME_scale": 1.,
+BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thresh": 40, "SLEEP_TIME_scale": 1.,
                        "MAX_POSTS_PER_STEP_scale": 1., "STOP_ABOVE_COST_modifier": 0.}
 
 SLOWDOWN_LEVELS = [
     BASE_SLOWDOWN_LEVEL,
-    {"name": "slower", "rate_ratio_thresh": 1.5, "n_remaining_thresh": 40, "SLEEP_TIME_scale": 2.5,
+    {"name": "slower", "rate_ratio_thresh": 1.5, "n_remaining_thresh": 25, "SLEEP_TIME_scale": 2.5,
      "MAX_POSTS_PER_STEP_scale": 3.1 / 5, "STOP_ABOVE_COST_modifier": -1.5},
-    {"name": "slower2", "rate_ratio_thresh": 2, "n_remaining_thresh": 25, "SLEEP_TIME_scale": 5,
+    {"name": "slower2", "rate_ratio_thresh": 2, "n_remaining_thresh": 5, "SLEEP_TIME_scale": 5,
      "MAX_POSTS_PER_STEP_scale": 2.1 / 5, "STOP_ABOVE_COST_modifier": -3.},
     {"name": "slowest", "rate_ratio_thresh": 1000, "n_remaining_thresh": 0, "SLEEP_TIME_scale": 10,
      "MAX_POSTS_PER_STEP_scale": 1.1 / 5, "STOP_ABOVE_COST_modifier": -3.},
@@ -27,7 +27,6 @@ def post_limit_reset_ts(now=None):
     # this assumes:
     #   - tumblr resets at midnight EST
     #   - frank is running in PST
-    # TODO: revisit this if i'm on vacation or something
 
     if now is None:
         now = now_pst()
@@ -126,15 +125,32 @@ def review_rates(post_payloads, max_per_24h=250, hour_windows=(1, 2, 4, 12,), no
         print(msg)
 
 
+def count_queued_posts_before_reset(queued_post_times_pst, now=None, verbose=True):
+    next_reset_ts = post_limit_reset_ts(now=now) + timedelta(hours=24)
+
+    n_before_reset = sum(ts < next_reset_ts for ts in queued_post_times_pst)
+
+    if verbose:
+        n_total = len(queued_post_times_pst)
+        print(f"of {n_total} queued posts, {n_before_reset} are before the next post limit reset")
+
+    return n_before_reset
+
+
 def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hardstop_pad=0, ref_level=None, now=None,
+                          queued_post_times_pst=None,
                           verbose=True):
     max_rate = compute_max_rate_until_next_reset(post_payloads, now=now, max_per_24h=max_per_24h)
 
     _, rate = compute_rate_over_last_hours(post_payloads, avg_over_hours=avg_over_hours, now=now)
     n_since_reset = count_posts_since_reset(post_payloads, now=now)
 
+    queue_pad = 0
+    if queued_post_times_pst is not None:
+        queue_pad = count_queued_posts_before_reset(queued_post_times_pst, now=now, verbose=verbose)
+
     ratio = rate / max_rate
-    n_remaining = max_per_24h - n_since_reset
+    n_remaining = max_per_24h - n_since_reset - queue_pad
 
     selected = None
     for level in SLOWDOWN_LEVELS:

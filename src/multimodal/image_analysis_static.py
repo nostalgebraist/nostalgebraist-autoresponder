@@ -48,6 +48,9 @@ def extract_image_texts_and_urls_from_post_text(s):
     #   4. imtext if present
     #   5. IMAGE_DELIMITER if present
 
+    # make the end-of-string part of the regex work properly
+    s = s.replace("<|endoftext|>", "")
+
     entries = []
 
     for match in re.finditer(
@@ -86,6 +89,10 @@ def remove_image_urls_and_captions_from_post_text(s, return_urls=False):
         return scrubbed, urls
 
     return scrubbed
+
+
+def remove_images_entirely_from_post_text(s):
+    return re.sub(imurl_imtext_regex, '', s, flags=re.DOTALL)
 
 
 def normalize_tumblr_image_url(k):

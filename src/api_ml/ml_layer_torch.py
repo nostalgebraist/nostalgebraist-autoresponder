@@ -21,11 +21,16 @@ import ml.captioning
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
-import config.bot_config_singleton
-bot_specific_constants = config.bot_config_singleton.bot_specific_constants
+BRIDGE_SERVICE_REMOTE_HOST, bridge_service_port = None, None
 
-bridge_service_port = bot_specific_constants.bridge_service_port
-BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
+try:
+    import config.bot_config_singleton
+    bot_specific_constants = config.bot_config_singleton.bot_specific_constants
+
+    bridge_service_port = bot_specific_constants.bridge_service_port
+    BRIDGE_SERVICE_REMOTE_HOST = bot_specific_constants.BRIDGE_SERVICE_REMOTE_HOST
+except FileNotFoundError:
+    print("No config file found. Running in local mode.")
 
 
 def caption_image(self, path_or_url, **kwargs):
@@ -163,6 +168,8 @@ generator_path = model_name
 
 if not os.path.exists(generator_path):
     model_tar_name = 'model.tar.gz' if HF_FILES_GZIPPED else 'model.tar'
+    if ARJ_V11 and ARJ_V11_ENDTAGS:
+        model_tar_name = 'model-endtags.tar'
     model_tar_path = get_local_path_from_huggingface_cdn(
         HF_REPO_NAME, model_tar_name
     )
@@ -236,6 +243,7 @@ def poll(
         "pollml",
     ],
     show_memory=True,
+    multirequest_sequence_in_process=False,
 ):
     global CLOSED_REQUESTS
 
@@ -248,6 +256,8 @@ def poll(
 
         RESULT_STACK = {}
 
+        last_requested_model_name = None
+
         for prompt_id, data in PROMPT_STACK.items():
             if prompt_id in CLOSED_REQUESTS:
                 RESULT_STACK[prompt_id] = CLOSED_REQUESTS[prompt_id]
@@ -259,14 +269,18 @@ def poll(
             requested_model = None
             if data["model"] == "generator":
                 requested_model = generator_model
+                multirequest_sequence_in_process = True
             elif data["model"] == "selector":
                 requested_model = selector_est
+                multirequest_sequence_in_process = True
             elif data["model"] == "sentiment":
                 requested_model = sentiment_est
             elif data["model"] == "autoreviewer":
                 requested_model = autoreviewer_est
+                multirequest_sequence_in_process = False
             elif data["model"] == "captioner":
                 requested_model = magma_wrapper
+                multirequest_sequence_in_process = True
             else:
                 raise ValueError(f"requested_model: {data.get('model')}")
 
@@ -279,6 +293,16 @@ def poll(
             requested_args, requested_kwargs = data.get("args", []), data.get(
                 "kwargs", {}
             )
+
+            # keep magma activated over strings of captioning requests
+            if data["model"] == "captioner":
+                requested_kwargs['deactivate_when_done'] = False
+            elif len(magma_wrapper.adapter_map) == 0:
+                # need magma decativated, but adapters are attached
+                ml.captioning.deactivate_magma(
+                    magma_wrapper,
+                    adapters_device=captioning_adapters_device,
+                )
 
             for name in DEPRECATED_KWARGS:
                 if name in requested_kwargs:
@@ -361,7 +385,7 @@ def poll(
             elif prompt_id in RESULT_STACK:
                 CLOSED_REQUESTS[prompt_id] = RESULT_STACK[prompt_id]
 
-        return open_request_ids, almostdone_in_flight
+        return open_request_ids, almostdone_in_flight, multirequest_sequence_in_process
 
 
 def loop_poll(
@@ -376,6 +400,7 @@ def loop_poll(
     show_memory=True,
     n_loops=None,
     use_almostdone=True,
+    multirequest_sequence_in_process=False,
 ):
     loop_counter = 0
     open_request_ids = set()
@@ -386,8 +411,13 @@ def loop_poll(
         return False
 
     while not _should_stop(loop_counter, open_request_ids):
-        open_request_ids, almostdone_in_flight = poll(dummy=dummy, ports=ports, routes=routes, show_memory=show_memory)
-        if len(open_request_ids) == 0 or dummy:
+        open_request_ids, almostdone_in_flight, multirequest_sequence_in_process = poll(
+            dummy=dummy, ports=ports, routes=routes, show_memory=show_memory,
+            multirequest_sequence_in_process=multirequest_sequence_in_process
+        )
+        if multirequest_sequence_in_process:
+            time.sleep(0.1)
+        elif len(open_request_ids) == 0 or dummy:
             time.sleep(period)
         elif use_almostdone and almostdone_in_flight:
             time.sleep(2)

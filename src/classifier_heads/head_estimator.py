@@ -469,7 +469,11 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             X_train["dq_id"] = np.arange(len(X_train))
             dq_df_train = X_train.copy()
-            label_for_dq = (y_train > 0).astype(int) if self.regression_target else y_train
+            if self.regression_target:
+                label_for_dq = y_train
+            else:
+                label_for_dq = (y_train > 0).astype(int)
+                dq.set_labels_for_run([0, 1])
             dq_df_train['label'] = label_for_dq
             dq.log_dataset(dq_df_train, id="dq_id", text="selector_input", split="train")
 
@@ -480,7 +484,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 dq_df_val['label'] = label_for_dq
                 dq.log_dataset(dq_df_val, id="dq_id", text="selector_input", split="validation")
 
-            dq.set_labels_for_run([0, 1])
+            # dq.set_labels_for_run([0, 1])
 
     def _display_eval_metrics(self, y_true, preds, probs, pfcs=None):
         eval_metrics_results = {}

@@ -66,7 +66,7 @@ def caption_image(
     top_k=0,
     max_steps=30,
     guidance_scale=0,
-    prompt='[Image description:',
+    prompt='',
     longest_of=1,
     adapters_device='cpu',
     deactivate_when_done=True,
@@ -81,13 +81,14 @@ def caption_image(
         with LogExceptionAndSkip('trying to caption image'):
             with th.no_grad():
                 for _ in range(longest_of):
-                    text_t = get_caption_prompt_tensor(prompt, magma_wrapper)
-
                     image_t = magma_wrapper.preprocess_inputs([ImageInput(path_or_url)])
-
                     image_end = image_t.shape[1]
 
-                    embeddings = th.cat([image_t, text_t], dim=1)
+                    if prompt:
+                        text_t = get_caption_prompt_tensor(prompt, magma_wrapper)
+                        embeddings = th.cat([image_t, text_t], dim=1)
+                    else:
+                        embeddings = image_t
 
                     output = generate_cfg(
                         model=magma_wrapper,

@@ -287,7 +287,7 @@ if ARJ_V11 and ARJ_V11_ENDTAGS:
     ckpt_sentiment = "sentiment/x11/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/x11/v1/"
     ckpt_captioner = "captioner/xtn11/v0/"
-if V12_19:
+elif V12_19:
     ckpt_select = "selector/v12_19/v7_experimental/"
     ckpt_sentiment = "sentiment/v12_19/v2/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_19/v4_experimental/"

@@ -28,7 +28,7 @@ from transformer_utils.partial_forward import partial_forward, add_partial_forwa
 from util.util import copy_and_update_config
 
 GPT2TokenizerType = Union[GPT2Tokenizer, GPT2TokenizerFast]
-GPTConfigType = UGPTNeoConfig
+GPTConfigType = GPTNeoConfig
 GPTModelType = GPTNeoForCausalLM
 
 

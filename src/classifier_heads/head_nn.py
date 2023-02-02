@@ -11,7 +11,6 @@ from transformer_utils.util.module_utils import get_child_module_by_names
 from transformers.activations import ACT2FN
 from transformers.models.gpt2.tokenization_gpt2_fast import GPT2TokenizerFast
 from transformers.models.gpt2.tokenization_gpt2 import GPT2Tokenizer
-from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 
 # from stable_library_code.transformers.gpt2.configuration_gpt2 import GPT2Config
 # from stable_library_code.transformers.gpt2.modeling_gpt2 import GPT2LMHeadModel
@@ -22,6 +21,7 @@ from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 # from stable_library_code.transformers.gpt_neo.partial_forward import partial_forward as ref_partial_forward
 
 from stable_library_code.finetuneanon_modeling_gpt_neo import fixed_pos_embedding, apply_rotary_pos_emb, GPTNeoAttentionMixin, GPTNeoSelfAttention, GPTNeoForCausalLM
+from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 
 from transformer_utils.partial_forward import partial_forward, add_partial_forward_hooks
 

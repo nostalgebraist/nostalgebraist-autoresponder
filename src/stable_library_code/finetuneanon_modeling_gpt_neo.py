@@ -34,7 +34,7 @@ from transformers.modeling_outputs import (
 )
 from transformers.modeling_utils import PreTrainedModel
 from transformers.utils import logging
-from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
+from .finetuneanon_configuration_gpt_neo import GPTNeoConfig
 
 from einops import rearrange, repeat
 

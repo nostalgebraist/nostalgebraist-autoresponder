@@ -21,7 +21,7 @@ from transformers.models.gpt_neo.configuration_gpt_neo import GPTNeoConfig
 # )
 # from stable_library_code.transformers.gpt_neo.partial_forward import partial_forward as ref_partial_forward
 
-from transformers.models.gpt_neo.modeling_gpt_neo import fixed_pos_embedding, apply_rotary_pos_emb, GPTNeoAttentionMixin, GPTNeoSelfAttention, GPTNeoForCausalLM
+from stable_library_code.finetuneanon_modeling_gpt_neo import fixed_pos_embedding, apply_rotary_pos_emb, GPTNeoAttentionMixin, GPTNeoSelfAttention, GPTNeoForCausalLM
 
 from transformer_utils.partial_forward import partial_forward, add_partial_forward_hooks
 

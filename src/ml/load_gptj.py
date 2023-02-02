@@ -1,7 +1,8 @@
 from functools import partial
 
 import torch
-from transformers import GPTNeoForCausalLM, AutoConfig
+from transformers import AutoConfig
+from stable_library_code.finetuneanon_modeling_gpt_neo import GPTNeoForCausalLM
 
 try:
     from collections.abc import MutableMapping

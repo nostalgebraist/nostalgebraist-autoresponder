@@ -7,7 +7,7 @@ from typing import Union
 from contextlib import contextmanager
 
 import torch
-import transformers.models.gpt_neo.modeling_gpt_neo
+import stable_library_code.finetuneanon_modeling_gpt_neo
 import magma
 
 def make_kv_cache_hook(bs, maxlen):
@@ -168,14 +168,14 @@ def kv_buffer_gpt_neo_selfattn_forward(
             q_rot = query[:, :, :, :self.rotary_dim]
             q_pass = query[:, :, :, self.rotary_dim:]
 
-            k_rot = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(k_rot, (self.sin, self.cos), offset=offset_k).to(k_rot.dtype)
-            q_rot = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(q_rot, (self.sin, self.cos), offset=offset_q).to(q_rot.dtype)
+            k_rot = stable_library_code.finetuneanon_modeling_gpt_neo.apply_rotary_pos_emb(k_rot, (self.sin, self.cos), offset=offset_k).to(k_rot.dtype)
+            q_rot = stable_library_code.finetuneanon_modeling_gpt_neo.apply_rotary_pos_emb(q_rot, (self.sin, self.cos), offset=offset_q).to(q_rot.dtype)
 
             key = torch.cat([k_rot, k_pass], dim=-1)
             query = torch.cat([q_rot, q_pass], dim=-1)
         elif self.rotary:
-            key = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(key, (self.sin, self.cos), offset=offset).to(key.dtype)
-            query = transformers.models.gpt_neo.modeling_gpt_neo.apply_rotary_pos_emb(query, (self.sin, self.cos), offset=offset).to(query.dtype)
+            key = stable_library_code.finetuneanon_modeling_gpt_neo.apply_rotary_pos_emb(key, (self.sin, self.cos), offset=offset).to(key.dtype)
+            query = stable_library_code.finetuneanon_modeling_gpt_neo.apply_rotary_pos_emb(query, (self.sin, self.cos), offset=offset).to(query.dtype)
         key = key.permute(0, 2, 1, 3)
         query = query.permute(0, 2, 1, 3)
 
@@ -213,7 +213,7 @@ def kv_buffer_gpt_neo_selfattn_forward(
 
 
 def setup_kv_buffer(
-    model: Union[transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM, magma.Magma],
+    model: Union[stable_library_code.finetuneanon_modeling_gpt_neo.GPTNeoForCausalLM, magma.Magma],
     batch_size,
     max_sequence_length,
 ):
@@ -229,7 +229,7 @@ def setup_kv_buffer(
         model.detach_adapters()
 
     if not hasattr(lm.transformer.h[0].attn.attention, 'bufk'):
-        transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.forward = kv_buffer_gpt_neo_selfattn_forward
+        stable_library_code.finetuneanon_modeling_gpt_neo.GPTNeoSelfAttention.forward = kv_buffer_gpt_neo_selfattn_forward
 
         make_kv_cache_hook(batch_size, max_sequence_length)(lm)
         lm.use_kv_buffer()
@@ -237,22 +237,22 @@ def setup_kv_buffer(
     if orig_adapters_attached:
         model.add_adapters()
 
-transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.set_past = set_past
-transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.clear_past = clear_past
-transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoSelfAttention.shift_past = shift_past
+stable_library_code.finetuneanon_modeling_gpt_neo.GPTNeoSelfAttention.set_past = set_past
+stable_library_code.finetuneanon_modeling_gpt_neo.GPTNeoSelfAttention.clear_past = clear_past
+stable_library_code.finetuneanon_modeling_gpt_neo.GPTNeoSelfAttention.shift_past = shift_past
 
-transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.set_past = model__set_past
-transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.clear_past = model__clear_past
-transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.shift_past = model__shift_past
-transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.collect_past = model__collect_past
+stable_library_code.finetuneanon_modeling_gpt_neo.GPTNeoForCausalLM.set_past = model__set_past
+stable_library_code.finetuneanon_modeling_gpt_neo.GPTNeoForCausalLM.clear_past = model__clear_past
+stable_library_code.finetuneanon_modeling_gpt_neo.GPTNeoForCausalLM.shift_past = model__shift_past
+stable_library_code.finetuneanon_modeling_gpt_neo.GPTNeoForCausalLM.collect_past = model__collect_past
 
-transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.use_kv_buffer = model__use_kv_buffer
+stable_library_code.finetuneanon_modeling_gpt_neo.GPTNeoForCausalLM.use_kv_buffer = model__use_kv_buffer
 
-transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.using_kv_buffer = model__using_kv_buffer
+stable_library_code.finetuneanon_modeling_gpt_neo.GPTNeoForCausalLM.using_kv_buffer = model__using_kv_buffer
 
 @contextmanager
 def kv_buffer_scope(
-    model: Union[transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM, magma.Magma],
+    model: Union[stable_library_code.finetuneanon_modeling_gpt_neo.GPTNeoForCausalLM, magma.Magma],
     enabled: bool,
 ):
     is_magma_wrapper = isinstance(model, magma.Magma)

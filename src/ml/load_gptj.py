@@ -1,8 +1,8 @@
 from functools import partial
 
 import torch
-from transformers import AutoConfig
 from stable_library_code.finetuneanon_modeling_gpt_neo import GPTNeoForCausalLM
+from stable_library_code.finetuneanon_configuration_gpt_neo import GPTNeoConfig
 
 try:
     from collections.abc import MutableMapping
@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 # GPT-J 6B config
-GPT_J_CONFIG = AutoConfig.from_pretrained("EleutherAI/gpt-neo-2.7B")
+GPT_J_CONFIG = GPTNeoConfig.from_pretrained("EleutherAI/gpt-neo-2.7B")
 GPT_J_CONFIG.attention_layers = ["global"] * 28
 GPT_J_CONFIG.attention_types = [["global"], 28]
 GPT_J_CONFIG.num_layers = 28

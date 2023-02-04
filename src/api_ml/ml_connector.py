@@ -630,7 +630,10 @@ def old_bridge_call__answer(
 
     # old serve_answer
     print("\n------------\n")
-    prompt = prompt.rstrip(whitespace)
+
+    if not write_fic_override:
+        # TODO: remove this and ensure elsewhere that whitespace is used appropriately
+        prompt = prompt.rstrip(whitespace)
 
     print(f"write_fic_override: {write_fic_override}")
 

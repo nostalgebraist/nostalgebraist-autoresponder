@@ -102,7 +102,7 @@ def diagnose_malformed(doc, verbose=False, use_naive_h2_pattern=False):
     return reasons
 
 
-def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=False):
+def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=False, return_end_index=False,):
     def vprint(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)
@@ -128,9 +128,12 @@ def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=Fal
     vprint("\nccs after pop ask/empty:")
     vprint(ccs)
 
+    end_index = None
+
     if len(ccs) > 1:
         left = ccs[0][1] if include_username else ccs[0][1] + len(ccs[0][0].rstrip("\n"))
         prefix = doc[left:ccs[1][1]]
+        end_index = ccs[1][1]
     else:
         left = ccs[0][1] if include_username else ccs[0][1] + len(ccs[0][0].rstrip("\n"))
         prefix = doc[left:]
@@ -142,6 +145,7 @@ def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=Fal
         vprint("\nlines after remove Written:")
         vprint(lines)
         prefix = "\n".join(lines)
+        end_index = len(doc)
 
     vprint("\nbase prefix:")
     vprint(repr(prefix))
@@ -152,6 +156,8 @@ def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=Fal
     prefix = pre_content + prefix
     prefix = remove_ignored_substrings(prefix, ignore_titles=ignore_titles)
 
+    if return_end_index:
+        return prefix, end_index
     return prefix
 
 

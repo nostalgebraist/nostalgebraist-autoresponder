@@ -395,6 +395,7 @@ def load_trails_from_docs(paths,
                           doc_preprocessor=strip_post_identifier,
                           exclude_nost_paths=set(),
                           keep_nost_reviews=True,
+                          load_docs_only=False,
                           ):
     using_uid_map = uid_to_metadata is not None
     doc_to_uid = {}
@@ -558,11 +559,15 @@ def load_trails_from_docs(paths,
 
         print(f"\t[verifying code works:] n docs after h2 fix: {sum(len(g) for g in doc_groups)}\n")
 
-    docs, trails, doc_index_to_group_index, parse_fail_doc_ixs = map_docs_multiple_groups(*doc_groups, include_usernames=include_usernames)
+    if load_docs_only:
+        trails, parse_fail_doc_ixs, nt = None, None, None
+        docs = [d for g in doc_groups for d in g]
+    else:
+        docs, trails, doc_index_to_group_index, parse_fail_doc_ixs = map_docs_multiple_groups(*doc_groups, include_usernames=include_usernames)
 
-    nt = nontrivial_trails(trails)
+        nt = nontrivial_trails(trails)
 
-    trail_stats(docs, trails, nt)
+        trail_stats(docs, trails, nt)
 
     extra_return_values = {}
 

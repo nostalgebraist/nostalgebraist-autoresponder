@@ -131,10 +131,14 @@ def _train_val_split(docs, val_frac=0.03):
 
 
 def _exclude_nbar(docs, name, verbose=False):
+    from functools import partial
+    from tqdm.auto import tqdm as tqdm_base
+    tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
+
     nbefore = len(docs)
 
     excl = set()
-    for d in docs:
+    for d in tqdm(docs):
         if any(" nostalgebraist-autoresponder" in cc[0] for cc in find_control_chars_forumlike(d)):
             excl.add(d)
 

@@ -434,181 +434,181 @@ def convert_docs_to_trees(docs):
     return serialized, trees, corpus_info
 
 
-def load_docs(
-    paths,
-    include_usernames=False,
-    exclude_malformed=True,
-    exclude_h2_issue=True,
-    exclude_h2_until_group=None,
-    exclude_unslimmable=True,
-    uid_to_metadata=None,
-    uid_fn=unique_id_ignore_frank_nost,
-    return_excluded_uids=False,
-    return_slimmed=False,
-    doc_preprocessor=strip_post_identifier,
-    exclude_nost_paths=set(),
-    keep_nost_reviews=True,
-):
-    using_uid_map = uid_to_metadata is not None
-    doc_to_uid = {}
-    excluded_uids = set()
-    slimmed = {}
-    excluded_nost_docs = defaultdict(list)
-
-    if isinstance(paths, str):
-        paths = [paths]
-
-    doc_groups = []
-    for p in paths:
-        # with open(p, "r", encoding="utf-8") as f:
-        #     ds = f.read()
-        # g = [d for d in ds.split(EOT) if len(d) > 0]
-        g = stream_read_docs(p)
-        if doc_preprocessor is not None:
-            g = [doc_preprocessor(d) for d in g]
-        n_raw = len(g)
-        print(f"read group from file {p}:\n\t{n_raw} raw docs\n")
-
-        if p in exclude_nost_paths:
-            g_ = []
-            for _ in range(len(g)):
-                d = g.pop(0)
-                if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews):
-                    g_.append(d)
-                else:
-                    excluded_nost_docs[p].append(d)
-            g = g_
-            # g = [d for d in g if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews)]
-            delta = n_raw - len(g)
-            n_raw = len(g)
-            print(f"excluded {delta} nost docs from file {p}:\n\t{n_raw} docs left\n")
-
-        if using_uid_map:
-            g_doc_to_uid = {}
-            n_match_uids = 0
-            for d in g:
-                uid = uid_fn(d)
-                lookedup = uid_to_metadata.get(uid)
-                g_doc_to_uid[uid] = lookedup
-                if lookedup is not None:
-                    n_match_uids += 1
-            doc_to_uid.update(g_doc_to_uid)
-            print(f"read group from file {p}:\n\t{n_match_uids} of {n_raw} ({n_match_uids/n_raw:.1%}) have metadata\n")
-
-        if exclude_unslimmable:
-            bad = []
-            print('slimming...')
-            for d in tqdm(g):
-                try:
-                    slimmed[d] = slim_forumlike_doc(d, verbose=False)
-                except (ValueError, IndexError):
-                    bad.append(d)
-            n_raw = len(g)
-            g = [d for d in g if d in slimmed]
-            n_excluded = n_raw - len(g)
-            print(f"\tremoved {n_excluded} unslimmable docs ({n_excluded/n_raw:.2%})\n")
-
-            print(f"verifying code works: {len(g)} docs after (vs {n_raw}, diff {n_raw - len(g)})")
-
-            examples = bad[:3]
-            for case in examples:
-                print(f"\t\texample unslimmable doc:\n\t\t\t{repr(case)}\n")
-
-            if using_uid_map:
-                bad = [uid_fn(d) for d in bad]
-                bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
-
-                nbad_meta = len(bad_with_meta)
-                print(f"\t{nbad_meta} of {n_excluded} ({nbad_meta/max(1, n_excluded):.2%}) have metadata\n")
-
-                excluded_uids.update(bad_with_meta)
-
-        if exclude_malformed:
-            n_raw = len(g)
-            reasons = [diagnose_malformed(d) for d in g]
-            presentation_counts = Counter([tuple(sorted(r)) for r in reasons])
-            symptom_counts = Counter([r for rs in reasons for r in rs])
-
-            example_cases = defaultdict(list)
-            for presentation in presentation_counts.keys():
-                if presentation == tuple():
-                    continue
-                for d, r in zip(g, reasons):
-                    if presentation == tuple(sorted(r)):
-                        example_cases[presentation].append(d)
-                        if len(example_cases[presentation]) > 2:
-                            break
-
-            bad = [d for d, r in zip(g, reasons) if r != set()]
-            g = [d for d, r in zip(g, reasons) if r == set()]
-            n_excluded = n_raw - len(g)
-            print(f"\tremoved {n_excluded} malformed docs ({n_excluded/n_raw:.2%})\n")
-            if using_uid_map:
-                bad = [uid_fn(d) for d in bad]
-                bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
-
-                nbad_meta = len(bad_with_meta)
-                print(f"\t{nbad_meta} of {n_excluded} ({nbad_meta/max(1, n_excluded):.2%}) have metadata\n")
-
-                excluded_uids.update(bad_with_meta)
-
-            print(f"\t\treasons:\n\t\t\t{repr(symptom_counts)}\n")
-            for k in example_cases.keys():
-                for case in example_cases[k]:
-                    print(f"\t\texample for {k}:\n\t\t\t{repr(case)}\n")
-
-        print(f"\t{len(g)} docs after exclusions\n\n")
-        doc_groups.append(g)
-    print()
-
-    if exclude_h2_issue:
-        if exclude_h2_until_group is None:
-            exclude_h2_until_group = len(doc_groups)
-
-        all_h2_docs = [d for g in doc_groups[:exclude_h2_until_group] for d in g]
-        n_raw = len(all_h2_docs)
-
-        excluded_doc_indices = identify_h2_contaminated_docs(all_h2_docs)
-
-        allowed_doc_indices_by_group = {}
-        excluded_doc_indices_by_group = {}
-
-        doc_index_offset = 0
-        for group_index, g in enumerate(doc_groups):
-            group_doc_indices = set(range(doc_index_offset, doc_index_offset + len(g)))
-
-            excluded_doc_indices_by_group[group_index] = {
-                ix - doc_index_offset for ix in group_doc_indices.intersection(excluded_doc_indices)
-            }
-            allowed_doc_indices_by_group[group_index] = {
-                ix - doc_index_offset for ix in group_doc_indices.difference(excluded_doc_indices)
-            }
-
-            doc_index_offset += len(g)
-
-        n_excluded = len(excluded_doc_indices)
-        print(f"\tremoved {n_excluded} h2 bugged docs ({n_excluded/n_raw:.2%})\n")
-
-        n_excluded_verify = sum(len(v) for v in excluded_doc_indices_by_group.values())
-        print(f"\t[verifying code works:] removed {n_excluded} h2 bugged docs ({n_excluded/n_raw:.2%})\n")
-
-        for group_index, excluded_indices in excluded_doc_indices_by_group.items():
-            n_excluded_group = len(excluded_indices)
-            print(f"group {group_index}: {n_excluded_group} excluded")
-            if using_uid_map:
-                bad = [uid_fn(doc_groups[group_index][i]) for i in excluded_indices]
-                bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
-                nbad_meta = len(bad_with_meta)
-                print(f"\tgroup {group_index}: {nbad_meta} of {n_excluded_group} ({nbad_meta/max(1, n_excluded_group):.2%}) have metadata\n")
-                excluded_uids.update(bad_with_meta)
-
-            examples = [doc_groups[group_index][i] for i in excluded_indices][:2]
-            for case in examples:
-                print(f"\t\texample for h2 bug (group {group_index}):\n\t\t\t{repr(case)}\n")
-
-        for group_index, allowed_doc_indices in allowed_doc_indices_by_group.items():
-            doc_groups[group_index] = [doc_groups[group_index][i] for i in sorted(allowed_doc_indices)]
-
-        print(f"\t[verifying code works:] n docs after h2 fix: {sum(len(g) for g in doc_groups)}\n")
-
-    return doc_groups
+# def load_docs(
+#     paths,
+#     include_usernames=False,
+#     exclude_malformed=True,
+#     exclude_h2_issue=True,
+#     exclude_h2_until_group=None,
+#     exclude_unslimmable=True,
+#     uid_to_metadata=None,
+#     uid_fn=unique_id_ignore_frank_nost,
+#     return_excluded_uids=False,
+#     return_slimmed=False,
+#     doc_preprocessor=strip_post_identifier,
+#     exclude_nost_paths=set(),
+#     keep_nost_reviews=True,
+# ):
+#     using_uid_map = uid_to_metadata is not None
+#     doc_to_uid = {}
+#     excluded_uids = set()
+#     slimmed = {}
+#     excluded_nost_docs = defaultdict(list)
+#
+#     if isinstance(paths, str):
+#         paths = [paths]
+#
+#     doc_groups = []
+#     for p in paths:
+#         # with open(p, "r", encoding="utf-8") as f:
+#         #     ds = f.read()
+#         # g = [d for d in ds.split(EOT) if len(d) > 0]
+#         g = stream_read_docs(p)
+#         if doc_preprocessor is not None:
+#             g = [doc_preprocessor(d) for d in g]
+#         n_raw = len(g)
+#         print(f"read group from file {p}:\n\t{n_raw} raw docs\n")
+#
+#         if p in exclude_nost_paths:
+#             g_ = []
+#             for _ in range(len(g)):
+#                 d = g.pop(0)
+#                 if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews):
+#                     g_.append(d)
+#                 else:
+#                     excluded_nost_docs[p].append(d)
+#             g = g_
+#             # g = [d for d in g if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews)]
+#             delta = n_raw - len(g)
+#             n_raw = len(g)
+#             print(f"excluded {delta} nost docs from file {p}:\n\t{n_raw} docs left\n")
+#
+#         if using_uid_map:
+#             g_doc_to_uid = {}
+#             n_match_uids = 0
+#             for d in g:
+#                 uid = uid_fn(d)
+#                 lookedup = uid_to_metadata.get(uid)
+#                 g_doc_to_uid[uid] = lookedup
+#                 if lookedup is not None:
+#                     n_match_uids += 1
+#             doc_to_uid.update(g_doc_to_uid)
+#             print(f"read group from file {p}:\n\t{n_match_uids} of {n_raw} ({n_match_uids/n_raw:.1%}) have metadata\n")
+#
+#         if exclude_unslimmable:
+#             bad = []
+#             print('slimming...')
+#             for d in tqdm(g):
+#                 try:
+#                     slimmed[d] = slim_forumlike_doc(d, verbose=False)
+#                 except (ValueError, IndexError):
+#                     bad.append(d)
+#             n_raw = len(g)
+#             g = [d for d in g if d in slimmed]
+#             n_excluded = n_raw - len(g)
+#             print(f"\tremoved {n_excluded} unslimmable docs ({n_excluded/n_raw:.2%})\n")
+#
+#             print(f"verifying code works: {len(g)} docs after (vs {n_raw}, diff {n_raw - len(g)})")
+#
+#             examples = bad[:3]
+#             for case in examples:
+#                 print(f"\t\texample unslimmable doc:\n\t\t\t{repr(case)}\n")
+#
+#             if using_uid_map:
+#                 bad = [uid_fn(d) for d in bad]
+#                 bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
+#
+#                 nbad_meta = len(bad_with_meta)
+#                 print(f"\t{nbad_meta} of {n_excluded} ({nbad_meta/max(1, n_excluded):.2%}) have metadata\n")
+#
+#                 excluded_uids.update(bad_with_meta)
+#
+#         if exclude_malformed:
+#             n_raw = len(g)
+#             reasons = [diagnose_malformed(d) for d in g]
+#             presentation_counts = Counter([tuple(sorted(r)) for r in reasons])
+#             symptom_counts = Counter([r for rs in reasons for r in rs])
+#
+#             example_cases = defaultdict(list)
+#             for presentation in presentation_counts.keys():
+#                 if presentation == tuple():
+#                     continue
+#                 for d, r in zip(g, reasons):
+#                     if presentation == tuple(sorted(r)):
+#                         example_cases[presentation].append(d)
+#                         if len(example_cases[presentation]) > 2:
+#                             break
+#
+#             bad = [d for d, r in zip(g, reasons) if r != set()]
+#             g = [d for d, r in zip(g, reasons) if r == set()]
+#             n_excluded = n_raw - len(g)
+#             print(f"\tremoved {n_excluded} malformed docs ({n_excluded/n_raw:.2%})\n")
+#             if using_uid_map:
+#                 bad = [uid_fn(d) for d in bad]
+#                 bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
+#
+#                 nbad_meta = len(bad_with_meta)
+#                 print(f"\t{nbad_meta} of {n_excluded} ({nbad_meta/max(1, n_excluded):.2%}) have metadata\n")
+#
+#                 excluded_uids.update(bad_with_meta)
+#
+#             print(f"\t\treasons:\n\t\t\t{repr(symptom_counts)}\n")
+#             for k in example_cases.keys():
+#                 for case in example_cases[k]:
+#                     print(f"\t\texample for {k}:\n\t\t\t{repr(case)}\n")
+#
+#         print(f"\t{len(g)} docs after exclusions\n\n")
+#         doc_groups.append(g)
+#     print()
+#
+#     if exclude_h2_issue:
+#         if exclude_h2_until_group is None:
+#             exclude_h2_until_group = len(doc_groups)
+#
+#         all_h2_docs = [d for g in doc_groups[:exclude_h2_until_group] for d in g]
+#         n_raw = len(all_h2_docs)
+#
+#         excluded_doc_indices = identify_h2_contaminated_docs(all_h2_docs)
+#
+#         allowed_doc_indices_by_group = {}
+#         excluded_doc_indices_by_group = {}
+#
+#         doc_index_offset = 0
+#         for group_index, g in enumerate(doc_groups):
+#             group_doc_indices = set(range(doc_index_offset, doc_index_offset + len(g)))
+#
+#             excluded_doc_indices_by_group[group_index] = {
+#                 ix - doc_index_offset for ix in group_doc_indices.intersection(excluded_doc_indices)
+#             }
+#             allowed_doc_indices_by_group[group_index] = {
+#                 ix - doc_index_offset for ix in group_doc_indices.difference(excluded_doc_indices)
+#             }
+#
+#             doc_index_offset += len(g)
+#
+#         n_excluded = len(excluded_doc_indices)
+#         print(f"\tremoved {n_excluded} h2 bugged docs ({n_excluded/n_raw:.2%})\n")
+#
+#         n_excluded_verify = sum(len(v) for v in excluded_doc_indices_by_group.values())
+#         print(f"\t[verifying code works:] removed {n_excluded} h2 bugged docs ({n_excluded/n_raw:.2%})\n")
+#
+#         for group_index, excluded_indices in excluded_doc_indices_by_group.items():
+#             n_excluded_group = len(excluded_indices)
+#             print(f"group {group_index}: {n_excluded_group} excluded")
+#             if using_uid_map:
+#                 bad = [uid_fn(doc_groups[group_index][i]) for i in excluded_indices]
+#                 bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
+#                 nbad_meta = len(bad_with_meta)
+#                 print(f"\tgroup {group_index}: {nbad_meta} of {n_excluded_group} ({nbad_meta/max(1, n_excluded_group):.2%}) have metadata\n")
+#                 excluded_uids.update(bad_with_meta)
+#
+#             examples = [doc_groups[group_index][i] for i in excluded_indices][:2]
+#             for case in examples:
+#                 print(f"\t\texample for h2 bug (group {group_index}):\n\t\t\t{repr(case)}\n")
+#
+#         for group_index, allowed_doc_indices in allowed_doc_indices_by_group.items():
+#             doc_groups[group_index] = [doc_groups[group_index][i] for i in sorted(allowed_doc_indices)]
+#
+#         print(f"\t[verifying code works:] n docs after h2 fix: {sum(len(g) for g in doc_groups)}\n")
+#
+#     return doc_groups

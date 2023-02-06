@@ -6,6 +6,14 @@ from experimental.corpus_thread_util import *
 from tumblr_to_text.classic.autoresponder_static import EOT
 from tumblr_to_text.endtags import move_tags_to_end
 
+import tqdm.contrib.concurrent as tqdm_contrib
+
+from tqdm.auto import tqdm as tqdm_base
+from tqdm.auto import trange as trange_base
+tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
+trange = partial(trange_base, mininterval=1, smoothing=0)
+
+
 collect_metadata_pat = re.compile(
     r"(?P<meta> Written [0-9]{1,2} [APM]{2,} [A-Z][a-z]{1,15} [0-9]{4,} \| [^\n]+\n)(?P<post>.*)",
     flags=re.DOTALL,
@@ -27,29 +35,71 @@ collect_metadata_pat = re.compile(
               post where tags are known
 """
 
-def collect_available_post_metadata(docs, post_text_to_meta_strings=None, cc_fails=None):
+
+def collect_metadata_from_post_segments(doc):
+    cc_failed_doc = None
+    results = []
+
+    try:
+        cc = get_ccs_with_fixes(doc)[-1]
+    except:
+        cc_failed_doc = doc
+        return results, cc_failed_doc
+
+    seg = doc[(cc[1]+len(cc[0])):]
+
+    for m in collect_metadata_pat.finditer(seg):
+        gd = m.groupdict()
+
+        meta = gd['meta']
+        user_posted = cc[0]
+        post = gd['post']
+
+        results.append((user_posted, post, meta))
+    return results, cc_failed_doc
+
+
+def collect_available_post_metadata(docs, post_text_to_meta_strings=None, cc_fails=None, use_mp=True, max_workers=6, chunksize=16384):
+    print('hi')
     post_text_to_meta_strings = post_text_to_meta_strings or defaultdict(set)
 
     cc_fails = cc_fails or []
 
-    pbar = tqdm(docs)
+    if use_mp:
+        out = tqdm_contrib.process_map(
+            collect_metadata_from_post_segments,
+            docs,
+            max_workers=max_workers, chunksize=chunksize,
+            mininterval=1, smoothing=0,
+        )
+    else:
+        out = [collect_metadata_from_post_segments(x) for x in tqdm(docs)]
 
-    for i, d in enumerate(pbar):
-        try:
-            cc = get_ccs_with_fixes(d)[-1]
-        except:
-            cc_fails.append(d)
+    for results, cc_failed_doc in out:
+        if cc_failed_doc:
+            cc_fails.append(cc_failed_doc)
 
-        seg = d[(cc[1]+len(cc[0])):]
-
-        for m in collect_metadata_pat.finditer(seg):
-            gd = m.groupdict()
-
-            meta = gd['meta']
-            user_posted = cc[0]
-            post = gd['post']
-
+        for user_posted, post, meta in results:
             post_text_to_meta_strings[(user_posted, post)].add(meta)
+
+    # pbar = tqdm(docs)
+    #
+    # for i, d in enumerate(pbar):
+    #     try:
+    #         cc = get_ccs_with_fixes(d)[-1]
+    #     except:
+    #         cc_fails.append(d)
+    #
+    #     seg = d[(cc[1]+len(cc[0])):]
+    #
+    #     for m in collect_metadata_pat.finditer(seg):
+    #         gd = m.groupdict()
+    #
+    #         meta = gd['meta']
+    #         user_posted = cc[0]
+    #         post = gd['post']
+    #
+    #         post_text_to_meta_strings[(user_posted, post)].add(meta)
 
     return post_text_to_meta_strings, cc_fails
 
@@ -86,79 +136,153 @@ def pick_between_meta_strings(post_text_to_meta_strings,  no_timestamps=True):
     return collapsed_post_text_to_meta_strings
 
 
-def use_meta_if_available(docs, collapsed_post_text_to_meta_strings, verbose=False):
-    """i wrote a regex version first, but it was much slower than this"""
+def use_meta_if_available_single_doc(doc, collapsed_post_text_to_meta_strings, verbose=False):
     def vprint(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)
 
-    pbar = tqdm(docs)
+    d = doc  # TODO: naming
+    doc_subbed = ''
 
+    ccs = get_ccs_with_fixes(d)
+
+    offset = ccs[0][1]
+    doc_subbed += d[:offset]
+
+    for cc1, cc2 in zip(ccs[:-1], ccs[1:]):
+        end_index = cc2[1]
+        user_posted_start_index = cc1[1]
+        user_posted_end_index = user_posted_start_index + len(cc1[0])
+
+        user_posted = d[user_posted_start_index:user_posted_end_index]
+        post = d[user_posted_end_index:end_index].rstrip("\n")
+
+        meta_key = (user_posted, post)
+
+        seg = d[user_posted_end_index:end_index]
+        meta_string = collapsed_post_text_to_meta_strings.get(meta_key, '')
+
+        vprint(f"cc {cc1}, seg {seg}")
+        vprint(f"meta_key {meta_key}\nmeta_key found: {meta_key in collapsed_post_text_to_meta_strings}")
+        vprint()
+
+        doc_subbed += d[offset:user_posted_end_index]
+        doc_subbed += meta_string
+        doc_subbed += seg
+        offset = end_index
+
+    cc1 = ccs[-1]
+    final = d[cc1[1]:]
+
+    for m in collect_metadata_pat.finditer(final):
+        gd = m.groupdict()
+        meta = gd['meta']
+        user_posted_start_index = cc1[1]
+        user_posted_end_index = user_posted_start_index + len(cc1[0])
+
+        user_posted = d[user_posted_start_index:user_posted_end_index]
+        post = gd['post']
+
+        meta_key = (user_posted, post)
+
+        meta_string = collapsed_post_text_to_meta_strings.get(meta_key, meta)
+
+        vprint(f"cc {ccs[-1]}, seg {post}")
+        vprint(f"meta_key {meta_key}\nmeta_key found: {meta_key in collapsed_post_text_to_meta_strings}")
+        vprint()
+
+        doc_subbed += d[offset:user_posted_end_index]
+        doc_subbed += meta_string
+        doc_subbed += post
+
+    return doc_subbed
+
+
+def use_meta_if_available(docs, collapsed_post_text_to_meta_strings, verbose=False, use_mp=True, max_workers=6, chunksize=16384):
+    """i wrote a regex version first, but it was much slower than this"""
     out = []
     affected = []
 
-    for i, d in enumerate(pbar):
-        doc_subbed = ''
+    if use_mp:
+        out = tqdm_contrib.process_map(
+            partial(
+                use_meta_if_available_single_doc,
+                collapsed_post_text_to_meta_strings=collapsed_post_text_to_meta_strings
+            ),
+            docs,
+            max_workers=max_workers, chunksize=chunksize,
+            mininterval=1, smoothing=0,
+        )
+    else:
+        out = [use_meta_if_available_single_doc(d, collapsed_post_text_to_meta_strings) for d in tqdm(docs)]
 
-        ccs = get_ccs_with_fixes(d)
+    return out
 
-        offset = ccs[0][1]
-        doc_subbed += d[:offset]
-
-        for cc1, cc2 in zip(ccs[:-1], ccs[1:]):
-            end_index = cc2[1]
-            user_posted_start_index = cc1[1]
-            user_posted_end_index = user_posted_start_index + len(cc1[0])
-
-            user_posted = d[user_posted_start_index:user_posted_end_index]
-            post = d[user_posted_end_index:end_index].rstrip("\n")
-
-            meta_key = (user_posted, post)
-
-            seg = d[user_posted_end_index:end_index]
-            meta_string = collapsed_post_text_to_meta_strings.get(meta_key, '')
-
-            vprint(f"cc {cc1}, seg {seg}")
-            vprint(f"meta_key {meta_key}\nmeta_key found: {meta_key in collapsed_post_text_to_meta_strings}")
-            vprint()
-
-            doc_subbed += d[offset:user_posted_end_index]
-            doc_subbed += meta_string
-            doc_subbed += seg
-            offset = end_index
-
-        affected.append(doc_subbed != d[:offset])
-
-        cc1 = ccs[-1]
-        final = d[cc1[1]:]
-
-        for m in collect_metadata_pat.finditer(final):
-            gd = m.groupdict()
-            meta = gd['meta']
-            user_posted_start_index = cc1[1]
-            user_posted_end_index = user_posted_start_index + len(cc1[0])
-
-            user_posted = d[user_posted_start_index:user_posted_end_index]
-            post = gd['post']
-
-            meta_key = (user_posted, post)
-
-            meta_string = collapsed_post_text_to_meta_strings.get(meta_key, meta)
-
-            vprint(f"cc {ccs[-1]}, seg {post}")
-            vprint(f"meta_key {meta_key}\nmeta_key found: {meta_key in collapsed_post_text_to_meta_strings}")
-            vprint()
-
-            doc_subbed += d[offset:user_posted_end_index]
-            doc_subbed += meta_string
-            doc_subbed += post
-
-        out.append(doc_subbed)
-
-        if i % 500 == 0:
-            pbar.set_postfix(n_affected=sum(affected), refresh=False)
-
-    return out, affected
+    #
+    # pbar = tqdm(docs)
+    #
+    # for i, d in enumerate(pbar):
+    #     doc_subbed = ''
+    #
+    #     ccs = get_ccs_with_fixes(d)
+    #
+    #     offset = ccs[0][1]
+    #     doc_subbed += d[:offset]
+    #
+    #     for cc1, cc2 in zip(ccs[:-1], ccs[1:]):
+    #         end_index = cc2[1]
+    #         user_posted_start_index = cc1[1]
+    #         user_posted_end_index = user_posted_start_index + len(cc1[0])
+    #
+    #         user_posted = d[user_posted_start_index:user_posted_end_index]
+    #         post = d[user_posted_end_index:end_index].rstrip("\n")
+    #
+    #         meta_key = (user_posted, post)
+    #
+    #         seg = d[user_posted_end_index:end_index]
+    #         meta_string = collapsed_post_text_to_meta_strings.get(meta_key, '')
+    #
+    #         vprint(f"cc {cc1}, seg {seg}")
+    #         vprint(f"meta_key {meta_key}\nmeta_key found: {meta_key in collapsed_post_text_to_meta_strings}")
+    #         vprint()
+    #
+    #         doc_subbed += d[offset:user_posted_end_index]
+    #         doc_subbed += meta_string
+    #         doc_subbed += seg
+    #         offset = end_index
+    #
+    #     affected.append(doc_subbed != d[:offset])
+    #
+    #     cc1 = ccs[-1]
+    #     final = d[cc1[1]:]
+    #
+    #     for m in collect_metadata_pat.finditer(final):
+    #         gd = m.groupdict()
+    #         meta = gd['meta']
+    #         user_posted_start_index = cc1[1]
+    #         user_posted_end_index = user_posted_start_index + len(cc1[0])
+    #
+    #         user_posted = d[user_posted_start_index:user_posted_end_index]
+    #         post = gd['post']
+    #
+    #         meta_key = (user_posted, post)
+    #
+    #         meta_string = collapsed_post_text_to_meta_strings.get(meta_key, meta)
+    #
+    #         vprint(f"cc {ccs[-1]}, seg {post}")
+    #         vprint(f"meta_key {meta_key}\nmeta_key found: {meta_key in collapsed_post_text_to_meta_strings}")
+    #         vprint()
+    #
+    #         doc_subbed += d[offset:user_posted_end_index]
+    #         doc_subbed += meta_string
+    #         doc_subbed += post
+    #
+    #     out.append(doc_subbed)
+    #
+    #     if i % 500 == 0:
+    #         pbar.set_postfix(n_affected=sum(affected), refresh=False)
+    #
+    # return out, affected
 
 
 def split_tree(doc, include_username=False, ignore_titles=False, verbose=False):
@@ -410,20 +534,29 @@ def write_serialized_tree(corpus_info: CorpusTreesInfo, path_reps: list, seg_pos
     return serialized
 
 
-def preprocess_docs_for_trees(docs):
+def preprocess_docs_for_trees(docs, use_mp=(True, True), max_workers=6, chunksize=16384):
     print('collecting metadata')
     post_text_to_meta_strings = defaultdict(set)
     cc_fails = []
 
-    post_text_to_meta_strings, cc_fails = collect_available_post_metadata(docs)
+    post_text_to_meta_strings, cc_fails = collect_available_post_metadata(
+        docs,
+        use_mp=use_mp[0],
+        max_workers=max_workers,
+        chunksize=chunksize,
+    )
 
     collapsed_post_text_to_meta_strings = pick_between_meta_strings(post_text_to_meta_strings)
 
     print(f"{len(cc_fails)} cc fails")
 
     print('substituting metadata')
-    docs, affected = use_meta_if_available(docs, collapsed_post_text_to_meta_strings)
-    print(f"{sum(affected)} of {len(docs)} docs changed by metadata substitution")
+    docs = use_meta_if_available(
+        docs, collapsed_post_text_to_meta_strings, use_mp=use_mp[1],
+        max_workers=max_workers,
+        chunksize=chunksize,
+    )
+    # print(f"{sum(affected)} of {len(docs)} docs changed by metadata substitution")
 
     return docs
 

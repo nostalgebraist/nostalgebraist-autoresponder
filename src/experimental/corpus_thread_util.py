@@ -14,7 +14,8 @@ trange = partial(trange_base, mininterval=1, smoothing=0)
 
 from tqdm.contrib.concurrent import thread_map, process_map
 thread_map = partial(thread_map, mininterval=1, smoothing=0, max_workers=4)
-process_map = partial(process_map, mininterval=1, smoothing=0, max_workers=6, chunksize=256)
+# process_map = partial(process_map, mininterval=1, smoothing=0, max_workers=6, chunksize=256)
+process_map = partial(process_map, mininterval=1, smoothing=0, max_workers=8, chunksize=64)
 
 from tumblr_to_text.classic.autoresponder_static import EOT, REVIEW_CHAR_FORUMLIKE_V10_1
 from experimental.corpus_text_hacks import extract_time_from_forumlike_doc, get_ccs_with_fixes, strip_post_identifier
@@ -109,6 +110,16 @@ def diagnose_malformed(doc, verbose=False, use_naive_h2_pattern=False):
         reasons.add("quote-hell pattern")
 
     return reasons
+
+
+def diagnose_malformed_and_exclude_nost(doc, verbose=False, use_naive_h2_pattern=False, keep_nost_reviews=True):
+    reasons = set()
+
+    if not exclude_nost_check(doc, keep_nost_reviews=keep_nost_reviews):
+        reasons.add('nost')
+        return reasons
+
+    return diagnose_malformed(doc, verbose=verbose, use_naive_h2_pattern=use_naive_h2_pattern)
 
 
 def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=False, return_end_index=False,):
@@ -260,7 +271,7 @@ def map_docs(docs, include_usernames=False, ignore_titles=False):
     return trails, parse_fail_doc_ixs
 
 
-def map_docs_multiple_groups(*doc_groups, include_usernames=False):
+def merge_groups(*doc_groups):
     docs = []
     doc_index_to_group_index = {}
 
@@ -272,6 +283,11 @@ def map_docs_multiple_groups(*doc_groups, include_usernames=False):
         doc_index_to_group_index.update({i + doc_index_offset: group_index for i in range(len(g))})
 
         doc_index_offset += len(g)
+    return docs, doc_index_to_group_index
+
+
+def map_docs_multiple_groups(*doc_groups, include_usernames=False):
+    docs, doc_index_to_group_index = merge_groups(*doc_groups)
 
     trails, parse_fail_doc_ixs = map_docs(docs, include_usernames=include_usernames)
     return docs, trails, doc_index_to_group_index, parse_fail_doc_ixs
@@ -440,9 +456,11 @@ def exclude_nost_check(doc, keep_nost_reviews=True):
 
 
 def mark_ok(d, keep_nost_reviews=True):
-    uid = unique_id_ignore_frank_nost(d)
     ok = exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews)
-    return uid, ok
+    return ok
+    # uid = unique_id_ignore_frank_nost(d)
+    # ok = exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews)
+    # return uid, ok
 
 
 def load_trails_from_docs(paths,
@@ -471,6 +489,7 @@ def load_trails_from_docs(paths,
         paths = [paths]
 
     doc_groups = []
+    group_uid_lists = []
     for p in paths:
         # with open(p, "r", encoding="utf-8") as f:
         #     ds = f.read()
@@ -482,44 +501,25 @@ def load_trails_from_docs(paths,
         print(f"read group from file {p}:\n\t{n_raw} raw docs\n")
 
         if p in exclude_nost_paths:
-            g_ = []
-            ok = {}
+            if False:
+                g_ = []
+                ok = {}
 
-            # def mark_ok(i):
-            #     d = g[i]
-            #     uid = uid_fn(d)
-            #     if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews):
-            #         ok[uid] = 1
-            #     else:
-            #         ok[uid] = 0
+                ok = {k: v for k, v in process_map(partial(mark_ok, keep_nost_reviews=keep_nost_reviews), g)}
 
-            ok = {k: v for k, v in process_map(partial(mark_ok, keep_nost_reviews=keep_nost_reviews), g)}
-
-            # for ii in trange(len(g)):
-            #     # d = g.pop(0)
-            #     d = g[ii]
-            #     uid = uid_fn(d)
-            #     if exclude_nost_check(d, keep_nost_reviews=keep_nost_reviews):
-            #         ok[uid] = 1
-            #         # g_.append(d)
-            #     else:
-            #         ok[uid] = 0
-            #         # excluded_nost_docs[p].append(d)
-
-            # g = g_
-            print('sort')
-            g = sorted(g, key=lambda d: ok[uid_fn(d)])
-            print('slice')
-            excluded_nost_docs[p], g = g[:-sum(ok.values())], g[-sum(ok.values()):]
-            delta = n_raw - len(g)
-            n_raw = len(g)
-            print(f"excluded {delta} nost docs from file {p}:\n\t{n_raw} docs left\n")
+                print('sort')
+                g = sorted(g, key=lambda d: ok[uid_fn(d)])
+                print('slice')
+                excluded_nost_docs[p], g = g[:-sum(ok.values())], g[-sum(ok.values()):]
+                delta = n_raw - len(g)
+                n_raw = len(g)
+                print(f"excluded {delta} nost docs from file {p}:\n\t{n_raw} docs left\n")
 
         if using_uid_map:
+            group_uid_list = process_map(uid_fn, g)
             g_doc_to_uid = {}
             n_match_uids = 0
-            for d in g:
-                uid = uid_fn(d)
+            for d, uid in zip(g, group_uid_list):
                 lookedup = uid_to_metadata.get(uid)
                 g_doc_to_uid[uid] = lookedup
                 if lookedup is not None:
@@ -558,7 +558,11 @@ def load_trails_from_docs(paths,
         if exclude_malformed:
             n_raw = len(g)
             # reasons = [diagnose_malformed(d) for d in g]
-            reasons = process_map(diagnose_malformed, g)
+            if p in exclude_nost_paths:
+                reasons = process_map(partial(diagnose_malformed_and_exclude_nost, keep_nost_reviews=keep_nost_reviews), g)
+            else:
+                reasons = process_map(diagnose_malformed, g)
+
             presentation_counts = Counter([tuple(sorted(r)) for r in reasons])
             symptom_counts = Counter([r for rs in reasons for r in rs])
 
@@ -572,10 +576,20 @@ def load_trails_from_docs(paths,
                         if len(example_cases[presentation]) > 2:
                             break
 
-            bad = [d for d, r in zip(g, reasons) if r != set()]
-            g = [d for d, r in zip(g, reasons) if r == set()]
+            bad = []
+            g_ = []
+            for d, r in zip(g, reasons):
+                if 'nost' in r:
+                    excluded_nost_docs[p].append(d)
+                elif r != set():
+                    bad.append(d)
+                else:
+                    g_.append(d)
+            # bad = [d for d, r in zip(g, reasons) if r != set()]
+            # g = [d for d, r in zip(g, reasons) if r == set()]
+            g = g_
             n_excluded = n_raw - len(g)
-            print(f"\tremoved {n_excluded} malformed docs ({n_excluded/n_raw:.2%})\n")
+            print(f"\tremoved {n_excluded} malformed and/or nost docs ({n_excluded/n_raw:.2%})\n")
             if using_uid_map:
                 bad = [uid_fn(d) for d in bad]
                 bad_with_meta = [uid for uid in bad if uid in uid_to_metadata]
@@ -645,8 +659,8 @@ def load_trails_from_docs(paths,
         print(f"\t[verifying code works:] n docs after h2 fix: {sum(len(g) for g in doc_groups)}\n")
 
     if load_docs_only:
-        trails, parse_fail_doc_ixs, nt, doc_index_to_group_index = None, None, None, None
-        docs = [d for g in doc_groups for d in g]
+        docs, doc_index_to_group_index = merge_groups(*doc_groups)
+        trails, parse_fail_doc_ixs, nt = None, None, None
     else:
         docs, trails, doc_index_to_group_index, parse_fail_doc_ixs = map_docs_multiple_groups(*doc_groups, include_usernames=include_usernames)
 

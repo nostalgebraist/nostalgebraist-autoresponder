@@ -645,7 +645,7 @@ def load_trails_from_docs(paths,
         print(f"\t[verifying code works:] n docs after h2 fix: {sum(len(g) for g in doc_groups)}\n")
 
     if load_docs_only:
-        trails, parse_fail_doc_ixs, nt = None, None, None
+        trails, parse_fail_doc_ixs, nt, doc_index_to_group_index = None, None, None, None
         docs = [d for g in doc_groups for d in g]
     else:
         docs, trails, doc_index_to_group_index, parse_fail_doc_ixs = map_docs_multiple_groups(*doc_groups, include_usernames=include_usernames)

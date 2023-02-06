@@ -313,7 +313,7 @@ def construct_trees(docs):
     rep_map = {}
     path_reps = []
 
-    for i, d in enumerate(docs):
+    for i, d in enumerate(tqdm(docs)):
         out_data = split_tree(d, include_username=True, verbose=False, )
         for d in out_data:
             rep2seg[d['rep']] = d['seg']
@@ -388,10 +388,11 @@ def serialize_tree(corpus_info: CorpusTreesInfo, path_reps: list):
 
 
 def move_tags_and_fill_written(seg, is_leaf):
-    seg = seg.rstrip("\n")  # newlines in pre-final posts -- will get re-added by move_tags_to_end
-    seg = move_tags_to_end(seg)
-    written_new = " leaf" if is_leaf else ""  # \t at end of this line already denotes whether tags are available
-    seg = seg.replace(" Written PLACEHOLDER", written_new)
+    if " Written PLACEHOLDER" in seg:
+        seg = seg.rstrip("\n")  # newlines in pre-final posts -- will get re-added by move_tags_to_end
+        seg = move_tags_to_end(seg)
+        written_new = " leaf" if is_leaf else ""  # \t at end of this line already denotes whether tags are available
+        seg = seg.replace(" Written PLACEHOLDER", written_new)
     return seg
 
 
@@ -409,12 +410,14 @@ def write_serialized_tree(corpus_info: CorpusTreesInfo, path_reps: list, seg_pos
     return serialized
 
 
-def convert_docs_to_trees(docs):
+def preprocess_docs_for_trees(docs):
     print('collecting metadata')
     post_text_to_meta_strings = defaultdict(set)
     cc_fails = []
 
     post_text_to_meta_strings, cc_fails = collect_available_post_metadata(docs)
+
+    collapsed_post_text_to_meta_strings = pick_between_meta_strings(post_text_to_meta_strings)
 
     print(f"{len(cc_fails)} cc fails")
 
@@ -422,13 +425,17 @@ def convert_docs_to_trees(docs):
     docs, affected = use_meta_if_available(docs, collapsed_post_text_to_meta_strings)
     print(f"{sum(affected)} of {len(docs)} docs changed by metadata substitution")
 
+    return docs
+
+
+def convert_docs_to_trees(docs):
     print('constructing trees')
     corpus_info, trees = construct_trees(docs)
 
     print('serializing')
 
     serialized = []
-    for t in trees.values():
+    for t in tqdm(trees.values(), total=len(trees)):
         serialized.append(''.join(write_serialized_tree(corpus_info, list(t))))
 
     return serialized, trees, corpus_info

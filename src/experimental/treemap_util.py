@@ -15,7 +15,7 @@ trange = partial(trange_base, mininterval=1, smoothing=0)
 
 
 collect_metadata_pat = re.compile(
-    r"(?P<meta> Written [0-9]{1,2} [APM]{2,} [A-Z][a-z]{1,15} [0-9]{4,} \| [^\n]+\n)(?P<post>.*)",
+    r"(?P<meta> Written [0-9]{1,2} [APM]{2,} [A-Z][a-z]{1,15} [0-9]{4,} \| [^\n]+\n|$)(?P<post>.*)",
     flags=re.DOTALL,
 )
 

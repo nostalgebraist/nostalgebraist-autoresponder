@@ -390,7 +390,7 @@ def construct_trees(docs):
     return corpus_info, trees
 
 
-def map_tree(corpus_info: CorpusTreesInfo, path_reps: list):
+def map_tree(path_reps: list):
     tree = defaultdict(set)
 
     for path in path_reps:
@@ -409,8 +409,8 @@ def map_tree(corpus_info: CorpusTreesInfo, path_reps: list):
     return tree_reps, tree
 
 
-def serialize_tree(corpus_info: CorpusTreesInfo, path_reps: list):
-    tree_reps, tree = map_tree(corpus_info, path_reps)
+def serialize_tree(path_reps: list):
+    tree_reps, tree = map_tree(path_reps)
 
     path_order = sorted(range(len(tree_reps)),
                         key=lambda i: TreeRepCompare(tree_reps[i])
@@ -442,7 +442,7 @@ def move_tags_and_fill_written(seg, is_leaf):
 def write_serialized_tree(corpus_info: CorpusTreesInfo, path_reps: list, seg_postprocessor=move_tags_and_fill_written):
     seg_postprocessor = seg_postprocessor or (lambda x, is_leaf_value: x)
 
-    serial_order, is_leaf = serialize_tree(corpus_info, path_reps)
+    serial_order, is_leaf = serialize_tree(path_reps)
 
     serialized = []
 

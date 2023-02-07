@@ -485,7 +485,7 @@ def write_serialized_tree(
 
     for i, is_leaf_value in zip(serial_order, is_leaf):
         seg = corpus_info.rep2seg[corpus_info.rep_unmap[i]]
-        serialized.append(f"<meta>{repr(corpus_info.node2prefix[i])}</meta>{seg_postprocessor(seg, is_leaf_value)}")
+        serialized.append(f"{meta_start}{repr(corpus_info.node2prefix[i])}{meta_end}{seg_postprocessor(seg, is_leaf_value)}")
 
     return serialized
 

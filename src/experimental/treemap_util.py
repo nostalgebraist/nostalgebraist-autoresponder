@@ -352,21 +352,17 @@ class TreeRepCompare:
         return self.rep == other.rep
 
     def __lt__(self, other):
+        for our_node, their_node in zip(self.rep, other.rep):
+            if our_node < their_node:
+                return True
+            if our_node > their_node:
+                return False
         if self.length < other.length:
             return True
-        elif self.length > other.length:
-            return False
-        else:
-            for our_node, their_node in zip(self.rep, other.rep):
-                if our_node < their_node:
-                    return True
-                if our_node > their_node:
-                    return False
+        return False
 
-        return False  # equality case
-        # out = self.rep != other.rep and is_prefix(self.rep, other.rep)
-        # return out
-
+    def __repr__(self):
+        return f"TreeRepCompare({self.rep})"
 
 def is_prefix(this, maybe_prefix):
     return this[:len(maybe_prefix)] == maybe_prefix

@@ -495,9 +495,9 @@ def preprocess_docs_for_trees(docs, use_mp=(True, True), max_workers=6, chunksiz
     return docs
 
 
-def convert_docs_to_trees(docs):
+def convert_docs_to_trees(docs, use_mp=True, max_workers=6, chunksize=16384):
     print('constructing trees')
-    corpus_info, trees = construct_trees(docs)
+    corpus_info, trees = construct_trees(docs, use_mp=use_mp, max_workers=max_workers, chunksize=chunksize)
 
     print('serializing')
 

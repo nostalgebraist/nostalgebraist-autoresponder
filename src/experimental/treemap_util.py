@@ -13,6 +13,9 @@ from tqdm.auto import trange as trange_base
 tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
 trange = partial(trange_base, mininterval=1, smoothing=0)
 
+META_START = "<meta>"
+META_END = "</meta>"
+
 
 collect_metadata_pat = re.compile(
     r"(?P<meta> Written [0-9]{1,2} [APM]{2,} [A-Z][a-z]{1,15} [0-9]{4,} \| [^\n]+(?:\n|$))(?P<post>.*)",
@@ -454,7 +457,13 @@ def move_tags_and_fill_written(seg, is_leaf):
     return seg
 
 
-def write_serialized_tree(corpus_info: CorpusTreesInfo, path_reps: list, seg_postprocessor=move_tags_and_fill_written):
+def write_serialized_tree(
+    corpus_info: CorpusTreesInfo,
+    path_reps: list,
+    seg_postprocessor=move_tags_and_fill_written,
+    meta_start=META_START,
+    meta_end=META_END,
+):
     seg_postprocessor = seg_postprocessor or (lambda x, is_leaf_value: x)
 
     serial_order, is_leaf = serialize_tree(path_reps)
@@ -506,3 +515,9 @@ def convert_docs_to_trees(docs, use_mp=True, max_workers=6, chunksize=16384):
         serialized.append(''.join(write_serialized_tree(corpus_info, list(t))))
 
     return serialized, trees, corpus_info
+
+
+def strip_post_identifier_and_meta_separators(doc):
+    doc = strip_post_identifier(doc)
+    doc = doc.replace(META_START, "").replace(META_END, "")
+    return doc

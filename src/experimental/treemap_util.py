@@ -3,7 +3,7 @@ from datetime import datetime
 from dataclasses import dataclass
 
 from experimental.corpus_thread_util import *
-from tumblr_to_text.classic.autoresponder_static import EOT
+from tumblr_to_text.classic.autoresponder_static import EOT, DEFAULT_CSC
 from tumblr_to_text.endtags import move_tags_to_end
 
 import tqdm.contrib.concurrent as tqdm_contrib
@@ -140,6 +140,9 @@ def use_meta_if_available_single_doc(doc, collapsed_post_text_to_meta_strings, v
     def vprint(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)
+
+    if any([DEFAULT_CSC[k] in doc for k in ["ORIG_FICTION_CHAR_FORUMLIKE", "REVIEW_CHAR_FORUMLIKE"]]):
+        return doc
 
     d = doc  # TODO: naming
     doc_subbed = ''

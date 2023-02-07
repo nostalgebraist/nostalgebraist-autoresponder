@@ -203,7 +203,7 @@ def use_meta_if_available(docs, collapsed_post_text_to_meta_strings, verbose=Fal
     return out
 
 
-def split_tree(doc, include_username=True, ignore_titles=False, verbose=False):
+def split_tree(doc, include_username=True, ignore_titles=False, ignore_link_attrs=False, verbose=False):
     """
     TODO: stop handling the "prefix" differently from later posts here
     """
@@ -218,7 +218,7 @@ def split_tree(doc, include_username=True, ignore_titles=False, verbose=False):
             segment = segment.partition(" ")[2]
 
         segment = pre_content + segment
-        segment = remove_ignored_substrings(segment, ignore_titles=ignore_titles)
+        segment = remove_ignored_substrings(segment, ignore_titles=ignore_titles, ignore_link_attrs=ignore_link_attrs)
         segment = hashlib.md5(segment.encode("utf-8")).hexdigest()
         return segment
 

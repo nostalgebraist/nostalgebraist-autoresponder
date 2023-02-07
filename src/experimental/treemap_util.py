@@ -338,6 +338,7 @@ class CorpusTreesInfo:
 
 
 class TreeRepCompare:
+    """TODO: use an actual total order"""
     def __init__(self, rep: tuple):
         self.rep = rep
 

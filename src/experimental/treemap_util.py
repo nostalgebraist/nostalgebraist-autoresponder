@@ -82,25 +82,6 @@ def collect_available_post_metadata(docs, post_text_to_meta_strings=None, cc_fai
         for user_posted, post, meta in results:
             post_text_to_meta_strings[(user_posted, post)].add(meta)
 
-    # pbar = tqdm(docs)
-    #
-    # for i, d in enumerate(pbar):
-    #     try:
-    #         cc = get_ccs_with_fixes(d)[-1]
-    #     except:
-    #         cc_fails.append(d)
-    #
-    #     seg = d[(cc[1]+len(cc[0])):]
-    #
-    #     for m in collect_metadata_pat.finditer(seg):
-    #         gd = m.groupdict()
-    #
-    #         meta = gd['meta']
-    #         user_posted = cc[0]
-    #         post = gd['post']
-    #
-    #         post_text_to_meta_strings[(user_posted, post)].add(meta)
-
     return post_text_to_meta_strings, cc_fails
 
 
@@ -220,72 +201,6 @@ def use_meta_if_available(docs, collapsed_post_text_to_meta_strings, verbose=Fal
         out = [use_meta_if_available_single_doc(d, collapsed_post_text_to_meta_strings) for d in tqdm(docs)]
 
     return out
-
-    #
-    # pbar = tqdm(docs)
-    #
-    # for i, d in enumerate(pbar):
-    #     doc_subbed = ''
-    #
-    #     ccs = get_ccs_with_fixes(d)
-    #
-    #     offset = ccs[0][1]
-    #     doc_subbed += d[:offset]
-    #
-    #     for cc1, cc2 in zip(ccs[:-1], ccs[1:]):
-    #         end_index = cc2[1]
-    #         user_posted_start_index = cc1[1]
-    #         user_posted_end_index = user_posted_start_index + len(cc1[0])
-    #
-    #         user_posted = d[user_posted_start_index:user_posted_end_index]
-    #         post = d[user_posted_end_index:end_index].rstrip("\n")
-    #
-    #         meta_key = (user_posted, post)
-    #
-    #         seg = d[user_posted_end_index:end_index]
-    #         meta_string = collapsed_post_text_to_meta_strings.get(meta_key, '')
-    #
-    #         vprint(f"cc {cc1}, seg {seg}")
-    #         vprint(f"meta_key {meta_key}\nmeta_key found: {meta_key in collapsed_post_text_to_meta_strings}")
-    #         vprint()
-    #
-    #         doc_subbed += d[offset:user_posted_end_index]
-    #         doc_subbed += meta_string
-    #         doc_subbed += seg
-    #         offset = end_index
-    #
-    #     affected.append(doc_subbed != d[:offset])
-    #
-    #     cc1 = ccs[-1]
-    #     final = d[cc1[1]:]
-    #
-    #     for m in collect_metadata_pat.finditer(final):
-    #         gd = m.groupdict()
-    #         meta = gd['meta']
-    #         user_posted_start_index = cc1[1]
-    #         user_posted_end_index = user_posted_start_index + len(cc1[0])
-    #
-    #         user_posted = d[user_posted_start_index:user_posted_end_index]
-    #         post = gd['post']
-    #
-    #         meta_key = (user_posted, post)
-    #
-    #         meta_string = collapsed_post_text_to_meta_strings.get(meta_key, meta)
-    #
-    #         vprint(f"cc {ccs[-1]}, seg {post}")
-    #         vprint(f"meta_key {meta_key}\nmeta_key found: {meta_key in collapsed_post_text_to_meta_strings}")
-    #         vprint()
-    #
-    #         doc_subbed += d[offset:user_posted_end_index]
-    #         doc_subbed += meta_string
-    #         doc_subbed += post
-    #
-    #     out.append(doc_subbed)
-    #
-    #     if i % 500 == 0:
-    #         pbar.set_postfix(n_affected=sum(affected), refresh=False)
-    #
-    # return out, affected
 
 
 def split_tree(doc, include_username=False, ignore_titles=False, verbose=False):

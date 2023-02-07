@@ -1,6 +1,7 @@
 import re
 from datetime import datetime
 from dataclasses import dataclass
+from functools import total_ordering
 
 from experimental.corpus_thread_util import *
 from tumblr_to_text.classic.autoresponder_static import EOT, DEFAULT_CSC
@@ -13,8 +14,8 @@ from tqdm.auto import trange as trange_base
 tqdm = partial(tqdm_base, mininterval=1, smoothing=0)
 trange = partial(trange_base, mininterval=1, smoothing=0)
 
-META_START = "<meta>"
-META_END = "</meta>"
+META_START = "<tm>"
+META_END = "</tm>"
 
 
 collect_metadata_pat = re.compile(
@@ -341,14 +342,30 @@ class CorpusTreesInfo:
 #     path_reps: list
 
 
+@total_ordering
 class TreeRepCompare:
-    """TODO: use an actual total order"""
     def __init__(self, rep: tuple):
         self.rep = rep
+        self.length = len(self.rep)
+
+    def __eq__(self, other):
+        return self.rep == other.rep
 
     def __lt__(self, other):
-        out = self.rep != other.rep and is_prefix(self.rep, other.rep)
-        return out
+        if self.length < other.length:
+            return True
+        elif self.length > other.length:
+            return False
+        else:
+            for our_node, their_node in zip(self.rep, other.rep):
+                if our_node < their_node:
+                    return True
+                if our_node > their_node:
+                    return False
+
+        return False  # equality case
+        # out = self.rep != other.rep and is_prefix(self.rep, other.rep)
+        # return out
 
 
 def is_prefix(this, maybe_prefix):

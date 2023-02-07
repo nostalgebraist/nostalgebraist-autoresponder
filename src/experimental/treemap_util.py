@@ -203,7 +203,7 @@ def use_meta_if_available(docs, collapsed_post_text_to_meta_strings, verbose=Fal
     return out
 
 
-def split_tree(doc, include_username=False, ignore_titles=False, verbose=False):
+def split_tree(doc, include_username=True, ignore_titles=False, verbose=False):
     """
     TODO: stop handling the "prefix" differently from later posts here
     """
@@ -331,6 +331,7 @@ class CorpusTreesInfo:
     rep2seg: dict
     rep_unmap: dict
     node2prefix: dict
+    doc2root: dict
 
 # @dataclass
 # class TreeInfo:
@@ -351,13 +352,24 @@ def is_prefix(this, maybe_prefix):
     return this[:len(maybe_prefix)] == maybe_prefix
 
 
-def construct_trees(docs):
+def construct_trees(docs, use_mp=True, max_workers=6, chunksize=16384):
     rep2seg = {}
     rep_map = {}
     path_reps = []
+    doc2root = {}
 
-    for i, d in enumerate(tqdm(docs)):
-        out_data = split_tree(d, include_username=True, verbose=False, )
+    if use_mp:
+        pbar = tqdm_contrib.process_map(
+            split_tree,
+            docs,
+            max_workers=max_workers, chunksize=chunksize,
+            mininterval=1, smoothing=0,
+        )
+    else:
+        pbar = (split_tree(d) for d in tqdm(docs))
+
+    for i, out_data in enumerate(pbar):
+        # out_data = split_tree(d, include_username=True, verbose=False, )
         for d in out_data:
             rep2seg[d['rep']] = d['seg']
 
@@ -366,7 +378,9 @@ def construct_trees(docs):
                 rep_map[rep] = len(rep_map)
             return rep_map[rep]
 
-        path_reps.append(tuple(map_rep(d['rep']) for d in out_data))
+        path_rep = tuple(map_rep(d['rep']) for d in out_data)
+        path_reps.append(path_rep)
+        doc2root[i] = path_rep[0]
 
     rep_unmap = {v: k for k, v in rep_map.items()}
 
@@ -379,6 +393,7 @@ def construct_trees(docs):
         rep2seg=rep2seg,
         rep_unmap=rep_unmap,
         node2prefix=node2prefix,
+        doc2root=doc2root,
     )
 
     trees = defaultdict(set)

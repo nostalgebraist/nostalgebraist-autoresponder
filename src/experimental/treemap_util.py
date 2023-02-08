@@ -517,17 +517,23 @@ def preprocess_docs_for_trees(docs, use_mp=(True, True), max_workers=6, chunksiz
     return docs
 
 
-def convert_docs_to_trees(docs, use_mp=True, max_workers=6, chunksize=16384):
+def convert_docs_to_trees(docs, use_mp=True, max_workers=6, chunksize=16384, shuffle=True, seed=435433):
     print('constructing trees')
     corpus_info, trees = construct_trees(docs, use_mp=use_mp, max_workers=max_workers, chunksize=chunksize)
+
+    trees_to_write = list(trees.values())
+
+    if shuffle:
+        random.seed(seed)
+        random.shuffle(trees_to_write)
 
     print('serializing')
 
     serialized = []
-    for t in tqdm(trees.values(), total=len(trees)):
+    for t in tqdm(trees_to_write):
         serialized.append(''.join(write_serialized_tree(corpus_info, list(t))))
 
-    return serialized, trees, corpus_info
+    return serialized, trees, trees_to_write, corpus_info
 
 
 def strip_post_identifier_and_meta_separators(doc):

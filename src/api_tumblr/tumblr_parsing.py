@@ -225,7 +225,7 @@ class NPFImageBlock(NPFBlock, NPFNonTextBlockMixin):
         return figure_tag
 
 
-class NPFPollBlock(NPFBlock):
+class NPFPollBlock(NPFBlock, NPFNonTextBlockMixin):
     def __init__(
         self,
         client_id,

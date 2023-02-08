@@ -253,7 +253,8 @@ class NPFPollBlock(NPFBlock, NPFNonTextBlockMixin):
         and exist mainly to make polls distinguishable from other objects in the DOM tree
         we'll produce.
         """
-        question_segment = f'<p class="poll-question">{self.question}</p>'
+        # the question is a 1-item list for complicated nostalgebraist-autoresponder reasons
+        question_segment = f'<ul class="poll-question"><li>{self.question}</li></ul>'
 
         answers_segment = '<ol class="poll-answers">'
         for answer in self.answers:

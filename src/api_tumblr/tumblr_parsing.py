@@ -102,6 +102,8 @@ class NPFBlock(TumblrContentBlockBase):
             return NPFTextBlock.from_payload(payload)
         elif payload.get('type') == 'image':
             return NPFImageBlock.from_payload(payload)
+        elif payload.get('type') == 'poll':
+            return NPFPollBlock.from_payload(payload)
         else:
             raise ValueError(payload.get('type'))
 
@@ -221,6 +223,44 @@ class NPFImageBlock(NPFBlock, NPFNonTextBlockMixin):
         figure_tag = f"<figure class=\"tmblr-full\"{original_dimensions_attrs_str}>{img_tag}</figure>"
 
         return figure_tag
+
+
+class NPFPollBlock(NPFBlock):
+    def __init__(
+        self,
+        client_id,
+        question,
+        answers,
+        settings,
+        created_at,
+        timestamp,
+    ):
+        self.client_id = client_id
+        self.question = question
+        self.answers = answers
+        self.settings = settings
+        self.created_at = created_at
+        self.timestamp = timestamp
+
+
+    @staticmethod
+    def from_payload(payload: dict) -> 'NPFPollBlock':
+        return NPFPollBlock(**payload)
+
+    def to_html(self):
+        """
+        Polls don't appear at all in official legacy HTML. The CSS classes here are made-up,
+        and exist mainly to make polls distinguishable from other objects in the DOM tree
+        we'll produce.
+        """
+        question_segment = f'<p class="poll-question">{self.question}</p>'
+
+        answers_segment = '<ol class="poll-answers">'
+        for answer in self.answers:
+            answers_segment += f'<li class="poll-answer">{answer["answer_text"]}</li>'
+        answers_segment += '</ol>'
+
+        return question_segment + answers_segment
 
 
 class NPFLayout:

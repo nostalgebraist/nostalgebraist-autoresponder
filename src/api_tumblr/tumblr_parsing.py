@@ -245,7 +245,7 @@ class NPFPollBlock(NPFBlock):
 
     @staticmethod
     def from_payload(payload: dict) -> 'NPFPollBlock':
-        return NPFPollBlock(**payload)
+        return NPFPollBlock(**{k: payload[k] for k in payload if k not in {'type'}})
 
     def to_html(self):
         """

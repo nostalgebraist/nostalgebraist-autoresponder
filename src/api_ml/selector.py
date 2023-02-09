@@ -10,7 +10,7 @@ from textwrap import wrap
 from multimodal.image_analysis_static import IMAGE_URL_DELIMITER, extract_image_texts_and_urls_from_post_text
 from tumblr_to_text.image_munging import mock_up_image_generation_tags_for_heads
 
-from config.autoresponder_config import LOGGING_FLAGS
+from config.autoresponder_config import LOGGING_FLAGS, ENDTAGS
 from tumblr_to_text.classic.autoresponder_static import EOT
 from feels.mood import logit_diff_to_allen_schema
 
@@ -84,9 +84,9 @@ def show_note_probas(texts, probas, continuation_sentiments=None, other_proba=No
         print("\n~_~_~_~_~_\n")
 
 
-def parse_continuation(continuation: str, verbose=LOGGING_FLAGS["parse_continuation"]):
+def parse_continuation_starttags(continuation: str, verbose=LOGGING_FLAGS["parse_continuation"]):
     if verbose:
-        msg = "parse_continuation_nwo: "
+        msg = "parse_continuation_starttags: "
         msg += f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"
         print(msg)
 
@@ -107,6 +107,36 @@ def parse_continuation(continuation: str, verbose=LOGGING_FLAGS["parse_continuat
     if verbose:
         print(f"parsed to:\n{parsed}")
     return parsed
+
+
+def parse_continuation_endtags(continuation: str, verbose=LOGGING_FLAGS["parse_continuation"]):
+    if verbose:
+        msg = "parse_continuation_endtags: "
+        msg += f"parsing the following raw output:\n------------------\n{continuation}\n------------------\n"
+        print(msg)
+
+    continuation = continuation.partition(EOT)[0]
+
+    post, _, tag_text = continuation.partition("\n\n\t")
+
+    if post.startswith('='):
+        # getting the capts MVP work to properly
+        if verbose:
+            print(f"prepending newline to post: {repr(post)}")
+        post = '\n' + post
+
+    tags = []
+    if len(tag_text) > 0:
+        tags = [s.rstrip(" ") for s in tag_text.split("#")]
+        tags = [t for t in tags if len(t) > 0]
+
+    parsed = {"post": post, "tags": tags}
+    if verbose:
+        print(f"parsed to:\n{parsed}")
+    return parsed
+
+
+parse_continuation = parse_continuation_endtags if ENDTAGS else parse_continuation_starttags
 
 
 def winndow_probabilities(proba, lower=0.167, upper=0.833):
@@ -548,6 +578,7 @@ def get_retention_stack_judgments(retention_stack,
     prompts, prompts_selector, prompts_autoreviewer, _ = make_nwo_textpost_prompts(
         blog_name=blog_name,
         timestamp=timestamp,
+        endtags=ENDTAGS,
     )
 
     base_texts_for_selector_and_autoreviewer = [

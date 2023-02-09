@@ -27,7 +27,7 @@ from smart_open import open
 
 from util.times import now_pst, fromtimestamp_pst
 from util.cloudsave import CLOUDSAVE_BUCKET
-from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS, V12_14
+from config.autoresponder_config import USE_AUTOREVIEWER, AUTOREVIEWER_CUTOFFS, V12_14, ENDTAGS
 
 
 from tumblr_to_text.classic.reply_munging import (
@@ -1164,6 +1164,7 @@ def respond_to_reblogs_replies(
             include_image_urls=CAPTION_IMAGES_IN_MODEL_INPUT,
             include_image_urls_for_heads=CAPTION_IMAGES_IN_HEAD_INPUT,
             sample_year_for_generator=SAMPLE_YEAR_FOR_GENERATOR,
+            endtags=ENDTAGS,
         )
 
         if CAPTION_IMAGES_IN_MODEL_INPUT:
@@ -1705,6 +1706,7 @@ def batch_judge_dash_posts(post_payloads, response_cache):
         _, prompt_selector, _ = make_nwo_prompts(
             thread, blogName,
             include_image_urls_for_heads=CAPTION_IMAGES_IN_HEAD_INPUT,
+            endtags=ENDTAGS,
         )
         if CAPTION_IMAGES_IN_HEAD_INPUT:
             prompt_selector = caption_images_in_post_html(prompt_selector)
@@ -3193,6 +3195,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                     include_image_urls=CAPTION_IMAGES_IN_MODEL_INPUT,
                     include_image_urls_for_heads=CAPTION_IMAGES_IN_HEAD_INPUT,
                     sample_year_for_generator=SAMPLE_YEAR_FOR_GENERATOR,
+                    endtags=ENDTAGS,
                 )
 
                 if CAPTION_IMAGES_IN_MODEL_INPUT:
@@ -3336,6 +3339,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
                 blog_name=blogName,
                 timestamp=timestamp,
                 sample_year_for_generator=SAMPLE_YEAR_FOR_GENERATOR,
+                endtags=ENDTAGS,
             )
 
             gpt2_output, loop_persistent_data = text_post_from_gpt(loop_persistent_data=loop_persistent_data,

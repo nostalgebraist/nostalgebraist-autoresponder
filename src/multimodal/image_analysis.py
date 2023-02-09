@@ -19,7 +19,11 @@ from util.error_handling import LogExceptionAndSkip
 
 from smart_open import open
 
-# rek = boto3.client("rekognition")
+try:
+    rek = boto3.client("rekognition")
+except:
+    print("couldn't load rekognition api. proceeding without it")
+    rek = None
 
 
 def xtn_from_headers(

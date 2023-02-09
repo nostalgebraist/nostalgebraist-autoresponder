@@ -116,7 +116,7 @@ def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC, use_
             break
 
     if formatted is None:
-        formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE']
+        formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE'] + " #original fiction\n"
 
     vprint(f"using {repr(formatted)}")
 

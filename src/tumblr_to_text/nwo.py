@@ -31,14 +31,16 @@ def post_payload_to_formatted_text(post_payload: dict,
                                    prob_delta_format: bool = False,
                                    include_image_urls: bool = False,
                                    include_post_identifier: bool = False,
-                                   control_seg_config: dict = DEFAULT_CSC):
+                                   control_seg_config: dict = DEFAULT_CSC,
+                                   endtags=False):
     return npf_thread_to_formatted_text(
         TumblrThread.from_payload(post_payload),
         ml_prompt_format=ml_prompt_format,
         prob_delta_format=prob_delta_format,
         include_image_urls=include_image_urls,
         include_post_identifier=include_post_identifier,
-        control_seg_config=control_seg_config
+        control_seg_config=control_seg_config,
+        endtags=endtags,
     )
 
 
@@ -48,7 +50,8 @@ def npf_thread_to_formatted_text(thread: TumblrThread,
                                  include_image_urls: bool = False,
                                  include_post_identifier: bool = False,
                                  skip_image_analysis: bool = False,
-                                 control_seg_config: dict = DEFAULT_CSC):
+                                 control_seg_config: dict = DEFAULT_CSC,
+                                 endtags=False,):
     is_ask = [False for _ in thread.posts]
 
     has_ask, posts_with_ask = expand_asks(thread)
@@ -72,6 +75,7 @@ def npf_thread_to_formatted_text(thread: TumblrThread,
             include_image_urls=include_image_urls,
             skip_image_analysis=skip_image_analysis,
             control_seg_config=control_seg_config,
+            endtags=endtags,
         )
         for thread_index, (post, is_ask) in enumerate(zip(posts_with_ask, is_ask))
     ]
@@ -113,6 +117,7 @@ def _npf_post_to_formatted_text(post: TumblrPost,
                                 include_image_urls: bool,
                                 skip_image_analysis: bool,
                                 control_seg_config: dict = DEFAULT_CSC,
+                                endtags=False,
                                 ):
     user_name = post.blog_name
 
@@ -134,7 +139,8 @@ def _npf_post_to_formatted_text(post: TumblrPost,
         prob_delta_format=prob_delta_format,
         include_image_urls=include_image_urls,
         skip_image_analysis=skip_image_analysis,
-        control_seg_config=control_seg_config
+        control_seg_config=control_seg_config,
+        endtags=endtags,
     )
 
 
@@ -153,6 +159,7 @@ def _post_structural_elements_to_text(
         include_image_urls: bool,
         skip_image_analysis: bool,
         control_seg_config: dict = DEFAULT_CSC,
+        endtags=False,
 ):
     if ml_prompt_format and is_final_post_in_thread:
         # if prompting, we want the model to write the content of the final post
@@ -187,27 +194,37 @@ def _post_structural_elements_to_text(
         v10_timestamp = timestamp_to_v10_format(fromtimestamp_pst(timestamp))
         timestamp_formatted = control_seg_config['posted_at'].format(time_text=v10_timestamp)
 
+        final_post_content_formatted = " " + timestamp_formatted
+
         tag_list_formatted = ", ".join(["#" + t.rstrip(" ") for t in tags])
 
-        tags_formatted = control_seg_config['user_tagged_post'].format(
-            user_name=user_name, ftags=tag_list_formatted
-        )
-        # TODO: [cleanup] include implicit rstrip in csc
-        # we need it because "tags: " has a training space in the 0 tags case
-        tags_formatted = tags_formatted.rstrip(" ")
+        if endtags:
+            final_post_content_formatted = final_post_content_formatted + "\t\n"
+        else:
+            tags_formatted = control_seg_config['user_tagged_post'].format(
+                user_name=user_name, ftags=tag_list_formatted
+            )
+            # TODO: [cleanup] include implicit rstrip in csc
+            # we need it because "tags: " has a training space in the 0 tags case
+            tags_formatted = tags_formatted.rstrip(" ")
 
-        final_post_content_formatted = " " + timestamp_formatted + " | " + tags_formatted
+            final_post_content_formatted = final_post_content_formatted + " | " + tags_formatted
 
-        # a newline indicates the end of the tags -- if prompting the model, we want it to (optionally) write tags
-        tag_suffix = "" if ml_prompt_format else "\n"
-        final_post_content_formatted = final_post_content_formatted + tag_suffix
+            # a newline indicates the end of the tags -- if prompting the model, we want it to (optionally) write tags
+            tag_suffix = "" if ml_prompt_format else "\n"
+            final_post_content_formatted = final_post_content_formatted + tag_suffix
     else:
         final_post_content_formatted = ""
 
     if prob_delta_format:
         final_post_content_formatted = ""
 
-    formatted_text = name_formatted + final_post_content_formatted + content
+    if is_final_post_in_thread and endtags:
+        tag_prefix = "" if ml_prompt_format or prob_delta_format else "\n\n\t "
+        tags_formatted = tag_prefix + tag_list_formatted
+        formatted_text = name_formatted + final_post_content_formatted + content + tags_formatted
+    else:
+        formatted_text = name_formatted + final_post_content_formatted + content
 
     return formatted_text
 

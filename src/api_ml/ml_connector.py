@@ -809,9 +809,6 @@ def old_bridge_call__textpost(
         permitted_tagged_usernames=permitted_tagged_usernames,
     )
 
-    response_data = {}
-    response_data["continuations"] = continuations
-
     continuations_fixed = []
     for c, sdata in zip(continuations, continuation_side_data):
         prompt_selector_for_c = prompts_selector[sdata["prompt_for_neural"]]
@@ -827,6 +824,8 @@ def old_bridge_call__textpost(
 
     continuations = continuations_fixed
 
+    response_data = {}
+    response_data["continuations"] = continuations
     response_data["continuation_side_data"] = continuation_side_data
 
     if guidance_scale is not None:

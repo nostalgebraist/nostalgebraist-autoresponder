@@ -812,12 +812,20 @@ def old_bridge_call__textpost(
     response_data = {}
     response_data["continuations"] = continuations
 
+    continuations_fixed = []
     for c, sdata in zip(continuations, continuation_side_data):
         prompt_selector_for_c = prompts_selector[sdata["prompt_for_neural"]]
         sdata["prompt_selector"] = prompt_selector_for_c
 
         prompt_autoreviewer_for_c = prompts_autoreviewer[sdata["prompt_for_neural"]]
         sdata["prompt_autoreviewer"] = prompt_autoreviewer_for_c
+
+        if ENDTAGS and CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"] in sdata["prompt_for_neural"]:
+            tagline, _, c = c.partition("\n")
+            print(f"stripped tag line from fic: {tagline}")
+        continuations_fixed.append(c)
+
+    continuations = continuations_fixed
 
     response_data["continuation_side_data"] = continuation_side_data
 

@@ -297,7 +297,7 @@ if ARJ_V11_P1:
     ckpt_select = "selector/x11p1/v1/"
     ckpt_sentiment = "sentiment/x11p1/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/x11p1/v1/"
-    ckpt_captioner = "captioner/x11p1/v0/"
+    ckpt_captioner = "captioner/xtn11p1/v0/"
 elif ARJ_V11 and ARJ_V11_ENDTAGS:
     ckpt_select = "selector/x11/v1/"
     ckpt_sentiment = "sentiment/x11/v1/"

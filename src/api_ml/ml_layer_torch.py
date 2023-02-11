@@ -168,7 +168,7 @@ generator_path = model_name
 
 if not os.path.exists(generator_path):
     model_tar_name = 'model.tar.gz' if HF_FILES_GZIPPED else 'model.tar'
-    if ARJ_V11 and ARJ_V11_ENDTAGS:
+    if (ARJ_V11 and ARJ_V11_ENDTAGS) and not ARJ_V11_P1:
         model_tar_name = 'model-endtags.tar'
     model_tar_path = get_local_path_from_huggingface_cdn(
         HF_REPO_NAME, model_tar_name

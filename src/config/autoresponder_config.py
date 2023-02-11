@@ -215,6 +215,7 @@ model_path = None
 if ARJ_V11_P1:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
     model_name = "arj-x11p1-3567"
+    ENDTAGS = True
 elif ARJ_V11:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
     model_name = "arj-x11-3450"

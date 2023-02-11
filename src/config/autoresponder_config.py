@@ -56,7 +56,14 @@ LOGGING_FLAGS = {
     "parse_continuation": False
 }
 
-if ARJ_V11 and ARJ_V11_ENDTAGS:
+if ARJ_V11_P1:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.152,  # x11p1/v1: predict true accept rate: ~41%, false accept rate ~8.75%
+        "reject_above": 0.552,  # x11p1/v1: predict true reject rate: ~34%, false reject rate ~3%
+        "flag_above":   0.35,
+        "accept_below_textpost": 0.220,  # x11p1/v1: predict true accept rate: ~26%, false accept rate ~8.75%
+    }
+elif ARJ_V11 and ARJ_V11_ENDTAGS:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.113,  # v12_19/v4_experimental: predict true accept rate: ~48%, false accept rate ~8.75%
         "reject_above": 0.661,  # v12_19/v4_experimental: predict true reject rate: ~32%, false reject rate ~3%

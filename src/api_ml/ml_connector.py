@@ -948,7 +948,9 @@ def caption_images_in_post_html(text: str, write_to_archive=True, verbose=True):
         if verbose:
             print(f"using guidance_scale {guidance_scale} to caption {repr(normed_url)} with imtext {repr(imtext)}")
         kwargs = dict(temperature=1, top_p=0.9, guidance_scale=guidance_scale)
-        capt = caption_image(normed_url, **kwargs)[0]['result']
+        capt, msg = caption_image(normed_url, **kwargs)[0]['result']
+        if msg != '':
+            print(msg)
         if write_to_archive:
             archive_caption(normed_url, capt)
         return capt

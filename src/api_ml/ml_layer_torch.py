@@ -34,12 +34,24 @@ except FileNotFoundError:
 
 
 def caption_image(self, path_or_url, **kwargs):
-    return ml.captioning.caption_image(
+    msg = ""
+    caption = ml.captioning.caption_image(
         path_or_url=path_or_url,
         magma_wrapper=self,
         adapters_device=captioning_adapters_device,
         **kwargs
     )
+    if caption is None and kwargs.get("guidance_scale") > 0:
+        kwargs['guidance_scale'] = 0.0
+        msg = "fell back to guidance scale 0, probably OOM"
+        caption = ml.captioning.caption_image(
+            path_or_url=path_or_url,
+            magma_wrapper=self,
+            adapters_device=captioning_adapters_device,
+            **kwargs
+        )
+    return caption, msg
+
 
 magma.Magma.caption_image = caption_image
 

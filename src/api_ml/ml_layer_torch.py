@@ -43,7 +43,8 @@ def caption_image(self, path_or_url, **kwargs):
     )
     if caption is None and kwargs.get("guidance_scale") > 0:
         kwargs['guidance_scale'] = 0.0
-        msg = "fell back to guidance scale 0, probably OOM"
+        kwargs['max_steps'] = 15
+        msg = "fell back to guidance scale 0 and max_steps 15, probably OOM"
         caption = ml.captioning.caption_image(
             path_or_url=path_or_url,
             magma_wrapper=self,

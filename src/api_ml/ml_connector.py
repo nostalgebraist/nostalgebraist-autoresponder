@@ -948,7 +948,12 @@ def caption_images_in_post_html(text: str, write_to_archive=True, verbose=True):
         if verbose:
             print(f"using guidance_scale {guidance_scale} to caption {repr(normed_url)} with imtext {repr(imtext)}")
         kwargs = dict(temperature=1, top_p=0.9, guidance_scale=guidance_scale)
-        capt, msg = caption_image(normed_url, **kwargs)[0]['result']
+        result = caption_image(normed_url, **kwargs)[0]['result']
+        if result is not None:
+            capt, msg = result
+        else:
+            capt = None
+            msg = 'received null from bridge during captioning'
         if msg != '':
             print(msg)
         if write_to_archive:

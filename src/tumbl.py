@@ -167,6 +167,13 @@ REVIEW_COMMAND = "!review"
 REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
+MANUAL_PID_TAGS = (
+    "note: this ask was not visible through the tumblr API submissions endpoint!",
+    "this may mean that the user who sent it has been flagged by a tumblr spam prevention filter",
+    "(colloquially known as 'being shadowbanned')",
+    "see nostalgebraist.tumblr.com/post/682743201479753728 for more about this issue"
+)
+
 MAX_POSTS_PER_STEP = 5
 
 DASH_REBLOG_PROB_RATIO_CUTOFF = 1.7
@@ -762,6 +769,7 @@ def answer_ask(
     log_data=None,
     autoreview_proba=None,
     reject_action=None,
+    was_manual_pid=False,
 ):
     global client_pool
     if is_reblog:
@@ -849,6 +857,9 @@ def answer_ask(
                 guidance_tags = [guidance_tags[0].partition(" (")[0]]
 
             tags += guidance_tags
+
+    if was_manual_pid:
+        tags.extend(MANUAL_PID_TAGS)
 
     if IMAGE_DELIMITER in answer:
         print("image delimiter still in post")
@@ -2923,10 +2934,13 @@ def do_ask_handling(loop_persistent_data, response_cache):
     global client_pool
     submissions = client_pool.get_private_client().submission(blogName, limit=50)["posts"]
 
+    existing_pids = {pp['id'] for pp in submissions['posts']}
+    unseen_until_manual_pids = set()
     for pid in loop_persistent_data.manual_ask_post_ids:
         response = client_pool.get_private_client().posts(blogName, id=pid)
         if "posts" in response:
             submissions.extend(response["posts"])
+            unseen_until_manual_pids.add(pid)
         else:
             print(f"manual_ask_post_ids: couldn't find {pid}!")
 
@@ -3261,6 +3275,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 log_data=log_data,
                 autoreview_proba=gpt2_output["autoreview_proba"],
                 reject_action="rts",
+                was_manual_pid=post_payload["id"] in unseen_until_manual_pids,
             )
             with LogExceptionAndSkip('mark_user_input_response_post_id'):
                 if 'id_string' in api_response:

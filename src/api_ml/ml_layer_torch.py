@@ -34,12 +34,25 @@ except FileNotFoundError:
 
 
 def caption_image(self, path_or_url, **kwargs):
-    return ml.captioning.caption_image(
+    msg = ""
+    caption = ml.captioning.caption_image(
         path_or_url=path_or_url,
         magma_wrapper=self,
         adapters_device=captioning_adapters_device,
         **kwargs
     )
+    if caption is None and kwargs.get("guidance_scale") > 0:
+        kwargs['guidance_scale'] = 0.0
+        kwargs['max_steps'] = 15
+        msg = "fell back to guidance scale 0 and max_steps 15, probably OOM"
+        caption = ml.captioning.caption_image(
+            path_or_url=path_or_url,
+            magma_wrapper=self,
+            adapters_device=captioning_adapters_device,
+            **kwargs
+        )
+    return caption, msg
+
 
 magma.Magma.caption_image = caption_image
 
@@ -168,7 +181,7 @@ generator_path = model_name
 
 if not os.path.exists(generator_path):
     model_tar_name = 'model.tar.gz' if HF_FILES_GZIPPED else 'model.tar'
-    if ARJ_V11 and ARJ_V11_ENDTAGS:
+    if (ARJ_V11 and ARJ_V11_ENDTAGS) and not ARJ_V11_P1:
         model_tar_name = 'model-endtags.tar'
     model_tar_path = get_local_path_from_huggingface_cdn(
         HF_REPO_NAME, model_tar_name

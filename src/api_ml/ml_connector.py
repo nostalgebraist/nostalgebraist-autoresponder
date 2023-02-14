@@ -809,9 +809,7 @@ def old_bridge_call__textpost(
         permitted_tagged_usernames=permitted_tagged_usernames,
     )
 
-    response_data = {}
-    response_data["continuations"] = continuations
-
+    continuations_fixed = []
     for c, sdata in zip(continuations, continuation_side_data):
         prompt_selector_for_c = prompts_selector[sdata["prompt_for_neural"]]
         sdata["prompt_selector"] = prompt_selector_for_c
@@ -819,6 +817,15 @@ def old_bridge_call__textpost(
         prompt_autoreviewer_for_c = prompts_autoreviewer[sdata["prompt_for_neural"]]
         sdata["prompt_autoreviewer"] = prompt_autoreviewer_for_c
 
+        if ENDTAGS and CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"] in sdata["prompt_for_neural"]:
+            tagline, _, c = c.partition("\n")
+            print(f"stripped tag line from fic: {tagline}")
+        continuations_fixed.append(c)
+
+    continuations = continuations_fixed
+
+    response_data = {}
+    response_data["continuations"] = continuations
     response_data["continuation_side_data"] = continuation_side_data
 
     if guidance_scale is not None:
@@ -936,11 +943,19 @@ def caption_image(url: str, **kwargs):
 def caption_images_in_post_html(text: str, write_to_archive=True, verbose=True):
     def _normed_url_to_replacement(normed_url, imtext):
         # note: normed_url is just a url here since disable_url_norm=True below
+
         guidance_scale = 0.5 if len(imtext) == 0 else 0.0
         if verbose:
             print(f"using guidance_scale {guidance_scale} to caption {repr(normed_url)} with imtext {repr(imtext)}")
         kwargs = dict(temperature=1, top_p=0.9, guidance_scale=guidance_scale)
-        capt = caption_image(normed_url, **kwargs)[0]['result']
+        result = caption_image(normed_url, **kwargs)[0]['result']
+        if result is not None:
+            capt, msg = result
+        else:
+            capt = None
+            msg = 'received null from bridge during captioning'
+        if msg != '':
+            print(msg)
         if write_to_archive:
             archive_caption(normed_url, capt)
         return capt

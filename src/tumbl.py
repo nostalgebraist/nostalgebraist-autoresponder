@@ -2936,7 +2936,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
 
     existing_pids = {pp['id'] for pp in submissions['posts']}
     unseen_until_manual_pids = set()
-    for pid in loop_persistent_data.manual_ask_post_ids:
+    for pid in loop_persistent_data.manual_ask_post_ids.difference(existing_pids):
         response = client_pool.get_private_client().posts(blogName, id=pid)
         if "posts" in response:
             submissions.extend(response["posts"])

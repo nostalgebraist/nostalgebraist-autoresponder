@@ -26,6 +26,12 @@ strip_link_attrs_repl = r'<a>\g<1></a>'
 get_h2_regex = re.compile(r'(<h2>.*?</h2>)')
 
 
+def optional_process_map(fn, iterable, use_mp=True):
+    if use_mp:
+        return process_map(fn, iterable)
+    return list(map(fn, tqdm(iterable)))
+
+
 def unique_id_for_doc(doc: str, prep_fn=None):
     if prep_fn is None:
         prep_fn = lambda x: x
@@ -164,7 +170,7 @@ def extract_prefix(doc, include_username=False, ignore_titles=False, verbose=Fal
     return prefix
 
 
-def find_title_groups(docs, nontrivial_only=True):
+def find_title_groups(docs, nontrivial_only=True, use_mp=True):
     titlestuff = {}
 
     ixs = range(len(docs))
@@ -179,7 +185,7 @@ def find_title_groups(docs, nontrivial_only=True):
             titlestuff[title]["others"].append(other_content)
 
 
-    for i, (title, other_content) in enumerate(process_map(get_title, docs)):
+    for i, (title, other_content) in enumerate(optional_process_map(get_title, docs, use_mp=use_mp)):
         if title:
             if title not in titlestuff:
                 titlestuff[title] = {"ixs": [], "others": []}
@@ -201,10 +207,10 @@ def find_title_groups(docs, nontrivial_only=True):
     return titlestuff
 
 
-def identify_h2_contaminated_docs(docs):
+def identify_h2_contaminated_docs(docs, use_mp=True):
     excluded_doc_indices = set()
 
-    titlestuff = find_title_groups(docs, nontrivial_only=True)
+    titlestuff = find_title_groups(docs, nontrivial_only=True, use_mp=True)
 
     for info in titlestuff.values():
         bad_ixs = {i for i, o in zip(info['ixs'], info['others']) if len(o) == 0}
@@ -453,6 +459,7 @@ def load_trails_from_docs(paths,
                           exclude_nost_paths=set(),
                           keep_nost_reviews=True,
                           page_size=128,
+                          use_mp_until_group=None,
                           ):
     using_uid_map = uid_to_metadata is not None
     doc_to_uid = {}
@@ -463,8 +470,15 @@ def load_trails_from_docs(paths,
     if isinstance(paths, str):
         paths = [paths]
 
+    use_mp_until_group = use_mp_until_group or len(paths) + 1
+
+    def optional_process_map_by_group(fn, iterable, groups_loaded):
+        use_mp = groups_loaded < use_mp_until_group
+        return optional_process_map(fn, iterable)
+
     doc_groups = []
-    for p in paths:
+    for groups_loaded, p in enumerate(paths):
+
         # with open(p, "r", encoding="utf-8") as f:
         #     ds = f.read()
         # g = [d for d in ds.split(EOT) if len(d) > 0]
@@ -486,7 +500,7 @@ def load_trails_from_docs(paths,
             #     else:
             #         ok[uid] = 0
 
-            ok = {k: v for k, v in process_map(partial(mark_ok, keep_nost_reviews=keep_nost_reviews), g)}
+            ok = {k: v for k, v in optional_process_map_by_group(partial(mark_ok, keep_nost_reviews=keep_nost_reviews), g, groups_loaded)}
 
             # for ii in trange(len(g)):
             #     # d = g.pop(0)
@@ -551,7 +565,7 @@ def load_trails_from_docs(paths,
         if exclude_malformed:
             n_raw = len(g)
             # reasons = [diagnose_malformed(d) for d in g]
-            reasons = process_map(diagnose_malformed, g)
+            reasons = optional_process_map_by_group(diagnose_malformed, g, groups_loaded)
             presentation_counts = Counter([tuple(sorted(r)) for r in reasons])
             symptom_counts = Counter([r for rs in reasons for r in rs])
 
@@ -594,7 +608,7 @@ def load_trails_from_docs(paths,
         all_h2_docs = [d for g in doc_groups[:exclude_h2_until_group] for d in g]
         n_raw = len(all_h2_docs)
 
-        excluded_doc_indices = identify_h2_contaminated_docs(all_h2_docs)
+        excluded_doc_indices = identify_h2_contaminated_docs(all_h2_docs, use_mp=groups_loaded < use_mp_until_group)
 
         allowed_doc_indices_by_group = {}
         excluded_doc_indices_by_group = {}

@@ -3276,7 +3276,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 log_data=log_data,
                 autoreview_proba=gpt2_output["autoreview_proba"],
                 reject_action="rts",
-                was_manual_pid=post_payload["id"] in loop_persistent_data.manual_ask_post_ids, # unseen_until_manual_pids,
+                was_manual_pid=post_payload["id"] in unseen_until_manual_pids,
             )
             with LogExceptionAndSkip('mark_user_input_response_post_id'):
                 if 'id_string' in api_response:
@@ -3643,11 +3643,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                     response_cache.save()
                     image_analysis_cache.save()
         return loop_persistent_data, response_cache
-
-    # TEMP
-    loop_persistent_data, response_cache = _mainloop_asks_block(
-        loop_persistent_data, response_cache, save_after=False
-    )
 
     ### do reblog/reply check
     if n_posts_to_check > 0:

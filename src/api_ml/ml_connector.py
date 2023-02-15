@@ -315,12 +315,13 @@ def basic_n_continuations(
             tagged_usernames = set(re.findall(r"@([\w-]+)", remove_images_entirely_from_post_text(c)))
 
             post_text = parse_continuation(c)["post"]
+            post_text_wordcount = len(post_text.split())
 
-            if len(post_text) < avoid_if_under and (not has_img):
+            if post_text_wordcount < avoid_if_under and (not has_img):
                 print(
                     f"\n\trejecting because length under {avoid_if_under}: {_tabfill(c)}\n"
                 )
-            elif len(post_text) < avoid_half_if_under and (not has_img) and roll < 0.5:
+            elif post_text_wordcount < avoid_half_if_under and (not has_img) and roll < 0.5:
                 print(
                     f"\n\trejecting because length under {avoid_half_if_under} and roll {roll}: {_tabfill(c)}\n"
                 )
@@ -343,7 +344,7 @@ def basic_n_continuations(
                 problem_names = tagged_usernames.difference(permitted_tagged_usernames)
                 print(f"\n\trejecting because tagged names {problem_names} not in {permitted_tagged_usernames}: {_tabfill(c)}\n")
             else:
-                if len(post_text) < avoid_half_if_under:
+                if post_text_wordcount < avoid_half_if_under:
                     print(
                         f"\n\tkeeping with roll {roll} and has_img {has_img}, although length under {avoid_half_if_under}: {_tabfill(c)}\n"
                     )

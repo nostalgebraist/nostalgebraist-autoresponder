@@ -171,7 +171,8 @@ MANUAL_PID_TAGS = (
     "note: this ask was not visible through the tumblr API submissions endpoint!",
     "this may mean that the user who sent it has been flagged by a tumblr spam prevention filter",
     "(colloquially known as 'being shadowbanned')",
-    "see nostalgebraist.tumblr.com/post/682743201479753728 for more about this issue"
+    "you can read more about this issue at",
+    "tumblr.com/nostalgebraist/682743201479753728"
 )
 
 MAX_POSTS_PER_STEP = 5

@@ -2708,7 +2708,7 @@ def do_reblog_reply_handling(
 
     if is_dashboard and len(kept) > 0 and len(excluded) > 0:
         last_handled_in_step_ts = max([reblog_reply_timestamps[r] for r in kept])
-        last_handled_in_step_id = max([r.id_ for r in kept])
+        last_handled_in_step_id = max([int(r.id_) for r in kept])
         if last_handled_in_step_ts < updated_last_seen_ts:
             print(
                 f"rolling back updated_last_seen_ts: {updated_last_seen_ts} --> {last_handled_in_step_ts}"

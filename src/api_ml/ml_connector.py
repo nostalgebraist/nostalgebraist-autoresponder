@@ -15,7 +15,7 @@ from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 from api_ml.bridge_shared import bridge_service_unique_id
 from feels.mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections, logit_diff_to_pos_sent
-from api_ml.selector import serve_selection
+from api_ml.selector import serve_selection, parse_continuation
 
 from api_ml import bridge_cache_singleton
 from api_ml.bridge_shared import get_bridge_service_url
@@ -156,26 +156,6 @@ selector_est = SideJudgmentModelInterface("selector")
 sentiment_est = SideJudgmentModelInterface("sentiment")
 autoreviewer_est = SideJudgmentModelInterface("autoreviewer")
 captioner = CaptionerModelInterface()
-
-
-def parse_continuation(continuation: str, verbose=True):
-    if verbose:
-        print(
-            f"parsing the following raw output:\n------------------\n{fill(continuation)}\n------------------\n"
-        )
-
-    # split out tags, if present
-    if V8:
-        post, _, tag_text = continuation.partition("\n")
-    else:
-        post, _, tag_text = continuation.partition(T_CHAR)
-    tags = []
-    if len(tag_text) > 0:
-        tags = [s.rstrip(" ") for s in tag_text.split("#")]
-
-    post = post.lstrip(ORIG_POST_CHAR)
-    parsed = {"post": post, "tags": tags}
-    return parsed
 
 
 def get_textpost_prompts():
@@ -334,20 +314,17 @@ def basic_n_continuations(
             has_img = IMAGE_DELIMITER_WHITESPACED in c
             tagged_usernames = set(re.findall(r"@([\w-]+)", remove_images_entirely_from_post_text(c)))
 
-            # NOTE: the < 100 check is for weird posts where the newline doesn't happen
-            if len(c.partition("\n")[2].split(" ")) < avoid_if_under and len(c) < 100 and (not has_img):
+            post_text = parse_continuation(c)["post"]
+
+            if len(post_text) < avoid_if_under and (not has_img):
                 print(
                     f"\n\trejecting because length under {avoid_if_under}: {_tabfill(c)}\n"
                 )
-            elif (
-                len(c.partition("\n")[2].split(" ")) < avoid_half_if_under
-            ) and len(c) < 100 and  (not has_img) and roll < 0.5:
+            elif len(post_text) < avoid_half_if_under and (not has_img) and roll < 0.5:
                 print(
                     f"\n\trejecting because length under {avoid_half_if_under} and roll {roll}: {_tabfill(c)}\n"
                 )
-            elif (
-                c.partition("\n")[2].lstrip(" \n").startswith("<blockquote")
-            ) and avoid_initial_blockquote:
+            elif post_text.startswith("<blockquote") and avoid_initial_blockquote:
                 print(f"\n\trejecting because initial blockquote: {_tabfill(c)}\n")
             elif len([char for char in c if char == T_CHAR]) >= 2:
                 print(f"\n\trejecting because multiple T_CHAR: {_tabfill(c)}\n")
@@ -366,9 +343,9 @@ def basic_n_continuations(
                 problem_names = tagged_usernames.difference(permitted_tagged_usernames)
                 print(f"\n\trejecting because tagged names {problem_names} not in {permitted_tagged_usernames}: {_tabfill(c)}\n")
             else:
-                if len(c.partition("\n")[2].split(" ")) < avoid_half_if_under:
+                if len(post_text) < avoid_half_if_under:
                     print(
-                        f"\n\tkeeping with roll {roll}, although length under {avoid_half_if_under}: {_tabfill(c)}\n"
+                        f"\n\tkeeping with roll {roll} and has_img {has_img}, although length under {avoid_half_if_under}: {_tabfill(c)}\n"
                     )
                 continuations.append(c)
                 sdata_plus_minfo = {k: v for k, v in sdata.items()}

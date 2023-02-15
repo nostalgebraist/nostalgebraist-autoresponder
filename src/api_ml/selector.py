@@ -117,6 +117,10 @@ def parse_continuation_endtags(continuation: str, verbose=LOGGING_FLAGS["parse_c
 
     continuation = continuation.partition(EOT)[0]
 
+    # \t\n end of final-post meta line in endtags
+    if continuation.startswith('\t\n'):
+        continuation = continuation[2:]
+
     post, _, tag_text = continuation.partition("\n\n\t")
 
     if post.startswith('='):

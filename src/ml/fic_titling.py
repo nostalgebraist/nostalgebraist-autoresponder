@@ -1,4 +1,4 @@
-import random
+import random, torch
 from collections import Counter
 
 from ml.kv_cache import kv_buffer_scope

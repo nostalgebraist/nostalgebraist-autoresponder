@@ -47,7 +47,7 @@ Given this description, an appropriate title would be: "Captain Kirk meets Jim M
 _lines = fewshot_orig.split("\n\n")
 
 fewshot_prefix = _lines[0]
-fewshot_shots = tuple(lines[1:])
+fewshot_shots = tuple(_lines[1:])
 
 
 request_format = """The description is: "{text}"

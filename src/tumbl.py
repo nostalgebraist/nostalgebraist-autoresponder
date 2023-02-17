@@ -65,6 +65,7 @@ from api_ml.ml_connector import (
     sentiment_logit_diffs_from_gpt,
     autoreview_proba_from_gpt,
     caption_images_in_post_html,
+    fic_title_from_gpt,
 )
 
 from tumblr_to_text.classic.autoresponder_static import EOT, DEFAULT_CSC
@@ -246,6 +247,8 @@ DASH_CHECKPROB_IS_DISCOUNT = True
 USERLIST_MODE = False
 
 MAX_RTS_COUNT = 3
+
+FEWSHOT_FIC_TITLING = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
@@ -3203,8 +3206,13 @@ def do_ask_handling(loop_persistent_data, response_cache):
             thread = TumblrThread.from_payload(post_payload)
             thread = set_timestamp(thread, datetime.now())
             if write_fic_override:
+                forced_title = None
+                if FEWSHOT_FIC_TITLING:
+                    with LogExceptionAndSkip('trying to few-shot write a fic title'):
+                        forced_title = fic_title_from_gpt(text=get_normalized_ask_text(thread))
                 prompt, prompt_selector, prompt_autoreviewer = make_nwo_fic_override_prompts(thread,
-                                                                                             use_definite_article=not V12_14)
+                                                                                             use_definite_article=not V12_14,
+                                                                                             forced_title=forced_title)
             else:
                 prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(
                     thread, blogName,

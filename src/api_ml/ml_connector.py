@@ -114,6 +114,15 @@ class GeneratorModelInterface(MLModelInterface):
             **kwargs,
         )
 
+    def write_fic_title(self, *args, repeat_until_done_signal=False, **kwargs):
+        return self.do(
+            "write_fic_title",
+            repeat_until_done_signal=repeat_until_done_signal,
+            uses_bridge_cache=True,
+            *args,
+            **kwargs,
+        )
+
 
 class SideJudgmentModelInterface(MLModelInterface):
     def __init__(self, name):
@@ -947,3 +956,8 @@ def caption_images_in_post_html(text: str, write_to_archive=True, verbose=True):
         _normed_imtext_to_url,
         disable_url_norm=True,
     )[0]
+
+
+def fic_title_from_gpt(text, **kwargs):
+    raw = generator_model.write_fic_title(text, **kwargs)
+    return raw[0]["result"]

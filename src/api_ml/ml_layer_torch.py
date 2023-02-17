@@ -19,6 +19,8 @@ from ml.load_gptj import load_gpt_j_split_ckpt, load_gpt_j_split_ckpt_state_dict
 from ml.kv_cache import setup_kv_buffer
 
 import ml.captioning
+import ml.fic_titling
+import ml.generator_model_torch
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
@@ -73,6 +75,12 @@ def caption_image(self, path_or_url, **kwargs):
     msg = "\n".join(msg_rows)
     return caption, msg
 
+
+def write_fic_title(self, text, **kwargs):
+    return run_fewshot_titling(text, generator_model=self, **kwargs)
+
+
+ml.generator_model_torch.GeneratorModelTorch.write_fic_title = write_fic_title
 
 magma.Magma.caption_image = caption_image
 

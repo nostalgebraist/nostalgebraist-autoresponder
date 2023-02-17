@@ -77,7 +77,7 @@ def caption_image(self, path_or_url, **kwargs):
 
 
 def write_fic_title(self, text, **kwargs):
-    return run_fewshot_titling(text, generator_model=self, **kwargs)
+    return ml.fic_titling.run_fewshot_titling(text, generator_model=self, **kwargs)
 
 
 ml.generator_model_torch.GeneratorModelTorch.write_fic_title = write_fic_title

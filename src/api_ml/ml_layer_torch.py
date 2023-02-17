@@ -1,5 +1,6 @@
 import sys
 import time
+from io import StringIO
 
 import requests
 import numpy as np
@@ -34,23 +35,42 @@ except FileNotFoundError:
 
 
 def caption_image(self, path_or_url, **kwargs):
-    msg = ""
-    caption = ml.captioning.caption_image(
-        path_or_url=path_or_url,
-        magma_wrapper=self,
-        adapters_device=captioning_adapters_device,
-        **kwargs
-    )
-    if caption is None and kwargs.get("guidance_scale") > 0:
-        kwargs['guidance_scale'] = 0.0
-        kwargs['max_steps'] = 15
-        msg = "fell back to guidance scale 0 and max_steps 15, probably OOM"
+    msg_rows = []
+    with StringIO() as buf:
         caption = ml.captioning.caption_image(
             path_or_url=path_or_url,
             magma_wrapper=self,
             adapters_device=captioning_adapters_device,
+            exception_log_file=buf,
             **kwargs
         )
+        exc_str = buf.getvalue()
+        if exc_str:
+            msg_rows.append(exc_str)
+    if caption is None and kwargs.get("guidance_scale") > 0:
+        kwargs['guidance_scale'] = 0.0
+        kwargs['max_steps'] = 15
+        msg_rows.append(
+            f"caption_image on {repr(path_or_url)}: "
+            "fell back to guidance scale 0 and max_steps 15"
+        )
+        # TODO: DRY
+        with StringIO() as buf:
+            caption = ml.captioning.caption_image(
+                path_or_url=path_or_url,
+                magma_wrapper=self,
+                adapters_device=captioning_adapters_device,
+                exception_log_file=buf,
+                **kwargs
+            )
+            exc_str = buf.getvalue()
+            if exc_str:
+                msg_rows.append(exc_str)
+    if caption is None:
+        msg_rows.append(
+            f"caption_image on {repr(path_or_url)}: failed to produce a caption"
+        )
+    msg = "\n".join(msg_rows)
     return caption, msg
 
 

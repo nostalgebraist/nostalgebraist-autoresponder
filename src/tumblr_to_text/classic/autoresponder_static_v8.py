@@ -92,6 +92,7 @@ def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC, use_
 
     if forced_title is not None:
         vprint(f"using forced_title {repr(forced_title)}")
+        title = forced_title
         formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE'] + " #original fiction\n" + f"<h2>{title}</h2>"
 
     if formatted is None:

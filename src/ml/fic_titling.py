@@ -64,7 +64,7 @@ def make_fewshot_titling_request(text):
     return request_format.format(text=text)
 
 
-def run_fewshot_titling_single_prompt(pr, generator_model, top_p=0.9, temperature=1.0, max_length=20, eos_token_id=198, n=1):
+def run_fewshot_titling_single_prompt(pr, generator_model, top_p=0.9, temperature=1.0, max_length=30, eos_token_id=198, n=1):
     enc = generator_model.tokenizer
 
     batch_pr = [pr for _ in range(1)]
@@ -93,18 +93,26 @@ def run_fewshot_titling_single_prompt(pr, generator_model, top_p=0.9, temperatur
     return outs
 
 
-def run_fewshot_titling(text, generator_model, n_shuffles=5, n_per_shuffle=2, verbose=True, **kwargs):
+def run_fewshot_titling(text, generator_model, n_shuffles=8, n_per_shuffle=1, verbose=True, **kwargs):
     request = make_fewshot_titling_request(text)
     counts = Counter()
 
     for _ in range(n_shuffles):
         prompt = make_shuffled(request)
+        if verbose:
+            print(repr(prompt))
         outs = run_fewshot_titling_single_prompt(prompt, generator_model, n=n_per_shuffle, **kwargs)
         if verbose:
             print(outs)
         counts.update(outs)
 
+    mc = counts.most_common()
     if verbose:
-        print(counts.most_common())
+        print(mc)
 
-    return counts.most_common()[1][0]
+    top_count = mc[0][1]
+    candidates = [e[0] for e in mc if e[1] == top_count]
+
+    best = sorted(candidates, key=len)[-1]
+
+    return best

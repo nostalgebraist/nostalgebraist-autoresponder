@@ -1,5 +1,6 @@
 import sys
 import time
+from io import StringIO
 
 import requests
 import numpy as np
@@ -18,6 +19,8 @@ from ml.load_gptj import load_gpt_j_split_ckpt, load_gpt_j_split_ckpt_state_dict
 from ml.kv_cache import setup_kv_buffer
 
 import ml.captioning
+import ml.fic_titling
+import ml.generator_model_torch
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
@@ -34,12 +37,50 @@ except FileNotFoundError:
 
 
 def caption_image(self, path_or_url, **kwargs):
-    return ml.captioning.caption_image(
-        path_or_url=path_or_url,
-        magma_wrapper=self,
-        adapters_device=captioning_adapters_device,
-        **kwargs
-    )
+    msg_rows = []
+    with StringIO() as buf:
+        caption = ml.captioning.caption_image(
+            path_or_url=path_or_url,
+            magma_wrapper=self,
+            adapters_device=captioning_adapters_device,
+            exception_log_file=buf,
+            **kwargs
+        )
+        exc_str = buf.getvalue()
+        if exc_str:
+            msg_rows.append(exc_str)
+    if caption is None and kwargs.get("guidance_scale") > 0:
+        kwargs['guidance_scale'] = 0.0
+        kwargs['max_steps'] = 15
+        msg_rows.append(
+            f"caption_image on {repr(path_or_url)}: "
+            "fell back to guidance scale 0 and max_steps 15"
+        )
+        # TODO: DRY
+        with StringIO() as buf:
+            caption = ml.captioning.caption_image(
+                path_or_url=path_or_url,
+                magma_wrapper=self,
+                adapters_device=captioning_adapters_device,
+                exception_log_file=buf,
+                **kwargs
+            )
+            exc_str = buf.getvalue()
+            if exc_str:
+                msg_rows.append(exc_str)
+    if caption is None:
+        msg_rows.append(
+            f"caption_image on {repr(path_or_url)}: failed to produce a caption"
+        )
+    msg = "\n".join(msg_rows)
+    return caption, msg
+
+
+def write_fic_title(self, text, **kwargs):
+    return ml.fic_titling.run_fewshot_titling(text, generator_model=self, **kwargs)
+
+
+ml.generator_model_torch.GeneratorModelTorch.write_fic_title = write_fic_title
 
 magma.Magma.caption_image = caption_image
 
@@ -168,7 +209,7 @@ generator_path = model_name
 
 if not os.path.exists(generator_path):
     model_tar_name = 'model.tar.gz' if HF_FILES_GZIPPED else 'model.tar'
-    if ARJ_V11 and ARJ_V11_ENDTAGS:
+    if (ARJ_V11 and ARJ_V11_ENDTAGS) and not ARJ_V11_P1:
         model_tar_name = 'model-endtags.tar'
     model_tar_path = get_local_path_from_huggingface_cdn(
         HF_REPO_NAME, model_tar_name

@@ -356,7 +356,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             loss = self.loss_fn(input=logits, target=batch_target)
 
-            self.scaler_.scale(loss).backward()
+            self.scaler_.scale(loss / self.grad_acc_steps).backward()
 
             if step_ix % self.grad_acc_steps == 0:
                 self.scaler_.unscale_(self.opt_)

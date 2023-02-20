@@ -675,7 +675,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                 epoch_needs_val = self.evaluate_during_training
 
                 if epoch_needs_val:
-                    dq.set_split('validation')
+                    if self.use_galileo:
+                        dq.set_split('validation')
                     stop_early_signal, eval_metrics_results = self.eval_on_val_set(
                         self.X_val_, self.y_val_
                     )
@@ -683,7 +684,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
                         print(f"stopping early at {epoch_ix}")
                         break
 
-                if self.galileo_separate_runs_for_epochs:
+                if self.use_galileo and self.galileo_separate_runs_for_epochs:
                     dq.finish(wait=False)
             if self.calibrate:
                 self._fit_calibration(self.X_val_, self.y_val_)

@@ -42,6 +42,7 @@ ARJ_V11_P1 = True
 ARJ_V11_P2 = True
 
 ENDTAGS = True
+NOSPACE = False
 
 BUCKET_NAME = ""
 if not V12_7:
@@ -217,6 +218,7 @@ if ARJ_V11_P2:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
     model_name = "arj-x11p2-3625"
     ENDTAGS = True
+    NOSPACE = True
 elif ARJ_V11_P1:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
     model_name = "arj-x11p1-3567"

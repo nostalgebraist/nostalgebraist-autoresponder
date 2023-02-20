@@ -124,6 +124,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         galileo_separate_runs_for_epochs=False,
         blocks_inference_device_attn=None,
         blocks_inference_device_mlp=None,
+        grad_acc_steps=1,
         **kwargs
     ):
         self.device = device
@@ -165,6 +166,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.wandb_init_args = wandb_init_args
         self.use_galileo = use_galileo
         self.galileo_separate_runs_for_epochs = galileo_separate_runs_for_epochs
+
+        self.grad_acc_steps = grad_acc_steps
 
         self.target_cols_ = None
 
@@ -232,6 +235,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             self.opt_,
             self.opt_params,
             len(X),
+            self.grad_acc_steps,
         )
 
         self.scaler_ = torch.cuda.amp.GradScaler(enabled=self.use_amp_training)
@@ -354,17 +358,18 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             self.scaler_.scale(loss).backward()
 
-            self.scaler_.unscale_(self.opt_)
+            if step_ix % self.grad_acc_steps == 0:
+                self.scaler_.unscale_(self.opt_)
 
-            grad_norm = torch.nn.utils.clip_grad_norm_(self.model_.parameters(),
-                                                       max_norm=self.grad_clip_)
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.model_.parameters(),
+                                                           max_norm=self.grad_clip_)
 
-            self.scaler_.step(self.opt_)
-            self.scaler_.update()
+                self.scaler_.step(self.opt_)
+                self.scaler_.update()
 
-            self.opt_.zero_grad()
+                self.opt_.zero_grad()
 
-            self.sched_.step()
+                self.sched_.step()
 
             loss_float = None
             cur_lr = None

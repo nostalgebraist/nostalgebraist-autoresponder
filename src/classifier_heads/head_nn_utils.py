@@ -122,9 +122,10 @@ def get_nost_ar_head_scheduler(
     opt: torch.optim.Optimizer,
     opt_params: NostARHeadOptimizerParams,
     data_len: int,
+    grad_acc_steps=1,
 ):
     decay_ratio = opt_params.decay_ratio or 1 - opt_params.warmup_ratio
-    total_steps = opt_params.epochs * data_len // opt_params.batch_size
+    total_steps = opt_params.epochs * data_len // (grad_acc_steps * opt_params.batch_size)
     decay_steps = decay_ratio * total_steps
 
     classic_behavior = opt_params.classic_behavior_lr_sched

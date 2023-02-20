@@ -39,8 +39,9 @@ V12_19 = True  # captions + fix some mistakes introduced in V12_18 data prep
 ARJ_V11 = True  # more data
 ARJ_V11_ENDTAGS = True
 ARJ_V11_P1 = True
+ARJ_V11_P2 = True
 
-ENDTAGS = False
+ENDTAGS = True
 
 BUCKET_NAME = ""
 if not V12_7:
@@ -212,7 +213,11 @@ HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
 HF_FILES_GZIPPED = False
 model_path = None
 
-if ARJ_V11_P1:
+if ARJ_V11_P2:
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
+    model_name = "arj-x11p2-3625"
+    ENDTAGS = True
+elif ARJ_V11_P1:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
     model_name = "arj-x11p1-3567"
     ENDTAGS = True

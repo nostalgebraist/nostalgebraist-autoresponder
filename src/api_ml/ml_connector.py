@@ -15,7 +15,7 @@ from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 from api_ml.bridge_shared import bridge_service_unique_id
 from feels.mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections, logit_diff_to_pos_sent
-from api_ml.selector import serve_selection
+from api_ml.selector import serve_selection, parse_continuation
 
 from api_ml import bridge_cache_singleton
 from api_ml.bridge_shared import get_bridge_service_url
@@ -114,6 +114,15 @@ class GeneratorModelInterface(MLModelInterface):
             **kwargs,
         )
 
+    def write_fic_title(self, *args, repeat_until_done_signal=False, **kwargs):
+        return self.do(
+            "write_fic_title",
+            repeat_until_done_signal=repeat_until_done_signal,
+            uses_bridge_cache=True,
+            *args,
+            **kwargs,
+        )
+
 
 class SideJudgmentModelInterface(MLModelInterface):
     def __init__(self, name):
@@ -156,26 +165,6 @@ selector_est = SideJudgmentModelInterface("selector")
 sentiment_est = SideJudgmentModelInterface("sentiment")
 autoreviewer_est = SideJudgmentModelInterface("autoreviewer")
 captioner = CaptionerModelInterface()
-
-
-def parse_continuation(continuation: str, verbose=True):
-    if verbose:
-        print(
-            f"parsing the following raw output:\n------------------\n{fill(continuation)}\n------------------\n"
-        )
-
-    # split out tags, if present
-    if V8:
-        post, _, tag_text = continuation.partition("\n")
-    else:
-        post, _, tag_text = continuation.partition(T_CHAR)
-    tags = []
-    if len(tag_text) > 0:
-        tags = [s.rstrip(" ") for s in tag_text.split("#")]
-
-    post = post.lstrip(ORIG_POST_CHAR)
-    parsed = {"post": post, "tags": tags}
-    return parsed
 
 
 def get_textpost_prompts():
@@ -334,20 +323,18 @@ def basic_n_continuations(
             has_img = IMAGE_DELIMITER_WHITESPACED in c
             tagged_usernames = set(re.findall(r"@([\w-]+)", remove_images_entirely_from_post_text(c)))
 
-            # NOTE: the < 100 check is for weird posts where the newline doesn't happen
-            if len(c.partition("\n")[2].split(" ")) < avoid_if_under and len(c) < 100 and (not has_img):
+            post_text = parse_continuation(c)["post"]
+            post_text_wordcount = len(post_text.split())
+
+            if post_text_wordcount < avoid_if_under and (not has_img):
                 print(
                     f"\n\trejecting because length under {avoid_if_under}: {_tabfill(c)}\n"
                 )
-            elif (
-                len(c.partition("\n")[2].split(" ")) < avoid_half_if_under
-            ) and len(c) < 100 and  (not has_img) and roll < 0.5:
+            elif post_text_wordcount < avoid_half_if_under and (not has_img) and roll < 0.5:
                 print(
                     f"\n\trejecting because length under {avoid_half_if_under} and roll {roll}: {_tabfill(c)}\n"
                 )
-            elif (
-                c.partition("\n")[2].lstrip(" \n").startswith("<blockquote")
-            ) and avoid_initial_blockquote:
+            elif post_text.startswith("<blockquote") and avoid_initial_blockquote:
                 print(f"\n\trejecting because initial blockquote: {_tabfill(c)}\n")
             elif len([char for char in c if char == T_CHAR]) >= 2:
                 print(f"\n\trejecting because multiple T_CHAR: {_tabfill(c)}\n")
@@ -366,9 +353,9 @@ def basic_n_continuations(
                 problem_names = tagged_usernames.difference(permitted_tagged_usernames)
                 print(f"\n\trejecting because tagged names {problem_names} not in {permitted_tagged_usernames}: {_tabfill(c)}\n")
             else:
-                if len(c.partition("\n")[2].split(" ")) < avoid_half_if_under:
+                if post_text_wordcount < avoid_half_if_under:
                     print(
-                        f"\n\tkeeping with roll {roll}, although length under {avoid_half_if_under}: {_tabfill(c)}\n"
+                        f"\n\tkeeping with roll {roll} and has_img {has_img}, although length under {avoid_half_if_under}: {_tabfill(c)}\n"
                     )
                 continuations.append(c)
                 sdata_plus_minfo = {k: v for k, v in sdata.items()}
@@ -630,7 +617,10 @@ def old_bridge_call__answer(
 
     # old serve_answer
     print("\n------------\n")
-    prompt = prompt.rstrip(whitespace)
+
+    if not write_fic_override:
+        # TODO: remove this and ensure elsewhere that whitespace is used appropriately
+        prompt = prompt.rstrip(whitespace)
 
     print(f"write_fic_override: {write_fic_override}")
 
@@ -806,9 +796,7 @@ def old_bridge_call__textpost(
         permitted_tagged_usernames=permitted_tagged_usernames,
     )
 
-    response_data = {}
-    response_data["continuations"] = continuations
-
+    continuations_fixed = []
     for c, sdata in zip(continuations, continuation_side_data):
         prompt_selector_for_c = prompts_selector[sdata["prompt_for_neural"]]
         sdata["prompt_selector"] = prompt_selector_for_c
@@ -816,6 +804,15 @@ def old_bridge_call__textpost(
         prompt_autoreviewer_for_c = prompts_autoreviewer[sdata["prompt_for_neural"]]
         sdata["prompt_autoreviewer"] = prompt_autoreviewer_for_c
 
+        if ENDTAGS and CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"] in sdata["prompt_for_neural"]:
+            tagline, _, c = c.partition("\n")
+            print(f"stripped tag line from fic: {tagline}")
+        continuations_fixed.append(c)
+
+    continuations = continuations_fixed
+
+    response_data = {}
+    response_data["continuations"] = continuations
     response_data["continuation_side_data"] = continuation_side_data
 
     if guidance_scale is not None:
@@ -933,11 +930,19 @@ def caption_image(url: str, **kwargs):
 def caption_images_in_post_html(text: str, write_to_archive=True, verbose=True):
     def _normed_url_to_replacement(normed_url, imtext):
         # note: normed_url is just a url here since disable_url_norm=True below
+
         guidance_scale = 0.5 if len(imtext) == 0 else 0.0
         if verbose:
             print(f"using guidance_scale {guidance_scale} to caption {repr(normed_url)} with imtext {repr(imtext)}")
         kwargs = dict(temperature=1, top_p=0.9, guidance_scale=guidance_scale)
-        capt = caption_image(normed_url, **kwargs)[0]['result']
+        result = caption_image(normed_url, **kwargs)[0]['result']
+        if result is not None:
+            capt, msg = result
+        else:
+            capt = None
+            msg = 'received null from bridge during captioning'
+        if msg != '':
+            print(msg)
         if write_to_archive:
             archive_caption(normed_url, capt)
         return capt
@@ -951,3 +956,8 @@ def caption_images_in_post_html(text: str, write_to_archive=True, verbose=True):
         _normed_imtext_to_url,
         disable_url_norm=True,
     )[0]
+
+
+def fic_title_from_gpt(text, **kwargs):
+    raw = generator_model.write_fic_title(text, **kwargs)
+    return raw[0]["result"]

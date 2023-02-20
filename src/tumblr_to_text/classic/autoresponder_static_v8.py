@@ -83,40 +83,46 @@ def format_segment_v8_interlocutors(doc, control_seg_config=DEFAULT_CSC):
     )
 
 
-def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC, use_definite_article=True, verbose=True):
+def construct_fic_override_v2(story_prompt, control_seg_config=DEFAULT_CSC, use_definite_article=True, forced_title=None, verbose=True):
     def vprint(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)
 
-    vprint(f"starting with {repr(story_prompt)}")
-
-    title_triggers = [tt
-                      for thing in ['story', 'fic']
-                      for tt in [f'{thing} about', f'{thing} in which', f'{thing} of', ]]
-
-    fallback_title_triggers = [' about', ' in which', ' where']
-
     formatted = None
 
-    for tt in title_triggers + fallback_title_triggers:
-        if tt in story_prompt:
-            title = story_prompt.partition(tt)[2].lstrip(" ")
-            title = re.split(r"[?.!]", title)[0]
-            if len(title) == 0:
-                continue
-            title = title[0].upper() + title[1:]
-
-            if use_definite_article:
-                # "A [noun]" --> "The [noun]"
-                title = re.sub(r"\AA |\AAn ", "The ", title)
-
-            vprint(f"on {tt} path")
-            vprint(f"formed title {repr(title)}")
-            formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE'] + " #original fiction\n" + f"<h2>{title}</h2>"
-            break
+    if forced_title is not None:
+        vprint(f"using forced_title {repr(forced_title)}")
+        title = forced_title
+        formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE'] + " #original fiction\n" + f"<h2>{title}</h2>"
 
     if formatted is None:
-        formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE']
+        vprint(f"starting with {repr(story_prompt)}")
+
+        title_triggers = [tt
+                          for thing in ['story', 'fic']
+                          for tt in [f'{thing} about', f'{thing} in which', f'{thing} of', ]]
+
+        fallback_title_triggers = [' about', ' in which', ' where']
+
+        for tt in title_triggers + fallback_title_triggers:
+            if tt in story_prompt:
+                title = story_prompt.partition(tt)[2].lstrip(" ")
+                title = re.split(r"[?.!]", title)[0]
+                if len(title) == 0:
+                    continue
+                title = title[0].upper() + title[1:]
+
+                if use_definite_article:
+                    # "A [noun]" --> "The [noun]"
+                    title = re.sub(r"\AA |\AAn ", "The ", title)
+
+                vprint(f"on {tt} path")
+                vprint(f"formed title {repr(title)}")
+                formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE'] + " #original fiction\n" + f"<h2>{title}</h2>"
+                break
+
+    if formatted is None:
+        formatted = control_seg_config['ORIG_FICTION_CHAR_FORUMLIKE'] + " #original fiction\n"
 
     vprint(f"using {repr(formatted)}")
 

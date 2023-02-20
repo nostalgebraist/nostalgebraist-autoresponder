@@ -65,6 +65,7 @@ from api_ml.ml_connector import (
     sentiment_logit_diffs_from_gpt,
     autoreview_proba_from_gpt,
     caption_images_in_post_html,
+    fic_title_from_gpt,
 )
 
 from tumblr_to_text.classic.autoresponder_static import EOT, DEFAULT_CSC
@@ -167,9 +168,17 @@ REVIEW_COMMAND = "!review"
 REVIEW_COMMAND_TESTING = True
 REVIEW_COMMAND_EXPLAINER_STRING = """<p>--------------<br></p><p>I wrote this review by request of <a class="tumblelog" href="{asking_url}">@{asking_name}</a>. You can ask me to write reviews using the "!review" command. To learn how to use it, <a href="https://nostalgebraist-autoresponder.tumblr.com/reviews">read this page</a>.</p>"""
 
+MANUAL_PID_TAGS = (
+    "note: this ask was not visible through the tumblr API submissions endpoint!",
+    "this may mean that the user who sent it has been flagged by a tumblr spam prevention filter",
+    "(colloquially known as 'being shadowbanned')",
+    "you can read more about this issue at",
+    "tumblr.com/nostalgebraist/682743201479753728"
+)
+
 MAX_POSTS_PER_STEP = 5
 
-DASH_REBLOG_PROB_RATIO_CUTOFF = 1.7
+DASH_REBLOG_PROB_RATIO_CUTOFF = 1.35
 DASH_REBLOG_PROB_RATIO_NOISE = 1.5
 
 DASH_REBLOG_SELECTION_CUTOFF = 0.
@@ -238,6 +247,8 @@ DASH_CHECKPROB_IS_DISCOUNT = True
 USERLIST_MODE = False
 
 MAX_RTS_COUNT = 3
+
+FEWSHOT_FIC_TITLING = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
@@ -762,6 +773,7 @@ def answer_ask(
     log_data=None,
     autoreview_proba=None,
     reject_action=None,
+    was_manual_pid=False,
 ):
     global client_pool
     if is_reblog:
@@ -849,6 +861,9 @@ def answer_ask(
                 guidance_tags = [guidance_tags[0].partition(" (")[0]]
 
             tags += guidance_tags
+
+    if was_manual_pid:
+        tags.extend(MANUAL_PID_TAGS)
 
     if IMAGE_DELIMITER in answer:
         print("image delimiter still in post")
@@ -2697,7 +2712,7 @@ def do_reblog_reply_handling(
 
     if is_dashboard and len(kept) > 0 and len(excluded) > 0:
         last_handled_in_step_ts = max([reblog_reply_timestamps[r] for r in kept])
-        last_handled_in_step_id = max([r.id_ for r in kept])
+        last_handled_in_step_id = max([int(r.id_) for r in kept])
         if last_handled_in_step_ts < updated_last_seen_ts:
             print(
                 f"rolling back updated_last_seen_ts: {updated_last_seen_ts} --> {last_handled_in_step_ts}"
@@ -2923,12 +2938,16 @@ def do_ask_handling(loop_persistent_data, response_cache):
     global client_pool
     submissions = client_pool.get_private_client().submission(blogName, limit=50)["posts"]
 
-    for pid in loop_persistent_data.manual_ask_post_ids:
+    existing_pids = {pp['id'] for pp in submissions}
+    unseen_until_manual_pids = set()
+    for pid in loop_persistent_data.manual_ask_post_ids.difference(existing_pids):
         response = client_pool.get_private_client().posts(blogName, id=pid)
         if "posts" in response:
             submissions.extend(response["posts"])
+            unseen_until_manual_pids.add(pid)
         else:
             print(f"manual_ask_post_ids: couldn't find {pid}!")
+            loop_persistent_data.manual_ask_post_ids.remove(pid)
 
     n_asks = len(submissions)
     print(f"processing {n_asks} asks")
@@ -3187,8 +3206,13 @@ def do_ask_handling(loop_persistent_data, response_cache):
             thread = TumblrThread.from_payload(post_payload)
             thread = set_timestamp(thread, datetime.now())
             if write_fic_override:
+                forced_title = None
+                if FEWSHOT_FIC_TITLING:
+                    with LogExceptionAndSkip('trying to few-shot write a fic title'):
+                        forced_title = fic_title_from_gpt(text=get_normalized_ask_text(thread))
                 prompt, prompt_selector, prompt_autoreviewer = make_nwo_fic_override_prompts(thread,
-                                                                                             use_definite_article=not V12_14)
+                                                                                             use_definite_article=not V12_14,
+                                                                                             forced_title=forced_title)
             else:
                 prompt, prompt_selector, prompt_autoreviewer = make_nwo_prompts(
                     thread, blogName,
@@ -3261,6 +3285,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
                 log_data=log_data,
                 autoreview_proba=gpt2_output["autoreview_proba"],
                 reject_action="rts",
+                was_manual_pid=post_payload["id"] in unseen_until_manual_pids,
             )
             with LogExceptionAndSkip('mark_user_input_response_post_id'):
                 if 'id_string' in api_response:
@@ -3627,6 +3652,11 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                     response_cache.save()
                     image_analysis_cache.save()
         return loop_persistent_data, response_cache
+
+    # debug
+    loop_persistent_data, response_cache = _mainloop_asks_block(
+        loop_persistent_data, response_cache
+    )
 
     ### do reblog/reply check
     if n_posts_to_check > 0:

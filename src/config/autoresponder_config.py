@@ -38,8 +38,10 @@ V12_18 = True  # captions + more legacy image data fixes
 V12_19 = True  # captions + fix some mistakes introduced in V12_18 data prep
 ARJ_V11 = True  # more data
 ARJ_V11_ENDTAGS = True
+ARJ_V11_P1 = True
+ARJ_V11_P2 = True
 
-ENDTAGS = False
+ENDTAGS = True
 
 BUCKET_NAME = ""
 if not V12_7:
@@ -55,7 +57,21 @@ LOGGING_FLAGS = {
     "parse_continuation": False
 }
 
-if V12_19:
+if ARJ_V11_P1:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.152,  # x11p1/v1: predict true accept rate: ~41%, false accept rate ~8.75%
+        "reject_above": 0.552,  # x11p1/v1: predict true reject rate: ~34%, false reject rate ~3%
+        "flag_above":   0.35,
+        "accept_below_textpost": 0.220,  # x11p1/v1: predict true accept rate: ~26%, false accept rate ~8.75%
+    }
+elif ARJ_V11 and ARJ_V11_ENDTAGS:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.113,  # v12_19/v4_experimental: predict true accept rate: ~48%, false accept rate ~8.75%
+        "reject_above": 0.661,  # v12_19/v4_experimental: predict true reject rate: ~32%, false reject rate ~3%
+        "flag_above":   0.35,
+        "accept_below_textpost": 0.242,  # v12_19/v4_experimental: predict true accept rate: ~57%, false accept rate ~8.75%
+    }
+elif V12_19:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.113,  # v12_19/v4_experimental: predict true accept rate: ~48%, false accept rate ~8.75%
         "reject_above": 0.661,  # v12_19/v4_experimental: predict true reject rate: ~32%, false reject rate ~3%
@@ -197,7 +213,15 @@ HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
 HF_FILES_GZIPPED = False
 model_path = None
 
-if ARJ_V11_ENDTAGS:
+if ARJ_V11_P2:
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
+    model_name = "arj-x11p2-3625"
+    ENDTAGS = True
+elif ARJ_V11_P1:
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
+    model_name = "arj-x11p1-3567"
+    ENDTAGS = True
+elif ARJ_V11:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
     model_name = "arj-x11-3450"
     if ARJ_V11_ENDTAGS:
@@ -275,7 +299,17 @@ if not model_path:
 
 ckpt_captioner = None
 
-if V12_19:
+if ARJ_V11_P1:
+    ckpt_select = "selector/x11p1/v1/"
+    ckpt_sentiment = "sentiment/x11p1/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/x11p1/v1/"
+    ckpt_captioner = "captioner/xtn11p1/v2/"
+elif ARJ_V11 and ARJ_V11_ENDTAGS:
+    ckpt_select = "selector/x11/v1/"
+    ckpt_sentiment = "sentiment/x11/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/x11/v1/"
+    ckpt_captioner = "captioner/xtn11/v0/"
+elif V12_19:
     ckpt_select = "selector/v12_19/v7_experimental/"
     ckpt_sentiment = "sentiment/v12_19/v2/"
     ckpt_autoreviewer = "draft_autoreviewer/v12_19/v4_experimental/"

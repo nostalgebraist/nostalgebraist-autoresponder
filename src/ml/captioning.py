@@ -66,10 +66,10 @@ def caption_image(
     top_k=0,
     max_steps=30,
     guidance_scale=0,
-    prompt='[Image description:',
-    longest_of=1,
+    prompt='',
     adapters_device='cpu',
     deactivate_when_done=True,
+    exception_log_file=None,
 ):
     activate_magma(magma_wrapper)
 
@@ -78,31 +78,30 @@ def caption_image(
         caption = None
         caption_options = []
 
-        with LogExceptionAndSkip('trying to caption image'):
+        with LogExceptionAndSkip('trying to caption image', file=exception_log_file):
             with th.no_grad():
-                for _ in range(longest_of):
+                image_t = magma_wrapper.preprocess_inputs([ImageInput(path_or_url)])
+                magma_wrapper.image_prefix.to(device=adapters_device)
+                image_end = image_t.shape[1]
+
+                if prompt:
                     text_t = get_caption_prompt_tensor(prompt, magma_wrapper)
-
-                    image_t = magma_wrapper.preprocess_inputs([ImageInput(path_or_url)])
-
-                    image_end = image_t.shape[1]
-
                     embeddings = th.cat([image_t, text_t], dim=1)
+                else:
+                    embeddings = image_t
 
-                    output = generate_cfg(
-                        model=magma_wrapper,
-                        embeddings=embeddings,
-                        temperature=temperature,
-                        top_k=top_k,
-                        top_p=top_p,
-                        max_steps=max_steps,
-                        gs=guidance_scale,
-                        image_end=image_end,
-                    )
+                output = generate_cfg(
+                    model=magma_wrapper,
+                    embeddings=embeddings,
+                    temperature=temperature,
+                    top_k=top_k,
+                    top_p=top_p,
+                    max_steps=max_steps,
+                    gs=guidance_scale,
+                    image_end=image_end,
+                )
 
-                    caption_options.append(output[0])
-
-                caption = sorted(caption_options, key=len)[-1]
+                caption = output[0]
 
     if deactivate_when_done:
         deactivate_magma(magma_wrapper, adapters_device=adapters_device)

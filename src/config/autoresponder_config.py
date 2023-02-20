@@ -42,7 +42,7 @@ ARJ_V11_P1 = True
 ARJ_V11_P2 = True
 
 ENDTAGS = True
-NOSPACE = False
+NOSPACE = True
 
 BUCKET_NAME = ""
 if not V12_7:

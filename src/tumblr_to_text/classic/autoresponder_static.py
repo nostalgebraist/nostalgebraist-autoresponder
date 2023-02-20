@@ -1,7 +1,7 @@
 import re
 from copy import deepcopy
 
-from config.autoresponder_config import NOSPACE
+NOSPACE = True
 
 GLOBAL_DEBUG = False
 

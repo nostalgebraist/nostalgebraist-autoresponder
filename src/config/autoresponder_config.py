@@ -39,8 +39,10 @@ V12_19 = True  # captions + fix some mistakes introduced in V12_18 data prep
 ARJ_V11 = True  # more data
 ARJ_V11_ENDTAGS = True
 ARJ_V11_P1 = True
+ARJ_V11_P2 = True
 
-ENDTAGS = False
+ENDTAGS = True
+NOSPACE = True
 
 BUCKET_NAME = ""
 if not V12_7:
@@ -56,7 +58,14 @@ LOGGING_FLAGS = {
     "parse_continuation": False
 }
 
-if ARJ_V11_P1:
+if ARJ_V11_P2:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.154,  # x11p1/v2: predict true accept rate: ~35%, false accept rate ~8.75%
+        "reject_above": 0.605,  # x11p1/v1: predict true reject rate: ~32%, false reject rate ~3%
+        "flag_above":   0.35,
+        "accept_below_textpost": 0.179,  # x11p1/v1: predict true accept rate: ~25%, false accept rate ~8.75%
+    }
+elif ARJ_V11_P1:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.152,  # x11p1/v1: predict true accept rate: ~41%, false accept rate ~8.75%
         "reject_above": 0.552,  # x11p1/v1: predict true reject rate: ~34%, false reject rate ~3%
@@ -212,7 +221,12 @@ HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
 HF_FILES_GZIPPED = False
 model_path = None
 
-if ARJ_V11_P1:
+if ARJ_V11_P2:
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
+    model_name = "arj-x11p2-3625"
+    ENDTAGS = True
+    NOSPACE = True
+elif ARJ_V11_P1:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
     model_name = "arj-x11p1-3567"
     ENDTAGS = True
@@ -294,7 +308,12 @@ if not model_path:
 
 ckpt_captioner = None
 
-if ARJ_V11_P1:
+if ARJ_V11_P2:
+    ckpt_select = "selector/x11p2/v1/"
+    ckpt_sentiment = "sentiment/x11p2/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/x11p2/v1/"
+    ckpt_captioner = "captioner/xtn11p2/v1/"
+elif ARJ_V11_P1:
     ckpt_select = "selector/x11p1/v1/"
     ckpt_sentiment = "sentiment/x11p1/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/x11p1/v1/"

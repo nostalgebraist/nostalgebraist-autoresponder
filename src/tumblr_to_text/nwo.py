@@ -5,7 +5,7 @@ from typing import Tuple, List, Union
 from api_tumblr.tumblr_parsing import NPFAsk, TumblrPost, TumblrThread
 
 # TODO: (cleanup) break dependency on old munging code files
-from tumblr_to_text.classic.autoresponder_static import DEFAULT_CSC, normalize_for_generator
+from tumblr_to_text.classic.autoresponder_static import DEFAULT_CSC, normalize_for_generator, NOSPACE
 from tumblr_to_text.classic.autoresponder_static_v8 import format_segment_v8_interlocutors, timestamp_to_v10_format
 from tumblr_to_text.classic.munging_shared import sanitize_user_input_outer_shell
 from tumblr_to_text.image_munging import find_images_and_sub_text
@@ -194,7 +194,11 @@ def _post_structural_elements_to_text(
         v10_timestamp = timestamp_to_v10_format(fromtimestamp_pst(timestamp))
         timestamp_formatted = control_seg_config['posted_at'].format(time_text=v10_timestamp)
 
-        final_post_content_formatted = " " + timestamp_formatted
+        final_post_content_formatted = ""
+        if not NOSPACE:
+            final_post_content_formatted += " "
+
+        final_post_content_formatted += timestamp_formatted
 
         tag_list_formatted = ", ".join(["#" + t.rstrip(" ") for t in tags])
 
@@ -290,7 +294,8 @@ def format_and_normalize_post_html(content, include_image_urls=False, skip_image
 
     content = content.rstrip("\n")
 
-    if not any(content.startswith(pre) for pre in {"[", "<", "\n"}):
-        content = " " + content
+    if not NOSPACE:
+        if not any(content.startswith(pre) for pre in {"[", "<", "\n"}):
+            content = " " + content
 
     return content

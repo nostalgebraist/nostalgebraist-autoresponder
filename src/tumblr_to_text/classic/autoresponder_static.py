@@ -1,6 +1,8 @@
 import re
 from copy import deepcopy
 
+NOSPACE = True
+
 GLOBAL_DEBUG = False
 
 EOT = "<|endoftext|>"
@@ -291,7 +293,8 @@ def normalize_for_generator(s: str):
             normed_data_string = normed_data_string.replace(k, v)
 
     normed_data_string = collapse_multi_newline(normed_data_string)
-    normed_data_string = add_space_after_newline_before_word(normed_data_string)
+    if not NOSPACE:
+        normed_data_string = add_space_after_newline_before_word(normed_data_string)
 
     control_chars = [
         Q_CHAR,

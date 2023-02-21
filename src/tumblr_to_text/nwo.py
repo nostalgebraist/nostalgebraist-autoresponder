@@ -194,7 +194,11 @@ def _post_structural_elements_to_text(
         v10_timestamp = timestamp_to_v10_format(fromtimestamp_pst(timestamp))
         timestamp_formatted = control_seg_config['posted_at'].format(time_text=v10_timestamp)
 
-        final_post_content_formatted = " " + timestamp_formatted
+        final_post_content_formatted = ""
+        if not NOSPACE:
+            final_post_content_formatted += " "
+
+        final_post_content_formatted += timestamp_formatted
 
         tag_list_formatted = ", ".join(["#" + t.rstrip(" ") for t in tags])
 

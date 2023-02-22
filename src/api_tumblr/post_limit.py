@@ -149,7 +149,7 @@ def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hard
     if queued_post_times_pst is not None:
         queue_pad = count_queued_posts_before_reset(queued_post_times_pst, now=now, verbose=verbose)
 
-    ratio = rate / max_rate
+    ratio = rate / max(max_rate, rate/100)
     n_remaining = max_per_24h - n_since_reset - queue_pad
 
     selected = None

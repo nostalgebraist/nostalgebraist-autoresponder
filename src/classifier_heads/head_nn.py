@@ -622,9 +622,6 @@ class NostARHead(nn.Module):
         }
 
     def _setup(self):
-        for param in self.base_model.parameters():
-            param.requires_grad_(False)
-
         add_partial_forward_hooks(self.base_model.transformer, output_names=self.layer_names)
 
         self._setup_blocks()

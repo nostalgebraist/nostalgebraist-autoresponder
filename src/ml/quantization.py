@@ -53,7 +53,7 @@ def load_gpt_j_8bit(ckpt_dir=arconfig.model_name):
     return lm
 
 
-def load_magma_8bit(path=arconfig.model_name, captioner_path):
+def load_magma_8bit(path, captioner_path):
     sd = ml.load_gptj.load_gpt_j_split_ckpt_state_dict(path)
 
     magma_config_path = os.path.join(captioner_path, 'config.yml')
@@ -66,6 +66,12 @@ def load_magma_8bit(path=arconfig.model_name, captioner_path):
         device='cpu',
         to_device=False,
     )
+
+    magma_wrapper.requires_grad_(False)
+
+    magma_wrapper.image_prefix.half()
+    magma_wrapper.cuda()
+    magma_wrapper.device = 'cuda:0'
 
     return magma_wrapper
 

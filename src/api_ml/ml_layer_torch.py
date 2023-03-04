@@ -125,17 +125,21 @@ def load_generator_model(
     use_kv_buffer=True,
 ):
     if use_captioner:
-        sd = load_gpt_j_split_ckpt_state_dict(path)
+        if UINT8:
+            import ml.quantization
+            magma_wrapper = ml.quantization.load_magma_8bit(path, captioner_path)
+        else:
+            sd = load_gpt_j_split_ckpt_state_dict(path)
 
-        magma_config_path = os.path.join(captioner_path, 'config.yml')
+            magma_config_path = os.path.join(captioner_path, 'config.yml')
 
-        magma_wrapper = magma.Magma.from_split_checkpoint(
-            path=captioner_path,
-            config_path=magma_config_path,
-            lm_path_or_state_dict=sd,
-            gptj_init_fn=quick_init_gptj,
-            device='cuda:0'
-        )
+            magma_wrapper = magma.Magma.from_split_checkpoint(
+                path=captioner_path,
+                config_path=magma_config_path,
+                lm_path_or_state_dict=sd,
+                gptj_init_fn=quick_init_gptj,
+                device='cuda:0'
+            )
 
         magma_wrapper.detach_adapters()
 

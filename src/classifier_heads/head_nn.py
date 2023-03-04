@@ -361,13 +361,21 @@ class NostARHeadBlock(nn.Module):
         if self.use_out_gain:
             hidden_states = hidden_states + (self.gain_scale * self.attn_gain).exp() * self.attn(attn_in)[0]
             mlp_in = attn_in if self.parallel_attn_ff else self.ln_2(hidden_states)
-            mlp_in = mlp_in.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
+            mlp_in = mlp_in.to(device=self.mlp.c_fc.weight.device, 
+                               # dtype=self.mlp.c_fc.weight.dtype
+                               )
             hidden_states = hidden_states + (self.gain_scale * self.mlp_gain).exp() * self.mlp(mlp_in)
         else:
             hidden_states = hidden_states + self.attn(attn_in)[0]
             mlp_in = attn_in if self.parallel_attn_ff else self.ln_2(hidden_states)
-            mlp_in = mlp_in.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
-            hidden_states = hidden_states.to(device=self.mlp.c_fc.weight.device, dtype=self.mlp.c_fc.weight.dtype)
+            mlp_in = mlp_in.to(
+                device=self.mlp.c_fc.weight.device, 
+                #dtype=self.mlp.c_fc.weight.dtype
+            )
+            hidden_states = hidden_states.to(
+                device=self.mlp.c_fc.weight.device, 
+                # dtype=self.mlp.c_fc.weight.dtype
+            )
             hidden_states = hidden_states + self.mlp(mlp_in)
         return hidden_states
 

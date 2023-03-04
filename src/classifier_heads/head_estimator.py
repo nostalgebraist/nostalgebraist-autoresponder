@@ -672,21 +672,22 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
         # move to gpu for use
         base_layers_moved = []
-        offset = 1
-        for block in self.model_.blocks:
+        if self.device == 'cpu':
+            offset = 1
+            for block in self.model_.blocks:
+                layer_num = self.model_.last_base_layer_used + offset + 1
+                base_layer = self.base_model.transformer.h[layer_num]
+                base_layer.to(device=self.device)
+                base_layers_moved.append(layer_num)
+                offset += 1
+
+            # move an additional base layer to make room for the head part after the block(s)
             layer_num = self.model_.last_base_layer_used + offset + 1
             base_layer = self.base_model.transformer.h[layer_num]
             base_layer.to(device=self.device)
             base_layers_moved.append(layer_num)
-            offset += 1
 
-        # move an additional base layer to make room for the head part after the block(s)
-        layer_num = self.model_.last_base_layer_used + offset + 1
-        base_layer = self.base_model.transformer.h[layer_num]
-        base_layer.to(device=self.device)
-        base_layers_moved.append(layer_num)
-
-        self.model_.cuda()
+            self.model_.cuda()
 
         # predict
         for step_ix in step_iter:
@@ -709,11 +710,12 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
 
             row_ix += self.opt_params.batch_size
 
-        # move back to orig devices
-        self.model_.to(device=self.device)
-        for layer_num in base_layers_moved:
-            base_layer = self.base_model.transformer.h[layer_num]
-            base_layer.cuda()
+        if self.device == 'cpu':
+            # move back to orig devices
+            self.model_.to(device=self.device)
+            for layer_num in base_layers_moved:
+                base_layer = self.base_model.transformer.h[layer_num]
+                base_layer.cuda()
 
         if key == "preds":
             pd_obj = pd.Series(all_preds, index=all_pd_ixs)

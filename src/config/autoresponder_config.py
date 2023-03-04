@@ -702,6 +702,7 @@ if UINT8:
     max_feed_size_with_cache = 2048
     max_feed_size_no_cache = 2048
     USE_KV_BUFFER = False
+    head_load_device = 'cuda:0'
 
 autocast_recommended = GPU_TYPE != 'small'
 

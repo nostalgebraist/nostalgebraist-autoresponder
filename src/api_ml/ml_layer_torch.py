@@ -416,6 +416,9 @@ def poll(
                 json=RESULT_STACK if not dummy else {},
             )
 
+            if dummy:
+                print(f"would have sent: {result}")
+
             collect_and_show()
             if show_memory:
                 show_gpu()

@@ -417,7 +417,7 @@ def poll(
             )
 
             if dummy:
-                print(f"would have sent: {result}")
+                print(f"would have sent: {RESULT_STACK}")
 
             collect_and_show()
             if show_memory:

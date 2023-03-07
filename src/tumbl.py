@@ -1621,7 +1621,8 @@ def is_statically_reblog_worthy_on_dash(
         max_imgs_scrape=10,
     ):
         n_img_discounted = n_img - costless_up_to_imgs
-        n_img_discounted -= (text_block_nwords / discount_words_per_image)
+        if discount_words_per_image is not None:
+            n_img_discounted -= (text_block_nwords / discount_words_per_image)
         n_img_discounted = max(0.001, n_img_discounted)
 
         keep_prob_n_img = 1/(n_img_discounted+1)
@@ -1633,7 +1634,7 @@ def is_statically_reblog_worthy_on_dash(
     keep_prob_n_img = 1.0 if n_img < 1 else calc_keep_prob(
         n_img, 
         text_block_nwords,
-        discount_words_per_image=0,
+        discount_words_per_image=None,
         costless_up_to_imgs=1,
         max_imgs_scrape=3,
     )

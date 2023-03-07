@@ -1634,7 +1634,7 @@ def is_statically_reblog_worthy_on_dash(
         n_img, 
         text_block_nwords,
         discount_words_per_image=0,
-        costless_up_to_imgs=1
+        costless_up_to_imgs=1,
         max_imgs_scrape=3,
     )
 

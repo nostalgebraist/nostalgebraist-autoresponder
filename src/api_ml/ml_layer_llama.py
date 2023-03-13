@@ -1,6 +1,7 @@
 import sys
 import time
 from io import StringIO
+from functools import partial
 
 import requests
 import numpy as np

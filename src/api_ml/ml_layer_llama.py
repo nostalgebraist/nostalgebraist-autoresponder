@@ -166,6 +166,7 @@ class GeneratorModelLlama:
                 tokens,
                 return_stop_reason=True,
                 decode=False,
+                progress_bar=verbose,
                 **generate_kwargs_
             )
 
@@ -179,7 +180,7 @@ class GeneratorModelLlama:
         continuations = [self.gen_model.tokenizer.decode(t) for t in continuation_tokens]
 
         return {
-            "continuations": continuations_,
+            "continuations": continuations,
             "side_data": {
                 "prompt_for_neural": prompt,
             },

@@ -16,7 +16,7 @@ from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 from ml.generator_model_torch import GPT_NEO_DEFAULT_SAMPLING_PARAMS
 
-from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
+from util.util import typed_namedtuple_to_dict, hardcore_collect_and_show, show_gpu
 
 BRIDGE_SERVICE_REMOTE_HOST, bridge_service_port = None, None
 
@@ -111,6 +111,8 @@ class GeneratorModelLlama:
 
         self.gen_model = no_init(partial(llama.load.load, **load_kwargs))
 
+        hardcore_collect_and_show()
+
         if not lora_premerged:
             for n, p in self.gen_model.model.named_parameters():
                 if 'lora' in n:
@@ -121,6 +123,8 @@ class GeneratorModelLlama:
             llama.load.load_state_dict_meta(self.gen_model.model, sd, 'cpu')
             
             self.gen_model.model.merge_lora_into_base()
+
+            hardcore_collect_and_show()
 
         self.gen_model.model.requires_grad_(False)
         self.gen_model.model.cuda()
@@ -277,7 +281,7 @@ def poll(
                 json=RESULT_STACK if not dummy else {},
             )
 
-            collect_and_show()
+            hardcore_collect_and_show()
             if show_memory:
                 show_gpu()
 

@@ -66,7 +66,7 @@ class GeneratorModelLlama:
     ):
         lora_premerged = lora_path is None
         load_kwargs_defaults=dict(
-            ckpt_path=LLAMA_PATH_CKPT,
+            ckpt_dir=LLAMA_PATH_CKPT,
             tokenizer_path=LLAMA_PATH_ENC,
             local_rank=1,
             world_size=1,
@@ -179,7 +179,7 @@ class GeneratorModelLlama:
 
 generator_model = GeneratorModelLlama()
 
-model_name = generator_model.load_kwargs['ckpt_path']
+model_name = generator_model.load_kwargs['ckpt_dir']
 
 DEPRECATED_KWARGS = {"mirotarg"}
 

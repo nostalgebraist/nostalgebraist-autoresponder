@@ -72,7 +72,7 @@ class GeneratorModelLlama:
             world_size=1,
             use_cache=True,
             max_batch_size=1,
-            n_ctx=2048,
+            n_ctx=LLAMA_N_CTX,
             use_xformers=False, # minimal lift with caching, can skip triton compile
             use_lora=not lora_premerged,
             lora_r=48,

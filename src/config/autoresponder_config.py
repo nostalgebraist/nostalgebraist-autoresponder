@@ -710,4 +710,6 @@ LLAMA_PATH_CKPT = 'llama-nbar/v2'
 LLAMA_PATH_ENC = 'llama-nbar/tokenizer.model'
 LLAMA_PATH_LORA = None
 
+LLAMA_N_CTX = 2048
+
 os.chdir(startdir)

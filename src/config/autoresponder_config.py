@@ -704,4 +704,10 @@ MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
 if V12_16:
     MODELS_SERVED.add("captioner")
 
+GENERATOR_METHODS_SERVED = "all"  # "all", "only_write", "all_except_write"
+
+LLAMA_PATH_CKPT = 'llama-nbar/v2'
+LLAMA_PATH_ENC = 'llama-nbar'
+LLAMA_PATH_LORA = None
+
 os.chdir(startdir)

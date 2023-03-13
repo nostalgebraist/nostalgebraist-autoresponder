@@ -24,6 +24,8 @@ import ml.generator_model_torch
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
+GENERATOR_METHODS_SERVED = "all_except_write"
+
 BRIDGE_SERVICE_REMOTE_HOST, bridge_service_port = None, None
 
 try:
@@ -326,6 +328,14 @@ def poll(
                 raise ValueError(f"requested_model: {data.get('model')}")
 
             requested_method = data["method"]
+
+            if data["model"] == "generator":
+                if GENERATOR_METHODS_SERVED == 'all_except_write' and method in {'write', 'write_random_prompt'}:
+                    continue
+                if GENERATOR_METHODS_SERVED == 'only_write' and method not in {'write', 'write_random_prompt'}:
+                    continue
+                
+
             if not hasattr(requested_model, requested_method):
                 raise ValueError(
                     f"requested_model {requested_model} has no method {requested_method}"

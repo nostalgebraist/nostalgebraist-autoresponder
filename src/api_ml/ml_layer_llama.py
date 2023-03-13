@@ -118,7 +118,7 @@ class GeneratorModelLlama:
             
             sd = torch.load(lora_path, map_location='cpu')
             
-            llama.load.load_state_dict_meta(model, sd, 'cpu')
+            llama.load.load_state_dict_meta(self.gen_model.model, sd, 'cpu')
             
             self.gen_model.model.merge_lora_into_base()
 

@@ -68,7 +68,7 @@ class GeneratorModelLlama:
         load_kwargs_defaults=dict(
             ckpt_dir=LLAMA_PATH_CKPT,
             tokenizer_path=LLAMA_PATH_ENC,
-            local_rank=1,
+            local_rank=0,
             world_size=1,
             use_cache=True,
             max_batch_size=1,

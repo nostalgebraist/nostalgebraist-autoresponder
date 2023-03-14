@@ -93,6 +93,7 @@ class GeneratorModelLlama:
             freeze_layers_below_n=32 if lora_premerged else 0,
             lowmem=True,
             lowmem_cpu_ratio=0,
+            fp32_logits=False,
         )
         load_kwargs_ = dict()
         load_kwargs_.update(load_kwargs_defaults)

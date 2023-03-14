@@ -69,6 +69,13 @@ class GeneratorModelLlama:
         required_continuation_room=required_continuation_room,
         lora_path=LLAMA_PATH_LORA,
     ):
+        use_xformers = False
+        try:
+            import xformers.ops
+            use_xformers = True
+        except:
+            pass
+
         lora_premerged = lora_path is None
         load_kwargs_defaults=dict(
             ckpt_dir=LLAMA_PATH_CKPT,
@@ -78,7 +85,7 @@ class GeneratorModelLlama:
             use_cache=True,
             max_batch_size=1,
             n_ctx=LLAMA_N_CTX,
-            use_xformers=False, # minimal lift with caching, can skip triton compile
+            use_xformers=use_xformers,
             use_lora=not lora_premerged,
             lora_r=48,
             quantize_frozen=False, # 7B fits in fp16
@@ -100,6 +107,7 @@ class GeneratorModelLlama:
             top_p=0.95, 
             breakruns=True, 
             breakruns_tau=0.02,
+            allow_xformers=use_xformers,
         )
         generate_kwargs_ = dict()
         generate_kwargs_.update(generate_kwargs_defaults)
@@ -233,9 +241,9 @@ def poll(
             requested_method = data["method"]
 
             if data["model"] == "generator":
-                if GENERATOR_METHODS_SERVED == 'all_except_write' and method in {'write', 'write_random_prompt'}:
+                if GENERATOR_METHODS_SERVED == 'all_except_write' and requested_method in {'write', 'write_random_prompt'}:
                     continue
-                if GENERATOR_METHODS_SERVED == 'only_write' and method not in {'write', 'write_random_prompt'}:
+                if GENERATOR_METHODS_SERVED == 'only_write' and requested_method not in {'write', 'write_random_prompt'}:
                     continue
 
             requested_args, requested_kwargs = data.get("args", []), data.get(

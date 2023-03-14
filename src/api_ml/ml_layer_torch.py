@@ -330,12 +330,11 @@ def poll(
             requested_method = data["method"]
 
             if data["model"] == "generator":
-                if GENERATOR_METHODS_SERVED == 'all_except_write' and method in {'write', 'write_random_prompt'}:
+                if GENERATOR_METHODS_SERVED == 'all_except_write' and requested_method in {'write', 'write_random_prompt'}:
                     continue
-                if GENERATOR_METHODS_SERVED == 'only_write' and method not in {'write', 'write_random_prompt'}:
+                if GENERATOR_METHODS_SERVED == 'only_write' and requested_method not in {'write', 'write_random_prompt'}:
                     continue
                 
-
             if not hasattr(requested_model, requested_method):
                 raise ValueError(
                     f"requested_model {requested_model} has no method {requested_method}"

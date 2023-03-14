@@ -155,6 +155,8 @@ class GeneratorModelLlama:
     def write(self, prompt: str, verbose=False, max_length_per_feed=None):
         done = False
 
+        prompt_orig = prompt
+
         # calling code adds this sometimes
         prompt = prompt.replace("<|endoftext|>", "")
         
@@ -193,7 +195,7 @@ class GeneratorModelLlama:
         return {
             "continuations": continuations,
             "side_data": {
-                "prompt_for_neural": prompt,
+                "prompt_for_neural": prompt_orig,
             },
         }
 

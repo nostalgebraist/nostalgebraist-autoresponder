@@ -278,14 +278,15 @@ def poll(
             }
             RESULT_STACK[prompt_id]["model_info"] = model_info
 
-            # print(f"sending back:")
-            # print(repr(RESULT_STACK[prompt_id]))
-
         if len(RESULT_STACK) > 0:
             requests.post(
                 f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
                 json=RESULT_STACK if not dummy else {},
             )
+
+            if dummy:
+                print(f"would have sent:")
+                print(repr(RESULT_STACK[prompt_id]))
 
             collect_and_show_cache_clear()
             if show_memory:

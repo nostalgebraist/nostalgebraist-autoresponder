@@ -67,6 +67,7 @@ class GeneratorModelLlama:
         load_kwargs=dict(),
         generate_kwargs=dict(),
         required_continuation_room=required_continuation_room,
+        max_continue_tokens=MAX_CONTINUE_TOKENS,
         lora_path=LLAMA_PATH_LORA,
     ):
         use_xformers = False
@@ -121,6 +122,7 @@ class GeneratorModelLlama:
 
         self.generate_kwargs = generate_kwargs
         self.required_continuation_room = required_continuation_room
+        self.max_continue_tokens = max_continue_tokens
 
         self.gen_model = no_init(partial(llama.load.load, **load_kwargs))
 
@@ -181,7 +183,8 @@ class GeneratorModelLlama:
             for pl, nt, ct in zip(prompt_lens, next_tokens, continuation_tokens):
                 ct.extend(nt[pl:])
 
-            done = stop_reason == 'eos'
+            more_permitted = len(continuation_tokens[0]) < self.max_continue_tokens
+            done = (stop_reason == 'eos') or (not more_permitted)
 
             tokens = next_tokens
 

@@ -3660,10 +3660,6 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                     image_analysis_cache.save()
         return loop_persistent_data, response_cache
 
-    loop_persistent_data, response_cache = _mainloop_asks_block(
-        loop_persistent_data, response_cache
-    )
-
     ### do reblog/reply check
     if n_posts_to_check > 0:
         # reblogs, replies

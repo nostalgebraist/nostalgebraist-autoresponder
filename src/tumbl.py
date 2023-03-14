@@ -3826,7 +3826,7 @@ if __name__ == "__main__":
             # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")
             # pr_main.dump_stats(f"profiling_data/main/{_pr_name}")
             # pr_main.enable()
-        except KeyError:
-            print("hit an error, waiting for a little while...")
+        except KeyError as e:
+            print(f"hit an error {repr(e)}, waiting for a little while...")
             time.sleep(calculate_sleep_time(multiplier=5, verbose=True))
             send_alldone()

@@ -104,10 +104,10 @@ class GeneratorModelLlama:
         generate_kwargs_defaults=dict(
             max_gen_len=load_kwargs['n_ctx'],
             stop_at_eos=True,
-            temperature=1.0,
+            temperature=0.9,
             top_p=0.95, 
             breakruns=True, 
-            breakruns_tau=0.02,
+            breakruns_tau=0.04,
             allow_xformers=use_xformers,
         )
         generate_kwargs_ = dict()

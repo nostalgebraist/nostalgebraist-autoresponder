@@ -14,6 +14,30 @@ from multimodal.text_segmentation import make_image_simple
 
 from api_ml.diffusion_connector import make_image_with_diffusion
 
+
+ALT_TEXT_FORMAT_WITH_IMTEXT = """
+AI generated image.
+
+The AI attempted to produce an image fitting the description:
+
+{caption}
+
+The AI also tried to include legible text in the image. The text it tried to write was:
+
+{imtext}
+""".strip('\n')
+
+
+ALT_TEXT_FORMAT_WITHOUT_IMTEXT = """
+AI generated image.
+
+The AI attempted to produce an image fitting the description:
+
+{caption}
+
+The AI also specified that there should be no text in the image.
+""".strip('\n')
+
 # image stuff
 
 
@@ -215,7 +239,11 @@ def find_text_images_and_sub_real_images(
             )
             alt_text = imtext
             if caption is not None:
-                alt_text = f"AI generated image. The AI attempted to produce an image fitting the following description \"{caption}\" and containing the following text \"{imtext}\""
+                if imtext != "":
+                    alt_text = ALT_TEXT_FORMAT_WITH_IMTEXT.format(caption=caption, imtext=imtext)
+                else:
+                    alt_text = ALT_TEXT_FORMAT_WITHOUT_IMTEXT.format(caption=caption)
+
                 alt_text = alt_text.replace("<", "").replace(">", "")  # w/o this, "<PERSON>" entirely vanishes
             return figure_format.format(
                 prefix_newline='\n' if needs_prefix_newline else '',

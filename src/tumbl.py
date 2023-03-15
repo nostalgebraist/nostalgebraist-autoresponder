@@ -81,7 +81,8 @@ from tumblr_to_text.nwo_munging import format_and_normalize_post_html, \
 from persistence import traceability_jsonl_singleton as traceability_singleton
 from multimodal import image_analysis_singleton
 
-from tumblr_to_text.image_munging import find_text_images_and_sub_real_images, fixup_alt_text_after_creation
+from tumblr_to_text.image_munging import find_text_images_and_sub_real_images, fixup_alt_text_after_creation, \
+    NPF_ALT_TEXT_NEWLINE_TRICK
 
 from api_tumblr.client_pool import ClientPool
 from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
@@ -249,8 +250,6 @@ USERLIST_MODE = False
 MAX_RTS_COUNT = 3
 
 FEWSHOT_FIC_TITLING = True
-
-NPF_ALT_TEXT_NEWLINE_TRICK = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)

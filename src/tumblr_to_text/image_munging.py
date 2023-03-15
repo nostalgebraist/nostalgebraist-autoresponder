@@ -17,6 +17,9 @@ from api_ml.diffusion_connector import make_image_with_diffusion
 from api_tumblr.pytumblr_wrapper import RateLimitClient
 
 
+NPF_ALT_TEXT_NEWLINE_TRICK = True
+
+
 ALT_TEXT_FORMAT_WITH_IMTEXT = """
 AI generated image.
 
@@ -39,6 +42,10 @@ The AI attempted to produce an image fitting the description:
 
 The AI also specified that there should be no text in the image.
 """.strip('\n')
+
+if not NPF_ALT_TEXT_NEWLINE_TRICK:
+    ALT_TEXT_FORMAT_WITH_IMTEXT = ALT_TEXT_FORMAT_WITH_IMTEXT.replace("\n", " ")
+    ALT_TEXT_FORMAT_WITHOUT_IMTEXT = ALT_TEXT_FORMAT_WITHOUT_IMTEXT.replace( "\n", " ")
 
 LEGACY_LINE_BREAK = " [line break] "
 

@@ -215,14 +215,14 @@ def find_text_images_and_sub_real_images(
             )
             alt_text = imtext
             if caption is not None:
-                alt_text = "[Description] " + caption + " " + "[Text]" + imtext
+                alt_text = f"AI generated image. The AI attempted to produce an image fitting the following description \"{caption}\" and containing the following text \"{imtext}\""
                 alt_text = alt_text.replace("<", "").replace(">", "")  # w/o this, "<PERSON>" entirely vanishes
             return figure_format.format(
                 prefix_newline='\n' if needs_prefix_newline else '',
                 url=tumblr_image["url"],
                 h=tumblr_image["height"],
                 w=tumblr_image["width"],
-                alt=html.escape(alt_text).replace("\n", " [newline] "),
+                alt=html.escape(alt_text).replace("\n", " [line break] "),
             )
         else:
             vprint(

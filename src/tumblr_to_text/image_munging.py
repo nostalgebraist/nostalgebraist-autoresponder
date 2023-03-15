@@ -297,6 +297,8 @@ def fixup_alt_text_after_creation(
     blog_name: str, 
     post_id: int,
     state: str,
+    parent_blogname=None,
+    parent_id=None,
     delete_after=True,
 ):
     pytumblr2_client = client.to_pytumblr2_client()
@@ -309,13 +311,24 @@ def fixup_alt_text_after_creation(
         if 'alt_text' in block:
             block['alt_text'] = block['alt_text'].replace(LEGACY_LINE_BREAK, '\n')
 
-    response = pytumblr2_client.create_post(
-        blog_name,
-        content=content,
-        layout=post_npf['layout'],
-        tags=post_npf['tags'],
-        state=state,
-    )
+    if parent_blogname is not None:
+        response = pytumblr2_client.reblog_post(
+            blog_name,
+            parent_blogname=parent_blogname,
+            id=parent_id
+            content=content,
+            layout=post_npf['layout'],
+            tags=post_npf['tags'],
+            state=state,
+        )
+    else:
+        response = pytumblr2_client.create_post(
+            blog_name,
+            content=content,
+            layout=post_npf['layout'],
+            tags=post_npf['tags'],
+            state=state,
+        )
 
     if delete_after:
         pytumblr2_client.delete_post(blog_name, post_id)

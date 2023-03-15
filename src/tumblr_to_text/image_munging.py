@@ -322,7 +322,7 @@ def fixup_alt_text_after_creation(
         response = pytumblr2_client.reblog_post(
             blog_name,
             parent_blogname=parent_blogname,
-            id=parent_id
+            id=parent_id,
             content=content,
             layout=post_npf['layout'],
             tags=post_npf['tags'],

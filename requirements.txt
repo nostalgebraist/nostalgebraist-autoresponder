@@ -20,6 +20,5 @@ git+https://github.com/nostalgebraist/transformer-utils@main
 ngram==4.0.3
 jsonlines
 imageio-ffmpeg
-einops==0.3.2
 joblib==1.2.0
 typeguard<3.0.0

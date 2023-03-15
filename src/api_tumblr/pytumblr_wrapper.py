@@ -162,3 +162,16 @@ class RateLimitClient(pytumblr.TumblrRestClient):
         results["effective_reset"] = min([results[k]["reset"] for k in ["day", "hour"]])
 
         return results
+
+    def to_pytumblr2_client(self):
+        try:
+            import pytumblr2
+        except:
+            raise ValueError("pytumblr2 not installed")
+        
+        return pytumblr2.TumblrRestClient(
+            consumer_key=self.request.consumer_key, 
+            consumer_secret=self.request.oauth.client.client_secret, 
+            oauth_token=self.request.oauth.client.resource_owner_key, 
+            oauth_secret=self.request.oauth.client.resource_owner_secret,
+        )

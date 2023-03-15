@@ -14,6 +14,8 @@ from multimodal.text_segmentation import make_image_simple
 
 from api_ml.diffusion_connector import make_image_with_diffusion
 
+from api_tumblr.pytumblr_wrapper import RateLimitClient
+
 
 ALT_TEXT_FORMAT_WITH_IMTEXT = """
 AI generated image.
@@ -37,6 +39,8 @@ The AI attempted to produce an image fitting the description:
 
 The AI also specified that there should be no text in the image.
 """.strip('\n')
+
+LEGACY_LINE_BREAK = " [line break] "
 
 # image stuff
 
@@ -250,7 +254,7 @@ def find_text_images_and_sub_real_images(
                 url=tumblr_image["url"],
                 h=tumblr_image["height"],
                 w=tumblr_image["width"],
-                alt=html.escape(alt_text).replace("\n", " [line break] "),
+                alt=html.escape(alt_text).replace("\n", LEGACY_LINE_BREAK),
             )
         else:
             vprint(
@@ -286,3 +290,34 @@ def mock_up_image_generation_tags_for_heads(continuation: str, guidance_scale: f
         print(f"from\n{repr(continuation)}\nmocked up\n{repr(mocked_up)}\n")
 
     return mocked_up
+
+
+def fixup_alt_text_after_creation(
+    client: RateLimitClient,
+    blog_name: str, 
+    post_id: int,
+    state: str,
+    delete_after=True,
+):
+    pytumblr2_client = client.to_pytumblr2_client()
+
+    post_npf = pytumblr2_client.get_single_post(blog_name, post_id)
+
+    content = post_npf['content']
+
+    for block in content:
+        if 'alt_text' in block:
+            block['alt_text'] = block['alt_text'].replace(LEGACY_LINE_BREAK, '\n')
+
+    response = pytumblr2_client.create_post(
+        blog_name,
+        content=content,
+        layout=post_npf['layout'],
+        tags=post_npf['tags'],
+        state=state,
+    )
+
+    if delete_after:
+        pytumblr2_client.delete_post(blog_name, post_id)
+
+    return response

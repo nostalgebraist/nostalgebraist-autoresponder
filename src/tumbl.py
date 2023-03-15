@@ -81,7 +81,7 @@ from tumblr_to_text.nwo_munging import format_and_normalize_post_html, \
 from persistence import traceability_jsonl_singleton as traceability_singleton
 from multimodal import image_analysis_singleton
 
-from tumblr_to_text.image_munging import find_text_images_and_sub_real_images
+from tumblr_to_text.image_munging import find_text_images_and_sub_real_images, fixup_alt_text_after_creation
 
 from api_tumblr.client_pool import ClientPool
 from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
@@ -249,6 +249,8 @@ USERLIST_MODE = False
 MAX_RTS_COUNT = 3
 
 FEWSHOT_FIC_TITLING = True
+
+NPF_ALT_TEXT_NEWLINE_TRICK = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
@@ -661,6 +663,7 @@ def make_text_post(
     )
     state_reasons["reject_action"] = reject_action
 
+    images_were_created = False
     if IMAGE_CREATION and not (
         state_reasons["ml_rejected"] or state_reasons["do_not_post"]  # don't waste time making images if post was rejected
     ):
@@ -739,7 +742,18 @@ def make_text_post(
     if len(tags) > 0:
         kwargs["tags"] = tags
 
-    api_response = client_pool.get_private_client().create_text(blogname, **kwargs)
+    if images_were_created and NPF_ALT_TEXT_NEWLINE_TRICK:
+        kwargs['state'] = 'draft'
+        api_response = client_pool.get_private_client().create_text(blogname, **kwargs)
+        api_response = fixup_alt_text_after_creation(
+            client_pool.get_private_client(),
+            blogname,
+            api_response['id'],
+            state=state,
+        )
+    else:
+        api_response = client_pool.get_private_client().create_text(blogname, **kwargs)
+    
     if delete_after_posting:
         client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
     if increment_rts_after_create:
@@ -816,6 +830,7 @@ def answer_ask(
         autoreview_proba=autoreview_proba,
     )
     state_reasons["reject_action"] = reject_action
+    images_were_created = False
 
     if IMAGE_CREATION and not state_reasons["ml_rejected"]:  # don't waste time making images if post was rejected
         presub_answer = answer
@@ -904,7 +919,18 @@ def answer_ask(
     else:
         data = {"id": ask_id, "answer": answer, "tags": tags, "state": state}
 
-    api_response = client_pool.get_private_client().send_api_request("post", url, data, valid_options)
+    if images_were_created and NPF_ALT_TEXT_NEWLINE_TRICK:
+        data['state'] = 'draft'
+        api_response = client_pool.get_private_client().send_api_request("post",
+                                                                         url, data, valid_options)
+        api_response = fixup_alt_text_after_creation(
+            client_pool.get_private_client(),
+            blogname,
+            api_response['id'],
+            state=state,
+        )
+    else:
+        api_response = client_pool.get_private_client().send_api_request("post", url, data, valid_options)
     if delete_after_posting:
         client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
     if increment_rts_after_create:

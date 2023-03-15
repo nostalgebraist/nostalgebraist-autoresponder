@@ -61,6 +61,29 @@ def collect_and_show_cache_clear():
     torch.cuda.empty_cache()
 
 
+class LlamaAvoidUnkCaptionLogitsProcessor:
+    def __init__(self,
+                 device='cuda:0'
+                 ):
+        self.unk_prefix = torch.as_tensor(
+            [25512, 13]).to(device)  # ['===', '\n']
+        self.prefix_length = self.unk_prefix.shape[0]
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        seq_length = input_ids.shape[1]
+
+        if seq_length < self.prefix_length:
+            return scores
+
+        with torch.no_grad():
+            for i in range(len(input_ids)):
+                if (input_ids[i, -self.prefix_length:] == self.unk_prefix.to(input_ids.device)).all():
+                    scores[i, 26690] = scores[i, :].min() - 10000.  # 'unknown'
+
+        return scores
+
+
+
 class GeneratorModelLlama:
     def __init__(
         self,
@@ -110,6 +133,7 @@ class GeneratorModelLlama:
             breakruns=True, 
             breakruns_tau=0.04,
             allow_xformers=use_xformers,
+            extra_logits_processors=[LlamaAvoidUnkCaptionLogitsProcessor()],
         )
         generate_kwargs_ = dict()
         generate_kwargs_.update(generate_kwargs_defaults)

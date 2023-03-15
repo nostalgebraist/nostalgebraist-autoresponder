@@ -3853,7 +3853,8 @@ if __name__ == "__main__":
             # _pr_name = now_pst().strftime("%Y-%m-%d-%H-%M-%S")
             # pr_main.dump_stats(f"profiling_data/main/{_pr_name}")
             # pr_main.enable()
-        except KeyError as e:
+        except KeyError as e: # catches intermittent weirdness from tumblr api
+            raise e # temporary for debugging
             print(f"hit an error {repr(e)}, waiting for a little while...")
             time.sleep(calculate_sleep_time(multiplier=5, verbose=True))
             send_alldone()

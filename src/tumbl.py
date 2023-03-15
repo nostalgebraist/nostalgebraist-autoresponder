@@ -926,7 +926,7 @@ def answer_ask(
             client_pool.get_private_client(),
             blogname,
             api_response['id'],
-            parent_blogname=data['asking_name'] if is_reblog else None,
+            parent_blogname=asking_name if is_reblog else None,
             parent_id=data['id'] if is_reblog else None,
             state=state,
         )

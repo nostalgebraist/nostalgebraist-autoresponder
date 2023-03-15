@@ -133,6 +133,7 @@ class GeneratorModelLlama:
             breakruns=True, 
             breakruns_tau=0.04,
             allow_xformers=use_xformers,
+            all_xformers=use_xformers,
             extra_logits_processors=[LlamaAvoidUnkCaptionLogitsProcessor()],
         )
         generate_kwargs_ = dict()

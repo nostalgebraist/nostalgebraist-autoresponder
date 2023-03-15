@@ -83,6 +83,27 @@ class LlamaAvoidUnkCaptionLogitsProcessor:
         return scores
 
 
+class RepetitionPenaltyLogitsProcessor:
+    """
+    TODO: develop a version of repetition penalty that respects the translation invariance of logits
+    """
+    def __init__(self, penalty: float):
+        if not isinstance(penalty, float) or not (penalty > 0):
+            raise ValueError(
+                f"`penalty` has to be a strictly positive float, but is {penalty}")
+
+        self.penalty = penalty
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        score = torch.gather(scores, 1, input_ids)
+
+        # if score < 0 then repetition penalty has to be multiplied to reduce the previous token probability
+        score = torch.where(score < 0, score * self.penalty,
+                            score / self.penalty)
+
+        scores.scatter_(1, input_ids, score)
+        return scores
+
 
 class GeneratorModelLlama:
     def __init__(
@@ -125,16 +146,23 @@ class GeneratorModelLlama:
 
         self.load_kwargs = load_kwargs
 
+        extra_logits_processors = [LlamaAvoidUnkCaptionLogitsProcessor()]
+
+        if SHAWWN:
+            extra_logits_processors = [
+                RepetitionPenaltyLogitsProcessor(1 / 0.85)
+            ] + extra_logits_processors
+
         generate_kwargs_defaults=dict(
             max_gen_len=load_kwargs['n_ctx'],
             stop_at_eos=True,
-            temperature=0.9,
+            temperature=0.7 if SHAWWN else 0.9,
             top_p=0.95, 
-            breakruns=True, 
+            breakruns=False if SHAWWN else True, 
             breakruns_tau=0.04,
             allow_xformers=use_xformers,
             all_xformers=use_xformers,
-            extra_logits_processors=[LlamaAvoidUnkCaptionLogitsProcessor()],
+            extra_logits_processors=extra_logits_processors,
         )
         generate_kwargs_ = dict()
         generate_kwargs_.update(generate_kwargs_defaults)

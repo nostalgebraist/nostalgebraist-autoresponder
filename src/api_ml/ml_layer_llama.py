@@ -274,6 +274,8 @@ def poll(
 ):
     global CLOSED_REQUESTS
 
+    UNSERVABLE_REQUESTS = set()
+
     for port, route in zip(ports, routes):
         r = requests.get(
             f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
@@ -291,6 +293,7 @@ def poll(
                 continue
 
             if data["model"] not in MODELS_SERVED:
+                UNSERVABLE_REQUESTS.add(prompt_id)
                 multirequest_sequence_in_process = False
                 continue
 
@@ -301,8 +304,12 @@ def poll(
 
             if data["model"] == "generator":
                 if GENERATOR_METHODS_SERVED == 'all_except_write' and requested_method in {'write', 'write_random_prompt'}:
+                    multirequest_sequence_in_process = False
+                    UNSERVABLE_REQUESTS.add(prompt_id)
                     continue
                 if GENERATOR_METHODS_SERVED == 'only_write' and requested_method not in {'write', 'write_random_prompt'}:
+                    multirequest_sequence_in_process = False
+                    UNSERVABLE_REQUESTS.add(prompt_id)
                     continue
 
             requested_args, requested_kwargs = data.get("args", []), data.get(
@@ -362,6 +369,8 @@ def poll(
         almostdone_in_flight = False
         open_request_ids = set()
         for prompt_id in PROMPT_STACK:
+            if prompt_id in UNSERVABLE_REQUESTS:
+                continue
             if PROMPT_STACK[prompt_id].get("repeat_until_done_signal", False):
                 open_request_ids.add(prompt_id)
                 if PROMPT_STACK[prompt_id].get("almost_done", False):

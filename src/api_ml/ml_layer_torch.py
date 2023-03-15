@@ -309,6 +309,8 @@ def poll(
                 continue
 
             if data["model"] not in MODELS_SERVED:
+                multirequest_sequence_in_process = False
+                UNSERVABLE_REQUESTS.add(prompt_id)
                 continue
 
             requested_model = None

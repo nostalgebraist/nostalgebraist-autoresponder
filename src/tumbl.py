@@ -927,7 +927,7 @@ def answer_ask(
             blogname,
             api_response['id'],
             parent_blogname=asking_name if is_reblog else None,
-            parent_id=data['id'] if is_reblog else None,
+            parent_id=int(data['id']) if is_reblog else None,
             state=state,
         )
     else:

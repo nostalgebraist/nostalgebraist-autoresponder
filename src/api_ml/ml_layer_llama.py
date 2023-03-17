@@ -208,6 +208,7 @@ class GeneratorModelLlama:
         return self.n_ctx - self.required_continuation_room
 
     def write(self, prompt: str, verbose=False, max_length_per_feed=None):
+        max_length_per_feed = max_length_per_feed or self.max_continue_tokens
         done = False
 
         prompt_orig = prompt

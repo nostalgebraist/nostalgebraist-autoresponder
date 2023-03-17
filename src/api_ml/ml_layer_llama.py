@@ -257,7 +257,7 @@ class GeneratorModelLlama:
         }
 
 
-generator_model = GeneratorModelLlama()
+generator_model = GeneratorModelLlama(load_kwargs=LLAMA_CUSTOM_LOAD_KWARGS)
 
 model_name = generator_model.load_kwargs['ckpt_dir']
 

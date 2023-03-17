@@ -711,6 +711,8 @@ LLAMA_PATH_CKPT = 'llama-nbar/v3'
 LLAMA_PATH_ENC = 'llama-nbar/tokenizer.model'
 LLAMA_PATH_LORA = None
 
+LLAMA_CUSTOM_LOAD_KWARGS = dict()
+
 SHAWWN = True
 
 if SHAWWN:

@@ -133,8 +133,9 @@ class GeneratorModelLlama:
             use_xformers=use_xformers,
             use_lora=not lora_premerged,
             lora_r=48,
-            quantize_frozen=False, # 7B fits in fp16
-            freeze_layers_below_n=32 if lora_premerged else 0,
+            quantize_frozen=LLAMA_QUANTIZE,
+            quantize_cache=LLAMA_QUANTIZE_CACHE,
+            freeze_layers_below_n=40 if lora_premerged else 0,
             lowmem=True,
             lowmem_cpu_ratio=0,
             fp32_logits=False,

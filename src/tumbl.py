@@ -933,7 +933,7 @@ def answer_ask(
         data['state'] = 'draft'
         api_response = client_pool.get_private_client().send_api_request("post",
                                                                          url, data, valid_options)
-        with LogExceptionAndSkip('fixup_alt_text_after_creation':)
+        with LogExceptionAndSkip('fixup_alt_text_after_creation'):
             api_response = fixup_alt_text_after_creation(
                 client_pool.get_private_client(),
                 blogname,

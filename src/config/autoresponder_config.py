@@ -711,7 +711,7 @@ LLAMA_PATH_CKPT = 'llama-nbar/v3'
 LLAMA_PATH_ENC = 'llama-nbar/tokenizer.model'
 LLAMA_PATH_LORA = None
 
-SHAWWN = False
+SHAWWN = True
 
 if SHAWWN:
     LLAMA_TEMPERATURE = 0.7

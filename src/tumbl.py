@@ -752,6 +752,8 @@ def make_text_post(
         )
     else:
         api_response = client_pool.get_private_client().create_text(blogname, **kwargs)
+
+    api_response = normalize_api_response_ids(api_response)
     
     if delete_after_posting:
         client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
@@ -769,6 +771,14 @@ def make_text_post(
         log_data["api_request_payload"] = kwargs
         traceability_singleton.TRACE_LOGS.on_post_creation_callback(api_response, log_data)
     return api_response, log_data, response_cache
+
+
+def normalize_api_response_ids(api_response):
+    # hellsite (affectionate)
+    if 'id' in api_response and isinstance(api_response['id'], str):
+        api_response['id_string'] = api_response['id']
+        api_response['id'] = int(api_response['id'])
+    return api_response
 
 
 def answer_ask(
@@ -932,6 +942,9 @@ def answer_ask(
         )
     else:
         api_response = client_pool.get_private_client().send_api_request("post", url, data, valid_options)
+    
+    api_response = normalize_api_response_ids(api_response)
+
     if delete_after_posting:
         client_pool.get_private_client().delete_post(blogName, id=api_response['id'])
     if increment_rts_after_create:

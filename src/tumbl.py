@@ -3454,6 +3454,12 @@ def check_for_rts_loop(ident, pid, tags, response_cache):
     return response_cache, was_loop
 
 
+def is_npf_answer(post_payload):
+    involves_ask = any(bl.get('type') == 'ask' for bl in post_payload.get('layout', []))
+    not_thread = len(post_payload.get('trail', [])) == 0
+    return involves_ask and not_thread
+
+
 def do_rts(response_cache):
     global client_pool
     drafts = client_pool.get_private_client().drafts(blogName, reblog_info=True, limit=50)["posts"]
@@ -3494,7 +3500,7 @@ def do_rts(response_cache):
             )
 
             client_pool.get_private_client().delete_post(blogName, id=pid)
-        elif p.get("type") == "answer":
+        elif p.get("type") == "answer" or is_npf_answer(p):
             print(f"\tidentified as answer to ask")
 
             uii = UserInputIdentifier(

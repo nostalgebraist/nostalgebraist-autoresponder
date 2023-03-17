@@ -524,8 +524,6 @@ else:
 
 ### Sampling
 
-BREAKRUNS = True
-BREAKRUNS_TAU = 0.035  # "canon" value is 0.02
 BREAKRUNS_DECAY = 0.0
 BREAKRUNS_DEBUG = False
 
@@ -712,6 +710,19 @@ LLAMA_PATH_ENC = 'llama-nbar/tokenizer.model'
 LLAMA_PATH_LORA = None
 
 SHAWWN = False
+
+if SHAWWN:
+    LLAMA_TEMPERATURE = 0.7
+    LLAMA_REP_PENALTY = 1 / 0.85
+
+    LLAMA_BREAKRUNS = False
+    LLAMA_BREAKRUNS_TAU = 0.035    
+else:
+    LLAMA_TEMPERATURE = 0.9
+    LLAMA_REP_PENALTY = 1 / 0.85
+
+    LLAMA_BREAKRUNS = False
+    LLAMA_BREAKRUNS_TAU = 0.035
 
 if LLAMA_BIG:
     LLAMA_QUANTIZE = 1

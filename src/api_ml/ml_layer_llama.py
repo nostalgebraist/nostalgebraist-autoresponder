@@ -149,18 +149,18 @@ class GeneratorModelLlama:
 
         extra_logits_processors = [LlamaAvoidUnkCaptionLogitsProcessor()]
 
-        if SHAWWN:
+        if LLAMA_REP_PENALTY > 0.:
             extra_logits_processors = [
-                RepetitionPenaltyLogitsProcessor(1 / 0.85)
+                RepetitionPenaltyLogitsProcessor(LLAMA_REP_PENALTY)
             ] + extra_logits_processors
 
         generate_kwargs_defaults=dict(
             max_gen_len=load_kwargs['n_ctx'],
             stop_at_eos=True,
-            temperature=0.7 if SHAWWN else 0.9,
+            temperature=LLAMA_TEMPERATURE,
             top_p=0.95, 
-            breakruns=False if SHAWWN else True, 
-            breakruns_tau=0.04,
+            breakruns=LLAMA_BREAKRUNS, 
+            breakruns_tau=LLAMA_BREAKRUNS_TAU,
             allow_xformers=use_xformers,
             all_xformers=use_xformers,
             extra_logits_processors=extra_logits_processors,

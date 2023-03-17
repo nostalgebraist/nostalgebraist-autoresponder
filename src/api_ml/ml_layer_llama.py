@@ -135,6 +135,7 @@ class GeneratorModelLlama:
             lora_r=48,
             quantize_frozen=LLAMA_QUANTIZE,
             quantize_cache=LLAMA_QUANTIZE_CACHE,
+            quantize_cache_above=LLAMA_QUANTIZE_CACHE_ABOVE,
             freeze_layers_below_n=40 if lora_premerged else 0,
             lowmem=True,
             lowmem_cpu_ratio=0,

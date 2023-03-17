@@ -744,12 +744,13 @@ def make_text_post(
     if images_were_created and NPF_ALT_TEXT_NEWLINE_TRICK:
         kwargs['state'] = 'draft'
         api_response = client_pool.get_private_client().create_text(blogname, **kwargs)
-        api_response = fixup_alt_text_after_creation(
-            client_pool.get_private_client(),
-            blogname,
-            api_response['id'],
-            state=state,
-        )
+        with LogExceptionAndSkip('fixup_alt_text_after_creation'):
+            api_response = fixup_alt_text_after_creation(
+                client_pool.get_private_client(),
+                blogname,
+                api_response['id'],
+                state=state,
+            )
     else:
         api_response = client_pool.get_private_client().create_text(blogname, **kwargs)
 
@@ -932,14 +933,15 @@ def answer_ask(
         data['state'] = 'draft'
         api_response = client_pool.get_private_client().send_api_request("post",
                                                                          url, data, valid_options)
-        api_response = fixup_alt_text_after_creation(
-            client_pool.get_private_client(),
-            blogname,
-            api_response['id'],
-            parent_blogname=asking_name if is_reblog else None,
-            parent_id=int(data['id']) if is_reblog else None,
-            state=state,
-        )
+        with LogExceptionAndSkip('fixup_alt_text_after_creation':)
+            api_response = fixup_alt_text_after_creation(
+                client_pool.get_private_client(),
+                blogname,
+                api_response['id'],
+                parent_blogname=asking_name if is_reblog else None,
+                parent_id=int(data['id']) if is_reblog else None,
+                state=state,
+            )
     else:
         api_response = client_pool.get_private_client().send_api_request("post", url, data, valid_options)
     

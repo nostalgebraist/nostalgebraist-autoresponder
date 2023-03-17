@@ -711,7 +711,7 @@ LLAMA_PATH_CKPT = 'llama-nbar/v3'
 LLAMA_PATH_ENC = 'llama-nbar/tokenizer.model'
 LLAMA_PATH_LORA = None
 
-SHAWWN = True
+SHAWWN = False
 
 if LLAMA_BIG:
     LLAMA_QUANTIZE = 1

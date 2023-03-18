@@ -3,11 +3,7 @@ from functools import partial
 import torch
 from transformers import GPTNeoForCausalLM, AutoConfig
 
-try:
-    from collections.abc import MutableMapping
-except ImportError:
-    from collections import MutableMapping
-from pathlib import Path
+from ml.split_checkpoint import SplitCheckpoint
 
 
 # GPT-J 6B config
@@ -21,42 +17,6 @@ GPT_J_CONFIG.vocab_size = 50400
 GPT_J_CONFIG.rotary = True
 GPT_J_CONFIG.rotary_dim = 64
 GPT_J_CONFIG.jax = True
-
-
-class SplitCheckpoint(MutableMapping):
-    def __init__(self, ckpt_dir, device="cpu"):
-        self.device = device
-        self.ckpt_dir = Path(ckpt_dir)
-        self.checkpoint = torch.load(str(ckpt_dir / Path("m.pt")))
-
-    def __len__(self):
-        return len(self.checkpoint)
-
-    def __getitem__(self, key):
-        path = self.ckpt_dir / Path(self.checkpoint[key]).name
-        return torch.load(str(path), map_location=self.device)
-
-    def __setitem__(self, key, value):
-        return
-
-    def __delitem__(self, key):
-        return
-
-    def keys(self):
-        return self.checkpoint.keys()
-
-    def __contains__(self, key):
-        return key in self.checkpoint
-
-    def __iter__(self):
-        for key in self.checkpoint:
-            yield (key, self.__getitem__(key))
-
-    def __copy__(self):
-        return SplitCheckpoint(self.ckpt_dir, device=self.device)
-
-    def copy(self):
-        return SplitCheckpoint(self.ckpt_dir, device=self.device)
 
 
 def no_init(loading_code):

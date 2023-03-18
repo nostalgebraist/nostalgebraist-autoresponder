@@ -113,13 +113,16 @@ class GeneratorModelLlama:
         required_continuation_room=required_continuation_room,
         max_continue_tokens=MAX_CONTINUE_TOKENS,
         lora_path=LLAMA_PATH_LORA,
+        require_xformers=True,
     ):
         use_xformers = False
         try:
             import xformers.ops
+            import triton.language
             use_xformers = True
-        except:
-            pass
+        except Exception as e:
+            if require_xformers:
+                raise e
 
         lora_premerged = lora_path is None
         load_kwargs_defaults=dict(

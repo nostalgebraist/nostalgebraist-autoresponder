@@ -707,8 +707,8 @@ if V12_16:
 GENERATOR_METHODS_SERVED = "all"  # "all", "only_write", "all_except_write"
 
 LLAMA_BIG = 1
-LLAMA_SPLIT_CKPT = 0
-LLAMA_PATH_CKPT = 'llama-nbar/v3'
+LLAMA_SPLIT_CKPT = 1
+LLAMA_PATH_CKPT = 'llama-nbar/v3-split'
 LLAMA_PATH_ENC = 'llama-nbar/tokenizer.model'
 LLAMA_PATH_LORA = None
 

@@ -14,9 +14,9 @@ import llama.generation
 from config.autoresponder_config import *
 from tumblr_to_text.classic.autoresponder_static_v8 import *
 
-from ml.generator_model_torch import GPT_NEO_DEFAULT_SAMPLING_PARAMS
+from ml.split_checkpoint import SplitCheckpoint
 
-from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
+from util.util import collect_and_show, show_gpu
 
 BRIDGE_SERVICE_REMOTE_HOST, bridge_service_port = None, None
 
@@ -123,9 +123,14 @@ class GeneratorModelLlama:
         except Exception as e:
             if require_xformers:
                 raise e
+            
+        checkpoint = None
+        if LLAMA_SPLIT_CKPT:
+            checkpoint = SplitCheckpoint(LLAMA_PATH_CKPT)
 
         lora_premerged = lora_path is None
         load_kwargs_defaults=dict(
+            checkpoint=checkpoint,
             ckpt_dir=LLAMA_PATH_CKPT,
             tokenizer_path=LLAMA_PATH_ENC,
             local_rank=0,

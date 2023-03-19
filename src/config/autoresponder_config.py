@@ -714,7 +714,7 @@ LLAMA_PATH_LORA = None
 
 LLAMA_PRESERVE_TOKENS = [
     # '\t', '\n',
-    '\n====', '\n===',
+    '\n====', '\n===', '\n\t',
     # '`',
     # '<', '</', '>', '><', '></',
     # 'b', 'i', 'li', 'ul', 'ol',
@@ -724,7 +724,7 @@ LLAMA_PRESERVE_TOKENS = [
 
 LLAMA_CUSTOM_LOAD_KWARGS = dict()
 
-SHAWWN = True
+SHAWWN = False
 
 if SHAWWN:
     LLAMA_TEMPERATURE = 0.7
@@ -734,10 +734,10 @@ if SHAWWN:
     LLAMA_BREAKRUNS_TAU = 0.035    
 else:
     LLAMA_TEMPERATURE = 0.9
-    LLAMA_REP_PENALTY = 1 / 0.85
+    LLAMA_REP_PENALTY = 0
 
-    LLAMA_BREAKRUNS = False
-    LLAMA_BREAKRUNS_TAU = 0.035
+    LLAMA_BREAKRUNS = True
+    LLAMA_BREAKRUNS_TAU = 0.04
 
 if LLAMA_BIG:
     LLAMA_QUANTIZE = 1

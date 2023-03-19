@@ -85,7 +85,12 @@ class LlamaAvoidUnkCaptionLogitsProcessor:
 
 
 def make_preserve_tokens(token_strings, enc):
-    return [enc.encode(s, 0, 0)[-1] for s in token_strings]
+    tokens = [
+        enc.encode(ss, 0, 0)[-1]
+        for s in token_strings
+        for ss in [s, 'text' + s, '\n' + s, ' ' + s, '<' + s, '(' + s]
+    ]
+    return sorted(set(tokens))
 
 
 class RepetitionPenaltyLogitsProcessor:

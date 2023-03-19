@@ -88,7 +88,7 @@ def make_preserve_tokens(token_strings, enc):
     tokens = [
         enc.encode(ss, 0, 0)[-1]
         for s in token_strings
-        for ss in [s, 'text' + s, '\n' + s, ' ' + s, '<' + s, '(' + s]
+        for ss in [s]
     ]
     return sorted(set(tokens))
 

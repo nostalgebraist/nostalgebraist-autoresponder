@@ -188,7 +188,8 @@ class GeneratorModelLlama:
             extra_logits_processors = [
                 RepetitionPenaltyLogitsProcessor(
                     LLAMA_REP_PENALTY,
-                    preserve_tokens=make_preserve_tokens(LLAMA_PRESERVE_TOKENS, enc),
+                    preserve_tokens=None,
+                    # preserve_tokens=make_preserve_tokens(LLAMA_PRESERVE_TOKENS, enc),
                 )
             ] + extra_logits_processors
 

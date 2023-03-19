@@ -718,7 +718,7 @@ LLAMA_PRESERVE_TOKENS = [
     '<', '</', '>', '><', '></',
     'b', 'i', 'li', 'ul', 'ol',
     'a', '=', 'href', 'http', '://',
-    '.', ',', ' '
+    '.', ',', ' ', '"', '(', ')',
 ]
 
 LLAMA_CUSTOM_LOAD_KWARGS = dict()

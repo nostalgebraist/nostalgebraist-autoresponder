@@ -712,6 +712,15 @@ LLAMA_PATH_CKPT = 'llama-nbar/v3-split'
 LLAMA_PATH_ENC = 'llama-nbar/tokenizer.model'
 LLAMA_PATH_LORA = None
 
+LLAMA_PRESERVE_TOKENS = [
+    '\t', '\n',
+    '====', '===', '`',
+    '<', '</', '>', '><', '></',
+    'b', 'i', 'li', 'ul', 'ol',
+    'a', '=', 'href', 'http', '://',
+    '.', ',', ' '
+]
+
 LLAMA_CUSTOM_LOAD_KWARGS = dict()
 
 SHAWWN = True

@@ -10,6 +10,7 @@ import bitsandbytes as bnb
 
 import llama.load
 import llama.generation
+import llama.tokenizer
 
 from config.autoresponder_config import *
 from tumblr_to_text.classic.autoresponder_static_v8 import *
@@ -83,18 +84,32 @@ class LlamaAvoidUnkCaptionLogitsProcessor:
         return scores
 
 
+def make_preserve_tokens(token_strings, enc):
+    return [enc.encode(s, 0, 0)[-1] for s in token_strings]
+
+
 class RepetitionPenaltyLogitsProcessor:
     """
     TODO: develop a version of repetition penalty that respects the translation invariance of logits
     """
-    def __init__(self, penalty: float):
+
+    def __init__(self, penalty: float,
+                 preserve_tokens=None,
+                 device='cuda'):
         if not isinstance(penalty, float) or not (penalty > 0):
             raise ValueError(
                 f"`penalty` has to be a strictly positive float, but is {penalty}")
 
         self.penalty = penalty
+        self.preserve_tokens = preserve_tokens
+        if self.preserve_tokens is not None:
+            self.preserve_tokens = torch.as_tensor(
+                self.preserve_tokens)[None, :].to(device=device)
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        if self.preserve_tokens is not None:
+            keep = scores[:, self.preserve_tokens[0]]
+
         score = torch.gather(scores, 1, input_ids)
 
         # if score < 0 then repetition penalty has to be multiplied to reduce the previous token probability
@@ -102,6 +117,9 @@ class RepetitionPenaltyLogitsProcessor:
                             score / self.penalty)
 
         scores.scatter_(1, input_ids, score)
+
+        scores.scatter_(1, self.preserve_tokens, keep)
+
         return scores
 
 
@@ -157,11 +175,17 @@ class GeneratorModelLlama:
 
         self.load_kwargs = load_kwargs
 
+        enc = llama.tokenizer.Tokenizer(LLAMA_PATH_ENC)
+        preserve_tokens = make_preserve_tokens(enc, LLAMA_PRESERVE_TOKENS)
+
         extra_logits_processors = [LlamaAvoidUnkCaptionLogitsProcessor()]
 
         if LLAMA_REP_PENALTY > 0.:
             extra_logits_processors = [
-                RepetitionPenaltyLogitsProcessor(LLAMA_REP_PENALTY)
+                RepetitionPenaltyLogitsProcessor(
+                    LLAMA_REP_PENALTY,
+                    preserve_tokens=make_preserve_tokens(LLAMA_PRESERVE_TOKENS),
+                )
             ] + extra_logits_processors
 
         generate_kwargs_defaults=dict(

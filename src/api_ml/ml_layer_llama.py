@@ -176,7 +176,6 @@ class GeneratorModelLlama:
         self.load_kwargs = load_kwargs
 
         enc = llama.tokenizer.Tokenizer(LLAMA_PATH_ENC)
-        preserve_tokens = make_preserve_tokens(LLAMA_PRESERVE_TOKENS, enc)
 
         extra_logits_processors = [LlamaAvoidUnkCaptionLogitsProcessor()]
 
@@ -184,7 +183,7 @@ class GeneratorModelLlama:
             extra_logits_processors = [
                 RepetitionPenaltyLogitsProcessor(
                     LLAMA_REP_PENALTY,
-                    preserve_tokens=make_preserve_tokens(LLAMA_PRESERVE_TOKENS),
+                    preserve_tokens=make_preserve_tokens(LLAMA_PRESERVE_TOKENS, enc),
                 )
             ] + extra_logits_processors
 

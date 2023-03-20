@@ -713,18 +713,12 @@ LLAMA_PATH_ENC = 'llama-nbar/tokenizer.model'
 LLAMA_PATH_LORA = None
 
 LLAMA_PRESERVE_TOKENS = [
-    # '\t', '\n',
-    '\n====', '\n===', '\n\t',
-    # '`',
-    # '<', '</', '>', '><', '></',
-    # 'b', 'i', 'li', 'ul', 'ol',
-    # 'a', '=', 'href', 'http', '://',
-    # '.', ',', ' ', '"', '(', ')',
+    '\n====', '\n=======', '\n\t',
 ]
 
 LLAMA_CUSTOM_LOAD_KWARGS = dict()
 
-SHAWWN = False
+SHAWWN = True
 
 if SHAWWN:
     LLAMA_TEMPERATURE = 0.7

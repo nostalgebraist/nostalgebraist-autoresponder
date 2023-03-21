@@ -713,7 +713,9 @@ LLAMA_PATH_ENC = 'llama-nbar/tokenizer.model'
 LLAMA_PATH_LORA = None
 
 LLAMA_PRESERVE_TOKENS = [
-    '\n====', '\n=======', '\n\t',
+    '\n====', '\n=======', 
+    '\n\t',
+    '\n\n',
 ]
 
 LLAMA_CUSTOM_LOAD_KWARGS = dict()

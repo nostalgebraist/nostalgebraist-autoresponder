@@ -82,7 +82,7 @@ from persistence import traceability_jsonl_singleton as traceability_singleton
 from multimodal import image_analysis_singleton
 
 from tumblr_to_text.image_munging import find_text_images_and_sub_real_images, fixup_alt_text_after_creation, \
-    NPF_ALT_TEXT_NEWLINE_TRICK
+    NPF_ALT_TEXT_NEWLINE_TRICK, LEGACY_LINE_BREAK
 
 from api_tumblr.client_pool import ClientPool
 from api_tumblr.post_limit import select_slowdown_level, BASE_SLOWDOWN_LEVEL
@@ -860,6 +860,7 @@ def answer_ask(
             textless_guidance_scale=textless_guidance_scale,
             textful_guidance_scale=textful_guidance_scale,
             text_guidance_scale=text_guidance_scale,
+            alt_text_linebreak=LEGACY_LINE_BREAK if is_reblog else " "
         )
         if IMAGE_CREATION_TESTING and images_were_created:
             state = "draft"
@@ -929,7 +930,7 @@ def answer_ask(
     else:
         data = {"id": ask_id, "answer": answer, "tags": tags, "state": state}
 
-    if images_were_created and NPF_ALT_TEXT_NEWLINE_TRICK:
+    if images_were_created and NPF_ALT_TEXT_NEWLINE_TRICK and is_reblog:
         data['state'] = 'draft'
         api_response = client_pool.get_private_client().send_api_request("post",
                                                                          url, data, valid_options)

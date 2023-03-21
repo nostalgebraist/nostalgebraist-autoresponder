@@ -132,6 +132,7 @@ def find_text_images_and_sub_real_images(
     textful_guidance_scale=1,
     text_guidance_scale=1,
     dynamic_threshold_p=0.99,
+    alt_text_linebreak=LEGACY_LINE_BREAK,
 ):
     print(f'using diffusion?: {use_diffusion}')
     if use_diffusion:
@@ -261,7 +262,7 @@ def find_text_images_and_sub_real_images(
                 url=tumblr_image["url"],
                 h=tumblr_image["height"],
                 w=tumblr_image["width"],
-                alt=html.escape(alt_text).replace("\n", LEGACY_LINE_BREAK),
+                alt=html.escape(alt_text).replace("\n", alt_text_linebreak),
             )
         else:
             vprint(

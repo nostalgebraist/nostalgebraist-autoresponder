@@ -1678,8 +1678,8 @@ def is_statically_reblog_worthy_on_dash(
         n_img, 
         text_block_nwords,
         discount_words_per_image=None,
-        costless_up_to_imgs=1,
-        max_imgs_scrape=3,
+        costless_up_to_imgs=0,
+        max_imgs_scrape=2,
     )
 
     roll = random.random()

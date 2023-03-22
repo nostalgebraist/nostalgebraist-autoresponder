@@ -169,7 +169,6 @@ def find_all_control_chars_chinese(
     return results
 
 
-# TODO: (cleanup) (nwo) fix double-matching on "#1 xx posted" and "xx posted"
 def find_control_chars_forumlike(
     text,
     incl_number=True,
@@ -205,6 +204,7 @@ def find_control_chars_forumlike(
         # print(rx)
         for m in re.finditer(rx, text):
             results.append((m.group(1), m.span(1)[0]))
+    results = set(results)
     results = sorted(results, key=lambda tup: tup[1])
     return results
 

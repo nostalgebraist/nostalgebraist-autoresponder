@@ -17,7 +17,7 @@ from feels.mood import logit_diff_to_allen_schema
 
 RESULT_STACK = {}
 
-RETENTION_CUTOFF = 0.7
+RETENTION_CUTOFF = 0.6
 ENFORCE_RETENTION_CUTOFF = True
 
 FIC_COLDSTART = False

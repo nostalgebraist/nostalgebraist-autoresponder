@@ -290,7 +290,7 @@ def match_guidelines(c):
     return is_match, substring
 
 
-def match_pseudo_text(c, debug=True):
+def match_pseudo_text(c, debug=False):
     if debug:
         print("match_pseudo_text called | ", end="")
     # TODO: DRY

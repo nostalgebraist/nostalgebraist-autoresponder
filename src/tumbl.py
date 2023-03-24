@@ -2694,9 +2694,6 @@ def do_reblog_reply_handling(
         r: loop_persistent_data.timestamps[r] for r in reblogs_to_handle
     }
     reblog_reply_timestamps.update({ri: ri.timestamp for ri in replies_to_handle})
-    time_ordered_idents = sorted(
-        reblog_reply_timestamps.keys(), key=lambda r: reblog_reply_timestamps[r]
-    )
 
     costs, response_cache = prioritize_reblogs_replies(identifiers=reblog_reply_timestamps.keys(),
                                                        reply_set=replies_to_handle,
@@ -2749,15 +2746,19 @@ def do_reblog_reply_handling(
         for r in excluded:
             print(f"\t saving {r} for later...")
 
-    kept_reblogs = [r for r in kept if r in reblogs_to_handle]
-    kept_replies = [r for r in kept if r in replies_to_handle]
+    time_ordered_kept_idents = sorted(
+        kept, key=lambda r: reblog_reply_timestamps[r]
+    )
+
+    kept_reblogs = [r for r in time_ordered_kept_idents if r in reblogs_to_handle]
+    kept_replies = [r for r in time_ordered_kept_idents if r in replies_to_handle]
 
     reblogs_to_handle = kept_reblogs
     replies_to_handle = kept_replies
 
-    if len(reblogs_to_handle + replies_to_handle) > 0:
+    if len(time_ordered_kept_idents) > 0:
         print(f"responding to:")
-        for item in reblogs_to_handle + replies_to_handle:
+        for item in time_ordered_kept_idents:
             print(f"\t{item}")
 
     if is_dashboard and len(kept) > 0 and len(excluded) > 0:
@@ -2784,7 +2785,7 @@ def do_reblog_reply_handling(
 
     # handle reblogs, replies
     loop_persistent_data, response_cache = respond_to_reblogs_replies(
-        identifiers=reblogs_to_handle + list(replies_to_handle),
+        identifiers=time_ordered_kept_idents,
         reply_set=replies_to_handle,
         loop_persistent_data=loop_persistent_data,
         response_cache=response_cache,
@@ -2793,7 +2794,7 @@ def do_reblog_reply_handling(
         is_user_input=(not is_dashboard),
     )
 
-    if len(reblogs_to_handle + list(replies_to_handle)) > 0:
+    if len(time_ordered_kept_idents) > 0:
         do_rts(response_cache)
 
     ### post-check stuff

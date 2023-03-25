@@ -251,6 +251,8 @@ MAX_RTS_COUNT = 3
 
 FEWSHOT_FIC_TITLING = True
 
+STR_SCRAPED_IMAGES = False
+
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
 scraped_usernames = set(scraped_usernames)
@@ -1681,6 +1683,8 @@ def is_statically_reblog_worthy_on_dash(
         costless_up_to_imgs=0,
         max_imgs_scrape=2,
     )
+    if not STR_SCRAPED_IMAGES:
+        keep_prob_n_img = 1.0
 
     roll = random.random()
     if roll > keep_prob_n_img:
@@ -1741,7 +1745,8 @@ def is_statically_reblog_worthy_on_dash(
         archive_to_corpus(post_payload, path=path, client_pool=client_pool,
                           include_image_urls=SCRAPE_FORMAT_V2,
                           include_post_identifier=SCRAPE_FORMAT_V2,
-                          read_without_write=image_scrape_only)
+                          read_without_write=image_scrape_only,
+                          skip_image_analysis=not STR_SCRAPED_IMAGES)
 
     if is_nost_dash_scraper:
         reblog_worthy = False

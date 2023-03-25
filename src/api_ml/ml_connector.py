@@ -764,8 +764,8 @@ def old_bridge_call__textpost(
         retention_logit_diffs=None,
         permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
 ):
-    avoid_if_under = 5
-    avoid_half_if_under = 10
+    avoid_if_under = 3
+    avoid_half_if_under = 3
     avoid_initial_blockquote = False
     avoid_if_says_frank = False
 

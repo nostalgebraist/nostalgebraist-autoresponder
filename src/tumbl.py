@@ -3482,7 +3482,7 @@ def is_npf_answer(post_payload):
     return involves_ask and not_thread
 
 
-def do_rts(response_cache):
+def do_rts(response_cache, save_after=False):
     global client_pool
     drafts = client_pool.get_private_client().drafts(blogName, reblog_info=True, limit=50)["posts"]
     to_send_back = [p for p in drafts if RTS_COMMAND in p["tags"]]
@@ -3627,6 +3627,9 @@ def do_rts(response_cache):
                 print(f"could not find ACCEPT_COMMAND in tags, have tags {tags}")
         else:
             print(f"could not find tags, have keys {p.keys()}")
+
+    if save_after and len(to_send_back) > 0:
+        response_cache.save()
 
     return response_cache
 
@@ -3789,7 +3792,9 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         image_analysis_cache.save()
 
         ### do rts
-        response_cache = do_rts(response_cache)
+        response_cache = do_rts(response_cache, 
+                                save_after=True  # ensure save before sleep if needed
+                                )
 
         ### do queue check
         loop_persistent_data, response_cache = do_queue_handling(

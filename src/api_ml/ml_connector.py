@@ -315,8 +315,7 @@ def basic_n_continuations(
                 print(
                     f"\n\t\t{len(c)} chars, {len(c.split(' '))} words-->\n\t{len(csub)} chars, {len(csub.split(' '))} words\n"
                 )
-                if len(c) < 1000:
-                    print(f"was originally: {repr(c)}")
+                print(f"was originally: {_tabfill(c)}")
                 c = csub
 
             roll = np.random.rand()

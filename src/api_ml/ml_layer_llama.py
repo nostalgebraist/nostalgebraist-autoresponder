@@ -449,12 +449,12 @@ def loop_poll(
             dummy=dummy, ports=ports, routes=routes, show_memory=show_memory,
             multirequest_sequence_in_process=multirequest_sequence_in_process
         )
-        if multirequest_sequence_in_process:
+        if use_almostdone and almostdone_in_flight:
+            time.sleep(2)
+        elif multirequest_sequence_in_process and len(MODELS_SERVED) > 1:
             time.sleep(0.1)
         elif len(open_request_ids) == 0 or dummy:
             time.sleep(period)
-        elif use_almostdone and almostdone_in_flight:
-            time.sleep(2)
         else:
             time.sleep(0.2)
         loop_counter += 1

@@ -36,7 +36,7 @@ logit_diff_sample_series = load_logit_diff_sample()
 EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
 EXPECTED_REJECTION_MULT_TEXTPOST = EXPECTED_REJECTION_MULT
 
-TEXTPOST_N_CANDIDATES_TARGET = 10 if (not TRADE_QUALITY_FOR_SPEED) else 4
+TEXTPOST_N_CANDIDATES_TARGET = 10 if (not TRADE_QUALITY_FOR_SPEED) else 3
 
 # TODO: calcuate this precisely
 RETENTION_DISCOUNT = 0.25
@@ -597,7 +597,7 @@ def old_bridge_call__answer(
         guidance_scale=None,
         permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
 ):
-    best_of = 11 if (not TRADE_QUALITY_FOR_SPEED) else 5
+    best_of = 11 if (not TRADE_QUALITY_FOR_SPEED) else 4
 
     if write_fic_override or write_review_override:
         best_of = 6 if not (TRADE_QUALITY_FOR_SPEED) else 2

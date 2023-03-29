@@ -744,7 +744,7 @@ if LLAMA_BIG:
     LLAMA_N_CTX = 1344
 
     MAX_CONTINUE_TOKENS = 1280
-    required_continuation_room = 128
+    required_continuation_room = 32
 
     # only really one giant outlier dim for this model
     LLAMA_CUSTOM_LOAD_KWARGS['quantize_threshold'] = 600

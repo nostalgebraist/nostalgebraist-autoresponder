@@ -62,6 +62,19 @@ def collect_and_show_cache_clear():
     torch.cuda.empty_cache()
 
 
+def set_bnb_threshold(p):
+    def _set_bnb_threshold(m):
+        if hasattr(m, 'state') and hasattr(m.state, 'threshold'):
+            m.state.threshold = p
+    return set_bnb_threshold
+
+
+def set_bnb_thresholds(model, p, pw2):
+    model.apply(set_bnb_threshold(p))
+    for l in model.layers:
+        l.feed_forward.w2.state.threshold = pw2
+
+
 class LlamaAvoidUnkCaptionLogitsProcessor:
     def __init__(self,
                  device='cuda:0'
@@ -234,6 +247,11 @@ class GeneratorModelLlama:
             self.gen_model.model.merge_lora_into_base()
 
             collect_and_show_cache_clear()
+
+        set_bnb_thresholds(
+            self.gen_model.model,p=LLAMA_CUSTOM_LOAD_KWARGS.get('quantize_threshold', 6),
+            pw2=LLAMA_W2_THRESHOLD
+        )
 
         self.gen_model.model.requires_grad_(False)
         self.gen_model.model.cuda()

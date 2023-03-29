@@ -746,8 +746,9 @@ if LLAMA_BIG:
     MAX_CONTINUE_TOKENS = 1280
     required_continuation_room = 32
 
-    # only really one giant outlier dim for this model
-    LLAMA_CUSTOM_LOAD_KWARGS['quantize_threshold'] = 600
+    # after testing, seems ideal
+    LLAMA_CUSTOM_LOAD_KWARGS['quantize_threshold'] = 7
+    LLAMA_W2_THRESHOLD = 9
 
     # TODO: is this helpful?
     LLAMA_CUSTOM_LOAD_KWARGS['allow_quantize_unembed'] = False

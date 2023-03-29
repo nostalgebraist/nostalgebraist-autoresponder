@@ -3390,7 +3390,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
     should_write_testpost = n_posts_in_queue < WRITE_POSTS_WHEN_QUEUE_BELOW
 
-    maybe_skip_textposts = AVOID_FILLING_NEXT_DAY_QUEUE and not loop_persistent_data['slowdown_level']['prioritize_queue']
+    maybe_skip_textposts = AVOID_FILLING_NEXT_DAY_QUEUE and not loop_persistent_data.slowdown_level['prioritize_queue']
 
     if maybe_skip_textposts:
         crosses_midnight = False

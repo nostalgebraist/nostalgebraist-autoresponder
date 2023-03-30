@@ -744,7 +744,7 @@ if LLAMA_BIG:
     LLAMA_N_CTX = 1280
 
     MAX_CONTINUE_TOKENS = 1280
-    required_continuation_room = 32
+    required_continuation_room = 128
 
     # after testing, seems ideal
     LLAMA_CUSTOM_LOAD_KWARGS['quantize_threshold'] = 7

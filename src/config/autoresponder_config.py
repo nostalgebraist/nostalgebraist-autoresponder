@@ -746,9 +746,8 @@ if LLAMA_BIG:
     MAX_CONTINUE_TOKENS = 1280
     required_continuation_room = 128
 
-    # after testing, seems ideal
-    LLAMA_CUSTOM_LOAD_KWARGS['quantize_threshold'] = 7
-    LLAMA_W2_THRESHOLD = 9
+    LLAMA_CUSTOM_LOAD_KWARGS['quantize_threshold'] = 6
+    LLAMA_W2_THRESHOLD = 6
 
     # TODO: is this helpful?
     LLAMA_CUSTOM_LOAD_KWARGS['allow_quantize_unembed'] = False

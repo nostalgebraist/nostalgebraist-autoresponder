@@ -741,12 +741,12 @@ if LLAMA_BIG:
     LLAMA_QUANTIZE_CACHE_ABOVE = 0
     
     LLAMA_QUANTIZE_CACHE_AFTER_TOKEN = 0
-    LLAMA_N_CTX = 1280
+    LLAMA_N_CTX = 1440
 
     MAX_CONTINUE_TOKENS = 1280
-    required_continuation_room = 128
+    required_continuation_room = 32
 
-    LLAMA_CACHE_BUILD_SIZE = None
+    LLAMA_CACHE_BUILD_SIZE = 768
 
     # after testing, seems ideal
     LLAMA_CUSTOM_LOAD_KWARGS['quantize_threshold'] = 8

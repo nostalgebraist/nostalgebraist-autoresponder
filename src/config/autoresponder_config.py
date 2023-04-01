@@ -741,7 +741,7 @@ if LLAMA_BIG:
     LLAMA_QUANTIZE_CACHE_ABOVE = 0
     
     LLAMA_QUANTIZE_CACHE_AFTER_TOKEN = 0
-    LLAMA_N_CTX = 1440
+    LLAMA_N_CTX = 1536
 
     MAX_CONTINUE_TOKENS = 1280
     required_continuation_room = 32

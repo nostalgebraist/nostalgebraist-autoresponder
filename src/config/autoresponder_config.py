@@ -748,11 +748,9 @@ if LLAMA_BIG:
 
     LLAMA_CACHE_BUILD_SIZE = 768
 
-    # after testing, seems ideal
-    LLAMA_CUSTOM_LOAD_KWARGS['quantize_threshold'] = 8
-    LLAMA_W2_THRESHOLD = 9
+    LLAMA_CUSTOM_LOAD_KWARGS['quantize_threshold'] = 6
+    LLAMA_W2_THRESHOLD = 6
 
-    # TODO: is this helpful?
     LLAMA_CUSTOM_LOAD_KWARGS['allow_quantize_unembed'] = False
 else:
     LLAMA_QUANTIZE = 0

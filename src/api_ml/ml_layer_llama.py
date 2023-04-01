@@ -216,6 +216,7 @@ class GeneratorModelLlama:
             allow_xformers=use_xformers,
             all_xformers=use_xformers,
             extra_logits_processors=extra_logits_processors,
+            cache_build_size=LLAMA_CACHE_BUILD_SIZE,
         )
         generate_kwargs_ = dict()
         generate_kwargs_.update(generate_kwargs_defaults)

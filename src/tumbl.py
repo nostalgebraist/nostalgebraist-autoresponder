@@ -2590,7 +2590,11 @@ def do_reblog_reply_handling(
         max_delta = timedelta(hours=reblog_reply_window_nhours)
         statically_worthy_posts = list(
             filter(
-                lambda pp: (now_ - fromtimestamp_pst(pp["timestamp"])) < max_delta,
+                lambda pp: (
+                    fromtimestamp_pst(
+                        loop_persistent_data.timestamps[PostIdentifier(pp["blog_name"], pp["id"])]
+                    )
+                ) > now_ - max_delta,
                 statically_worthy_posts
             )
         )
@@ -3390,7 +3394,8 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
     should_write_testpost = n_posts_in_queue < WRITE_POSTS_WHEN_QUEUE_BELOW
 
-    maybe_skip_textposts = AVOID_FILLING_NEXT_DAY_QUEUE and not loop_persistent_data.slowdown_level['prioritize_queue']
+    maybe_skip_textposts = AVOID_FILLING_NEXT_DAY_QUEUE and not loop_persistent_data.slowdown_level[
+        'prioritize_queue']
 
     if maybe_skip_textposts:
         crosses_midnight = False

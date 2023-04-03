@@ -72,7 +72,8 @@ def set_bnb_threshold(p):
 def set_bnb_thresholds(model, p, pw2):
     model.apply(set_bnb_threshold(p))
     for l in model.layers:
-        l.feed_forward.w2.state.threshold = pw2
+        if hasattr(l.feed_forward.w2, 'state'):
+            l.feed_forward.w2.state.threshold = pw2
 
 
 class LlamaAvoidUnkCaptionLogitsProcessor:

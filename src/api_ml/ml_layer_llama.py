@@ -258,6 +258,8 @@ class GeneratorModelLlama:
         self.gen_model.model.requires_grad_(False)
         self.gen_model.model.cuda()
 
+        self.eos_token = self.gen_model.encode("", bos=False, eos=True)
+
     def write_random_prompt(self, prompts: list, probs: list, verbose=False):
         prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))
         return self.write(prompt=prompt, verbose=verbose)
@@ -275,7 +277,7 @@ class GeneratorModelLlama:
         # calling code adds this sometimes
         prompt = prompt.replace("<|endoftext|>", "")
         
-        tokens = [self.gen_model.tokenizer.encode(prompt, bos=True, eos=False)] * self.batch_size
+        tokens = [[self.eos_token] + self.gen_model.tokenizer.encode(prompt, bos=False, eos=False)] * self.batch_size
 
         continuation_tokens = [[]] * len(tokens)
 

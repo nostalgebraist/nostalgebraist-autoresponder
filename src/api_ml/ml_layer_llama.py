@@ -258,7 +258,7 @@ class GeneratorModelLlama:
         self.gen_model.model.requires_grad_(False)
         self.gen_model.model.cuda()
 
-        self.eos_token = self.gen_model.encode("", bos=False, eos=True)
+        self.eos_token = self.gen_model.tokenizer.encode("", bos=False, eos=True)
 
     def write_random_prompt(self, prompts: list, probs: list, verbose=False):
         prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))

@@ -2705,9 +2705,10 @@ def do_reblog_reply_handling(
                                                        response_cache=response_cache,
                                                        user_list=loop_persistent_data.user_list,
                                                        user_list_cost=10000 if use_userlist else 0,
+                                                       verbose=False,
                                                        )
     cost_ordered_idents = sorted(costs.keys(), key=lambda ident: costs[ident])
-    pprint([{"cost": costs[ident], "ident": ident} for ident in cost_ordered_idents])
+    # pprint([{"cost": costs[ident], "ident": ident} for ident in cost_ordered_idents])
 
     effective_stop_above_cost = STOP_ABOVE_COST + loop_persistent_data.slowdown_level['STOP_ABOVE_COST_modifier']
 

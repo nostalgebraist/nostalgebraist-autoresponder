@@ -7,6 +7,7 @@ import json
 import gc
 import weakref
 from functools import partial
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -120,6 +121,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         wandb_init_args=None,
         blocks_inference_device_attn=None,
         blocks_inference_device_mlp=None,
+        base_model_type=Literal["hf", "llama"],
         **kwargs
     ):
         self.device = device
@@ -160,6 +162,8 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         self.use_wandb = use_wandb
         self.wandb_init_args = wandb_init_args
 
+        self.base_model_type = base_model_type
+
         self.target_cols_ = None
 
         self.lr_ = None
@@ -193,6 +197,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             partial_forward_type=self.partial_forward_type,
             initialize_weights=training,
             params_extras=self.params_extras,
+            base_model_type=self.base_model_type,
         )
         self.model_ = self.model_.to(self.device)
 

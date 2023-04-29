@@ -467,9 +467,6 @@ class NostARHead(nn.Module):
         partial_forward_type="tfu",  # debug
         initialize_weights=True,
         params_extras=None,
-        base_model_layer_format="h.{i}",
-        base_model_attn_format="h.{i}.attn",
-        base_model_transformer_attr="transformer",
         base_model_type=Literal["hf", "llama"],
     ):
         validate_arch_params(params)
@@ -489,6 +486,14 @@ class NostARHead(nn.Module):
         self.base_model_attn_format = base_model_attn_format
         self.base_model_transformer_attr = base_model_transformer_attr
         self.base_model_type = base_model_type
+        if self.base_model_type == "hf":
+            self.base_model_layer_format="h.{i}"
+            self.base_model_attn_format="h.{i}.attn"
+            self.base_model_transformer_attr = "transformer"
+        elif self.base_model_type == "llama":
+            self.base_model_layer_format = 'layers.{i}'
+            self.base_model_attn_format = 'layers.{i}.attention'
+            self.base_model_transformer_attr = ""
 
         if self.params.tune_base_block_mlp:
             self.params = copy_and_update_config(

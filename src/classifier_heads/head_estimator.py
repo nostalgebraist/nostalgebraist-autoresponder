@@ -685,14 +685,14 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         offset = 1
         for block in self.model_.blocks:
             layer_num = self.model_.last_base_layer_used + offset + 1
-            base_layer = self.model_.base_model_layer[layer_num]
+            base_layer = self.model_.base_model_layer(layer_num)
             base_layer.to(device=self.device)
             base_layers_moved.append(layer_num)
             offset += 1
 
         # move an additional base layer to make room for the head part after the block(s)
         layer_num = self.model_.last_base_layer_used + offset + 1
-        base_layer = self.model_.base_model_layer[layer_num]
+        base_layer = self.model_.base_model_layer(layer_num)
         base_layer.to(device=self.device)
         base_layers_moved.append(layer_num)
 
@@ -722,7 +722,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         # move back to orig devices
         self.model_.to(device=self.device)
         for layer_num in base_layers_moved:
-            base_layer = self.model_.base_model_layer[layer_num]
+            base_layer = self.model_.base_model_layer(layer_num)
             base_layer.cuda()
 
         if key == "preds":

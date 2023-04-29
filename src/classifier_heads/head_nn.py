@@ -64,11 +64,11 @@ def prep_inputs_llama(batch_texts, tokenizer, max_length=2048, device="cpu"):
         batch_toks[i] = bt + [tokenizer.bos_id] * (maxlen - len(bt))
 
     # still not using a dataloader...
-    feed_in = dict(input_ids=torch.as_tensor(np.asarray(batch_toks), device=device))
-    input_ids_with_pads = feed_in["input_ids"]
+    input_ids = torch.as_tensor(np.asarray(batch_toks), device=device)
+    input_ids_with_pads = input_ids
     attention_mask = None
 
-    return feed_in, attention_mask, input_ids_with_pads
+    return input_ids, attention_mask, input_ids_with_pads
 
 
 def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_mult=None, device="cpu", base_model_type="hf"):

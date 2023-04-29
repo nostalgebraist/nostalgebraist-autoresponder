@@ -482,9 +482,6 @@ class NostARHead(nn.Module):
         self.partial_forward_type = partial_forward_type
         self.params_extras = {} if params_extras is None else params_extras
 
-        self.base_model_layer_format = base_model_layer_format
-        self.base_model_attn_format = base_model_attn_format
-        self.base_model_transformer_attr = base_model_transformer_attr
         self.base_model_type = base_model_type
         if self.base_model_type == "hf":
             self.base_model_layer_format="h.{i}"

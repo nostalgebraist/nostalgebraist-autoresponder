@@ -29,7 +29,7 @@ import torch
 import torch.nn.functional as F
 
 from tumblr_to_text.classic.autoresponder_static import ORIG_POST_CHAR_CHINESE
-from classifier_heads.head_nn import NostARHead, NostARHeadArchitectureParams, GPT2TokenizerType, GPTModelType, prep_inputs
+from classifier_heads.head_nn import NostARHead, NostARHeadArchitectureParams, tokenizer_encode, prep_inputs
 from classifier_heads.head_nn_utils import NostARHeadOptimizerParams, get_nost_ar_head_optimizers, get_nost_ar_head_scheduler, cross_entropy_with_flooding, make_huber_loss_from_logits
 from util.util import typed_namedtuple_to_dict
 from ml.kv_cache import kv_buffer_scope
@@ -92,8 +92,8 @@ def reshuffle_batches(train_data_for_selection, batch_size, seed=None):
 class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
     def __init__(
         self,
-        base_model: GPTModelType,
-        tokenizer: GPT2TokenizerType,
+        base_model,
+        tokenizer,
         params: NostARHeadArchitectureParams,
         opt_params: NostARHeadOptimizerParams,
         params_extras=None,
@@ -242,7 +242,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             data = pd.concat([X, y], axis=1)
         if "n_tokens" not in data.columns:
             data["n_tokens"] = data.selector_input.apply(
-                lambda s: len(self.tokenizer.encode(s))
+                lambda s: len(tokenizer_encode(self.tokenizer, self.model_.base_model_type, s))
             )
         data = data.sort_values(by="n_tokens")
         data = reshuffle_batches(data, batch_size=self.opt_params.batch_size, seed=self.shuffle_seed)
@@ -253,8 +253,9 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             data_batch.selector_input.values,
             self.tokenizer,
             max_length=self.length,
-            device=self.base_model.device,
+            device=self.model_.base_model_device,
             pad_to_mult=self.pad_to_mult,
+            base_model_type=self.model_.base_model_type
         )
 
         batch_max_tokens = input_ids.shape[1]
@@ -319,7 +320,6 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             batch_max_tokens = batch_data["batch_max_tokens"]
             batch_target = batch_data["batch_target"]
 
-            # TODO: figure out whether we need logits in float32 explicitly
             logits = self.model_(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
@@ -628,14 +628,19 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
             raise ValueError("badlength")
         input_ids, attention_mask, input_ids_with_pads, _ = self._feed_from_batch(batch)
 
-        # TODO: figure out whether we need logits in float32 explicitly
-        with kv_buffer_scope(self.base_model, False):
-            logits_raw = self.model_(
+        def _logits_raw(model_):
+            return model_(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 input_ids_with_pads=input_ids_with_pads,
                 autocast=self.use_amp_inference,
             ).cpu().detach().numpy()
+
+        if self.model_.base_model_type == 'hf':
+            with kv_buffer_scope(self.base_model, False):
+                logits_raw = _logits_raw(self.model_)
+        else:
+            logits_raw = _logits_raw(self.model_)
 
         if self.regression_target and (self.calibrate and not disable_calibration):
             logits = self._compute_calib_probs(logits_raw, pfcs=batch["prompt_finalchar"])
@@ -675,14 +680,14 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         offset = 1
         for block in self.model_.blocks:
             layer_num = self.model_.last_base_layer_used + offset + 1
-            base_layer = self.base_model.transformer.h[layer_num]
+            base_layer = self.model_.base_model_layer[layer_num]
             base_layer.to(device=self.device)
             base_layers_moved.append(layer_num)
             offset += 1
 
         # move an additional base layer to make room for the head part after the block(s)
         layer_num = self.model_.last_base_layer_used + offset + 1
-        base_layer = self.base_model.transformer.h[layer_num]
+        base_layer = self.model_.base_model_layer[layer_num]
         base_layer.to(device=self.device)
         base_layers_moved.append(layer_num)
 
@@ -712,7 +717,7 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         # move back to orig devices
         self.model_.to(device=self.device)
         for layer_num in base_layers_moved:
-            base_layer = self.base_model.transformer.h[layer_num]
+            base_layer = self.model_.base_model_layer[layer_num]
             base_layer.cuda()
 
         if key == "preds":

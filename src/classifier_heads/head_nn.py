@@ -1,5 +1,5 @@
 import weakref
-from typing import Union, List, NamedTuple, Optional
+from typing import Union, List, NamedTuple, Optional, Literal
 from functools import partial
 
 import numpy as np
@@ -32,7 +32,49 @@ GPTConfigType = Union[GPT2Config, GPTNeoConfig]
 GPTModelType = Union[GPT2LMHeadModel, GPTNeoForCausalLM]
 
 
-def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_mult=256, device="cpu"):
+def tokenizer_encode(tokenizer, base_model_type, s: str):
+    if base_model_type == 'hf':
+        return tokenizer.encode(s)
+    else:
+        return tokenizer.encode(s, 0, 1)
+
+
+def prep_inputs_llama(batch_texts, tokenizer, max_length=2048, device="cpu"):
+    # no BOS at start
+    # EOS at end (extraction token)
+    # BOS used for pad, after EOS
+    batch_texts_ = []
+    for bt in batch_texts:
+        to_append = bt
+        if to_append.endswith("<|endoftext|>"):
+            to_append = to_append[:-len("<|endoftext|>")]
+        if to_append.startswith("<|endoftext|>"):
+            to_append = to_append[len("<|endoftext|>"):]
+        batch_texts_.append(to_append)
+    batch_texts = batch_texts_
+
+    batch_toks = []
+    maxlen = 0
+    for bt in batch_texts:
+        toks = tokenizer.encode(bt, 0, 1)
+        batch_toks.append(toks)
+        maxlen = max(maxlen, len(toks))
+    
+    for i, bt in enumerate(batch_texts):
+        batch_texts[i] = bt + [tokenizer.bos_id] * (maxlen - len(bt))
+
+    # still not using a dataloader...
+    feed_in = dict(input_ids=torch.as_tensor(np.asarray(batch_texts), device=device))
+    input_ids_with_pads = feed_in["input_ids"]
+    attention_mask = None
+
+    return feed_in, attention_mask, input_ids_with_pads
+
+
+def prep_inputs(batch_texts, tokenizer, max_length=2048, pad_to_mult=None, device="cpu", base_model_type="hf"):
+    if base_model_type == "llama":
+        return prep_inputs_llama(batch_texts, tokenizer, max_length=max_length, device=device)
+    
     batch_texts_ = []
     for bt in batch_texts:
         to_append = bt
@@ -123,8 +165,10 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
 
     def __init__(
         self,
-        base_model_config: GPTConfigType,
+        base_model_hidden_size: int,
+        base_model_n_ctx: int,
         n_head: int,
+        base_model_config=None, # hf only
         attn_dropout=0.0,
         res_dropout=0.0,
         layer_norm_epsilon=1e-5,
@@ -138,7 +182,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
     ):
         super().__init__()
 
-        max_positions = base_model_config.max_position_embeddings
+        max_positions = base_model_n_ctx
         self.register_buffer(
             "bias",
             torch.ones((max_positions, max_positions), dtype=torch.uint8).view(1, 1, max_positions, max_positions),
@@ -151,7 +195,7 @@ class NostARHeadAttention(nn.Module, GPTNeoAttentionMixin):
         self.attn_dropout = nn.Dropout(attn_dropout)
         self.res_dropout = nn.Dropout(res_dropout)
 
-        self.embed_dim = base_model_config.hidden_size
+        self.embed_dim = base_model_hidden_size
         self.qk_dim = qk_dim or self.embed_dim
         self.v_dim = v_dim or self.qk_dim
         self.head_dim = self.qk_dim // self.n_head
@@ -417,12 +461,16 @@ def validate_arch_params(params: NostARHeadArchitectureParams):
 class NostARHead(nn.Module):
     def __init__(
         self,
-        base_model: GPTModelType,  # TODO: make compat with GPTNeoModel, etc?
-        tokenizer: GPT2TokenizerType,
+        base_model,
+        tokenizer,
         params: NostARHeadArchitectureParams,
         partial_forward_type="tfu",  # debug
         initialize_weights=True,
-        params_extras=None
+        params_extras=None,
+        base_model_layer_format="h.{i}",
+        base_model_attn_format="h.{i}.attn",
+        base_model_transformer_attr="transformer",
+        base_model_type=Literal["hf", "llama"],
     ):
         validate_arch_params(params)
 
@@ -436,6 +484,11 @@ class NostARHead(nn.Module):
         self.params = params
         self.partial_forward_type = partial_forward_type
         self.params_extras = {} if params_extras is None else params_extras
+
+        self.base_model_layer_format = base_model_layer_format
+        self.base_model_attn_format = base_model_attn_format
+        self.base_model_transformer_attr = base_model_transformer_attr
+        self.base_model_type = base_model_type
 
         if self.params.tune_base_block_mlp:
             self.params = copy_and_update_config(
@@ -458,11 +511,11 @@ class NostARHead(nn.Module):
         return self.params_extras.get("block_parallel_attn_ff", False)
 
     @property
-    def base_model(self) -> GPTModelType:
+    def base_model(self):
         return self._base_model()
 
     @property
-    def tokenizer(self) -> GPT2TokenizerType:
+    def tokenizer(self):
         return self._tokenizer()
 
     @property
@@ -480,14 +533,38 @@ class NostARHead(nn.Module):
         return max(self.layer_nums)
 
     @property
+    def base_model_transformer(self):
+        base_model = self.base_model
+        if self.base_model_transformer_attr:
+            return getattr(base_model, self.base_model_transformer_attr)
+        return base_model
+    
+    def base_model_layer_name(self, i):
+        return self.base_model_layer_format.format(i=i)
+
+    def base_model_attn_name(self, i):
+        return self.base_model_attn_format.format(i=i)
+    
+    def base_model_layer(self, i):
+        name = self.base_model_layer_name(i)
+        return self.base_model_transformer.get_submodule(name)
+
+    @property
+    def base_model_device(self):
+        if self.base_model_type == 'hf':
+            return self.base_model.device
+        elif self.base_model_type == 'llama':
+            return self.base_model.tok_embeddings.weight.device
+
+    @property
     def layer_names(self):
         if self.params.tune_base_block_attn:
             assert min(self.layer_nums) > 0
-            names = [f'h.{i-1}' for i in self.layer_nums]
+            names = [self.base_model_layer_name(i-1) for i in self.layer_nums]
         elif self.params.tune_base_block_mlp:
-            names = [f'h.{i}.attn' for i in self.layer_nums]
+            names = [self.base_model_attn_name(i) for i in self.layer_nums]
         else:
-            names = [f'h.{i}' for i in self.layer_nums]
+            names = [self.base_model_layer_name(i) for i in self.layer_nums]
         return names
 
     @property
@@ -498,7 +575,7 @@ class NostARHead(nn.Module):
 
     @property
     def input_layers(self):
-        return [self.base_model.transformer.h[num] for num in self.layer_nums]
+        return [self.base_model_layer(num) for num in self.layer_nums]
 
     def __str__(self):
         return f"NostARHead(params={repr(self.params)})"
@@ -559,9 +636,16 @@ class NostARHead(nn.Module):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
 
+    @property
+    def base_model_hidden_size(self):
+        if self.base_model_type == 'hf':
+            return self.base_model.config.hidden_size
+        elif self.base_model_type == 'llama':
+            return self.base_model.params.dim
+
     def _setup_blocks(self):
         attn_params = dict(
-            base_model_config=self.base_model.config,
+            base_model_config=self.base_model.config if self.base_model_type == 'hf' else None,
             n_head=self.params.n_head_blocks,
             qk_dim=self.params.qk_dim_blocks,
             attn_dropout=self.params.attn_dropout,
@@ -573,8 +657,9 @@ class NostARHead(nn.Module):
         )
 
         mlp_params = dict(
-            input_size=self.base_model.config.hidden_size,
-            intermediate_size=int(self.base_model.config.hidden_size * self.params.mlp_ratio_blocks),
+            input_size=self.base_model_hidden_size,
+            intermediate_size=int(
+                self.base_model_hidden_size * self.params.mlp_ratio_blocks),
             res_dropout=self.params.res_dropout,
         )
         self.blocks = nn.ModuleList(
@@ -585,7 +670,7 @@ class NostARHead(nn.Module):
                     use_out_gain=self.params.use_block_out_gain,
                     init_gain=self.params.init_gain_blocks_out,
                     gain_scale=self.params.gain_scale_blocks_out,
-                    embed_dim=self.base_model.config.hidden_size,
+                    embed_dim=self.base_model_hidden_size,
                     mlp_only_blocks=self.params.mlp_only_blocks,
                     tune_base_block_attn=self.params.tune_base_block_attn,
                     tune_base_block_mlp=self.params.tune_base_block_mlp,
@@ -602,7 +687,7 @@ class NostARHead(nn.Module):
             [
                 NostARHeadAttention(
                     n_head=nh,
-                    base_model_config=self.base_model.config,
+                    base_model_config=self.base_model.config if self.base_model_type == 'hf' else None,
                     attn_dropout=self.params.attn_dropout,
                     res_dropout=self.params.res_dropout,
                     proj_ratio=self.params.proj_ratio,
@@ -625,13 +710,13 @@ class NostARHead(nn.Module):
         for param in self.base_model.parameters():
             param.requires_grad = False
 
-        add_partial_forward_hooks(self.base_model.transformer, output_names=self.layer_names)
+        add_partial_forward_hooks(self.base_model_transformer, output_names=self.layer_names)
 
         self._setup_blocks()
 
         self._setup_attns()
 
-        mlp_input_size = len(self.layer_nums) * int(self.params.proj_ratio * self.base_model.config.hidden_size)
+        mlp_input_size = len(self.layer_nums) * int(self.params.proj_ratio * self.base_model_hidden_size)
         mlp_intermediate_size = int(mlp_input_size * self.params.mlp_ratio)
 
         if self.params.use_final_mlp:
@@ -643,23 +728,39 @@ class NostARHead(nn.Module):
 
         self.logit_head = nn.Linear(mlp_input_size, 2)
 
+    def make_base_model_forward_kwargs(self, input_ids, attention_mask=None):
+        forward_kwargs = dict()
+
+        if self.base_model_type == 'hf':
+            forward_kwargs['input_ids'] = input_ids
+            forward_kwargs['attention_mask'] = attention_mask
+            forward_kwargs['use_cache'] = False
+        elif self.base_model_type == 'llama':
+            forward_kwargs['tokens'] = input_ids
+            forward_kwargs['start_pos'] = 0
+
+        return forward_kwargs
+
     def forward(
         self,
         input_ids,
         input_ids_with_pads,
-        attention_mask,
+        attention_mask=None,
         head_mask=None,
         output_attentions=False,
         autocast=True,
     ):
+        forward_kwargs = self.make_base_model_forward_kwargs(
+            input_ids=input_ids, 
+            attention_mask=attention_mask
+        )
+
         with torch.cuda.amp.autocast(autocast):
             with torch.no_grad():
                 extracted_activations = partial_forward(
-                    model=self.base_model.transformer,
+                    model=self.base_model_transformer,
                     output_names=self.layer_names,
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                    use_cache=False
+                    **forward_kwargs,
                 )
 
             for block in self.blocks:

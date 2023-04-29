@@ -645,6 +645,13 @@ class NostARHead(nn.Module):
         elif self.base_model_type == 'llama':
             return self.base_model.params.dim
 
+    @property
+    def base_model_n_ctx(self):
+        if self.base_model_type == 'hf':
+            return self.base_model.config.max_position_embeddings
+        elif self.base_model_type == 'llama':
+            return self.base_model.params.max_seq_len
+
     def _setup_blocks(self):
         attn_params = dict(
             base_model_config=self.base_model.config if self.base_model_type == 'hf' else None,
@@ -690,6 +697,8 @@ class NostARHead(nn.Module):
                 NostARHeadAttention(
                     n_head=nh,
                     base_model_config=self.base_model.config if self.base_model_type == 'hf' else None,
+                    base_model_hidden_size=self.base_model_hidden_size,
+                    base_model_n_ctx=self.base_model_n_ctx,
                     attn_dropout=self.params.attn_dropout,
                     res_dropout=self.params.res_dropout,
                     proj_ratio=self.params.proj_ratio,

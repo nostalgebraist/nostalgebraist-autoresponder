@@ -57,6 +57,7 @@ def prep_inputs_llama(batch_texts, tokenizer, max_length=2048, device="cpu"):
     maxlen = 0
     for bt in batch_texts:
         toks = tokenizer.encode(bt, 0, 1)
+        toks = toks[-max_length:]
         batch_toks.append(toks)
         maxlen = max(maxlen, len(toks))
     

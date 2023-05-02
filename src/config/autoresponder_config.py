@@ -700,6 +700,7 @@ captioning_adapters_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 autocast_recommended = GPU_TYPE != 'small'
 
 MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
+MODELS_SERVED_LLAMA = {"generator", "selector", "sentiment", "autoreviewer"}
 
 if V12_16:
     MODELS_SERVED.add("captioner")

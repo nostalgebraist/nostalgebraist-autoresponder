@@ -371,7 +371,7 @@ def next_queued_post_time():
     next_queued_dt_pst = fromtimestamp_pst(next_queued_ts)
 
     print(f"inferred next_queued_dt_pst {next_queued_dt_pst}")
-    return next_queued_dt_pst
+    return next_queued_dt_pst, next_queued_ts
 
 
 def determine_mood(
@@ -3414,14 +3414,14 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
     if should_write_testpost:
         for textpost_ix in range(N_TO_WRITE):
-            timestamp = next_queued_post_time()
-            mood_for_queue_writing = determine_mood(response_cache, dt=timestamp)
+            timestamp_pst, timestamp_posix = next_queued_post_time()
+            mood_for_queue_writing = determine_mood(response_cache, dt=timestamp_pst)
 
             print(f"writing new text post... ({textpost_ix}/{N_TO_WRITE})")
 
             prompts, prompts_selector, prompts_autoreviewer, prompts_probs = make_nwo_textpost_prompts(
                 blog_name=blogName,
-                timestamp=timestamp,
+                timestamp=timestamp_posix,
                 sample_year_for_generator=SAMPLE_YEAR_FOR_GENERATOR,
                 endtags=ENDTAGS,
             )

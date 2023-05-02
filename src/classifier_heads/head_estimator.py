@@ -697,6 +697,12 @@ class NostARHeadEstimator(BaseEstimator, ClassifierMixin):
         base_layer.to(device=self.device)
         base_layers_moved.append(layer_num)
 
+
+        if self.model_.base_model_type == 'llama':
+            for layer_num in range(self.model_.last_base_layer_used + offset + 2,  len(self.model_.base_model.layers)):
+                base_layer = self.model_.base_model_layer(layer_num)
+                base_layer.to(device=self.device)
+                base_layers_moved.append(layer_num)
         self.model_.cuda()
 
         # predict

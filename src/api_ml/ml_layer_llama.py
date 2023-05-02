@@ -17,6 +17,8 @@ from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 from ml.split_checkpoint import SplitCheckpoint
 
+from classifier_heads.head_estimator import NostARHeadEstimator
+
 from util.util import collect_and_show, show_gpu
 
 BRIDGE_SERVICE_REMOTE_HOST, bridge_service_port = None, None
@@ -317,9 +319,45 @@ class GeneratorModelLlama:
         }
 
 
+def load_head(path, base_model, tokenizer, retries=False, **kwargs):
+    selector_est = NostARHeadEstimator.load(
+        path,
+        base_model=base_model,
+        tokenizer=tokenizer,
+        inference_batch_size=head_inference_batch_size,
+        use_amp_inference=autocast_recommended,
+        device=head_load_device,
+        blocks_inference_device_attn=head_inference_blocks_device_attn,
+        blocks_inference_device_mlp=head_inference_blocks_device_mlp,
+        **kwargs
+    )
+    return selector_est
+
+
+
 generator_model = GeneratorModelLlama(load_kwargs=LLAMA_CUSTOM_LOAD_KWARGS)
 
 model_name = generator_model.load_kwargs['ckpt_dir']
+
+
+if "selector" in MODELS_SERVED:
+    selector_est = load_head(
+        ckpt_select, base_model=generator_model.gen_model.model, tokenizer=generator_model.gen_model.tokenizer
+    )
+    selector_est.length = length_select
+
+if "sentiment" in MODELS_SERVED:
+    sentiment_est = load_head(
+        ckpt_sentiment, base_model=generator_model.gen_model.model, tokenizer=generator_model.gen_model.tokenizer
+    )
+    sentiment_est.length = length_sentiment
+
+if "autoreviewer" in MODELS_SERVED:
+    autoreviewer_est = load_head(
+        ckpt_autoreviewer, base_model=generator_model.gen_model.model, tokenizer=generator_model.gen_model.tokenizer
+    )
+    autoreviewer_est.length = length_autoreview
+
 
 DEPRECATED_KWARGS = {"mirotarg"}
 
@@ -374,6 +412,14 @@ def poll(
                     multirequest_sequence_in_process = False
                     UNSERVABLE_REQUESTS.add(prompt_id)
                     continue
+            elif data["model"] == "selector":
+                requested_model = selector_est
+                multirequest_sequence_in_process = "autoreviewer" in MODELS_SERVED
+            elif data["model"] == "sentiment":
+                requested_model = sentiment_est
+            elif data["model"] == "autoreviewer":
+                requested_model = autoreviewer_est
+                multirequest_sequence_in_process = False
 
             requested_args, requested_kwargs = data.get("args", []), data.get(
                 "kwargs", {}

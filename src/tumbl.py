@@ -3421,7 +3421,7 @@ def do_queue_handling(loop_persistent_data, response_cache):
 
             prompts, prompts_selector, prompts_autoreviewer, prompts_probs = make_nwo_textpost_prompts(
                 blog_name=blogName,
-                timestamp=timestamp_posix,
+                timestamp_posix_utc=timestamp_posix,
                 sample_year_for_generator=SAMPLE_YEAR_FOR_GENERATOR,
                 endtags=ENDTAGS,
             )

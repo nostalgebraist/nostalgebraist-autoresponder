@@ -561,7 +561,7 @@ def serve_selection(
 
 def get_retention_stack_judgments(retention_stack,
                                   blog_name="nostalgebraist-autoresponder",  # TODO (cleanup): improve
-                                  timestamp=None
+                                  timestamp_posix_utc=None
                                   ):
     from api_ml.ml_connector import (
         selection_proba_from_gpt,
@@ -570,8 +570,8 @@ def get_retention_stack_judgments(retention_stack,
     )
     from tumblr_to_text.nwo_munging import make_nwo_textpost_prompts
 
-    if timestamp is None:
-        timestamp = datetime.now()
+    if timestamp_posix_utc is None:
+        timestamp_posix_utc = datetime.now().timestamp()
 
     if len(retention_stack) == 0:
         proba, logit_diffs, autoreview_proba = [], [], []
@@ -581,7 +581,7 @@ def get_retention_stack_judgments(retention_stack,
 
     prompts, prompts_selector, prompts_autoreviewer, _ = make_nwo_textpost_prompts(
         blog_name=blog_name,
-        timestamp=timestamp,
+        timestamp_posix_utc=timestamp_posix_utc,
         endtags=ENDTAGS,
     )
 

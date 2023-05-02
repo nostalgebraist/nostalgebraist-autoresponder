@@ -522,7 +522,7 @@ def adjust_best_of(best_of, mood, is_textpost):
     )
 
     print(
-        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over best_of={best_of}"
+        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of:.3f} extra over best_of={best_of}"
     )
     best_of += discounted_extra_best_of
     print(f"discounting to {discounted_extra_best_of} --> best_of={best_of}")

@@ -513,12 +513,12 @@ def adjust_best_of(best_of, mood, is_textpost):
     )
 
     raw_extra_best_of = (
-        int(np.round(best_of / (1 - expected_rejection_frac)))
+        round(best_of / (1 - expected_rejection_frac), 3)
         - best_of
     )
     discount = EXPECTED_REJECTION_MULT_TEXTPOST if is_textpost else EXPECTED_REJECTION_MULT
     discounted_extra_best_of = int(
-        np.round(raw_extra_best_of * discount)
+        round(raw_extra_best_of * discount, 0)
     )
 
     print(

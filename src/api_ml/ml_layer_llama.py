@@ -296,6 +296,7 @@ class GeneratorModelLlama:
                 return_stop_reason=True,
                 decode=False,
                 progress_bar=verbose,
+                progress_bar_show_text=verbose,
                 **generate_kwargs_
             )
 

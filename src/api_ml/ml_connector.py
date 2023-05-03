@@ -216,7 +216,7 @@ def basic_n_continuations(
     avoid_if_says_frank=False,
     permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
     mirotarg=None,
-    verbose=False,
+    verbose=True,
 ):
     bridge_service_url = get_bridge_service_url()
 

@@ -260,7 +260,7 @@ class GeneratorModelLlama:
 
         self.eos_token = self.gen_model.tokenizer.encode("", bos=False, eos=True)[0]
 
-    def write_random_prompt(self, prompts: list, probs: list, verbose=False):
+    def write_random_prompt(self, prompts: list, probs: list, verbose=True):
         prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))
         return self.write(prompt=prompt, verbose=verbose)
 

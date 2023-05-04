@@ -357,7 +357,7 @@ class GeneratorModelLlama:
         prob_ref = self.get_next_probs(text_ref, forbidden_tokens=[], to_numpy=True)[token]
         prob = self.get_next_probs(text, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]
 
-        delta = np.log(prob) - np.log(prob_ref)
+        delta = np.log(prob + 1e-5) - np.log(prob_ref + 1e-5)
 
         print(f"text {text},  text_ref {text_ref}, delta {delta}, prob {prob}, prob_ref {prob_ref}")
 

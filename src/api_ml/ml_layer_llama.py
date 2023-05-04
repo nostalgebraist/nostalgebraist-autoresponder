@@ -350,15 +350,17 @@ class GeneratorModelLlama:
 
         forbidden_tokens = [self.gen_model.tokenizer.encode(
             s, 0, 0)[0] for s in forbidden_strings]
+        
+        if not text_ref.startswith('\n\n'):
+            text_ref = '\n\n' + text_ref
 
         prob_ref = self.get_next_probs(text_ref, forbidden_tokens=[], to_numpy=True)[token]
         prob = self.get_next_probs(text, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]
 
-        try:
-            delta = np.log(prob) - np.log(prob_ref)
-        except Exception as e:
-            print(repr(e))
-            print((prob, prob_ref))
+        delta = np.log(prob) - np.log(prob_ref)
+        
+        if np.isnan(delta) or np.isinf(delta):
+            print((delta, prob, prob_ref))
             delta = 0.
 
         delta = float(delta)

@@ -358,9 +358,10 @@ class GeneratorModelLlama:
         prob = self.get_next_probs(text, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]
 
         delta = np.log(prob) - np.log(prob_ref)
-        
+
+        print(f"text {text},  text_ref {text_ref}, delta {delta}, prob {prob}, prob_ref {prob_ref}")
+
         if np.isnan(delta) or np.isinf(delta):
-            print((delta, prob, prob_ref))
             delta = 0.
 
         delta = float(delta)

@@ -413,7 +413,12 @@ class GeneratorModelTorch:
         prob_ref = self.get_next_probs(text_ref, forbidden_tokens=[], to_numpy=True)[token]
         prob = self.get_next_probs(text, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]
 
-        delta = np.log(prob) - np.log(prob_ref)
+        try:
+            delta = np.log(prob) - np.log(prob_ref)
+        except Exception as e:
+            print(repr(e))
+            print((prob, prob_ref))
+            delta = 0.
         delta = float(delta)
         return delta
 

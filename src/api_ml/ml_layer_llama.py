@@ -326,7 +326,7 @@ class GeneratorModelLlama:
         tokens = [t[-self.n_ctx:] for t in tokens]
 
         tokens = torch.as_tensor(tokens, device='cuda')
-        logits = self.gen_model.model(tokens)[0, -1]
+        logits = self.gen_model.model(tokens, 0)[0, -1]
         if to_numpy:
             logits = logits.cpu().numpy()
         return logits

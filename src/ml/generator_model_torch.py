@@ -402,7 +402,7 @@ class GeneratorModelTorch:
 
     def get_prob_delta_over_ref(self, text: str, text_ref: str, token_str: str,
                                 forbidden_strings: List[str],
-                                use_logprobs=True):
+                                ):
         if token_str in forbidden_strings:
             return 0.
 

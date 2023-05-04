@@ -24,7 +24,7 @@ import ml.generator_model_torch
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
-GENERATOR_METHODS_SERVED = "all_except_write"
+GENERATOR_METHODS_SERVED = "all_except_write_prob_delt"
 
 BRIDGE_SERVICE_REMOTE_HOST, bridge_service_port = None, None
 
@@ -339,6 +339,12 @@ def poll(
                     UNSERVABLE_REQUESTS.add(prompt_id)
                     continue
                 if GENERATOR_METHODS_SERVED == 'only_write' and requested_method not in {'write', 'write_random_prompt'}:
+                    multirequest_sequence_in_process = False
+                    UNSERVABLE_REQUESTS.add(prompt_id)
+                    continue
+                if GENERATOR_METHODS_SERVED == 'all_except_write_prob_delt' and requested_method in {
+                    'write', 'write_random_prompt', 'get_prob_delta_over_ref_multi'
+                }:
                     multirequest_sequence_in_process = False
                     UNSERVABLE_REQUESTS.add(prompt_id)
                     continue

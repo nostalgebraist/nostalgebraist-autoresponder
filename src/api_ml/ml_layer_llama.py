@@ -2,6 +2,7 @@ import sys
 import time
 from io import StringIO
 from functools import partial
+from typing import List
 
 import requests
 import numpy as np
@@ -30,7 +31,7 @@ try:
 except FileNotFoundError:
     print("No config file found. Running in local mode.")
 
-GENERATOR_METHODS_SERVED = "only_write"
+GENERATOR_METHODS_SERVED = "only_write_prob_delt"
 MODELS_SERVED = {"generator"}
 
 CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V10_2"]
@@ -316,6 +317,51 @@ class GeneratorModelLlama:
                 "prompt_for_neural": prompt_orig,
             },
         }
+    
+    @torch.no_grad()
+    def get_next_logits(self, text: str, to_numpy=True):
+        tokens = [
+            [self.eos_token] + self.gen_model.tokenizer.encode(text, bos=False, eos=False)
+        ]
+        tokens = [t[-self.n_ctx:] for t in tokens]
+
+        tokens = torch.tensor(tokens).cuda()
+        logits = self.gen_model.model(tokens)[0, -1]
+        if to_numpy:
+            logits = logits.cpu().numpy()
+        return logits
+
+    def get_next_probs(self, text: str, forbidden_tokens: List[int] = None, to_numpy=True):
+        logits = self.get_next_logits(text, to_numpy=False)
+        if forbidden_tokens is not None:
+            logits[forbidden_tokens] = -np.inf
+        probs = torch.softmax(logits, dim=-1)
+        if to_numpy:
+            probs = probs.cpu().numpy()
+        return probs
+    
+    def get_prob_delta_over_ref(self, text: str, text_ref: str, token_str: str,
+                                forbidden_strings: List[str],
+                                ):
+        if token_str in forbidden_strings:
+            return 0.
+        
+        token = self.tokenizer.encode(token_str, 0, 0)[0]
+
+        forbidden_tokens = [self.tokenizer.encode(s, 0, 0)[0] for s in forbidden_strings]
+
+        prob_ref = self.get_next_probs(text_ref, forbidden_tokens=[], to_numpy=True)[token]
+        prob = self.get_next_probs(text, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]
+
+        delta = np.log(prob) - np.log(prob_ref)
+        delta = float(delta)
+        return delta
+
+    def get_prob_delta_over_ref_multi(self, text: List[str], text_ref: List[str], token_str: str,
+                                      forbidden_strings: List[List[str]]):
+        return [self.get_prob_delta_over_ref(t, tr, token_str, fs)
+                for t, tr, fs in zip(text, text_ref, forbidden_strings)]
+
 
 
 generator_model = GeneratorModelLlama(load_kwargs=LLAMA_CUSTOM_LOAD_KWARGS)
@@ -372,6 +418,12 @@ def poll(
                     UNSERVABLE_REQUESTS.add(prompt_id)
                     continue
                 if GENERATOR_METHODS_SERVED == 'only_write' and requested_method not in {'write', 'write_random_prompt'}:
+                    multirequest_sequence_in_process = False
+                    UNSERVABLE_REQUESTS.add(prompt_id)
+                    continue
+                if GENERATOR_METHODS_SERVED == 'only_write_prob_delt' and requested_method not in {
+                    'write', 'write_random_prompt', 'get_prob_delta_over_ref_multi'
+                }:
                     multirequest_sequence_in_process = False
                     UNSERVABLE_REQUESTS.add(prompt_id)
                     continue

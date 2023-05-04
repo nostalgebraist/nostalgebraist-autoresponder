@@ -391,7 +391,7 @@ class GeneratorModelTorch:
         logits = self.get_next_logits(text, to_numpy=False)
 
         if forbidden_tokens:
-            logits[forbidden_tokens] = 0
+            logits[forbidden_tokens] = -1000.
 
         probs = torch.softmax(logits, dim=-1)
 

@@ -325,7 +325,7 @@ class GeneratorModelLlama:
         ]
         tokens = [t[-self.n_ctx:] for t in tokens]
 
-        tokens = torch.tensor(tokens).cuda()
+        tokens = torch.as_tensor(tokens, device='cuda')
         logits = self.gen_model.model(tokens)[0, -1]
         if to_numpy:
             logits = logits.cpu().numpy()
@@ -334,7 +334,7 @@ class GeneratorModelLlama:
     def get_next_probs(self, text: str, forbidden_tokens: List[int] = None, to_numpy=True):
         logits = self.get_next_logits(text, to_numpy=False)
         if forbidden_tokens is not None:
-            logits[forbidden_tokens] = -np.inf
+            logits[forbidden_tokens] = -1000.
         probs = torch.softmax(logits, dim=-1)
         if to_numpy:
             probs = probs.cpu().numpy()
@@ -346,9 +346,10 @@ class GeneratorModelLlama:
         if token_str in forbidden_strings:
             return 0.
         
-        token = self.tokenizer.encode(token_str, 0, 0)[0]
+        token = self.gen_model.tokenizer.encode(token_str, 0, 0)[0]
 
-        forbidden_tokens = [self.tokenizer.encode(s, 0, 0)[0] for s in forbidden_strings]
+        forbidden_tokens = [self.gen_model.tokenizer.encode(
+            s, 0, 0)[0] for s in forbidden_strings]
 
         prob_ref = self.get_next_probs(text_ref, forbidden_tokens=[], to_numpy=True)[token]
         prob = self.get_next_probs(text, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]

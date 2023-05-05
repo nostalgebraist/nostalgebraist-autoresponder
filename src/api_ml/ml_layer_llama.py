@@ -319,7 +319,7 @@ class GeneratorModelLlama:
         }
     
     @torch.no_grad()
-    def get_next_logits(self, text: str, to_numpy=True):
+    def get_next_logits(self, tokens: list, to_numpy=True):
         tokens = [
             [self.eos_token] + self.gen_model.tokenizer.encode(text, bos=False, eos=False)
         ]
@@ -341,8 +341,8 @@ class GeneratorModelLlama:
             logits = logits.cpu().numpy()
         return logits
 
-    def get_next_probs(self, text: str, forbidden_tokens: List[int] = None, to_numpy=True):
-        logits = self.get_next_logits(text, to_numpy=False)
+    def get_next_probs(self, tokens: list, forbidden_tokens: List[int] = None, to_numpy=True):
+        logits = self.get_next_logits(tokens, to_numpy=False)
         if forbidden_tokens is not None:
             logits[forbidden_tokens] = -1000.
         probs = torch.softmax(logits, dim=-1)
@@ -361,11 +361,13 @@ class GeneratorModelLlama:
         forbidden_tokens = [self.gen_model.tokenizer.encode(
             s, 0, 0)[0] for s in forbidden_strings]
         
-        if not text_ref.startswith('\n\n'):
-            text_ref = '\n\n' + text_ref
+        text_ref = ' \n\n' + text_ref
+        text_ref_tokens = [self.gen_model.tokenizer.encode(text_ref, 0, 0)[1:]]
 
-        prob_ref = self.get_next_probs(text_ref, forbidden_tokens=[], to_numpy=True)[token]
-        prob = self.get_next_probs(text, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]
+        text_tokens = [[self.eos_token] + self.gen_model.tokenizer.encode(text, 0, 0)]
+
+        prob_ref = self.get_next_probs(text_ref_tokens, forbidden_tokens=[], to_numpy=True)[token]
+        prob = self.get_next_probs(text_tokens, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]
 
         delta = np.log(prob + 1e-5) - np.log(prob_ref + 1e-5)
 

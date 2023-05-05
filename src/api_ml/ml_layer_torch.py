@@ -24,7 +24,7 @@ import ml.generator_model_torch
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
-GENERATOR_METHODS_SERVED = "all_except_write_prob_delt"
+GENERATOR_METHODS_SERVED = "all_except_write"
 
 BRIDGE_SERVICE_REMOTE_HOST, bridge_service_port = None, None
 

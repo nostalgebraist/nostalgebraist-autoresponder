@@ -323,10 +323,23 @@ class GeneratorModelLlama:
         tokens = [
             [self.eos_token] + self.gen_model.tokenizer.encode(text, bos=False, eos=False)
         ]
-        tokens = [t[-self.n_ctx:] for t in tokens]
+        tokens = [t[-self.max_context_size:] for t in tokens]
 
         tokens = torch.as_tensor(tokens, device='cuda')
-        logits = self.gen_model.model(tokens, 0)[0, -1]
+        
+
+        cache_build_size = self.generate_kwargs.get('cache_build_size')
+        prev_pos = 0
+        cur_pos = tokens.shape[1]
+        if cache_build_size is not None:
+            while cur_pos - prev_pos > cache_build_size:
+                self.gen_model.model(
+                    self.tokens[:, prev_pos:prev_pos + cache_build_size],
+                    prev_pos
+                )
+                prev_pos = prev_pos + cache_build_size
+        logits = self.gen_model.model(tokens, prev_pos)[0, -1]
+
         if to_numpy:
             logits = logits.cpu().numpy()
         return logits

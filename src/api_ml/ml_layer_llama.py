@@ -261,7 +261,7 @@ class GeneratorModelLlama:
 
         self.eos_token = self.gen_model.tokenizer.encode("", bos=False, eos=True)[0]
 
-    def write_random_prompt(self, prompts: list, probs: list, verbose=True):
+    def write_random_prompt(self, prompts: list, probs: list, verbose=False):
         prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))
         return self.write(prompt=prompt, verbose=verbose)
 
@@ -269,7 +269,7 @@ class GeneratorModelLlama:
     def max_context_size(self):
         return self.n_ctx - self.required_continuation_room
 
-    def write(self, prompt: str, verbose=True, max_length_per_feed=None):
+    def write(self, prompt: str, verbose=False, max_length_per_feed=None):
         max_length_per_feed = max_length_per_feed or self.max_continue_tokens
         done = False
 
@@ -327,7 +327,6 @@ class GeneratorModelLlama:
 
         tokens = torch.as_tensor(tokens, device='cuda')
         
-
         cache_build_size = self.generate_kwargs.get('cache_build_size')
         prev_pos = 0
         cur_pos = tokens.shape[1]

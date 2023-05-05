@@ -334,11 +334,9 @@ class GeneratorModelLlama:
         if cache_build_size is not None:
             while cur_pos - prev_pos > cache_build_size:
                 self.gen_model.model(
-                    tokens[:, prev_pos:prev_pos + cache_build_size],
-                    prev_pos
-                )
+                    tokens[:, prev_pos:prev_pos + cache_build_size], prev_pos)
                 prev_pos = prev_pos + cache_build_size
-        logits = self.gen_model.model(tokens, prev_pos)[0, -1]
+        logits = self.gen_model.model(tokens[:, prev_pos:cur_pos], prev_pos)[0, -1]
 
         if to_numpy:
             logits = logits.cpu().numpy()

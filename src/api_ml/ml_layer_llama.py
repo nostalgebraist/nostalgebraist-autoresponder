@@ -368,7 +368,10 @@ class GeneratorModelLlama:
 
         delta = np.log(prob + 1e-5) - np.log(prob_ref + 1e-5)
 
-        print(f"text {text},  text_ref {text_ref}, delta {delta}, prob {prob}, prob_ref {prob_ref}")
+        print(f"text {text},  text_ref {text_ref}, token_str {token_str}, forbidden_strings {forbidden_strings}")
+        print(f"token {token}, text_tokens[-8:] {text_tokens[-8:]}, text_ref_tokens[-8:] {text_ref_tokens[-8:]}")
+        print(f"delta {delta}, prob {prob}, prob_ref {prob_ref}")
+        print()
 
         if np.isnan(delta) or np.isinf(delta):
             delta = 0.

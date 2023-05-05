@@ -320,9 +320,6 @@ class GeneratorModelLlama:
     
     @torch.no_grad()
     def get_next_logits(self, tokens: list, to_numpy=True):
-        tokens = [
-            [self.eos_token] + self.gen_model.tokenizer.encode(text, bos=False, eos=False)
-        ]
         tokens = [t[-self.max_context_size:] for t in tokens]
 
         tokens = torch.as_tensor(tokens, device='cuda')

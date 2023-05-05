@@ -334,7 +334,7 @@ class GeneratorModelLlama:
         if cache_build_size is not None:
             while cur_pos - prev_pos > cache_build_size:
                 self.gen_model.model(
-                    self.tokens[:, prev_pos:prev_pos + cache_build_size],
+                    tokens[:, prev_pos:prev_pos + cache_build_size],
                     prev_pos
                 )
                 prev_pos = prev_pos + cache_build_size

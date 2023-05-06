@@ -219,7 +219,20 @@ if not os.path.exists(generator_path):
     subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
 
 # HEADS: download if necessary
-head_paths = [ckpt_select, ckpt_sentiment, ckpt_autoreviewer, ckpt_captioner]
+head_paths = []
+
+if "selector" in MODELS_SERVED:
+    head_paths.append(ckpt_select)
+
+if "sentiment" in MODELS_SERVED:
+    head_paths.append(ckpt_sentiment)
+
+if "autoreviewer" in MODELS_SERVED:
+    head_paths.append(ckpt_autoreviewer)
+
+if "captioner" in MODELS_SERVED:
+    head_paths.append(ckpt_captioner)
+
 needs_head_download = not all(os.path.exists(path) for path in head_paths)
 heads_tar_path = ""
 

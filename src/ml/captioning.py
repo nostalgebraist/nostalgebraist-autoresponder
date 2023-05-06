@@ -1,8 +1,13 @@
 from functools import lru_cache
+from io import BytesIO
 
 import torch as th
+import requests
 
-from PIL import Image
+from PIL.Image import Image
+
+import open_clip
+
 from magma import Magma
 from magma.image_input import ImageInput
 from magma.sampling import generate_cfg
@@ -107,3 +112,43 @@ def caption_image(
         deactivate_magma(magma_wrapper, adapters_device=adapters_device)
 
     return caption
+
+
+class CoCa:
+    def __init__(self, model, transform, device='cpu'):
+        self.model = model
+        self.transform = transform
+        self.device = device
+
+        self.model.to(device)
+
+    @staticmethod
+    def load(device='cpu'):
+        model, _, transform = open_clip.create_model_and_transforms(
+            model_name="coca_ViT-L-14",
+            pretrained="mscoco_finetuned_laion2B-s13B-b90k"
+        )
+        return CoCa(model, transform, device)
+    
+    def caption(self, url: str, top_p=0.5, max_len=30):
+        response = requests.get(url)
+        im = Image.open(BytesIO(response.content))
+
+        kwargs = dict(
+            generation_type='top_p',
+            top_p=top_p,
+            seq_len=max_len,
+            top_k=None,
+            num_beams=None,
+            num_beam_groups=None,
+            temperature=1,
+        )
+
+
+        with th.no_grad():
+            im = self.transform(im).unsqueeze(0)
+            generated = self.model.generate(im, **kwargs)
+
+        generated_text = open_clip.decode(generated[0])
+        generated_text = generated_text.split("<end_of_text>")[0].replace("<start_of_text>", "")
+        return generated_text

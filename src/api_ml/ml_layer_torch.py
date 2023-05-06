@@ -271,6 +271,11 @@ if "autoreviewer" in MODELS_SERVED:
     autoreviewer_est = load_selector(ckpt_autoreviewer, base_model=generator_model.transformers_model, tokenizer=tokenizer)
     autoreviewer_est.length = length_autoreview
 
+captioner_coca = None
+
+if "captioner_coca" in MODELS_SERVED:
+    captioner_coca = ml.captioning.CoCa.load()
+
 DEPRECATED_KWARGS = {"mirotarg"}
 
 t_ready = time.time()
@@ -328,6 +333,9 @@ def poll(
             elif data["model"] == "captioner":
                 requested_model = magma_wrapper
                 multirequest_sequence_in_process = True
+            elif data["model"] == "captioner_coca":
+                requested_model = captioner_coca
+                multirequest_sequence_in_process = True
             else:
                 raise ValueError(f"requested_model: {data.get('model')}")
 
@@ -361,7 +369,7 @@ def poll(
             # keep magma activated over strings of captioning requests
             if data["model"] == "captioner":
                 requested_kwargs['deactivate_when_done'] = False
-            elif len(magma_wrapper.adapter_map) == 0:
+            elif magma_wrapper is not None and len(magma_wrapper.adapter_map) == 0:
                 # need magma decativated, but adapters are attached
                 ml.captioning.deactivate_magma(
                     magma_wrapper,

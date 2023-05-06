@@ -160,11 +160,26 @@ class CaptionerModelInterface(MLModelInterface):
         )
 
 
+class CaptionerCoCaModelInterface(MLModelInterface):
+    def __init__(self):
+        self.name = 'captioner_coca'
+        self.uses_bridge_cache = True
+
+    def caption(self, *args, repeat_until_done_signal=False, **kwargs):
+        return self.do(
+            "caption",
+            repeat_until_done_signal=repeat_until_done_signal,
+            *args,
+            **kwargs,
+        )
+
+
 generator_model = GeneratorModelInterface()
 selector_est = SideJudgmentModelInterface("selector")
 sentiment_est = SideJudgmentModelInterface("sentiment")
 autoreviewer_est = SideJudgmentModelInterface("autoreviewer")
 captioner = CaptionerModelInterface()
+captioner_coca = CaptionerCoCaModelInterface()
 
 
 def get_textpost_prompts():
@@ -926,15 +941,23 @@ def caption_image(url: str, **kwargs):
     return captioner.caption_image(url, **kwargs)
 
 
-def caption_images_in_post_html(text: str, write_to_archive=True, verbose=True):
+def caption_image_coca(url: str, **kwargs):
+    return captioner_coca.caption(url, **kwargs)
+
+
+def caption_images_in_post_html(text: str, write_to_archive=True, verbose=True, use_coca=COCA_CAPTIONING):
     def _normed_url_to_replacement(normed_url, imtext):
         # note: normed_url is just a url here since disable_url_norm=True below
 
-        guidance_scale = 0.5 if len(imtext) == 0 else 0.0
-        if verbose:
-            print(f"using guidance_scale {guidance_scale} to caption {repr(normed_url)} with imtext {repr(imtext)}")
-        kwargs = dict(temperature=1, top_p=0.9, guidance_scale=guidance_scale)
-        result = caption_image(normed_url, **kwargs)[0]['result']
+        if use_coca:
+            kwargs = dict(top_p=0.5)
+            result = caption_image(normed_url, use_coca=True, **kwargs)[0]['result']
+        else:
+            guidance_scale = 0.5 if len(imtext) == 0 else 0.0
+            if verbose:
+                print(f"using guidance_scale {guidance_scale} to caption {repr(normed_url)} with imtext {repr(imtext)}")
+            kwargs = dict(temperature=1, top_p=0.9, guidance_scale=guidance_scale)
+            result = caption_image(normed_url, use_coca=False, **kwargs)[0]['result']
         if result is not None:
             capt, msg = result
         else:

@@ -4,7 +4,7 @@ from io import BytesIO
 import torch as th
 import requests
 
-from PIL.Image import Image
+from PIL import Image
 
 import open_clip
 

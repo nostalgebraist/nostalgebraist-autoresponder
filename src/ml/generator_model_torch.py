@@ -369,6 +369,8 @@ class GeneratorModelTorch:
         input_ids = [input_ids[0][-self.max_context_size:]] * self.batch_size
         input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
+        print(f"input_ids[0][-8:] {input_ids[0][-8:]}")
+
         past = None
         if self.using_kv_buffer:
             input_ids_th, past = self.compute_kv_cache(input_ids_th)
@@ -414,11 +416,17 @@ class GeneratorModelTorch:
         prob = self.get_next_probs(text, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]
 
         try:
-            delta = np.log(prob) - np.log(prob_ref)
+            delta = np.log(prob + 1e-5) - np.log(prob_ref + 1e-5)
         except Exception as e:
             print(repr(e))
             print((prob, prob_ref))
             delta = 0.
+
+        print(f"text {repr(text)},  text_ref {(repr(text_ref))}, token_str {repr(token_str)}, forbidden_strings {forbidden_strings}")
+        print(f"token {repr(token)}")
+        print(f"delta {delta}, prob {prob}, prob_ref {prob_ref}")
+        print()
+
         delta = float(delta)
         return delta
 

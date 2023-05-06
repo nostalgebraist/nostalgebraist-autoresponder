@@ -699,6 +699,7 @@ captioning_adapters_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 
 autocast_recommended = GPU_TYPE != 'small'
 
+LLAMA_PROB_DELT = True
 COCA_CAPTIONING = True
 
 MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
@@ -710,7 +711,13 @@ if COCA_CAPTIONING:
     MODELS_SERVED.remove("captioner")
     MODELS_SERVED.add("captioner_coca")
 
-GENERATOR_METHODS_SERVED = "all"  # "all", "only_write", "all_except_write"
+# "all", "only_write", "only_write_prob_delt", "all_except_write", "all_except_write_prob_delt"
+if LLAMA_PROB_DELT:
+    GENERATOR_METHODS_SERVED_LLAMA = "only_write_prob_delt"
+    GENERATOR_METHODS_SERVED_LEGACY = "all_except_write_prob_delt"
+else:
+    GENERATOR_METHODS_SERVED_LLAMA = "only_write"
+    GENERATOR_METHODS_SERVED_LEGACY = "all_except_write"
 
 LLAMA_BIG = 1
 LLAMA_SPLIT_CKPT = 1

@@ -31,7 +31,7 @@ try:
 except FileNotFoundError:
     print("No config file found. Running in local mode.")
 
-GENERATOR_METHODS_SERVED = "only_write_prob_delt"
+GENERATOR_METHODS_SERVED = GENERATOR_METHODS_SERVED_LLAMA
 MODELS_SERVED = {"generator"}
 
 CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V10_2"]
@@ -353,23 +353,25 @@ class GeneratorModelLlama:
         if token_str in forbidden_strings:
             return 0.
         
+        token_str = token_str.lstrip(' ')
+
         token = self.gen_model.tokenizer.encode(token_str, 0, 0)[0]
 
         forbidden_tokens = [self.gen_model.tokenizer.encode(
             s, 0, 0)[0] for s in forbidden_strings]
         
         text_ref = ' \n\n' + text_ref
-        text_ref_tokens = [self.gen_model.tokenizer.encode(text_ref, 0, 0)[1:]]
 
-        text_tokens = [[self.eos_token] + self.gen_model.tokenizer.encode(text, 0, 0)]
+        text_ref_tokens = [self.gen_model.tokenizer.encode(text_ref, 0, 0)[1:]]
+        text_tokens = [self.gen_model.tokenizer.encode(text, 0, 0)]
 
         prob_ref = self.get_next_probs(text_ref_tokens, forbidden_tokens=[], to_numpy=True)[token]
         prob = self.get_next_probs(text_tokens, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]
 
         delta = np.log(prob + 1e-5) - np.log(prob_ref + 1e-5)
 
-        print(f"text {text},  text_ref {text_ref}, token_str {token_str}, forbidden_strings {forbidden_strings}")
-        print(f"token {token}, text_tokens[-8:] {text_tokens[-8:]}, text_ref_tokens[-8:] {text_ref_tokens[-8:]}")
+        print(f"text {repr(text)},  text_ref {(repr(text_ref))}, token_str {token_str}, forbidden_strings {forbidden_strings}")
+        print(f"token {repr(token)}, text_tokens[0][-8:] {text_tokens[0][-8:]}, text_ref_tokens[0][-8:] {text_ref_tokens[0][-8:]}")
         print(f"delta {delta}, prob {prob}, prob_ref {prob_ref}")
         print()
 

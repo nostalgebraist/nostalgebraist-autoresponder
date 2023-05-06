@@ -699,7 +699,7 @@ captioning_adapters_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 
 autocast_recommended = GPU_TYPE != 'small'
 
-LLAMA_PROB_DELT = False
+LLAMA_PROB_DELT = True
 
 MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
 

@@ -353,6 +353,8 @@ class GeneratorModelLlama:
         if token_str in forbidden_strings:
             return 0.
         
+        token_str = token_str.lstrip(' ')
+        
         token = self.gen_model.tokenizer.encode(token_str, 0, 0)[0]
 
         forbidden_tokens = [self.gen_model.tokenizer.encode(

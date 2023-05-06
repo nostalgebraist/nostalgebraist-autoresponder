@@ -24,6 +24,8 @@ import ml.generator_model_torch
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
 
+MODELS_SERVED = MODELS_SERVED_LEGACY
+
 GENERATOR_METHODS_SERVED = GENERATOR_METHODS_SERVED_LEGACY
 
 BRIDGE_SERVICE_REMOTE_HOST, bridge_service_port = None, None

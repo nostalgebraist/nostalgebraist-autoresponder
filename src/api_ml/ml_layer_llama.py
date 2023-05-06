@@ -31,8 +31,8 @@ try:
 except FileNotFoundError:
     print("No config file found. Running in local mode.")
 
+MODELS_SERVED = MODELS_SERVED_LLAMA
 GENERATOR_METHODS_SERVED = GENERATOR_METHODS_SERVED_LLAMA
-MODELS_SERVED = {"generator"}
 
 CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V10_2"]
 
@@ -391,6 +391,13 @@ class GeneratorModelLlama:
 generator_model = GeneratorModelLlama(load_kwargs=LLAMA_CUSTOM_LOAD_KWARGS)
 
 model_name = generator_model.load_kwargs['ckpt_dir']
+
+captioner_coca = None
+
+if "captioner_coca" in MODELS_SERVED:
+    import ml.captioning
+    captioner_coca = ml.captioning.CoCa.load()
+
 
 DEPRECATED_KWARGS = {"mirotarg"}
 

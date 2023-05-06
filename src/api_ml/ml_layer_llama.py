@@ -369,7 +369,7 @@ class GeneratorModelLlama:
         delta = np.log(prob + 1e-5) - np.log(prob_ref + 1e-5)
 
         print(f"text {repr(text)},  text_ref {(repr(text_ref))}, token_str {token_str}, forbidden_strings {forbidden_strings}")
-        print(f"token {repr(token)}, text_tokens[0, -8:] {text_tokens[0, -8:]}, text_ref_tokens[0, -8:] {text_ref_tokens[0, -8:]}")
+        print(f"token {repr(token)}, text_tokens[0][-8:] {text_tokens[0][-8:]}, text_ref_tokens[0][-8:] {text_ref_tokens[0][-8:]}")
         print(f"delta {delta}, prob {prob}, prob_ref {prob_ref}")
         print()
 

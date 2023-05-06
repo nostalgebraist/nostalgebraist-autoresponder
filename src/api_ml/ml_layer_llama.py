@@ -31,7 +31,7 @@ try:
 except FileNotFoundError:
     print("No config file found. Running in local mode.")
 
-GENERATOR_METHODS_SERVED = "only_write_prob_delt"
+GENERATOR_METHODS_SERVED = GENERATOR_METHODS_SERVED_LLAMA
 MODELS_SERVED = {"generator"}
 
 CONTROL_SEG_CONFIG = CONTROL_SEG_CONFIGS["V10_2"]

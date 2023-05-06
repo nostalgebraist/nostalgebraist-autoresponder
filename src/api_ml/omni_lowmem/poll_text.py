@@ -23,8 +23,8 @@ _STDOUT_REF = sys.stdout
 fake = FakeStream()
 
 while True:
-    # main poll
-    sys.stdout = fake
+    # # main poll
+    # sys.stdout = fake
 
     api_ml.ml_layer_torch.loop_poll(
         period=1,

@@ -707,8 +707,8 @@ if V12_16:
     MODELS_SERVED.add("captioner")
 
 # "all", "only_write", "only_write_prob_delt", "all_except_write", "all_except_write_prob_delt"
-GENERATOR_METHODS_SERVED_LLAMA = "only_write_prob_delt"
-GENERATOR_METHODS_SERVED_LEGACY = "all_except_write_prob_delt"
+GENERATOR_METHODS_SERVED_LLAMA = "only_write"
+GENERATOR_METHODS_SERVED_LEGACY = "all_except_write"
 
 LLAMA_BIG = 1
 LLAMA_SPLIT_CKPT = 1

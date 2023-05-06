@@ -419,6 +419,12 @@ class GeneratorModelTorch:
             print(repr(e))
             print((prob, prob_ref))
             delta = 0.
+
+        print(f"text {repr(text)},  text_ref {(repr(text_ref))}, token_str {repr(token_str)}, forbidden_strings {forbidden_strings}")
+        print(f"token {repr(token)}")
+        print(f"delta {delta}, prob {prob}, prob_ref {prob_ref}")
+        print()
+
         delta = float(delta)
         return delta
 

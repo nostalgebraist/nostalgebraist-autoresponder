@@ -416,7 +416,7 @@ class GeneratorModelTorch:
         prob = self.get_next_probs(text, forbidden_tokens=forbidden_tokens, to_numpy=True)[token]
 
         try:
-            delta = np.log(prob) - np.log(prob_ref)
+            delta = np.log(prob + 1e-5) - np.log(prob_ref + 1e-5)
         except Exception as e:
             print(repr(e))
             print((prob, prob_ref))

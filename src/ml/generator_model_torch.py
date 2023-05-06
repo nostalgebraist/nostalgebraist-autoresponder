@@ -369,6 +369,8 @@ class GeneratorModelTorch:
         input_ids = [input_ids[0][-self.max_context_size:]] * self.batch_size
         input_ids_th = torch.as_tensor(input_ids).to(self.device)
 
+        print(f"input_ids[0][-8:] {input_ids[0][-8:]}")
+
         past = None
         if self.using_kv_buffer:
             input_ids_th, past = self.compute_kv_cache(input_ids_th)

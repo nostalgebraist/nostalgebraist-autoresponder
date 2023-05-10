@@ -393,7 +393,7 @@ def show_trail(docs, trails, key):
         print('\n------\n')
 
 
-def stream_read_docs(fp, page_size=4096, maxdocs=None, doc_preprocessor=None):
+def stream_read_docs(fp, page_size=128, maxdocs=None, suppress_tqdm=False, generator=False):
     def gen(file):
         buffer = ''
 
@@ -419,8 +419,18 @@ def stream_read_docs(fp, page_size=4096, maxdocs=None, doc_preprocessor=None):
                 buffer = doc_preprocessor(buffer)
             yield buffer
 
+    if generator:
+        f = open(fp, 'r', encoding='utf-8')
+        iterable = gen(f)
+        if not suppress_tqdm:
+            iterable = tqdm(iterable, mininterval=1)
+        return iterable, f
+
     with open(fp, 'r', encoding='utf-8') as f:
-        docs = list(tqdm(gen(f), mininterval=1))
+        iterable = gen(f)
+        if not suppress_tqdm:
+            iterable = tqdm(iterable, mininterval=1)
+        docs = list(iterable)
 
     return docs
 

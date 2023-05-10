@@ -15,7 +15,7 @@ from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 from api_ml.bridge_shared import bridge_service_unique_id
 from feels.mood import get_mood_by_name, load_logit_diff_sample, estimate_expected_rejections, logit_diff_to_pos_sent
-from api_ml.selector import serve_selection
+from api_ml.selector import serve_selection, parse_continuation
 
 from api_ml import bridge_cache_singleton
 from api_ml.bridge_shared import get_bridge_service_url
@@ -36,7 +36,7 @@ logit_diff_sample_series = load_logit_diff_sample()
 EXPECTED_REJECTION_MULT = 0.5 if (not TRADE_QUALITY_FOR_SPEED) else 0.4
 EXPECTED_REJECTION_MULT_TEXTPOST = EXPECTED_REJECTION_MULT
 
-TEXTPOST_N_CANDIDATES_TARGET = 10 if (not TRADE_QUALITY_FOR_SPEED) else 7
+TEXTPOST_N_CANDIDATES_TARGET = 10 if (not TRADE_QUALITY_FOR_SPEED) else 4
 
 # TODO: calcuate this precisely
 RETENTION_DISCOUNT = 0.25
@@ -114,6 +114,15 @@ class GeneratorModelInterface(MLModelInterface):
             **kwargs,
         )
 
+    def write_fic_title(self, *args, repeat_until_done_signal=False, **kwargs):
+        return self.do(
+            "write_fic_title",
+            repeat_until_done_signal=repeat_until_done_signal,
+            uses_bridge_cache=True,
+            *args,
+            **kwargs,
+        )
+
 
 class SideJudgmentModelInterface(MLModelInterface):
     def __init__(self, name):
@@ -156,26 +165,6 @@ selector_est = SideJudgmentModelInterface("selector")
 sentiment_est = SideJudgmentModelInterface("sentiment")
 autoreviewer_est = SideJudgmentModelInterface("autoreviewer")
 captioner = CaptionerModelInterface()
-
-
-def parse_continuation(continuation: str, verbose=True):
-    if verbose:
-        print(
-            f"parsing the following raw output:\n------------------\n{fill(continuation)}\n------------------\n"
-        )
-
-    # split out tags, if present
-    if V8:
-        post, _, tag_text = continuation.partition("\n")
-    else:
-        post, _, tag_text = continuation.partition(T_CHAR)
-    tags = []
-    if len(tag_text) > 0:
-        tags = [s.rstrip(" ") for s in tag_text.split("#")]
-
-    post = post.lstrip(ORIG_POST_CHAR)
-    parsed = {"post": post, "tags": tags}
-    return parsed
 
 
 def get_textpost_prompts():
@@ -326,28 +315,25 @@ def basic_n_continuations(
                 print(
                     f"\n\t\t{len(c)} chars, {len(c.split(' '))} words-->\n\t{len(csub)} chars, {len(csub.split(' '))} words\n"
                 )
-                if len(c) < 1000:
-                    print(f"was originally: {repr(c)}")
+                print(f"was originally: {_tabfill(c)}")
                 c = csub
 
             roll = np.random.rand()
             has_img = IMAGE_DELIMITER_WHITESPACED in c
             tagged_usernames = set(re.findall(r"@([\w-]+)", remove_images_entirely_from_post_text(c)))
 
-            # NOTE: the < 100 check is for weird posts where the newline doesn't happen
-            if len(c.partition("\n")[2].split(" ")) < avoid_if_under and len(c) < 100 and (not has_img):
+            post_text = parse_continuation(c)["post"]
+            post_text_wordcount = len(post_text.split())
+
+            if post_text_wordcount < avoid_if_under and (not has_img):
                 print(
                     f"\n\trejecting because length under {avoid_if_under}: {_tabfill(c)}\n"
                 )
-            elif (
-                len(c.partition("\n")[2].split(" ")) < avoid_half_if_under
-            ) and len(c) < 100 and  (not has_img) and roll < 0.5:
+            elif post_text_wordcount < avoid_half_if_under and (not has_img) and roll < 0.5:
                 print(
                     f"\n\trejecting because length under {avoid_half_if_under} and roll {roll}: {_tabfill(c)}\n"
                 )
-            elif (
-                c.partition("\n")[2].lstrip(" \n").startswith("<blockquote")
-            ) and avoid_initial_blockquote:
+            elif post_text.startswith("<blockquote") and avoid_initial_blockquote:
                 print(f"\n\trejecting because initial blockquote: {_tabfill(c)}\n")
             elif len([char for char in c if char == T_CHAR]) >= 2:
                 print(f"\n\trejecting because multiple T_CHAR: {_tabfill(c)}\n")
@@ -366,9 +352,9 @@ def basic_n_continuations(
                 problem_names = tagged_usernames.difference(permitted_tagged_usernames)
                 print(f"\n\trejecting because tagged names {problem_names} not in {permitted_tagged_usernames}: {_tabfill(c)}\n")
             else:
-                if len(c.partition("\n")[2].split(" ")) < avoid_half_if_under:
+                if post_text_wordcount < avoid_half_if_under:
                     print(
-                        f"\n\tkeeping with roll {roll}, although length under {avoid_half_if_under}: {_tabfill(c)}\n"
+                        f"\n\tkeeping with roll {roll} and has_img {has_img}, although length under {avoid_half_if_under}: {_tabfill(c)}\n"
                     )
                 continuations.append(c)
                 sdata_plus_minfo = {k: v for k, v in sdata.items()}
@@ -527,16 +513,16 @@ def adjust_best_of(best_of, mood, is_textpost):
     )
 
     raw_extra_best_of = (
-        int(np.round(best_of / (1 - expected_rejection_frac)))
+        round(best_of / (1 - expected_rejection_frac), 3)
         - best_of
     )
     discount = EXPECTED_REJECTION_MULT_TEXTPOST if is_textpost else EXPECTED_REJECTION_MULT
     discounted_extra_best_of = int(
-        np.round(raw_extra_best_of * discount)
+        round(raw_extra_best_of * discount, 0)
     )
 
     print(
-        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of} extra over best_of={best_of}"
+        f"expecting to reject {expected_rejection_frac:.1%}, need {raw_extra_best_of:.3f} extra over best_of={best_of}"
     )
     best_of += discounted_extra_best_of
     print(f"discounting to {discounted_extra_best_of} --> best_of={best_of}")
@@ -611,17 +597,17 @@ def old_bridge_call__answer(
         guidance_scale=None,
         permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
 ):
-    best_of = 11 if (not TRADE_QUALITY_FOR_SPEED) else 8
+    best_of = 11 if (not TRADE_QUALITY_FOR_SPEED) else 5
 
     if write_fic_override or write_review_override:
-        best_of = 6 if not (TRADE_QUALITY_FOR_SPEED) else 4
+        best_of = 6 if not (TRADE_QUALITY_FOR_SPEED) else 2
 
     best_of = adjust_best_of(best_of, mood, is_textpost=False)
 
-    avoid_if_under = 5
+    avoid_if_under = 1
     if write_fic_override:
         avoid_if_under = 75
-    avoid_half_if_under = 10
+    avoid_half_if_under = 3
     avoid_if_profane = False
     avoid_if_says_frank = False
     random_year_for_generator = True
@@ -777,8 +763,8 @@ def old_bridge_call__textpost(
         retention_logit_diffs=None,
         permitted_tagged_usernames=('nostalgebraist', 'nostalgebraist-autoresponder'),
 ):
-    avoid_if_under = 5
-    avoid_half_if_under = 10
+    avoid_if_under = 3
+    avoid_half_if_under = 3
     avoid_initial_blockquote = False
     avoid_if_says_frank = False
 
@@ -969,3 +955,8 @@ def caption_images_in_post_html(text: str, write_to_archive=True, verbose=True):
         _normed_imtext_to_url,
         disable_url_norm=True,
     )[0]
+
+
+def fic_title_from_gpt(text, **kwargs):
+    raw = generator_model.write_fic_title(text, **kwargs)
+    return raw[0]["result"]

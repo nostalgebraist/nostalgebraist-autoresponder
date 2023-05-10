@@ -2,21 +2,26 @@ from datetime import datetime, timedelta, time as dtime
 from util.times import now_pst, fromtimestamp_pst
 
 BASE_SLOWDOWN_LEVEL = {"name": "base", "rate_ratio_thresh": 1., "n_remaining_thresh": 40, "SLEEP_TIME_scale": 1.,
-                       "MAX_POSTS_PER_STEP_scale": 1., "STOP_ABOVE_COST_modifier": 0.}
+                       "MAX_POSTS_PER_STEP_scale": 1., "STOP_ABOVE_COST_modifier": 0., 
+                       "prioritize_queue": False}
 
 SLOWDOWN_LEVELS = [
     BASE_SLOWDOWN_LEVEL,
     {"name": "slower", "rate_ratio_thresh": 1.5, "n_remaining_thresh": 25, "SLEEP_TIME_scale": 2.5,
-     "MAX_POSTS_PER_STEP_scale": 3.1 / 5, "STOP_ABOVE_COST_modifier": -1.5},
+     "MAX_POSTS_PER_STEP_scale": 3.1 / 5, "STOP_ABOVE_COST_modifier": -1.5,
+     "prioritize_queue": False},
     {"name": "slower2", "rate_ratio_thresh": 2, "n_remaining_thresh": 5, "SLEEP_TIME_scale": 5,
-     "MAX_POSTS_PER_STEP_scale": 2.1 / 5, "STOP_ABOVE_COST_modifier": -3.},
+     "MAX_POSTS_PER_STEP_scale": 2.1 / 5, "STOP_ABOVE_COST_modifier": -3.,
+     "prioritize_queue": True},
     {"name": "slowest", "rate_ratio_thresh": 1000, "n_remaining_thresh": 0, "SLEEP_TIME_scale": 10,
-     "MAX_POSTS_PER_STEP_scale": 1.1 / 5, "STOP_ABOVE_COST_modifier": -3.},
+     "MAX_POSTS_PER_STEP_scale": 1.1 / 5, "STOP_ABOVE_COST_modifier": -3.,
+     "prioritize_queue": True},
 ]
 
 HARDSTOP_SLOWDOWN_LEVEL = {
     "name": "hardstop", "rate_ratio_thresh": 1000, "n_remaining_thresh": 0, "SLEEP_TIME_scale": 10,
-    "MAX_POSTS_PER_STEP_scale": 0, "STOP_ABOVE_COST_modifier": -3.
+    "MAX_POSTS_PER_STEP_scale": 0, "STOP_ABOVE_COST_modifier": -3.,
+    "prioritize_queue": True,
 }
 
 
@@ -149,7 +154,7 @@ def select_slowdown_level(post_payloads, avg_over_hours=2, max_per_24h=250, hard
     if queued_post_times_pst is not None:
         queue_pad = count_queued_posts_before_reset(queued_post_times_pst, now=now, verbose=verbose)
 
-    ratio = rate / max_rate
+    ratio = rate / max(max_rate, rate/100)
     n_remaining = max_per_24h - n_since_reset - queue_pad
 
     selected = None

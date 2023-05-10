@@ -1,6 +1,8 @@
 import re
 from copy import deepcopy
 
+NOSPACE = True
+
 GLOBAL_DEBUG = False
 
 EOT = "<|endoftext|>"
@@ -167,7 +169,6 @@ def find_all_control_chars_chinese(
     return results
 
 
-# TODO: (cleanup) (nwo) fix double-matching on "#1 xx posted" and "xx posted"
 def find_control_chars_forumlike(
     text,
     incl_number=True,
@@ -203,6 +204,7 @@ def find_control_chars_forumlike(
         # print(rx)
         for m in re.finditer(rx, text):
             results.append((m.group(1), m.span(1)[0]))
+    results = set(results)
     results = sorted(results, key=lambda tup: tup[1])
     return results
 
@@ -291,7 +293,8 @@ def normalize_for_generator(s: str):
             normed_data_string = normed_data_string.replace(k, v)
 
     normed_data_string = collapse_multi_newline(normed_data_string)
-    normed_data_string = add_space_after_newline_before_word(normed_data_string)
+    if not NOSPACE:
+        normed_data_string = add_space_after_newline_before_word(normed_data_string)
 
     control_chars = [
         Q_CHAR,

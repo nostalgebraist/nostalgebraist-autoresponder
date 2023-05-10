@@ -10,6 +10,7 @@ from PIL import Image
 import requests
 import numpy as np
 from transformer_utils.util.tfm_utils import get_local_path_from_huggingface_cdn
+import huggingface_hub
 
 import improved_diffusion.pipeline
 from multimodal.diffusion_helpers import run_pipeline
@@ -45,8 +46,11 @@ def make_2sided_dynamic_threshold_denoised_fn_batched(p):
 
 
 # constants
-# HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
-HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-captions'
+if FASTER_LEGACY_DOWNLOAD:
+    HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-captions-unpacked'
+else:
+    # HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
+    HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-captions'
 model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 
 
@@ -62,11 +66,18 @@ t_start = time.time()
 
 # download
 if not os.path.exists(model_path_diffusion):
-    model_tar_name = 'model.tar'
-    model_tar_path = get_local_path_from_huggingface_cdn(
-        HF_REPO_NAME_DIFFUSION, model_tar_name
-    )
-    subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
+    if FASTER_LEGACY_DOWNLOAD:
+        huggingface_hub.snapshot_download(
+            HF_REPO_NAME_DIFFUSION,
+            local_dir='hf-repo-temp',
+        )
+        subprocess.run(f"mv hf-repo-temp/* .", shell=True)
+    else:
+        model_tar_name = 'model.tar'
+        model_tar_path = get_local_path_from_huggingface_cdn(
+            HF_REPO_NAME_DIFFUSION, model_tar_name
+        )
+        subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
 
 t_file = time.time()
 print(f"downloaded in {t_file - t_start}s")

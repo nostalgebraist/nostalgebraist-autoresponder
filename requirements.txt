@@ -15,7 +15,10 @@ ipython
 scikit-image
 wandb
 smart_open[gcs]
-git+https://github.com/finetuneanon/transformers/@gpt-neo-localattention3-rp-b
+git+https://github.com/nostalgebraist/transformers/@nbar
 git+https://github.com/nostalgebraist/transformer-utils@main
 ngram==4.0.3
 jsonlines
+imageio-ffmpeg
+joblib==1.2.0
+typeguard<3.0.0

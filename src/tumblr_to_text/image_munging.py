@@ -14,6 +14,41 @@ from multimodal.text_segmentation import make_image_simple
 
 from api_ml.diffusion_connector import make_image_with_diffusion
 
+from api_tumblr.pytumblr_wrapper import RateLimitClient
+
+
+NPF_ALT_TEXT_NEWLINE_TRICK = True
+
+
+ALT_TEXT_FORMAT_WITH_IMTEXT = """
+AI generated image.
+
+The AI attempted to produce an image fitting the description:
+
+{caption}
+
+The AI also tried to include legible text in the image. The text it tried to write was:
+
+{imtext}
+""".strip('\n')
+
+
+ALT_TEXT_FORMAT_WITHOUT_IMTEXT = """
+AI generated image.
+
+The AI attempted to produce an image fitting the description:
+
+{caption}
+
+The AI also specified that there should be no text in the image.
+""".strip('\n')
+
+if not NPF_ALT_TEXT_NEWLINE_TRICK:
+    ALT_TEXT_FORMAT_WITH_IMTEXT = ALT_TEXT_FORMAT_WITH_IMTEXT.replace("\n", " ")
+    ALT_TEXT_FORMAT_WITHOUT_IMTEXT = ALT_TEXT_FORMAT_WITHOUT_IMTEXT.replace( "\n", " ")
+
+LEGACY_LINE_BREAK = " [line break] "
+
 # image stuff
 
 
@@ -97,6 +132,7 @@ def find_text_images_and_sub_real_images(
     textful_guidance_scale=1,
     text_guidance_scale=1,
     dynamic_threshold_p=0.99,
+    alt_text_linebreak=LEGACY_LINE_BREAK,
 ):
     print(f'using diffusion?: {use_diffusion}')
     if use_diffusion:
@@ -215,14 +251,18 @@ def find_text_images_and_sub_real_images(
             )
             alt_text = imtext
             if caption is not None:
-                alt_text = "[Description] " + caption + " " + "[Text]" + imtext
+                if imtext != "":
+                    alt_text = ALT_TEXT_FORMAT_WITH_IMTEXT.format(caption=caption, imtext=imtext)
+                else:
+                    alt_text = ALT_TEXT_FORMAT_WITHOUT_IMTEXT.format(caption=caption)
+
                 alt_text = alt_text.replace("<", "").replace(">", "")  # w/o this, "<PERSON>" entirely vanishes
             return figure_format.format(
                 prefix_newline='\n' if needs_prefix_newline else '',
                 url=tumblr_image["url"],
                 h=tumblr_image["height"],
                 w=tumblr_image["width"],
-                alt=html.escape(alt_text).replace("\n", " [newline] "),
+                alt=html.escape(alt_text).replace("\n", alt_text_linebreak),
             )
         else:
             vprint(
@@ -258,3 +298,47 @@ def mock_up_image_generation_tags_for_heads(continuation: str, guidance_scale: f
         print(f"from\n{repr(continuation)}\nmocked up\n{repr(mocked_up)}\n")
 
     return mocked_up
+
+
+def fixup_alt_text_after_creation(
+    client: RateLimitClient,
+    blog_name: str, 
+    post_id: int,
+    state: str,
+    parent_blogname=None,
+    parent_id=None,
+    delete_after=True,
+):
+    pytumblr2_client = client.to_pytumblr2_client()
+
+    post_npf = pytumblr2_client.get_single_post(blog_name, post_id)
+
+    content = post_npf['content']
+
+    for block in content:
+        if 'alt_text' in block:
+            block['alt_text'] = block['alt_text'].replace(LEGACY_LINE_BREAK, '\n')
+
+    if parent_blogname is not None:
+        response = pytumblr2_client.reblog_post(
+            blog_name,
+            parent_blogname=parent_blogname,
+            id=parent_id,
+            content=content,
+            layout=post_npf['layout'],
+            tags=post_npf['tags'],
+            state=state,
+        )
+    else:
+        response = pytumblr2_client.create_post(
+            blog_name,
+            content=content,
+            layout=post_npf['layout'],
+            tags=post_npf['tags'],
+            state=state,
+        )
+
+    if delete_after:
+        pytumblr2_client.delete_post(blog_name, post_id)
+
+    return response

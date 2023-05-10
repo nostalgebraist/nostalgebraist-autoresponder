@@ -69,6 +69,7 @@ def caption_image(
     prompt='',
     adapters_device='cpu',
     deactivate_when_done=True,
+    exception_log_file=None,
 ):
     activate_magma(magma_wrapper)
 
@@ -77,7 +78,7 @@ def caption_image(
         caption = None
         caption_options = []
 
-        with LogExceptionAndSkip('trying to caption image'):
+        with LogExceptionAndSkip('trying to caption image', file=exception_log_file):
             with th.no_grad():
                 image_t = magma_wrapper.preprocess_inputs([ImageInput(path_or_url)])
                 magma_wrapper.image_prefix.to(device=adapters_device)

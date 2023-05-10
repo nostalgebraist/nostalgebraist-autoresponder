@@ -39,8 +39,10 @@ V12_19 = True  # captions + fix some mistakes introduced in V12_18 data prep
 ARJ_V11 = True  # more data
 ARJ_V11_ENDTAGS = True
 ARJ_V11_P1 = True
+ARJ_V11_P2 = True
 
-ENDTAGS = False
+ENDTAGS = True
+NOSPACE = True
 
 BUCKET_NAME = ""
 if not V12_7:
@@ -56,7 +58,14 @@ LOGGING_FLAGS = {
     "parse_continuation": False
 }
 
-if ARJ_V11_P1:
+if ARJ_V11_P2:
+    AUTOREVIEWER_CUTOFFS = {
+        "accept_below": 0.154,  # x11p1/v2: predict true accept rate: ~35%, false accept rate ~8.75%
+        "reject_above": 0.605,  # x11p1/v1: predict true reject rate: ~32%, false reject rate ~3%
+        "flag_above":   0.35,
+        "accept_below_textpost": 0.179,  # x11p1/v1: predict true accept rate: ~25%, false accept rate ~8.75%
+    }
+elif ARJ_V11_P1:
     AUTOREVIEWER_CUTOFFS = {
         "accept_below": 0.152,  # x11p1/v1: predict true accept rate: ~41%, false accept rate ~8.75%
         "reject_above": 0.552,  # x11p1/v1: predict true reject rate: ~34%, false reject rate ~3%
@@ -212,7 +221,13 @@ HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
 HF_FILES_GZIPPED = False
 model_path = None
 
-if ARJ_V11_P1:
+if ARJ_V11_P2:
+    FASTER_LEGACY_DOWNLOAD = True
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-unpacked"
+    model_name = "arj-x11p2-3625"
+    ENDTAGS = True
+    NOSPACE = True
+elif ARJ_V11_P1:
     HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-staging"
     model_name = "arj-x11p1-3567"
     ENDTAGS = True
@@ -294,7 +309,12 @@ if not model_path:
 
 ckpt_captioner = None
 
-if ARJ_V11_P1:
+if ARJ_V11_P2:
+    ckpt_select = "selector/x11p2/v1/"
+    ckpt_sentiment = "sentiment/x11p2/v1/"
+    ckpt_autoreviewer = "draft_autoreviewer/x11p2/v1/"
+    ckpt_captioner = "captioner/xtn11p2/v1/"
+elif ARJ_V11_P1:
     ckpt_select = "selector/x11p1/v1/"
     ckpt_sentiment = "sentiment/x11p1/v1/"
     ckpt_autoreviewer = "draft_autoreviewer/x11p1/v1/"
@@ -506,7 +526,7 @@ else:
 ### Sampling
 
 BREAKRUNS = True
-BREAKRUNS_TAU = 0.035  # "canon" value is 0.02
+BREAKRUNS_TAU = 0.035
 BREAKRUNS_DECAY = 0.0
 BREAKRUNS_DEBUG = False
 
@@ -680,9 +700,73 @@ captioning_adapters_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 
 autocast_recommended = GPU_TYPE != 'small'
 
+LLAMA_PROB_DELT = True
+
 MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
 
 if V12_16:
     MODELS_SERVED.add("captioner")
+
+# "all", "only_write", "only_write_prob_delt", "all_except_write", "all_except_write_prob_delt"
+if LLAMA_PROB_DELT:
+    GENERATOR_METHODS_SERVED_LLAMA = "only_write_prob_delt"
+    GENERATOR_METHODS_SERVED_LEGACY = "all_except_write_prob_delt"
+else:
+    GENERATOR_METHODS_SERVED_LLAMA = "only_write"
+    GENERATOR_METHODS_SERVED_LEGACY = "all_except_write"
+
+LLAMA_BIG = 1
+LLAMA_SPLIT_CKPT = 1
+LLAMA_PATH_CKPT = 'llama-nbar/v3.1'
+LLAMA_PATH_ENC = 'llama-nbar/tokenizer.model'
+LLAMA_PATH_LORA = None
+
+LLAMA_PRESERVE_TOKENS = [
+    '\n====', '\n=======', 
+    '\n\t',
+    '\n\n',
+]
+
+LLAMA_CUSTOM_LOAD_KWARGS = dict()
+
+SHAWWN = False
+
+if SHAWWN:
+    LLAMA_TEMPERATURE = 0.7
+    LLAMA_REP_PENALTY = 1 / 0.85
+
+    LLAMA_BREAKRUNS = False
+    LLAMA_BREAKRUNS_TAU = 0.035    
+else:
+    LLAMA_TEMPERATURE = 0.9
+    LLAMA_REP_PENALTY = 0
+
+    LLAMA_BREAKRUNS = True
+    LLAMA_BREAKRUNS_TAU = 0.04
+
+if LLAMA_BIG:
+    LLAMA_QUANTIZE = 1
+    LLAMA_QUANTIZE_CACHE = 1
+    LLAMA_QUANTIZE_CACHE_ABOVE = 0
+    
+    LLAMA_QUANTIZE_CACHE_AFTER_TOKEN = 0
+    LLAMA_N_CTX = 2048
+
+    MAX_CONTINUE_TOKENS = 2048
+    required_continuation_room = 128
+
+    LLAMA_CACHE_BUILD_SIZE = 256
+
+    LLAMA_CUSTOM_LOAD_KWARGS['quantize_threshold'] = 6
+    LLAMA_W2_THRESHOLD = 6
+
+    LLAMA_CUSTOM_LOAD_KWARGS['allow_quantize_unembed'] = False
+else:
+    LLAMA_QUANTIZE = 0
+    LLAMA_QUANTIZE_CACHE = 0
+    LLAMA_QUANTIZE_CACHE_ABOVE = 0
+    LLAMA_QUANTIZE_CACHE_AFTER_TOKEN = 0
+
+    LLAMA_N_CTX = 2048
 
 os.chdir(startdir)

@@ -17,7 +17,7 @@ from feels.mood import logit_diff_to_allen_schema
 
 RESULT_STACK = {}
 
-RETENTION_CUTOFF = 0.7
+RETENTION_CUTOFF = 0.5
 ENFORCE_RETENTION_CUTOFF = True
 
 FIC_COLDSTART = False
@@ -35,7 +35,7 @@ FIC_COLDSTART_DELTA = 0.05
 REVIEW_COLDSTART_DELTA = 0.05
 IMAGE_COLDSTART_DELTA = -0.3
 GIF_COLDSTART_DELTA = -0.2 -(IMAGE_COLDSTART * IMAGE_COLDSTART_DELTA)
-QUOTES_COLDSTART_DELTA = -0.25
+QUOTES_COLDSTART_DELTA = -0.125
 DREAMS_COLDSTART_DELTA = 0.15
 GUIDELINES_COLDSTART_DELTA = -0.25
 PSEUDO_TEXT_COLDSTART_DELTA = -0.6
@@ -116,6 +116,10 @@ def parse_continuation_endtags(continuation: str, verbose=LOGGING_FLAGS["parse_c
         print(msg)
 
     continuation = continuation.partition(EOT)[0]
+
+    # \t\n end of final-post meta line in endtags
+    if continuation.startswith('\t\n'):
+        continuation = continuation[2:]
 
     post, _, tag_text = continuation.partition("\n\n\t")
 
@@ -286,7 +290,7 @@ def match_guidelines(c):
     return is_match, substring
 
 
-def match_pseudo_text(c, debug=True):
+def match_pseudo_text(c, debug=False):
     if debug:
         print("match_pseudo_text called | ", end="")
     # TODO: DRY
@@ -557,7 +561,7 @@ def serve_selection(
 
 def get_retention_stack_judgments(retention_stack,
                                   blog_name="nostalgebraist-autoresponder",  # TODO (cleanup): improve
-                                  timestamp=None
+                                  timestamp_posix_utc=None
                                   ):
     from api_ml.ml_connector import (
         selection_proba_from_gpt,
@@ -566,8 +570,8 @@ def get_retention_stack_judgments(retention_stack,
     )
     from tumblr_to_text.nwo_munging import make_nwo_textpost_prompts
 
-    if timestamp is None:
-        timestamp = datetime.now()
+    if timestamp_posix_utc is None:
+        timestamp_posix_utc = datetime.now().timestamp()
 
     if len(retention_stack) == 0:
         proba, logit_diffs, autoreview_proba = [], [], []
@@ -577,7 +581,7 @@ def get_retention_stack_judgments(retention_stack,
 
     prompts, prompts_selector, prompts_autoreviewer, _ = make_nwo_textpost_prompts(
         blog_name=blog_name,
-        timestamp=timestamp,
+        timestamp_posix_utc=timestamp_posix_utc,
         endtags=ENDTAGS,
     )
 

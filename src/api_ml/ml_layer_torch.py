@@ -1,11 +1,13 @@
 import sys
 import time
+from io import StringIO
 
 import requests
 import numpy as np
 import torch
 from transformers import AutoTokenizer
 from transformer_utils.util.tfm_utils import get_local_path_from_huggingface_cdn
+import huggingface_hub
 
 import magma
 
@@ -18,8 +20,12 @@ from ml.load_gptj import load_gpt_j_split_ckpt, load_gpt_j_split_ckpt_state_dict
 from ml.kv_cache import setup_kv_buffer
 
 import ml.captioning
+import ml.fic_titling
+import ml.generator_model_torch
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
+
+GENERATOR_METHODS_SERVED = GENERATOR_METHODS_SERVED_LEGACY
 
 BRIDGE_SERVICE_REMOTE_HOST, bridge_service_port = None, None
 
@@ -34,25 +40,50 @@ except FileNotFoundError:
 
 
 def caption_image(self, path_or_url, **kwargs):
-    msg = ""
-    caption = ml.captioning.caption_image(
-        path_or_url=path_or_url,
-        magma_wrapper=self,
-        adapters_device=captioning_adapters_device,
-        **kwargs
-    )
-    if caption is None and kwargs.get("guidance_scale") > 0:
-        kwargs['guidance_scale'] = 0.0
-        kwargs['max_steps'] = 15
-        msg = "fell back to guidance scale 0 and max_steps 15, probably OOM"
+    msg_rows = []
+    with StringIO() as buf:
         caption = ml.captioning.caption_image(
             path_or_url=path_or_url,
             magma_wrapper=self,
             adapters_device=captioning_adapters_device,
+            exception_log_file=buf,
             **kwargs
         )
+        exc_str = buf.getvalue()
+        if exc_str:
+            msg_rows.append(exc_str)
+    if caption is None and kwargs.get("guidance_scale") > 0:
+        kwargs['guidance_scale'] = 0.0
+        kwargs['max_steps'] = 15
+        msg_rows.append(
+            f"caption_image on {repr(path_or_url)}: "
+            "fell back to guidance scale 0 and max_steps 15"
+        )
+        # TODO: DRY
+        with StringIO() as buf:
+            caption = ml.captioning.caption_image(
+                path_or_url=path_or_url,
+                magma_wrapper=self,
+                adapters_device=captioning_adapters_device,
+                exception_log_file=buf,
+                **kwargs
+            )
+            exc_str = buf.getvalue()
+            if exc_str:
+                msg_rows.append(exc_str)
+    if caption is None:
+        msg_rows.append(
+            f"caption_image on {repr(path_or_url)}: failed to produce a caption"
+        )
+    msg = "\n".join(msg_rows)
     return caption, msg
 
+
+def write_fic_title(self, text, **kwargs):
+    return ml.fic_titling.run_fewshot_titling(text, generator_model=self, **kwargs)
+
+
+ml.generator_model_torch.GeneratorModelTorch.write_fic_title = write_fic_title
 
 magma.Magma.caption_image = caption_image
 
@@ -180,13 +211,20 @@ t_start = time.time()
 generator_path = model_name
 
 if not os.path.exists(generator_path):
-    model_tar_name = 'model.tar.gz' if HF_FILES_GZIPPED else 'model.tar'
-    if (ARJ_V11 and ARJ_V11_ENDTAGS) and not ARJ_V11_P1:
-        model_tar_name = 'model-endtags.tar'
-    model_tar_path = get_local_path_from_huggingface_cdn(
-        HF_REPO_NAME, model_tar_name
-    )
-    subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
+    if FASTER_LEGACY_DOWNLOAD:
+        huggingface_hub.snapshot_download(
+            HF_REPO_NAME,
+            local_dir='hf-repo-temp',
+        )
+        subprocess.run(f"mv hf-repo-temp/* .", shell=True)
+    else:
+        model_tar_name = 'model.tar.gz' if HF_FILES_GZIPPED else 'model.tar'
+        if (ARJ_V11 and ARJ_V11_ENDTAGS) and not ARJ_V11_P1:
+            model_tar_name = 'model-endtags.tar'
+        model_tar_path = get_local_path_from_huggingface_cdn(
+            HF_REPO_NAME, model_tar_name
+        )
+        subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
 
 # HEADS: download if necessary
 head_paths = [ckpt_select, ckpt_sentiment, ckpt_autoreviewer, ckpt_captioner]
@@ -194,25 +232,27 @@ needs_head_download = not all(os.path.exists(path) for path in head_paths)
 heads_tar_path = ""
 
 if needs_head_download:
-    heads_tar_name = 'heads.tar.gz' if HF_FILES_GZIPPED else 'heads.tar'
-    heads_tar_path = get_local_path_from_huggingface_cdn(
-        HF_REPO_NAME, heads_tar_name
-    )
+    if FASTER_LEGACY_DOWNLOAD:
+        raise FileNotFoundError
+    else:
+        heads_tar_name = 'heads.tar.gz' if HF_FILES_GZIPPED else 'heads.tar'
+        heads_tar_path = get_local_path_from_huggingface_cdn(
+            HF_REPO_NAME, heads_tar_name
+        )
 
-if "selector" in MODELS_SERVED and not os.path.exists(ckpt_select):
-    subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_select}", shell=True)
+        if "selector" in MODELS_SERVED and not os.path.exists(ckpt_select):
+            subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_select}", shell=True)
 
-if "sentiment" in MODELS_SERVED and not os.path.exists(ckpt_sentiment):
-    subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_sentiment}", shell=True)
+        if "sentiment" in MODELS_SERVED and not os.path.exists(ckpt_sentiment):
+            subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_sentiment}", shell=True)
 
-if "autoreviewer" in MODELS_SERVED and not os.path.exists(ckpt_autoreviewer):
-    subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_autoreviewer}", shell=True)
+        if "autoreviewer" in MODELS_SERVED and not os.path.exists(ckpt_autoreviewer):
+            subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_autoreviewer}", shell=True)
 
-if "captioner" in MODELS_SERVED and not os.path.exists(ckpt_captioner):
-    subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_captioner}", shell=True)
+        if "captioner" in MODELS_SERVED and not os.path.exists(ckpt_captioner):
+            subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_captioner}", shell=True)
 
-if needs_head_download:
-    subprocess.run(f"rm {heads_tar_path}", shell=True)
+        subprocess.run(f"rm {heads_tar_path}", shell=True)
 
 t_file = time.time()
 print(f"downloaded in {t_file - t_start}s")
@@ -260,6 +300,8 @@ def poll(
 ):
     global CLOSED_REQUESTS
 
+    UNSERVABLE_REQUESTS = set()
+
     for port, route in zip(ports, routes):
         r = requests.get(
             f"{BRIDGE_SERVICE_REMOTE_HOST}:{port}/{route}",
@@ -277,6 +319,8 @@ def poll(
                 continue
 
             if data["model"] not in MODELS_SERVED:
+                multirequest_sequence_in_process = False
+                UNSERVABLE_REQUESTS.add(prompt_id)
                 continue
 
             requested_model = None
@@ -298,6 +342,23 @@ def poll(
                 raise ValueError(f"requested_model: {data.get('model')}")
 
             requested_method = data["method"]
+
+            if data["model"] == "generator":
+                if GENERATOR_METHODS_SERVED == 'all_except_write' and requested_method in {'write', 'write_random_prompt'}:
+                    multirequest_sequence_in_process = False
+                    UNSERVABLE_REQUESTS.add(prompt_id)
+                    continue
+                if GENERATOR_METHODS_SERVED == 'only_write' and requested_method not in {'write', 'write_random_prompt'}:
+                    multirequest_sequence_in_process = False
+                    UNSERVABLE_REQUESTS.add(prompt_id)
+                    continue
+                if GENERATOR_METHODS_SERVED == 'all_except_write_prob_delt' and requested_method in {
+                    'write', 'write_random_prompt', 'get_prob_delta_over_ref_multi'
+                }:
+                    multirequest_sequence_in_process = False
+                    UNSERVABLE_REQUESTS.add(prompt_id)
+                    continue
+                
             if not hasattr(requested_model, requested_method):
                 raise ValueError(
                     f"requested_model {requested_model} has no method {requested_method}"
@@ -391,6 +452,8 @@ def poll(
         almostdone_in_flight = False
         open_request_ids = set()
         for prompt_id in PROMPT_STACK:
+            if prompt_id in UNSERVABLE_REQUESTS:
+                continue
             if PROMPT_STACK[prompt_id].get("repeat_until_done_signal", False):
                 open_request_ids.add(prompt_id)
                 if PROMPT_STACK[prompt_id].get("almost_done", False):

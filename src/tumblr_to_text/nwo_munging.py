@@ -161,12 +161,16 @@ def make_nwo_prompts(thread: TumblrThread,
 def make_nwo_fic_override_prompts(thread: TumblrThread,
                                   control_seg_config=DEFAULT_CSC,
                                   use_definite_article=True,
+                                  forced_title=None,
                                   debug=False):
     ask_text = get_normalized_ask_text(thread)
 
-    prompt = EOT + construct_fic_override_v2(ask_text,
-                                             use_definite_article=use_definite_article,
-                                             control_seg_config=control_seg_config)
+    prompt = EOT + construct_fic_override_v2(
+        ask_text,
+        use_definite_article=use_definite_article,
+        forced_title=forced_title,
+        control_seg_config=control_seg_config
+    )
     prompt_selector = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
     prompt_autoreviewer = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
 
@@ -178,7 +182,9 @@ def make_nwo_fic_override_prompts(thread: TumblrThread,
     return prompt, prompt_selector, prompt_autoreviewer
 
 
-def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_CSC, sample_year_for_generator=True, endtags=False, debug=False):
+def make_nwo_textpost_prompts(
+        blog_name, timestamp_posix_utc: int, control_seg_config=DEFAULT_CSC, sample_year_for_generator=True, endtags=False, debug=False
+    ):
     prompts, prompts_selector, prompts_autoreviewer = [], {}, {}
     probs = []
 
@@ -186,15 +192,15 @@ def make_nwo_textpost_prompts(blog_name, timestamp, control_seg_config=DEFAULT_C
     probs.append(0.8)
     fake_post = fake_tumblr_post(blog_name=blog_name, text_blocks=[], tags=[])
 
-    timestamp_posix = int(timestamp.timestamp())
-
-    timestamp_sampled_posix = timestamp_posix
+    timestamp_sampled_posix_utc = timestamp_posix_utc
 
     if sample_year_for_generator:
-        timestamp_sampled_posix = int(sample_year_and_set(timestamp).timestamp())
+        timestamp_sampled_posix_utc = int(
+            sample_year_and_set(datetime.fromtimestamp(timestamp_sampled_posix_utc)).timestamp()
+        )
 
-    fake_thread_real_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_posix)
-    fake_thread_sampled_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_sampled_posix)
+    fake_thread_real_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_posix_utc)
+    fake_thread_sampled_ts = TumblrThread(posts=[fake_post], timestamp=timestamp_sampled_posix_utc)
 
     prompt_regular = EOT + npf_thread_to_formatted_text(fake_thread_sampled_ts,
                                                         ml_prompt_format=True,

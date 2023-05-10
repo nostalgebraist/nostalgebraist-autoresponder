@@ -393,7 +393,7 @@ def show_trail(docs, trails, key):
         print('\n------\n')
 
 
-def stream_read_docs(fp, page_size=128, maxdocs=None, suppress_tqdm=False, generator=False):
+def stream_read_docs(fp, page_size=128, maxdocs=None, suppress_tqdm=False, generator=False, doc_preprocessor=None):
     def gen(file):
         buffer = ''
 

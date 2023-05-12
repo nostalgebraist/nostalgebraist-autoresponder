@@ -222,7 +222,8 @@ HF_FILES_GZIPPED = False
 model_path = None
 
 if ARJ_V11_P2:
-    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b"
+    FASTER_LEGACY_DOWNLOAD = True
+    HF_REPO_NAME = "nostalgebraist/nostalgebraist-autoresponder-6_1b-unpacked"
     model_name = "arj-x11p2-3625"
     ENDTAGS = True
     NOSPACE = True

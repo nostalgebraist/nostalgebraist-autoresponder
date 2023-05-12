@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from transformers import AutoTokenizer
 from transformer_utils.util.tfm_utils import get_local_path_from_huggingface_cdn
+import huggingface_hub
 
 import magma
 
@@ -212,13 +213,20 @@ t_start = time.time()
 generator_path = model_name
 
 if not os.path.exists(generator_path):
-    model_tar_name = 'model.tar.gz' if HF_FILES_GZIPPED else 'model.tar'
-    if (ARJ_V11 and ARJ_V11_ENDTAGS) and not ARJ_V11_P1:
-        model_tar_name = 'model-endtags.tar'
-    model_tar_path = get_local_path_from_huggingface_cdn(
-        HF_REPO_NAME, model_tar_name
-    )
-    subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
+    if FASTER_LEGACY_DOWNLOAD:
+        huggingface_hub.snapshot_download(
+            HF_REPO_NAME,
+            local_dir='hf-repo-temp',
+        )
+        subprocess.run(f"mv hf-repo-temp/* .", shell=True)
+    else:
+        model_tar_name = 'model.tar.gz' if HF_FILES_GZIPPED else 'model.tar'
+        if (ARJ_V11 and ARJ_V11_ENDTAGS) and not ARJ_V11_P1:
+            model_tar_name = 'model-endtags.tar'
+        model_tar_path = get_local_path_from_huggingface_cdn(
+            HF_REPO_NAME, model_tar_name
+        )
+        subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
 
 # HEADS: download if necessary
 head_paths = []
@@ -239,25 +247,27 @@ needs_head_download = not all(os.path.exists(path) for path in head_paths)
 heads_tar_path = ""
 
 if needs_head_download:
-    heads_tar_name = 'heads.tar.gz' if HF_FILES_GZIPPED else 'heads.tar'
-    heads_tar_path = get_local_path_from_huggingface_cdn(
-        HF_REPO_NAME, heads_tar_name
-    )
+    if FASTER_LEGACY_DOWNLOAD:
+        raise FileNotFoundError
+    else:
+        heads_tar_name = 'heads.tar.gz' if HF_FILES_GZIPPED else 'heads.tar'
+        heads_tar_path = get_local_path_from_huggingface_cdn(
+            HF_REPO_NAME, heads_tar_name
+        )
 
-if "selector" in MODELS_SERVED and not os.path.exists(ckpt_select):
-    subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_select}", shell=True)
+        if "selector" in MODELS_SERVED and not os.path.exists(ckpt_select):
+            subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_select}", shell=True)
 
-if "sentiment" in MODELS_SERVED and not os.path.exists(ckpt_sentiment):
-    subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_sentiment}", shell=True)
+        if "sentiment" in MODELS_SERVED and not os.path.exists(ckpt_sentiment):
+            subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_sentiment}", shell=True)
 
-if "autoreviewer" in MODELS_SERVED and not os.path.exists(ckpt_autoreviewer):
-    subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_autoreviewer}", shell=True)
+        if "autoreviewer" in MODELS_SERVED and not os.path.exists(ckpt_autoreviewer):
+            subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_autoreviewer}", shell=True)
 
-if "captioner" in MODELS_SERVED and not os.path.exists(ckpt_captioner):
-    subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_captioner}", shell=True)
+        if "captioner" in MODELS_SERVED and not os.path.exists(ckpt_captioner):
+            subprocess.run(f"tar -xvf {heads_tar_path} {ckpt_captioner}", shell=True)
 
-if needs_head_download:
-    subprocess.run(f"rm {heads_tar_path}", shell=True)
+        subprocess.run(f"rm {heads_tar_path}", shell=True)
 
 t_file = time.time()
 print(f"downloaded in {t_file - t_start}s")

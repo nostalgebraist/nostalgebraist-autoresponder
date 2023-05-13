@@ -951,20 +951,20 @@ def caption_images_in_post_html(text: str, write_to_archive=True, verbose=True, 
 
         if use_coca:
             kwargs = dict(top_p=0.5)
-            result = caption_image_coca(normed_url, **kwargs)[0]['result']
+            capt = caption_image_coca(normed_url, **kwargs)[0]['result']
         else:
             guidance_scale = 0.5 if len(imtext) == 0 else 0.0
             if verbose:
                 print(f"using guidance_scale {guidance_scale} to caption {repr(normed_url)} with imtext {repr(imtext)}")
             kwargs = dict(temperature=1, top_p=0.9, guidance_scale=guidance_scale)
             result = caption_image(normed_url, use_coca=False, **kwargs)[0]['result']
-        if result is not None:
-            capt, msg = result
-        else:
-            capt = None
-            msg = 'received null from bridge during captioning'
-        if msg != '':
-            print(msg)
+            if result is not None:
+                capt, msg = result
+            else:
+                capt = None
+                msg = 'received null from bridge during captioning'
+            if msg != '':
+                print(msg)
         if write_to_archive:
             archive_caption(normed_url, capt)
         return capt

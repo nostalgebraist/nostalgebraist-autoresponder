@@ -261,10 +261,12 @@ def find_text_images_and_sub_real_images(
             )
             alt_text = imtext
             if caption is not None:
+                caption_alt = caption.replace("openclip", "").rstrip(" ")
+                print(f"caption_alt:\t{repr(caption_alt)}\ncaption:\t{repr(caption)}")
                 if imtext != "":
-                    alt_text = ALT_TEXT_FORMAT_WITH_IMTEXT.format(caption=caption, imtext=imtext)
+                    alt_text = ALT_TEXT_FORMAT_WITH_IMTEXT.format(caption=caption_alt, imtext=imtext)
                 else:
-                    alt_text = ALT_TEXT_FORMAT_WITHOUT_IMTEXT.format(caption=caption)
+                    alt_text = ALT_TEXT_FORMAT_WITHOUT_IMTEXT.format(caption=caption_alt)
 
                 alt_text = alt_text.replace("<", "").replace(">", "")  # w/o this, "<PERSON>" entirely vanishes
             return figure_format.format(

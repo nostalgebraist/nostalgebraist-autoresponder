@@ -132,7 +132,8 @@ def fetch_and_process(blog_name: str = bot_name,
                       process_only=False,
                       save_processed_every=-1,
                       save_image_cache=False,
-                      write_captions=False,):
+                      write_captions=False,
+                      before=None):
     with open("data/head_training_data_raw_posts.pkl.gz", "rb") as f:
         posts = pickle.load(f)
 
@@ -152,7 +153,7 @@ def fetch_and_process(blog_name: str = bot_name,
     else:
         pool = ClientPool()
 
-        new_posts = fetch_posts(pool, blog_name, n, offset, needs_private_client=True, stop_at_id=max_processed_id)
+        new_posts = fetch_posts(pool, blog_name, n, offset, needs_private_client=True, stop_at_id=max_processed_id, before=before)
 
         new_posts = [pp for pp in new_posts if pp["id"] not in fetched_ids]
 
@@ -235,6 +236,7 @@ def main():
     parser.add_argument("--aux-image-cache-path", type=str, default=None)
     parser.add_argument("--write-captions", action="store_true")
     parser.add_argument("--reroll-head-timestamps", action="store_true")
+    parser.add_argument("--before", type=int, default=None)
     args = parser.parse_args()
 
     args = parser.parse_args()
@@ -254,7 +256,8 @@ def main():
                                   fetch_only=args.fetch_only, process_only=args.process_only,
                                   write_captions=args.write_captions,
                                   save_processed_every=args.save_processed_every,
-                                  save_image_cache=args.save_image_cache)
+                                  save_image_cache=args.save_image_cache,
+                                  before=args.before)
         if args.save_image_cache:
             multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()
 

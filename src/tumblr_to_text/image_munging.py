@@ -16,6 +16,8 @@ from api_ml.diffusion_connector import make_image_with_diffusion
 
 from api_tumblr.pytumblr_wrapper import RateLimitClient
 
+from config.autoresponder_config import COCA_TRAINED_LM, COCA_TRAINED_DIFFUSION
+
 
 NPF_ALT_TEXT_NEWLINE_TRICK = True
 
@@ -117,6 +119,10 @@ def upload_images_to_tumblr_urls(images, keys, client, blogname):
 def prep_caption_for_model(caption):
     if caption is None:
         return "unknown"
+    if COCA_TRAINED_LM and caption.startswith('CC '):
+        caption = caption[:len('CC ')]
+        if COCA_TRAINED_DIFFUSION:
+            caption = caption + ' openclip'
     return " " + caption.lstrip(" ")
 
 

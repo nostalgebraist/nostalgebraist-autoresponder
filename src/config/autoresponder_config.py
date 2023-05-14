@@ -724,7 +724,13 @@ else:
 
 LLAMA_BIG = 1
 LLAMA_SPLIT_CKPT = 1
-LLAMA_PATH_CKPT = 'llama-nbar/v3.1'
+COCA_TRAINED_LM = 1
+COCA_TRAINED_DIFFUSION = 0
+
+if COCA_TRAINED_LM:
+    LLAMA_PATH_CKPT = 'llama-nbar/v3.2'
+else:
+    LLAMA_PATH_CKPT = 'llama-nbar/v3.1'
 LLAMA_PATH_ENC = 'llama-nbar/tokenizer.model'
 LLAMA_PATH_LORA = None
 

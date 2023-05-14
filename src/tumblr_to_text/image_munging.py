@@ -117,13 +117,17 @@ def upload_images_to_tumblr_urls(images, keys, client, blogname):
 
 
 def prep_caption_for_model(caption):
+    print(f"prep_caption_for_model: original {repr(caption)}")
     if caption is None:
         return "unknown"
+    print(f"prep_caption_for_model: COCA_TRAINED_LM? {COCA_TRAINED_LM}")
     if COCA_TRAINED_LM and caption.startswith('CC '):
         caption = caption[:len('CC ')]
         if COCA_TRAINED_DIFFUSION:
             caption = caption + ' openclip'
-    return " " + caption.lstrip(" ")
+    caption = " " + caption.lstrip(" ")
+    print(f"prep_caption_for_model: final {repr(caption)}")
+    return caption
 
 
 def find_text_images_and_sub_real_images(

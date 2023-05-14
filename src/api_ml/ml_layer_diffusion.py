@@ -217,7 +217,6 @@ def poll(
                     guidance_scale_txt = guidance_scale
                 pprint(dict(guidance_scale=guidance_scale, guidance_scale_txt=guidance_scale_txt, dynamic_threshold_p=dynamic_threshold_p))
 
-                make_2sided_dynamic_threshold_denoised_fn_batched
                 result = sampling_model_sres1.sample(
                     text=text,
                     batch_size=1,

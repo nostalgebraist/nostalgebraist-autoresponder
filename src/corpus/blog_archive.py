@@ -154,7 +154,7 @@ def fetch_and_process(blog_name: str = bot_name,
 
         new_posts = fetch_posts(pool, blog_name, n, offset, needs_private_client=True, stop_at_id=max_processed_id)
 
-        new_posts = [pp for pp in posts if pp["id"] not in fetched_ids]
+        new_posts = [pp for pp in new_posts if pp["id"] not in fetched_ids]
 
         posts.extend(new_posts)
 

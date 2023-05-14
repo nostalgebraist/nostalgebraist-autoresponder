@@ -8,7 +8,6 @@ from PIL import Image
 
 import open_clip
 
-from ml.kv_cache import kv_buffer_scope
 from util.error_handling import LogExceptionAndSkip
 
 
@@ -74,6 +73,7 @@ def caption_image(
 ):
     from magma.image_input import ImageInput
     from magma.sampling import generate_cfg
+    from ml.kv_cache import kv_buffer_scope
 
     activate_magma(magma_wrapper)
 

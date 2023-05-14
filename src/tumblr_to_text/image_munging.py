@@ -121,8 +121,8 @@ def prep_caption_for_model(caption):
     if caption is None:
         return "unknown"
     print(f"prep_caption_for_model: COCA_TRAINED_LM? {COCA_TRAINED_LM}")
-    if COCA_TRAINED_LM and caption.startswith('CC '):
-        caption = caption[:len('CC ')]
+    if COCA_TRAINED_LM and caption.lstrip(" ").startswith('CC '):
+        caption = caption.lstrip(" ")[len('CC '):]
         if COCA_TRAINED_DIFFUSION:
             caption = caption + ' openclip'
     caption = " " + caption.lstrip(" ")
@@ -211,7 +211,8 @@ def find_text_images_and_sub_real_images(
         prompt = imtext
         per_image_kwargs = {}
         per_image_kwargs.update(image_maker_kwargs)
-        per_image_kwargs['capt'] = prep_caption_for_model(caption)
+        caption_prepped = prep_caption_for_model(caption)
+        per_image_kwargs['capt'] = caption_prepped
 
         textless_guidance_substrings = ['[image]', '[animated gif]']
         textless_guidance_trigger = (len(imtext) == 0) or any(s == imtext.strip().lower() for s in textless_guidance_substrings)
@@ -219,16 +220,16 @@ def find_text_images_and_sub_real_images(
         textful_guidance_trigger = (text_guidance_scale is None) and (max(len(line) for line in imtext.split("\n")) >= 30)
 
         if textless_guidance_trigger:
-            print(f"using textless guidance scale={textless_guidance_scale} for {repr(imtext)}, {repr(caption)}")
+            print(f"using textless guidance scale={textless_guidance_scale} for {repr(imtext)}, {repr(caption_prepped)}")
             textless_guidance_used = True
             prompt = ''
             per_image_kwargs['guidance_scale'] = textless_guidance_scale
         elif textful_guidance_trigger:
-            print(f"using textful guidance scale={textful_guidance_scale} for {repr(imtext)}, {repr(caption)}")
+            print(f"using textful guidance scale={textful_guidance_scale} for {repr(imtext)}, {repr(caption_prepped)}")
             textful_guidance_used = True
             per_image_kwargs['guidance_scale'] = textful_guidance_scale
         else:
-            print(f"using regular guidance scale={guidance_scale} for {repr(imtext)}, {repr(caption)}")
+            print(f"using regular guidance scale={guidance_scale} for {repr(imtext)}, {repr(caption_prepped)}")
             regular_guidance_used = True
 
         print(f"Using text_guidance_scale={text_guidance_scale}")
@@ -261,7 +262,7 @@ def find_text_images_and_sub_real_images(
             )
             alt_text = imtext
             if caption is not None:
-                caption_alt = caption.replace("openclip", "").rstrip(" ")
+                caption_alt = caption.replace("CC", "").strip(" ")
                 print(f"caption_alt:\t{repr(caption_alt)}\ncaption:\t{repr(caption)}")
                 if imtext != "":
                     alt_text = ALT_TEXT_FORMAT_WITH_IMTEXT.format(caption=caption_alt, imtext=imtext)

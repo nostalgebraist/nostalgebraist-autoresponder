@@ -952,6 +952,8 @@ def caption_images_in_post_html(text: str, write_to_archive=True, verbose=True, 
         if use_coca:
             kwargs = dict(top_p=0.5)
             capt = caption_image_coca(normed_url, **kwargs)[0]['result']
+            if COCA_TRAINED_LM:
+                capt = 'CC ' + capt
         else:
             guidance_scale = 0.5 if len(imtext) == 0 else 0.0
             if verbose:

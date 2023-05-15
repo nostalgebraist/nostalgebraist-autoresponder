@@ -763,7 +763,7 @@ if LLAMA_BIG:
     LLAMA_QUANTIZE_CACHE_ABOVE = 0
     
     LLAMA_QUANTIZE_CACHE_AFTER_TOKEN = 0
-    LLAMA_N_CTX = 2048
+    LLAMA_N_CTX = 1344 # more cuda issues :(
 
     MAX_CONTINUE_TOKENS = 2048
     required_continuation_room = 128

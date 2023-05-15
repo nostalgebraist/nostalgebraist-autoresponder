@@ -9,15 +9,12 @@ from transformers import AutoTokenizer
 from transformer_utils.util.tfm_utils import get_local_path_from_huggingface_cdn
 import huggingface_hub
 
-import magma
-
 from config.autoresponder_config import *
 from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 from ml.generator_model_torch import GeneratorModelTorch, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
 from classifier_heads.head_estimator import NostARHeadEstimator
 from ml.load_gptj import load_gpt_j_split_ckpt, load_gpt_j_split_ckpt_state_dict, quick_init_gptj
-from ml.kv_cache import setup_kv_buffer
 
 import ml.captioning
 import ml.fic_titling
@@ -87,8 +84,6 @@ def write_fic_title(self, text, **kwargs):
 
 ml.generator_model_torch.GeneratorModelTorch.write_fic_title = write_fic_title
 
-magma.Magma.caption_image = caption_image
-
 # TODO: move this over later
 drivedir = "/content/drive/MyDrive/gpt_neo/"
 os.chdir("/")
@@ -130,6 +125,9 @@ def load_generator_model(
     use_kv_buffer=True,
 ):
     if use_captioner:
+        import magma
+        magma.Magma.caption_image = caption_image
+
         sd = load_gpt_j_split_ckpt_state_dict(path)
 
         magma_config_path = os.path.join(captioner_path, 'config.yml')
@@ -150,6 +148,8 @@ def load_generator_model(
         magma_wrapper.image_prefix.to(device=captioning_adapters_device)
 
         if use_kv_buffer:
+            from ml.kv_cache import setup_kv_buffer
+
             setup_kv_buffer(magma_wrapper, batch_size=batch_size, max_sequence_length=max_feed_size_with_cache)
 
         transformers_model = magma_wrapper.lm

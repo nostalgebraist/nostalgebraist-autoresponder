@@ -1,22 +1,22 @@
 from functools import lru_cache
+from io import BytesIO
 
 import torch as th
+import requests
 
 from PIL import Image
-from magma import Magma
-from magma.image_input import ImageInput
-from magma.sampling import generate_cfg
 
-from ml.kv_cache import kv_buffer_scope
+import open_clip
+
 from util.error_handling import LogExceptionAndSkip
 
 
 @lru_cache(1)
-def get_caption_prompt_tensor(prompt: str, magma_wrapper: Magma):
+def get_caption_prompt_tensor(prompt: str, magma_wrapper):
     return magma_wrapper.word_embedding(magma_wrapper.tokenizer.encode(prompt, return_tensors="pt").cuda())
 
 
-def caption_image_from_url(url: str, magma_wrapper: Magma):
+def caption_image_from_url(url: str, magma_wrapper):
     # TODO: delete this?
     frames = url_to_frame_bytes(url)
 
@@ -29,7 +29,7 @@ def caption_image_from_url(url: str, magma_wrapper: Magma):
 
 
 def activate_magma(
-    magma_wrapper: Magma,
+    magma_wrapper,
 ):
     for k in magma_wrapper.adapter_map:
         magma_wrapper.adapter_map[k].cuda()
@@ -43,7 +43,7 @@ def activate_magma(
 
 
 def deactivate_magma(
-    magma_wrapper: Magma,
+    magma_wrapper,
     adapters_device='cpu',
 ):
     adapters_attached = len(magma_wrapper.adapter_map) == 0
@@ -60,7 +60,7 @@ def deactivate_magma(
 
 def caption_image(
     path_or_url: str,
-    magma_wrapper: Magma,
+    magma_wrapper,
     temperature=1.0,
     top_p=0.5,
     top_k=0,
@@ -71,6 +71,10 @@ def caption_image(
     deactivate_when_done=True,
     exception_log_file=None,
 ):
+    from magma.image_input import ImageInput
+    from magma.sampling import generate_cfg
+    from ml.kv_cache import kv_buffer_scope
+
     activate_magma(magma_wrapper)
 
     with kv_buffer_scope(magma_wrapper, False):
@@ -107,3 +111,43 @@ def caption_image(
         deactivate_magma(magma_wrapper, adapters_device=adapters_device)
 
     return caption
+
+
+class CoCa:
+    def __init__(self, model, transform, device='cpu'):
+        self.model = model
+        self.transform = transform
+        self.device = device
+
+        self.model.to(device)
+
+    @staticmethod
+    def load(device='cpu'):
+        model, _, transform = open_clip.create_model_and_transforms(
+            model_name="coca_ViT-L-14",
+            pretrained="mscoco_finetuned_laion2B-s13B-b90k"
+        )
+        return CoCa(model, transform, device)
+    
+    def caption(self, url: str, top_p=0.5, max_len=30):
+        response = requests.get(url)
+        im = Image.open(BytesIO(response.content))
+
+        kwargs = dict(
+            generation_type='top_p',
+            top_p=top_p,
+            seq_len=max_len,
+            top_k=None,
+            num_beams=None,
+            num_beam_groups=None,
+            temperature=1,
+        )
+
+
+        with th.no_grad():
+            im = self.transform(im).unsqueeze(0)
+            generated = self.model.generate(im, **kwargs)
+
+        generated_text = open_clip.decode(generated[0])
+        generated_text = generated_text.split("<end_of_text>")[0].replace("<start_of_text>", "")
+        return generated_text

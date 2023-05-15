@@ -200,8 +200,8 @@ MOOD_STALE_SECONDS = 60 * 10
 mood_computed_most_recently = None
 
 WRITE_POSTS_WHEN_QUEUE_BELOW = 24
-N_TO_WRITE = 2
-AVOID_FILLING_NEXT_DAY_QUEUE = True
+N_TO_WRITE = 1
+AVOID_FILLING_NEXT_DAY_QUEUE = False
 
 INDIRECT_REBLOGS = False
 REPLY_RELEVANCE_V2 = True
@@ -3720,6 +3720,11 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
                     response_cache.save()
                     image_analysis_cache.save()
         return loop_persistent_data, response_cache
+
+    # testing
+    loop_persistent_data, response_cache = _mainloop_asks_block(
+        loop_persistent_data, response_cache
+    )
 
     ### do reblog/reply check
     if n_posts_to_check > 0:

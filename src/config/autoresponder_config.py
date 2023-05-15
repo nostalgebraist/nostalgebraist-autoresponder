@@ -701,11 +701,18 @@ captioning_adapters_device = 'cuda:0' if GPU_TYPE == "bigger" else 'cpu'
 autocast_recommended = GPU_TYPE != 'small'
 
 LLAMA_PROB_DELT = True
+COCA_CAPTIONING = True
 
-MODELS_SERVED = {"generator", "selector", "sentiment", "autoreviewer"}
+MODELS_SERVED_LEGACY = {"generator", "selector", "sentiment", "autoreviewer"}
+MODELS_SERVED_LLAMA = {"generator"}
 
 if V12_16:
-    MODELS_SERVED.add("captioner")
+    MODELS_SERVED_LEGACY.add("captioner")
+
+if COCA_CAPTIONING:
+    MODELS_SERVED_LEGACY.remove("captioner")
+    MODELS_SERVED_LEGACY.add("captioner_coca")
+    MODELS_SERVED_LLAMA.add("captioner_coca")
 
 # "all", "only_write", "only_write_prob_delt", "all_except_write", "all_except_write_prob_delt"
 if LLAMA_PROB_DELT:
@@ -717,7 +724,13 @@ else:
 
 LLAMA_BIG = 1
 LLAMA_SPLIT_CKPT = 1
-LLAMA_PATH_CKPT = 'llama-nbar/v3.1'
+COCA_TRAINED_LM = 1
+COCA_TRAINED_DIFFUSION = 1
+
+if COCA_TRAINED_LM:
+    LLAMA_PATH_CKPT = 'llama-nbar/v3.2'
+else:
+    LLAMA_PATH_CKPT = 'llama-nbar/v3.1'
 LLAMA_PATH_ENC = 'llama-nbar/tokenizer.model'
 LLAMA_PATH_LORA = None
 
@@ -750,7 +763,7 @@ if LLAMA_BIG:
     LLAMA_QUANTIZE_CACHE_ABOVE = 0
     
     LLAMA_QUANTIZE_CACHE_AFTER_TOKEN = 0
-    LLAMA_N_CTX = 2048
+    LLAMA_N_CTX = 1344 # more cuda issues :(
 
     MAX_CONTINUE_TOKENS = 2048
     required_continuation_room = 128

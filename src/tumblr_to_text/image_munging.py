@@ -16,6 +16,8 @@ from api_ml.diffusion_connector import make_image_with_diffusion
 
 from api_tumblr.pytumblr_wrapper import RateLimitClient
 
+from config.autoresponder_config import COCA_TRAINED_LM, COCA_TRAINED_DIFFUSION
+
 
 NPF_ALT_TEXT_NEWLINE_TRICK = True
 
@@ -115,9 +117,17 @@ def upload_images_to_tumblr_urls(images, keys, client, blogname):
 
 
 def prep_caption_for_model(caption):
+    print(f"prep_caption_for_model: original {repr(caption)}")
     if caption is None:
         return "unknown"
-    return " " + caption.lstrip(" ")
+    print(f"prep_caption_for_model: COCA_TRAINED_LM? {COCA_TRAINED_LM}")
+    if COCA_TRAINED_LM and caption.lstrip(" ").startswith('CC '):
+        caption = caption.lstrip(" ")[len('CC '):]
+        if COCA_TRAINED_DIFFUSION:
+            caption = caption + ' openclip'
+    caption = " " + caption.lstrip(" ")
+    print(f"prep_caption_for_model: final {repr(caption)}")
+    return caption
 
 
 def find_text_images_and_sub_real_images(
@@ -201,7 +211,8 @@ def find_text_images_and_sub_real_images(
         prompt = imtext
         per_image_kwargs = {}
         per_image_kwargs.update(image_maker_kwargs)
-        per_image_kwargs['capt'] = prep_caption_for_model(caption)
+        caption_prepped = prep_caption_for_model(caption)
+        per_image_kwargs['capt'] = caption_prepped
 
         textless_guidance_substrings = ['[image]', '[animated gif]']
         textless_guidance_trigger = (len(imtext) == 0) or any(s == imtext.strip().lower() for s in textless_guidance_substrings)
@@ -209,16 +220,16 @@ def find_text_images_and_sub_real_images(
         textful_guidance_trigger = (text_guidance_scale is None) and (max(len(line) for line in imtext.split("\n")) >= 30)
 
         if textless_guidance_trigger:
-            print(f"using textless guidance scale={textless_guidance_scale} for {repr(imtext)}, {repr(caption)}")
+            print(f"using textless guidance scale={textless_guidance_scale} for {repr(imtext)}, {repr(caption_prepped)}")
             textless_guidance_used = True
             prompt = ''
             per_image_kwargs['guidance_scale'] = textless_guidance_scale
         elif textful_guidance_trigger:
-            print(f"using textful guidance scale={textful_guidance_scale} for {repr(imtext)}, {repr(caption)}")
+            print(f"using textful guidance scale={textful_guidance_scale} for {repr(imtext)}, {repr(caption_prepped)}")
             textful_guidance_used = True
             per_image_kwargs['guidance_scale'] = textful_guidance_scale
         else:
-            print(f"using regular guidance scale={guidance_scale} for {repr(imtext)}, {repr(caption)}")
+            print(f"using regular guidance scale={guidance_scale} for {repr(imtext)}, {repr(caption_prepped)}")
             regular_guidance_used = True
 
         print(f"Using text_guidance_scale={text_guidance_scale}")
@@ -251,10 +262,12 @@ def find_text_images_and_sub_real_images(
             )
             alt_text = imtext
             if caption is not None:
+                caption_alt = caption.replace("CC", "").strip(" ")
+                print(f"caption_alt:\t{repr(caption_alt)}\ncaption:\t{repr(caption)}")
                 if imtext != "":
-                    alt_text = ALT_TEXT_FORMAT_WITH_IMTEXT.format(caption=caption, imtext=imtext)
+                    alt_text = ALT_TEXT_FORMAT_WITH_IMTEXT.format(caption=caption_alt, imtext=imtext)
                 else:
-                    alt_text = ALT_TEXT_FORMAT_WITHOUT_IMTEXT.format(caption=caption)
+                    alt_text = ALT_TEXT_FORMAT_WITHOUT_IMTEXT.format(caption=caption_alt)
 
                 alt_text = alt_text.replace("<", "").replace(">", "")  # w/o this, "<PERSON>" entirely vanishes
             return figure_format.format(

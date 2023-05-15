@@ -24,7 +24,7 @@ fake = FakeStream()
 
 while True:
     # # main poll
-    # sys.stdout = fake
+    sys.stdout = fake
 
     api_ml.ml_layer_torch.loop_poll(
         period=1,

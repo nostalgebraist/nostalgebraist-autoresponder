@@ -22,3 +22,4 @@ jsonlines
 imageio-ffmpeg
 joblib==1.2.0
 typeguard<3.0.0
+open_clip_torch

@@ -51,7 +51,11 @@ if FASTER_LEGACY_DOWNLOAD:
 else:
     # HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion'
     HF_REPO_NAME_DIFFUSION = 'nostalgebraist/nostalgebraist-autoresponder-diffusion-captions'
-model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
+
+if COCA_TRAINED_DIFFUSION:
+    model_path_diffusion = 'nostalgebraist-autoresponder-diffusion-coca'
+else:
+    model_path_diffusion = 'nostalgebraist-autoresponder-diffusion'
 
 
 timestep_respacing_sres1 = '100'
@@ -70,6 +74,7 @@ if not os.path.exists(model_path_diffusion):
         huggingface_hub.snapshot_download(
             HF_REPO_NAME_DIFFUSION,
             local_dir='hf-repo-temp',
+            allow_patterns=[model_path_diffusion + '/*'],
         )
         subprocess.run(f"mv hf-repo-temp/* .", shell=True)
     else:
@@ -212,7 +217,6 @@ def poll(
                     guidance_scale_txt = guidance_scale
                 pprint(dict(guidance_scale=guidance_scale, guidance_scale_txt=guidance_scale_txt, dynamic_threshold_p=dynamic_threshold_p))
 
-                make_2sided_dynamic_threshold_denoised_fn_batched
                 result = sampling_model_sres1.sample(
                     text=text,
                     batch_size=1,

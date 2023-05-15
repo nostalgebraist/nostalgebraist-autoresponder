@@ -9,21 +9,20 @@ from transformers import AutoTokenizer
 from transformer_utils.util.tfm_utils import get_local_path_from_huggingface_cdn
 import huggingface_hub
 
-import magma
-
 from config.autoresponder_config import *
 from tumblr_to_text.classic.autoresponder_static_v8 import *
 
 from ml.generator_model_torch import GeneratorModelTorch, GPT_NEO_DEFAULT_SAMPLING_PARAMS, is_repeating_criterion
 from classifier_heads.head_estimator import NostARHeadEstimator
 from ml.load_gptj import load_gpt_j_split_ckpt, load_gpt_j_split_ckpt_state_dict, quick_init_gptj
-from ml.kv_cache import setup_kv_buffer
 
 import ml.captioning
 import ml.fic_titling
 import ml.generator_model_torch
 
 from util.util import typed_namedtuple_to_dict, collect_and_show, show_gpu
+
+MODELS_SERVED = MODELS_SERVED_LEGACY
 
 GENERATOR_METHODS_SERVED = GENERATOR_METHODS_SERVED_LEGACY
 
@@ -85,8 +84,6 @@ def write_fic_title(self, text, **kwargs):
 
 ml.generator_model_torch.GeneratorModelTorch.write_fic_title = write_fic_title
 
-magma.Magma.caption_image = caption_image
-
 # TODO: move this over later
 drivedir = "/content/drive/MyDrive/gpt_neo/"
 os.chdir("/")
@@ -128,6 +125,9 @@ def load_generator_model(
     use_kv_buffer=True,
 ):
     if use_captioner:
+        import magma
+        magma.Magma.caption_image = caption_image
+
         sd = load_gpt_j_split_ckpt_state_dict(path)
 
         magma_config_path = os.path.join(captioner_path, 'config.yml')
@@ -148,6 +148,8 @@ def load_generator_model(
         magma_wrapper.image_prefix.to(device=captioning_adapters_device)
 
         if use_kv_buffer:
+            from ml.kv_cache import setup_kv_buffer
+
             setup_kv_buffer(magma_wrapper, batch_size=batch_size, max_sequence_length=max_feed_size_with_cache)
 
         transformers_model = magma_wrapper.lm
@@ -227,7 +229,20 @@ if not os.path.exists(generator_path):
         subprocess.run(f"tar -xf {model_tar_path} && rm {model_tar_path}", shell=True)
 
 # HEADS: download if necessary
-head_paths = [ckpt_select, ckpt_sentiment, ckpt_autoreviewer, ckpt_captioner]
+head_paths = []
+
+if "selector" in MODELS_SERVED:
+    head_paths.append(ckpt_select)
+
+if "sentiment" in MODELS_SERVED:
+    head_paths.append(ckpt_sentiment)
+
+if "autoreviewer" in MODELS_SERVED:
+    head_paths.append(ckpt_autoreviewer)
+
+if "captioner" in MODELS_SERVED:
+    head_paths.append(ckpt_captioner)
+
 needs_head_download = not all(os.path.exists(path) for path in head_paths)
 heads_tar_path = ""
 
@@ -280,6 +295,11 @@ if "sentiment" in MODELS_SERVED:
 if "autoreviewer" in MODELS_SERVED:
     autoreviewer_est = load_selector(ckpt_autoreviewer, base_model=generator_model.transformers_model, tokenizer=tokenizer)
     autoreviewer_est.length = length_autoreview
+
+captioner_coca = None
+
+if "captioner_coca" in MODELS_SERVED:
+    captioner_coca = ml.captioning.CoCa.load()
 
 DEPRECATED_KWARGS = {"mirotarg"}
 
@@ -338,6 +358,9 @@ def poll(
             elif data["model"] == "captioner":
                 requested_model = magma_wrapper
                 multirequest_sequence_in_process = True
+            elif data["model"] == "captioner_coca":
+                requested_model = captioner_coca
+                multirequest_sequence_in_process = True
             else:
                 raise ValueError(f"requested_model: {data.get('model')}")
 
@@ -371,7 +394,7 @@ def poll(
             # keep magma activated over strings of captioning requests
             if data["model"] == "captioner":
                 requested_kwargs['deactivate_when_done'] = False
-            elif len(magma_wrapper.adapter_map) == 0:
+            elif magma_wrapper is not None and len(magma_wrapper.adapter_map) == 0:
                 # need magma decativated, but adapters are attached
                 ml.captioning.deactivate_magma(
                     magma_wrapper,

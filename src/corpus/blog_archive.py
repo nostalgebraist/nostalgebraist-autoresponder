@@ -133,7 +133,8 @@ def fetch_and_process(blog_name: str = bot_name,
                       save_processed_every=-1,
                       save_image_cache=False,
                       write_captions=False,
-                      before=None):
+                      before=None,
+                      processed_path="data/head_training_data.json"):
     with open("data/head_training_data_raw_posts.pkl.gz", "rb") as f:
         posts = pickle.load(f)
 
@@ -141,7 +142,7 @@ def fetch_and_process(blog_name: str = bot_name,
     max_ts = fromtimestamp_pst(max_ts_posix).isoformat()
     print(f"loaded {len(posts)} raw posts, max ts {max_ts}")
 
-    lines = load()
+    lines = load(path=processed_path)
     max_processed_id = max(line["id"] for line in lines)
     print(f"loaded {len(lines)} existing records, max id {max_processed_id}")
 
@@ -189,15 +190,15 @@ def fetch_and_process(blog_name: str = bot_name,
         )
         lines.append(line)
         if (save_processed_every > 0) and (i > 0) and (i % save_processed_every == 0):
-            save(lines)
+            save(lines, path=processed_path)
             if save_image_cache:
                 multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()
 
     return lines
 
 
-def reroll_head_timestamps():
-    lines = load()
+def reroll_head_timestamps(processed_path):
+    lines = load(path=processed_path)
 
     base_head_timestamp = now_pst()
 
@@ -237,6 +238,7 @@ def main():
     parser.add_argument("--write-captions", action="store_true")
     parser.add_argument("--reroll-head-timestamps", action="store_true")
     parser.add_argument("--before", type=int, default=None)
+    parser.add_argument("--processed-path", type=str, default="data/head_training_data.json")
     args = parser.parse_args()
 
     args = parser.parse_args()
@@ -245,7 +247,7 @@ def main():
         multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.log_cache_miss = True
 
     if args.reroll_head_timestamps:
-        lines = reroll_head_timestamps()
+        lines = reroll_head_timestamps(processed_path=args.processed_path)
     else:
         if args.aux_image_cache_path is not None:
             aux_image_cache = ImageAnalysisCache.load(args.aux_image_cache_path)
@@ -257,12 +259,13 @@ def main():
                                   write_captions=args.write_captions,
                                   save_processed_every=args.save_processed_every,
                                   save_image_cache=args.save_image_cache,
-                                  before=args.before)
+                                  before=args.before,
+                                  processed_path=args.processed_path)
         if args.save_image_cache:
             multimodal.image_analysis_singleton.IMAGE_ANALYSIS_CACHE.save()
 
     if not args.fetch_only:
-        save(lines)
+        save(lines, path=args.processed_path)
 
 
 if __name__ == "__main__":

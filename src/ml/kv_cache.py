@@ -8,7 +8,7 @@ from contextlib import contextmanager
 
 import torch
 import transformers.models.gpt_neo.modeling_gpt_neo
-import magma
+
 
 def make_kv_cache_hook(bs, maxlen):
     def hook(model):
@@ -213,11 +213,11 @@ def kv_buffer_gpt_neo_selfattn_forward(
 
 
 def setup_kv_buffer(
-    model: Union[transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM, magma.Magma],
+    model,
     batch_size,
     max_sequence_length,
 ):
-    is_magma_wrapper = isinstance(model, magma.Magma)
+    is_magma_wrapper = hasattr(model, 'adapter_map')
     lm = model.lm if is_magma_wrapper else model
 
     orig_adapters_attached = False
@@ -252,10 +252,10 @@ transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM.using_kv_buffer =
 
 @contextmanager
 def kv_buffer_scope(
-    model: Union[transformers.models.gpt_neo.modeling_gpt_neo.GPTNeoForCausalLM, magma.Magma],
+    model,
     enabled: bool,
 ):
-    is_magma_wrapper = isinstance(model, magma.Magma)
+    is_magma_wrapper = hasattr(model, 'adapter_map')
     lm = model.lm if is_magma_wrapper else model
 
     orig_adapters_attached = False

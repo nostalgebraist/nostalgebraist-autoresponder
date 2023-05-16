@@ -508,10 +508,11 @@ def loop_poll(
         return False
 
     while not _should_stop(loop_counter, open_request_ids):
-        open_request_ids, almostdone_in_flight, multirequest_sequence_in_process = poll(
+        open_request_ids, almostdone_in_flight, _ = poll(
             dummy=dummy, ports=ports, routes=routes, show_memory=show_memory,
             multirequest_sequence_in_process=multirequest_sequence_in_process
         )
+        multirequest_sequence_in_process = False
         if multirequest_sequence_in_process:
             time.sleep(0.1)
         elif len(open_request_ids) == 0 or dummy:

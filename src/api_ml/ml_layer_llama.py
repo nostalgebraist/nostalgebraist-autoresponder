@@ -554,10 +554,11 @@ def loop_poll(
         return False
 
     while not _should_stop(loop_counter, open_request_ids):
-        open_request_ids, almostdone_in_flight, multirequest_sequence_in_process = poll(
+        open_request_ids, almostdone_in_flight, _ = poll(
             dummy=dummy, ports=ports, routes=routes, show_memory=show_memory,
             multirequest_sequence_in_process=multirequest_sequence_in_process
         )
+        multirequest_sequence_in_process = False
         if use_almostdone and almostdone_in_flight:
             time.sleep(2)
         elif multirequest_sequence_in_process and len(MODELS_SERVED) > 1:

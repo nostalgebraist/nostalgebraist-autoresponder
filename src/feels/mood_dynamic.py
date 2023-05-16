@@ -751,6 +751,7 @@ def create_mood_graph(
         start_time - pd.Timedelta(days=window_length_days),
         end_time,
     ).apply(ytrans)
+    lti_series = lti_series.sort_index()
     lti_series = lti_series.loc[start_time:end_time]
 
     fig = plt.figure(figsize=(8, 6))

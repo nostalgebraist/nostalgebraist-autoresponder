@@ -383,9 +383,7 @@ def poll(
                     continue
                 
             if not hasattr(requested_model, requested_method):
-                raise ValueError(
-                    f"requested_model {requested_model} has no method {requested_method}"
-                )
+                continue
 
             requested_args, requested_kwargs = data.get("args", []), data.get(
                 "kwargs", {}

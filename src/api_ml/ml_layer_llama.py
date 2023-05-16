@@ -443,6 +443,9 @@ def poll(
 
             requested_method = data["method"]
 
+            if not hasattr(requested_model, requested_method):
+                continue
+
             if data["model"] == "generator":
                 if GENERATOR_METHODS_SERVED == 'all_except_write' and requested_method in {'write', 'write_random_prompt'}:
                     multirequest_sequence_in_process = False

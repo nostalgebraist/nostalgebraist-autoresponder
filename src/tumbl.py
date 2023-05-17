@@ -1519,14 +1519,14 @@ def respond_to_reblogs_replies(
 
 
 def is_reblog_worthy_when_responding(post_payload, note_payload, verbose=True):
-    comment_ = post_payload["reblog"].get("comment", "")
+    comment_ = post_payload.get("reblog", {}).get("comment", "")
     has_comment = len(comment_) > 0
 
     if INDIRECT_REBLOGS:
         is_reblog_worthy = has_comment
     else:
         is_reblog_worthy = (
-            note_payload["reblog_parent_blog_name"] == blogName
+            note_payload.get("reblog_parent_blog_name", "") == blogName
         ) and has_comment
 
     for trail_entry in post_payload.get("trail", []):

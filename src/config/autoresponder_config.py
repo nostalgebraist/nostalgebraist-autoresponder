@@ -712,7 +712,6 @@ if V12_16:
 if COCA_CAPTIONING:
     MODELS_SERVED_LEGACY.remove("captioner")
     MODELS_SERVED_LEGACY.add("captioner_coca")
-    MODELS_SERVED_LLAMA.add("captioner_coca")
 
 # "all", "only_write", "only_write_prob_delt", "all_except_write", "all_except_write_prob_delt"
 if LLAMA_PROB_DELT:

@@ -5,6 +5,7 @@ Tumblr API layer and main loop of the bot during operation.
 import os
 import pickle
 import urllib.parse
+import sys
 import argparse
 import random
 import json
@@ -3817,6 +3818,11 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
         determine_mood(response_cache)
 
     print()
+
+    if now_pst() > datetime(2023, 5, 31, 9):
+        print('bye')
+        sys.exit()
+
     return loop_persistent_data, response_cache
 
 

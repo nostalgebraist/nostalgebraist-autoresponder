@@ -2499,28 +2499,6 @@ def do_reblog_reply_handling(
                         loop_persistent_data.timestamps[pi] = item["timestamp"]
                         loop_persistent_data.reblog_keys[pi] = item["reblog_key"]
 
-                    elif item['type'] == 'reblog':
-                        notification_post_id = int(item["target_post_id"])  # bot post being reblogged
-
-                        pi = PostIdentifier(blogName, str(notification_post_id))
-
-                        if response_cache.is_handled(pi):
-                            continue
-
-                        if pi not in known_pis:
-                            print(f"reblogging from notifications: {pi}")
-
-                            # fetch post
-                            with LogExceptionAndSkip('fetching post that got a reblog notification'):
-                                pp = client_pool.get_private_client().posts(blogName, id=notification_post_id)['posts'][0]
-
-                                post_ts_pst = fromtimestamp_pst(int(pp['timestamp']))
-                                if now_pst() - post_ts_pst > timedelta(days=1):
-                                    print(f"not reblogging old post made on {post_ts_pst}")
-                                else:
-                                    posts.append(pp)
-                                    known_pis.add(pi)
-
             # update last_seen_ts_notifications
             updated_last_seen_ts = max(
                 [item["timestamp"] for item in notifications]

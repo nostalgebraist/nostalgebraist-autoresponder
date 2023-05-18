@@ -81,6 +81,9 @@ class ResponseCache:
         if "rts_counts" not in self.cache:
             self.cache["rts_counts"] = Counter()
 
+        if "mention_notification_times" not in self.cache:
+            self.cache["mention_notification_times"] = {}
+
     @staticmethod
     def load(client=None,
              path=f"data/response_cache.pkl.gz",
@@ -709,6 +712,18 @@ class ResponseCache:
     def genesis_id_to_published_id(self):
         return self.cache["genesis_id_to_published_id"]
 
+    def mark_mention_notification_time(self, pi: PostIdentifier, ts: int):
+        identifier_normalized = PostIdentifier(
+            blog_name=pi.blog_name, id_=str(pi.id_)
+        )
+        self.cache['mention_notification_times'][identifier_normalized] = ts
+
+    def get_mention_notification_time(self, pi: PostIdentifier):
+        identifier_normalized = PostIdentifier(
+            blog_name=pi.blog_name, id_=str(pi.id_)
+        )
+        return self.cache['mention_notification_times'].get(identifier_normalized)
+
     def rts_count(self, ident):
         return self.cache["rts_counts"][ident]
 
@@ -726,6 +741,14 @@ class ResponseCache:
     def do_rts_to_reblog(self, pi: PostIdentifier):
         self.mark_unhandled(pi)
         print(f"automatic rejection count: {self.rts_count(pi)} times")
+        notification_time = self.get_mention_notification_time(pi)
+        if notification_time is not None:
+            print(f"found notification time {notification_time} for {pi}")
+            new_ts = min(
+                self.get_last_seen_ts('last_seen_ts_notifications'),
+                notification_time - 100,
+            )
+            self.update_last_seen_ts('last_seen_ts_notifications', new_ts)
 
     def do_rts_to_reply(self, rid: ReplyIdentifier):
         self.cache["replies_handled"].remove(rid)

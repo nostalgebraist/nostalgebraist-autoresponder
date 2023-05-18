@@ -2479,7 +2479,7 @@ def do_reblog_reply_handling(
 
         if len(notifications) > 0:
             relevant_notifications = [
-                item for item in notifications if item["type"] in {"user_mention", "reblog"}  # todo: reply
+                item for item in notifications if item["type"] in {"user_mention"}
             ]
 
             for item in relevant_notifications:
@@ -2489,6 +2489,8 @@ def do_reblog_reply_handling(
                         notification_post_id = int(item["target_post_id"])  # mentioning post
 
                         pi = PostIdentifier(notification_blogname, str(notification_post_id))
+
+                        response_cache.mark_mention_notification_time(pi)
 
                         if response_cache.is_handled(pi):
                             continue

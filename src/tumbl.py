@@ -2490,7 +2490,7 @@ def do_reblog_reply_handling(
 
                         pi = PostIdentifier(notification_blogname, str(notification_post_id))
 
-                        response_cache.mark_mention_notification_time(pi)
+                        response_cache.mark_mention_notification_time(pi, item["timestamp"])
 
                         if response_cache.is_handled(pi):
                             continue

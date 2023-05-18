@@ -2241,7 +2241,8 @@ def check_notifications(n_to_check=250, after_ts=0, before_ts=None, dump_to_file
     global client_pool
     client_to_use = client_pool.get_private_client()
     url = f"/v2/blog/{blogName}/notifications"
-    params = {}
+    # https://github.com/tumblr/docs/issues/43#issuecomment-797546112
+    params = {'types[0]': 'mention_in_post'}
     if before_ts is not None:
         # TODO: verify this is compatible with pagination
         params = {"before": before_ts}
@@ -2261,7 +2262,6 @@ def check_notifications(n_to_check=250, after_ts=0, before_ts=None, dump_to_file
             print(f"{len(n)}/{n_to_check}")
             time.sleep(0.1)
             url = page["_links"]["next"]["href"]
-            params = {}
             page = getter(url, params)
             delta = updater(page)
 

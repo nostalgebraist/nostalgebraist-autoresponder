@@ -2262,7 +2262,7 @@ def check_notifications(n_to_check=250, after_ts=0, before_ts=None, dump_to_file
             print(f"{len(n)}/{n_to_check}")
             time.sleep(0.1)
             url = page["_links"]["next"]["href"]
-            page = getter(url, {}})
+            page = getter(url, {})
             delta = updater(page)
 
     if dump_to_file:

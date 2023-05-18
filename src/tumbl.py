@@ -2245,7 +2245,7 @@ def check_notifications(n_to_check=250, after_ts=0, before_ts=None, dump_to_file
     params = {'types[0]': 'mention_in_post'}
     if before_ts is not None:
         # TODO: verify this is compatible with pagination
-        params = {"before": before_ts}
+        params["before"] = before_ts
 
     getter = lambda url_, params_: client_to_use.request.get(url_, params_)
     updater = lambda page: [
@@ -2262,7 +2262,7 @@ def check_notifications(n_to_check=250, after_ts=0, before_ts=None, dump_to_file
             print(f"{len(n)}/{n_to_check}")
             time.sleep(0.1)
             url = page["_links"]["next"]["href"]
-            page = getter(url, params)
+            page = getter(url, {}})
             delta = updater(page)
 
     if dump_to_file:

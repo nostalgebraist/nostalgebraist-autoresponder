@@ -3396,6 +3396,9 @@ def do_queue_handling(loop_persistent_data, response_cache):
     if should_write_testpost:
         for textpost_ix in range(N_TO_WRITE):
             timestamp_pst, timestamp_posix = next_queued_post_time()
+            if timestamp_pst > datetime(2023, 5, 31, 9):
+                print(f"not writing text post for {timestamp_pst}")
+                continue
             mood_for_queue_writing = determine_mood(response_cache, dt=timestamp_pst)
 
             print(f"writing new text post... ({textpost_ix}/{N_TO_WRITE})")

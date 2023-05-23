@@ -671,8 +671,9 @@ class ResponseCache:
         dashboard_client.follow(name)
 
     def unfollow(self, name, dashboard_client):
-        self.cache["following_names"].remove(name)
         dashboard_client.unfollow(name)
+        if name in self.cache["following_names"]:
+            self.cache["following_names"].remove(name)
 
     # TODO (?): these properties should return immutable things probably
     # (though that is the least of this class's problems)

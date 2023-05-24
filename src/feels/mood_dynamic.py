@@ -671,7 +671,7 @@ def compute_dynamic_mood_over_interval(
     if end_time is None:
         end_time = now_pst()
 
-    start_segment = {'time': start_time, 'updates': {}},
+    start_segment = {'time': start_time, 'updates': {}}
     for u in sorted(SYSTEM_UPDATES, key=lambda uu: uu['time']):
         if u['time'] < start_time:
             start_segment['updates'] = u['updates']

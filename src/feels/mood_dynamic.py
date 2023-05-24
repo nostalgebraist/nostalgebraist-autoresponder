@@ -663,6 +663,7 @@ def compute_dynamic_mood_over_interval(
     end_time: datetime = None,
     apply_daily_offset: bool = True,
     return_spacing=False,
+    verbose=True,
 ) -> pd.Series:
     if start_time is None:
         start_time = mood_inputs.index[0]
@@ -670,8 +671,15 @@ def compute_dynamic_mood_over_interval(
     if end_time is None:
         end_time = now_pst()
 
+    updates_at_start = {}
+    for u in sorted(SYSTEM_UPDATES, key=lambda uu: uu['time']):
+        if u['time'] < start_time:
+            updates_at_start = u
+            if verbose:
+                print(f"{u['time']} --> {updates_at_start}")
+
     segment_edges = [
-        {'time': start_time, 'updates': {}},
+        {'time': start_time, 'updates': updates_at_start},
         *[
             u
             for u in sorted(SYSTEM_UPDATES, key=lambda uu: uu['time'])
@@ -679,6 +687,9 @@ def compute_dynamic_mood_over_interval(
         ],
         {'time': end_time}
     ]
+    if verbose:
+        print('\nsegment_edges:\n')
+        print(segment_edges)
 
     segments = []
     for left, right in zip(segment_edges[:-1], segment_edges[1:]):

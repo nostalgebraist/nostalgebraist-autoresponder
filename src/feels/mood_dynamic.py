@@ -670,7 +670,7 @@ def compute_dynamic_mood_over_interval(
     end_time: datetime = None,
     apply_daily_offset: bool = True,
     return_spacing=False,
-    verbose=True,
+    verbose=False,
 ) -> pd.Series:
     if start_time is None:
         start_time = mood_inputs.index[0]

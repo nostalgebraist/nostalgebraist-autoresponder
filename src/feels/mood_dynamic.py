@@ -671,15 +671,15 @@ def compute_dynamic_mood_over_interval(
     if end_time is None:
         end_time = now_pst()
 
-    updates_at_start = {}
+    start_segment = {'time': start_time, 'updates': {}},
     for u in sorted(SYSTEM_UPDATES, key=lambda uu: uu['time']):
         if u['time'] < start_time:
-            updates_at_start = u
+            start_segment['updates'] = u['updates']
             if verbose:
-                print(f"{u['time']} --> {updates_at_start}")
+                print(f"{u['time']} --> {start_segment}")
 
     segment_edges = [
-        {'time': start_time, 'updates': updates_at_start},
+        start_segment,
         *[
             u
             for u in sorted(SYSTEM_UPDATES, key=lambda uu: uu['time'])

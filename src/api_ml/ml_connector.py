@@ -741,7 +741,7 @@ def text_post_from_gpt(loop_persistent_data,
     # strategy = "proportional"
     # strategy = "proportional_winnowed"
     strategy = "eps_greedy"
-    eps = 0.15
+    eps = 0.35
 
     result, retention_stack, retention_logit_diff_lookup = serve_selection(
         data=result_generator,

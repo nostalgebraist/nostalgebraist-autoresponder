@@ -117,7 +117,6 @@ class CoCa:
     def __init__(self, model, transform, device='cpu'):
         self.model = model
         self.transform = transform
-        self.device = device
 
         self.model.to(device=device)
 
@@ -143,9 +142,9 @@ class CoCa:
             temperature=1,
         )
 
-
         with th.no_grad():
-            im = self.transform(im).unsqueeze(0).to(device=self.device)
+            model_device = self.model.visual.conv1.weight.device
+            im = self.transform(im).unsqueeze(0).to(device=model_device)
             generated = self.model.generate(im, **kwargs)
 
         generated_text = open_clip.decode(generated[0])

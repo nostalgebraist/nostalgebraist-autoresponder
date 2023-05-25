@@ -261,7 +261,9 @@ class GeneratorModelLlama:
 
         self.eos_token = self.gen_model.tokenizer.encode("", bos=False, eos=True)[0]
 
-    def write_random_prompt(self, prompts: list, probs: list, verbose=False):
+    def write_random_prompt(self, prompts: list, probs: list, verbose=False, seed=None):
+        if seed is not None:
+            np.random.seed(seed)
         prompt = np.random.choice(prompts, p=np.array(probs) / sum(probs))
         return self.write(prompt=prompt, verbose=verbose)
 
@@ -396,7 +398,7 @@ captioner_coca = None
 
 if "captioner_coca" in MODELS_SERVED:
     import ml.captioning
-    captioner_coca = ml.captioning.CoCa.load(device=COCA_DEVICE)
+    captioner_coca = ml.captioning.CoCa.load(device=COCA_LOAD_DEVICE)
 
 
 DEPRECATED_KWARGS = {"mirotarg"}

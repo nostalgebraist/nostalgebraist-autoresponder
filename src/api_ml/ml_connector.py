@@ -1,5 +1,6 @@
 import time
 import pickle
+import random
 import json
 from textwrap import wrap, fill
 from string import whitespace, punctuation
@@ -62,7 +63,7 @@ class MLModelInterface:
     def __init__(self):
         raise NotImplementedError
 
-    def do(self, method, *args, repeat_until_done_signal=False, uses_bridge_cache=False, **kwargs):
+    def do(self, method, *args, repeat_until_done_signal=False, incrementing_seed=False, uses_bridge_cache=False, **kwargs):
         bridge_service_url = get_bridge_service_url()
         data = {
             "model": self.name,
@@ -70,6 +71,7 @@ class MLModelInterface:
             "args": args,
             "kwargs": kwargs,
             "repeat_until_done_signal": repeat_until_done_signal,
+            "incrementing_seed": incrementing_seed,
         }
         if uses_bridge_cache or self.uses_bridge_cache:
             response = bridge_cache_singleton.BRIDGE_CACHE.query(data)
@@ -242,12 +244,15 @@ def basic_n_continuations(
         print(f"using prompts:")
         for _p in random_prompts:
             print(repr(_p))
+        seed = random.randint(100000, 999999)
         bridge_id = generator_model.write_random_prompt(
             random_prompts,
             random_prompts_probs,
             repeat_until_done_signal=True,
             verbose=verbose,
             mirotarg=mirotarg,
+            seed=seed,
+            incrementing_seed=True,
         )
     else:
         print(f"neural model will see:\n\n{repr(prompt)}")

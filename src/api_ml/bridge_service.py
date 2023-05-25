@@ -33,6 +33,13 @@ def pollml():
             # print(f"for {id_}, length before: {len(RESULT_STACK[id_])}")
             RESULT_STACK[id_].append(data[id_])
 
+            if id_ in PROMPT_STACK and PROMPT_STACK[id_].get('incrementing_seed'):
+                if 'seed' in PROMPT_STACK[id_].get('kwargs', {}):
+                    cur_seed = PROMPT_STACK[id_]['kwargs']['seed']
+                    new_seed = cur_seed + 1
+                    print(f"incremented seed for {id_}: {cur_seed} -> {new_seed}")
+                    PROMPT_STACK[id_]['kwargs']['seed'] = new_seed
+
         # for id_ in data.keys():
         #     print(f"for {id_}, length after: {len(RESULT_STACK[id_])}")
 

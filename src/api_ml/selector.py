@@ -23,6 +23,7 @@ ENFORCE_RETENTION_CUTOFF = True
 FIC_COLDSTART = True
 REVIEW_COLDSTART = True
 IMAGE_COLDSTART = False
+IMAGE_COLDSTART_TEXTPOST = True
 IMAGE_COLDSTART_USE_ARGMAX = False
 GIF_COLDSTART = False
 QUOTES_COLDSTART = True
@@ -35,7 +36,7 @@ FIC_COLDSTART_DELTA = 0.55
 REVIEW_COLDSTART_DELTA = 0.35
 IMAGE_COLDSTART_DELTA = -0.3
 GIF_COLDSTART_DELTA = -0.2 -(IMAGE_COLDSTART * IMAGE_COLDSTART_DELTA)
-QUOTES_COLDSTART_DELTA = -0.125
+QUOTES_COLDSTART_DELTA = -0.3
 DREAMS_COLDSTART_DELTA = 0.15
 GUIDELINES_COLDSTART_DELTA = -0.25
 PSEUDO_TEXT_COLDSTART_DELTA = -0.6
@@ -352,14 +353,18 @@ do_hs_coldstart = partial(
 )
 
 
-def do_all_coldstarts(continuations, selection_proba):
+def do_all_coldstarts(continuations, selection_proba, post_type):
     if FIC_COLDSTART:
         selection_proba = do_fic_coldstart(continuations, selection_proba)
 
     if REVIEW_COLDSTART:
         selection_proba = do_review_coldstart(continuations, selection_proba)
 
-    if IMAGE_COLDSTART:
+    do_image_coldstart = IMAGE_COLDSTART or (
+        IMAGE_COLDSTART_TEXTPOST and (post_type == 'textpost')
+    )
+
+    if do_image_coldstart:
         selection_proba = do_image_coldstart(continuations, selection_proba)
 
     if GIF_COLDSTART:
@@ -398,7 +403,7 @@ def serve_selection(
         "continuation_side_data", [{} for _ in continuations]
     )
 
-    selection_proba = do_all_coldstarts(continuations, selection_proba)
+    selection_proba = do_all_coldstarts(continuations, selection_proba, post_type)
 
     sentiment_logit_diffs = data.get("sentiment_logit_diffs")
 
@@ -596,7 +601,7 @@ def get_retention_stack_judgments(retention_stack,
 
     proba = selection_proba_from_gpt(selector_texts)
 
-    proba = do_all_coldstarts(base_texts, proba)
+    proba = do_all_coldstarts(base_texts, proba, post_type='textpost')
 
     logit_diffs = sentiment_logit_diffs_from_gpt(sentiment_texts)
 

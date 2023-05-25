@@ -214,14 +214,14 @@ def make_nwo_textpost_prompts(
                                                                               endtags=endtags)
 
     # fic
-    probs.append(0.35)
+    probs.append(0.4)
     prompt_fic = EOT + control_seg_config["ORIG_FICTION_CHAR_FORUMLIKE"]
     prompts.append(prompt_fic)
     prompts_selector[prompt_fic] = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
     prompts_autoreviewer[prompt_fic] = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]
 
     # review
-    probs.append(0.25)
+    probs.append(0.2)
     prompt_review = EOT + control_seg_config["REVIEW_CHAR_FORUMLIKE"]
     prompts.append(prompt_review)
     prompts_selector[prompt_review] = EOT + control_seg_config["ORIG_POST_CHAR_FORUMLIKE"]

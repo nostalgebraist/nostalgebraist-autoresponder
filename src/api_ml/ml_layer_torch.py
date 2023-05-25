@@ -299,7 +299,7 @@ if "autoreviewer" in MODELS_SERVED:
 captioner_coca = None
 
 if "captioner_coca" in MODELS_SERVED:
-    captioner_coca = ml.captioning.CoCa.load()
+    captioner_coca = ml.captioning.CoCa.load(device=COCA_DEVICE)
 
 DEPRECATED_KWARGS = {"mirotarg"}
 

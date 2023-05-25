@@ -119,7 +119,7 @@ class CoCa:
         self.transform = transform
         self.device = device
 
-        self.model.to(device)
+        self.model.to(device=device)
 
     @staticmethod
     def load(device='cpu'):

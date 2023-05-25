@@ -145,7 +145,7 @@ class CoCa:
 
 
         with th.no_grad():
-            im = self.transform(im).unsqueeze(0)
+            im = self.transform(im).unsqueeze(0).to(device=self.device)
             generated = self.model.generate(im, **kwargs)
 
         generated_text = open_clip.decode(generated[0])

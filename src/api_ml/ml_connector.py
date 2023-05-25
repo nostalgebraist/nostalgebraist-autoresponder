@@ -826,6 +826,16 @@ def old_bridge_call__textpost(
         if ENDTAGS and CONTROL_SEG_CONFIG["ORIG_FICTION_CHAR_FORUMLIKE"] in sdata["prompt_for_neural"]:
             tagline, _, c = c.partition("\n")
             print(f"stripped tag line from fic: {tagline}")
+            
+            # strip endtags-style tag text if available
+            c, _, tag_text = c.partition("\n\n\t")
+            if tag_text:
+                print(f"stripped endtags-style tag line from fic: {tag_text}")
+
+            tag_text = '\n\n\t#original fiction'
+            print(f"adding tag line to fic: {tag_text}")
+            c = c + tag_text
+
         continuations_fixed.append(c)
 
     continuations = continuations_fixed

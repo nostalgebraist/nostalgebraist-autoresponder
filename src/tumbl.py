@@ -180,7 +180,7 @@ MANUAL_PID_TAGS = (
 
 MAX_POSTS_PER_STEP = 5
 
-DASH_REBLOG_PROB_RATIO_CUTOFF = 1.25
+DASH_REBLOG_PROB_RATIO_CUTOFF = 1.0
 DASH_REBLOG_PROB_RATIO_NOISE = 2.0
 
 DASH_REBLOG_SELECTION_CUTOFF = 0.
@@ -1852,10 +1852,7 @@ def is_dynamically_reblog_worthy_on_dash(
 
     logprob_noise = np.log(DASH_REBLOG_PROB_RATIO_NOISE + 1e-6)
 
-    logprob_ratio_buff = (
-        2 * logprob_noise * np.random.random()
-        - logprob_noise
-    )
+    logprob_ratio_buff = logprob_noise * np.random.random()
     prob_ratio_buff = np.exp(logprob_ratio_buff)
 
     prob_ratio = np.exp(prob_delt)

@@ -702,7 +702,7 @@ autocast_recommended = GPU_TYPE != 'small'
 
 LLAMA_PROB_DELT = True
 COCA_CAPTIONING = True
-COCA_DEVICE = 'cuda'
+COCA_DEVICE = 'cpu'
 
 MODELS_SERVED_LEGACY = {"generator", "selector", "sentiment", "autoreviewer"}
 MODELS_SERVED_LLAMA = {"generator"}

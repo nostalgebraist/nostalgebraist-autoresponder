@@ -360,11 +360,11 @@ def do_all_coldstarts(continuations, selection_proba, post_type):
     if REVIEW_COLDSTART:
         selection_proba = do_review_coldstart(continuations, selection_proba)
 
-    do_image_coldstart = IMAGE_COLDSTART or (
+    using_image_coldstart = IMAGE_COLDSTART or (
         IMAGE_COLDSTART_TEXTPOST and (post_type == 'textpost')
     )
 
-    if do_image_coldstart:
+    if using_image_coldstart:
         selection_proba = do_image_coldstart(continuations, selection_proba)
 
     if GIF_COLDSTART:

@@ -300,6 +300,12 @@ SYSTEM_UPDATES = [
             'tau_sec': 3600 * 9,
         },
     },
+    {
+        'time': pd.Timestamp("2023-05-28 10:00:00"),
+        'updates': {
+            'tau_sec': 3600 * 6,
+        },
+    },
 ]
 
 

@@ -235,6 +235,7 @@ DETERMINER_MULTIPLIER_UPDATES = {
     pd.Timestamp("2023-05-24 11:15:00"): 0.125 / RESPONSE_SCALE_BASE,
     pd.Timestamp("2023-05-25 08:25:00"): 0.1 / RESPONSE_SCALE_BASE,
     pd.Timestamp("2023-05-27 08:20:00"): 0.125 / RESPONSE_SCALE_BASE,
+    pd.Timestamp("2023-05-28 19:30:00"): 0.1 / RESPONSE_SCALE_BASE,
 }
 
 SYSTEM_UPDATES = [
@@ -304,6 +305,12 @@ SYSTEM_UPDATES = [
         'time': pd.Timestamp("2023-05-28 10:00:00"),
         'updates': {
             'tau_sec': 3600 * 6,
+        },
+    },
+    {
+        'time': pd.Timestamp("2023-05-28 19:30:00"),
+        'updates': {
+            'tau_sec': 3600 * 4,
         },
     },
 ]

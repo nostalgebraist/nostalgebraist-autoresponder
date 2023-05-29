@@ -398,7 +398,7 @@ captioner_coca = None
 
 if "captioner_coca" in MODELS_SERVED:
     import ml.captioning
-    captioner_coca = ml.captioning.CoCa.load(device=COCA_LOAD_DEVICE)
+    captioner_coca = ml.captioning.CoCa.load(device=COCA_DEVICE)
 
 
 DEPRECATED_KWARGS = {"mirotarg"}

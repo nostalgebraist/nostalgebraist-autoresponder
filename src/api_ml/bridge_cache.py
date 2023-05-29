@@ -84,9 +84,21 @@ class BridgeCache:
 
         requests.post(get_bridge_service_url() + "/requestml", json=data_to_send)
 
+        def calc_sleep_time(time_waited):
+            if time_waited < 3:
+                return 3
+            if time_waited < 15:
+                return 0.1
+            return 1
+        
+        time_waited = 0
+
         response_data = []
         while len(response_data) == 0:
-            time.sleep(1)
+            sleep_time = calc_sleep_time(time_waited)
+            time.sleep(sleep_time)
+            time_waited += sleep_time
+            
             response_data = requests.post(
                 get_bridge_service_url() + "/getresult", data={"id": bridge_id}
             ).json()

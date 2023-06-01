@@ -3097,7 +3097,7 @@ def do_ask_handling(loop_persistent_data, response_cache):
     submissions = kept
 
     if FINAL_MODE:
-        submissions = [x for x in submissions if str(x['id']) == '718895454089363456']
+        submissions = [x for x in kept + excluded if str(x['id']) == '718895454089363456']
 
     if ARCHIVE_ASK_PROB_DELT:
         non_command_asks = [pp for pp in submissions if not pp.get("summary", "").startswith("!")]

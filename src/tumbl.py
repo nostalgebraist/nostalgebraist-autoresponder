@@ -242,7 +242,7 @@ ARCHIVE_ASK_PROB_DELT = False
 ARCHIVE_DASH_PROB_DELT = False
 USE_MASKED_DASK_PROB_DELT = True
 
-SORT_ASKS_BY_PROB_DELT = True
+SORT_ASKS_BY_PROB_DELT = False
 
 DASH_CHECKPROB_IS_DISCOUNT = True
 
@@ -253,6 +253,8 @@ MAX_RTS_COUNT = 3
 FEWSHOT_FIC_TITLING = True
 
 STR_SCRAPED_IMAGES = False
+
+FINAL_MODE = True
 
 with open("data/scraped_usernames.json", "r") as f:
     scraped_usernames = json.load(f)
@@ -3094,6 +3096,9 @@ def do_ask_handling(loop_persistent_data, response_cache):
             )
     submissions = kept
 
+    if FINAL_MODE:
+        submissions = [x for x in submissions if str(x['id']) == '718895454089363456']
+
     if ARCHIVE_ASK_PROB_DELT:
         non_command_asks = [pp for pp in submissions if not pp.get("summary", "").startswith("!")]
         pd_kwargs = dict(skip_asking_name=True)
@@ -3706,6 +3711,10 @@ def mainloop(loop_persistent_data: LoopPersistentData, response_cache: ResponseC
     loop_persistent_data, response_cache = _mainloop_asks_block(
         loop_persistent_data, response_cache
     )
+
+    if FINAL_MODE:
+        print('bye')
+        sys.exit()
 
     ### do reblog/reply check
     if n_posts_to_check > 0:
